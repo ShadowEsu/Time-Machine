@@ -72,12 +72,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 Read `docs/BUILD_BRIEF.md` before starting any work. It is the source of truth for scope.
 
-- **Scope is P0 only** (requirements F01 to F12, tests T01 to T16) until the founder explicitly changes it. No hosted dashboard, no auth, no billing, no Python, no live recovery.
+- **Scope is the P0 MVP only** (requirements C01 to C14, tests V01 to V12): GitHub repo, captured files, allowlisted config, environment definition, verification command. No hosted dashboard, no auth, no billing, no database snapshots, no deployment rollback, no business-automation replay, until the founder explicitly changes it.
 - **Every bug fix starts with a failing test.** That is the product thesis; the codebase has to live by it.
-- **Replay must never touch the network.** A missing fixture is `INCOMPLETE`, never a live call. Capture fails open; replay fails closed.
+- **Never touch the user's working copy or current branch** when opening, verifying, or recovering. Use separate worktrees. Never push, merge, or deploy.
+- **Never promise universal undo.** Every checkpoint and report states what was not captured and what needs manual recovery. An unverified checkpoint is never shown as working.
+- **Secret values are never stored.** Only key names. This applies to the store, logs, reports, and tests.
+- **Clearly separate planned from implemented** features in docs, help text, and the website.
 - **Result meanings are fixed:** PASS 0, FAIL 1, INCOMPLETE 2, BLOCKED 3, ERROR 4. Never change them without an ADR.
-- **No secrets or real customer data in fixtures, logs, examples, or tests.** Synthetic data only.
+- **No real customer data in fixtures, logs, examples, or tests.** Synthetic data only.
 - **TypeScript strict, no `any`.** Validate every external input with Zod.
 - **Record consequential decisions** as short ADRs in `docs/adr/` (choice, alternatives, cost, migration path).
-- **Never claim** "guaranteed", "replays any app", "zero setup", "enterprise ready", or certifications we do not hold, in code, docs, or the website.
+- **Never claim** "guaranteed", "undo anything", "replays any app", "zero setup", "enterprise ready", or certifications we do not hold, in code, docs, or the website.
 - **Writing style for docs and site copy:** short, plain sentences. No em dashes.
