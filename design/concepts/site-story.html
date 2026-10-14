@@ -1,0 +1,422 @@
+<title>Time Machine Website</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+/* Layout: an Apple-quiet hero, then one pinned film (copy left, stage right, timeline spine along the bottom), then calm product sections. Single light world by design: ink on paper, color only for verdicts. */
+:root {
+  --ink: #0a0a0a; --ink-2: #3d3d3d; --ink-3: #6b6b6b; --ink-4: #b4b4b0;
+  --paper: #ffffff; --mist: #f5f5f3; --hairline: #e6e6e3; --hairline-2: #d4d4d0;
+  --pass-fg: #0f7a3d; --pass-bg: #e8f7ee; --pass-dot: #16a34a;
+  --fail-fg: #b42318; --fail-bg: #fdecec; --fail-dot: #dc3b2f;
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.mono { font-family: var(--font-mono); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+
+/* Nav */
+.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 20; padding-top: env(safe-area-inset-top, 0px); background: rgba(255,255,255,.86); backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px); border-bottom: 1px solid var(--hairline); transform: translateY(-110%); transition: transform .35s cubic-bezier(.22,1,.36,1); }
+.nav.on { transform: none; }
+.nav .in { max-width: 1200px; margin: 0 auto; height: 48px; display: flex; align-items: center; gap: 28px; font-size: 13px; }
+.nav .logo { font-weight: 650; letter-spacing: -.03em; font-size: 16px; }
+.nav .links { display: flex; gap: 22px; color: var(--ink-2); }
+.nav .pill { margin-left: auto; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 6px 14px; font-weight: 500; }
+@media (max-width: 720px) { .nav .links { display: none; } }
+
+/* Hero */
+.hero { text-align: center; padding-block: clamp(96px, 16vh, 180px) 56px; display: grid; justify-items: center; gap: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 28px; }
+.wordmark { margin: 0; font-family: var(--font-display); font-weight: 640; font-size: clamp(60px, 14.2vw, 236px); line-height: .9; letter-spacing: -.052em; font-variation-settings: "opsz" 32; text-wrap: balance; }
+.wordmark .i { position: relative; display: inline-block; }
+.wordmark .tri { position: absolute; left: 50%; top: .045em; width: .17em; height: .17em; transform: translateX(-46%); background: var(--ink); clip-path: polygon(100% 0, 100% 100%, 8% 50%); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tagline { margin: 30px 0 0; font-size: clamp(24px, 3vw, 34px); font-weight: 560; letter-spacing: -.02em; }
+.sub { margin: 14px 0 0; max-width: 46ch; color: var(--ink-2); font-size: 19px; text-wrap: balance; }
+.ctas { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 38px; }
+.btn { font: inherit; font-size: 16px; font-weight: 500; border-radius: 999px; padding: 11px 22px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; transition: transform .12s; }
+.btn:active { transform: scale(.97); }
+.btn.dark { background: var(--ink); color: var(--paper); }
+.tert { margin-top: 18px; font-family: var(--font-mono); font-size: 13px; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 4px 8px; }
+.quiet { margin-top: 10px; font-size: 13px; color: var(--ink-3); }
+.quiet a { color: inherit; }
+.spine0 { height: 1px; background: var(--hairline-2); transform-origin: left; width: 100%; max-width: 1200px; margin: 56px auto 0; }
+
+/* Film */
+.film { position: relative; height: 760vh; }
+.pin { position: sticky; top: env(safe-area-inset-top, 0px); height: 100svh; overflow: clip; display: grid; grid-template-rows: 1fr auto; }
+.lights { position: absolute; inset: 0; background: var(--ink); opacity: 0; pointer-events: none; }
+.frame { position: relative; max-width: 1200px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 34fr) minmax(0, 66fr); gap: 48px; align-items: center; padding-top: 64px; }
+.copy { position: relative; min-height: 260px; }
+.beat { position: absolute; inset: 0 0 auto 0; display: grid; gap: 14px; transition: color .3s; }
+.beat .k { font-family: var(--font-mono); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.beat h2 { margin: 0; font-size: clamp(34px, 4.4vw, 60px); line-height: 1.02; letter-spacing: -.035em; font-weight: 640; text-wrap: balance; }
+.beat p { margin: 0; color: var(--ink-2); font-size: 18px; max-width: 34ch; text-wrap: pretty; }
+.dark .beat h2 { color: var(--paper); }
+.dark .beat p, .dark .beat .k { color: #b8b8b4; }
+
+.stage { position: relative; aspect-ratio: 16 / 10.5; max-width: 100%; }
+.clock { position: absolute; right: 0; top: -40px; font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; color: var(--ink-2); display: flex; gap: 14px; align-items: baseline; }
+.clock b { font-weight: 500; font-size: 22px; color: var(--ink); letter-spacing: .02em; }
+.dark .clock, .dark .clock b { color: var(--paper); }
+.speed { font-size: 12px; color: var(--ink-3); min-width: 9ch; text-align: right; }
+.layer { position: absolute; inset: 0; will-change: transform, opacity; }
+.browser { position: absolute; inset: 0; border-radius: 12px; overflow: hidden; background: var(--paper); border: 1px solid var(--hairline); box-shadow: 0 1px 2px rgba(10,10,10,.05), 0 24px 60px rgba(10,10,10,.12); display: grid; grid-template-rows: 34px 1fr; }
+.bar { display: flex; align-items: center; gap: 7px; padding: 0 12px; background: var(--mist); border-bottom: 1px solid var(--hairline); }
+.bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--hairline-2); }
+.bar .url { margin-left: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); background: var(--paper); border-radius: 6px; padding: 3px 10px; flex: 1; max-width: 260px; }
+.chip { margin-left: auto; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--ink); border-radius: 999px; padding: 1px 9px; opacity: 0; }
+.vp { position: relative; overflow: hidden; }
+.mg { position: absolute; inset: 0; padding: 4.5% 5%; display: grid; grid-template-rows: auto auto 1fr; gap: 4%; transition: background .4s, color .4s; background: #fbfaf8; color: #1b1a17; font-size: clamp(9px, 1.15vw, 14px); }
+.mg.night { background: #17171a; color: #ededea; }
+.mg .hd { display: flex; align-items: center; gap: 1em; }
+.mg .lg { font-weight: 700; letter-spacing: -.02em; font-size: 1.3em; }
+.mg .search { flex: 1; border: 1px solid rgba(127,127,127,.3); border-radius: 999px; padding: .35em 1em; opacity: .6; }
+.mg .tog { width: 2.4em; height: 1.3em; border-radius: 999px; border: 1px solid rgba(127,127,127,.45); position: relative; }
+.mg .tog::after { content: ""; position: absolute; top: .15em; left: .15em; width: .9em; height: .9em; border-radius: 50%; background: currentColor; transition: transform .4s; }
+.mg.night .tog::after { transform: translateX(1.1em); }
+.mg .h1 { font-size: 2.1em; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; }
+.mg .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3% 3%; align-content: start; }
+.mg .card { border-radius: .6em; background: rgba(127,127,127,.11); padding: 0 0 .6em; overflow: hidden; display: grid; gap: .25em; }
+.mg .card .img { height: 4.2em; background: rgba(127,127,127,.16); }
+.mg .card b { font-weight: 600; padding: 0 .7em; }
+.mg .card span { font-family: var(--font-mono); font-size: .85em; opacity: .6; padding: 0 .7em; }
+.err { position: absolute; inset: 0; background: var(--paper); padding: 7%; display: grid; align-content: center; gap: 1.2em; font-size: clamp(10px, 1.2vw, 14px); opacity: 0; }
+.err pre { margin: 0; font-family: var(--font-mono); white-space: pre-wrap; font-size: 1.05em; line-height: 1.6; color: var(--ink); }
+.err .term { font-family: var(--font-mono); background: var(--ink); color: var(--paper); border-radius: .5em; padding: .8em 1em; font-size: .95em; }
+.preview { position: absolute; left: 12px; bottom: 12px; font-family: var(--font-mono); font-size: 11px; background: var(--paper); border: 1px solid var(--hairline-2); border-radius: 999px; padding: 3px 10px; color: var(--ink-2); opacity: 0; }
+
+.agent { position: absolute; top: 6%; right: -2%; width: 54%; bottom: 6%; border-radius: 12px; background: var(--paper); border: 1px solid var(--hairline); box-shadow: 0 24px 60px rgba(10,10,10,.16); padding: 16px; display: grid; grid-template-rows: auto auto 1fr; gap: 12px; font-size: clamp(10px, 1.05vw, 13px); opacity: 0; }
+.agent .ah { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: .92em; color: var(--ink-3); }
+.agent .you { justify-self: end; background: var(--mist); border-radius: 12px 12px 4px 12px; padding: .6em .9em; max-width: 85%; }
+.agent .log { margin: 0; font-family: var(--font-mono); font-size: .9em; display: grid; gap: .55em; align-content: start; list-style: none; padding: 0; }
+.agent .log li { display: grid; grid-template-columns: 2.4em 3.6em 1fr; gap: .4em; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
+.agent .log li.on { opacity: 1; transform: none; }
+.agent .log li span:first-child { color: var(--ink-3); }
+.agent .log li em { font-style: normal; color: var(--ink-3); grid-column: 3; }
+
+.checks { position: absolute; inset: 4% 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3%; opacity: 0; }
+.ck { border-radius: 12px; border: 1px solid var(--hairline); background: var(--paper); box-shadow: 0 18px 44px rgba(10,10,10,.10); padding: 16px; display: grid; align-content: start; gap: 12px; transform-origin: 50% 100%; font-size: clamp(11px, 1.1vw, 14px); }
+.ck .tm { font-family: var(--font-mono); font-size: 1.5em; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ck .sm { font-family: var(--font-mono); font-size: .85em; color: var(--ink-3); }
+.ck .pb { height: 3px; background: var(--hairline); border-radius: 3px; overflow: hidden; }
+.ck .pb i { display: block; height: 100%; width: 0; background: var(--ink); }
+.vb { justify-self: start; display: inline-flex; gap: .5em; align-items: center; font-family: var(--font-mono); font-weight: 600; font-size: .9em; letter-spacing: .06em; text-transform: uppercase; padding: .3em .8em; border-radius: 999px; opacity: 0; }
+.vb::before { content: ""; width: .6em; height: .6em; }
+.vb.pass { background: var(--pass-bg); color: var(--pass-fg); }
+.vb.pass::before { background: var(--pass-dot); border-radius: 50%; }
+.vb.fail { background: var(--fail-bg); color: var(--fail-fg); }
+.vb.fail::before { background: var(--fail-dot); transform: rotate(45deg); border-radius: 1px; }
+.ck .why { color: var(--ink-2); }
+.foot { position: absolute; left: 0; right: 0; bottom: -8%; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); text-align: center; opacity: 0; }
+.report { position: absolute; left: 6%; right: 6%; bottom: 5%; background: var(--paper); border: 1px solid var(--hairline-2); border-radius: 12px; padding: 14px 16px; font-size: clamp(11px, 1.05vw, 13.5px); display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; box-shadow: 0 18px 44px rgba(10,10,10,.14); opacity: 0; }
+.report dt { font-family: var(--font-mono); color: var(--ink-3); }
+.report dd { margin: 0; }
+
+/* Spine */
+.spinebox { position: relative; max-width: 1200px; width: 100%; margin: 0 auto; height: 96px; }
+.spine { position: absolute; left: 0; right: 0; top: 40px; height: 1px; background: var(--hairline-2); }
+.dark .spine { background: #3a3a3c; }
+.tk { position: absolute; top: 35px; width: 1px; height: 11px; background: var(--ink-4); opacity: 0; }
+.dot { position: absolute; top: 34px; width: 13px; height: 13px; margin-left: -6.5px; border-radius: 50%; border: 1.5px solid var(--ink-3); background: var(--paper); opacity: 0; transition: background .25s, border-color .25s; }
+.dot.pass { background: var(--pass-dot); border-color: var(--pass-dot); }
+.dot.fail { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 2px; transform: rotate(45deg); width: 11px; height: 11px; margin-left: -5.5px; top: 35px; }
+.dl { position: absolute; top: 56px; transform: translateX(-50%); font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; opacity: 0; text-align: center; line-height: 1.35; }
+.dark .dl { color: #9a9a96; }
+.ph { position: absolute; top: 10px; height: 44px; width: 0; opacity: 0; }
+.ph::before { content: ""; position: absolute; left: -.75px; top: 9px; bottom: 0; width: 1.5px; background: var(--ink); }
+.ph::after { content: ""; position: absolute; left: -7px; top: 0; width: 14px; height: 10px; background: var(--ink); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.dark .ph::before, .dark .ph::after { background: var(--paper); }
+.branch { position: absolute; left: 0; top: 0; width: 100%; height: 44px; overflow: visible; pointer-events: none; }
+.branch path { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.blabel { position: absolute; top: 0; font-family: var(--font-mono); font-size: 11px; opacity: 0; white-space: nowrap; }
+.tabs { position: absolute; left: 0; top: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs span { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); border: 1px solid var(--hairline); border-radius: 999px; padding: 2px 9px; transition: all .2s; }
+.tabs span.on { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.dark .tabs span { border-color: #3a3a3c; color: #8a8a86; }
+.dark .tabs span.on { background: var(--paper); color: var(--ink); }
+
+/* After the film */
+.after { max-width: 1200px; margin: 0 auto; padding-block: 120px 40px; display: grid; gap: 28px; }
+.after h2 { margin: 0; font-size: clamp(36px, 5vw, 64px); letter-spacing: -.04em; line-height: 1; font-weight: 640; text-wrap: balance; }
+.after > p { margin: 0; color: var(--ink-2); max-width: 56ch; font-size: 19px; }
+.caps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--hairline); }
+.cap { padding: 22px 20px 24px 0; border-bottom: 1px solid var(--hairline); display: grid; gap: 8px; align-content: start; }
+.cap h3 { margin: 0; font-size: 18px; letter-spacing: -.015em; font-weight: 600; }
+.cap p { margin: 0; color: var(--ink-2); font-size: 15px; }
+.st { justify-self: start; font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; border-radius: 999px; padding: 2px 9px; background: var(--mist); color: var(--ink-2); }
+.st.later { background: transparent; border: 1px dashed var(--ink-4); color: var(--ink-3); }
+.never { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; padding: 36px 0; border-top: 1px solid var(--hairline); }
+.never h3 { margin: 0 0 10px; font-size: 22px; letter-spacing: -.02em; }
+.never ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: var(--ink-2); }
+.never li::before { content: "◌"; font-family: var(--font-mono); margin-right: 10px; color: var(--ink-3); }
+.final { text-align: center; padding-block: 120px 40px; display: grid; justify-items: center; gap: 20px; }
+.final h2 { margin: 0; font-size: clamp(44px, 7vw, 104px); letter-spacing: -.05em; line-height: .95; font-weight: 640; }
+.fine { max-width: 1200px; margin: 0 auto; padding-block: 28px 56px; border-top: 1px solid var(--hairline); font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); display: flex; gap: 10px 28px; flex-wrap: wrap; }
+
+@media (max-width: 860px) {
+  .frame { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 64px; align-content: start; }
+  .copy { min-height: 170px; }
+  .beat h2 { font-size: 34px; }
+  .beat p { font-size: 16px; }
+  .clock { top: -30px; font-size: 12px; }
+  .clock b { font-size: 16px; }
+  .agent { width: 72%; right: 0; }
+  .caps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .never { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .ck { padding: 10px; gap: 8px; }
+}
+@media (max-width: 480px) { .caps { grid-template-columns: minmax(0, 1fr); } .tabs { display: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<nav class="nav gut" id="nav" aria-label="Main"><div class="in"><span class="logo">Time Machine</span><span class="links"><span>How it works</span><span>Agents</span><span>Pricing</span><span>Changelog</span><span>Docs</span></span><span class="pill">Get the Mac app early</span></div></nav>
+
+<header class="hero gut">
+  <div class="eyebrow">Website concept · Dramatized demo · Nothing is built yet</div>
+  <h1 class="wordmark"><span class="sr">Time Machine</span><span aria-hidden="true">T<span class="i">ı<b class="tri"></b></span>me Machine</span></h1>
+  <p class="tagline">Back to what worked.</p>
+  <p class="sub">Saves every step you and your agents take, checks which versions actually work, and rewinds to the last good one. On a branch you can undo.</p>
+  <div class="ctas"><a class="btn dark" href="#final">Get the Mac app early</a><a class="btn" href="#final">Install the CLI</a></div>
+  <button class="tert" id="copyPrompt" type="button">⧉ Copy agent setup prompt</button>
+  <div class="quiet">Free and open source CLI · Mac app coming soon · <a href="#more">Skip the story ↓</a></div>
+  <div class="spine0" id="spine0"></div>
+</header>
+
+<section class="film gut" id="film" aria-label="The story, told by scrolling">
+  <div class="pin" id="pin">
+    <div class="lights" id="lights"></div>
+    <div class="frame">
+      <div class="copy" id="copy">
+        <div class="beat"><span class="k">10:42 am</span><h2>It worked at 10:42.</h2><p>Marigold, a little recipe app. Dark mode just landed. It looks right. You move on.</p></div>
+        <div class="beat"><span class="k">The agent</span><h2>Then the agent took 47 steps.</h2><p>You asked it to fix one lint error. It fixed that, then kept going. Files moved. Packages changed.</p></div>
+        <div class="beat"><span class="k">11:58 am</span><h2>Now nothing runs.</h2><p>You reload. A blank page, and one line in the console you don't understand. Undo goes back one step.</p></div>
+        <div class="beat"><span class="k">Keep scrolling</span><h2>Rewind.</h2><p>Every step the agent took, taken back in order, all the way to 10:42. Your real folder is never touched.</p></div>
+        <div class="beat"><span class="k">The proof</span><h2>Broken. Broken. Works.</h2><p>Each save point is rebuilt in a safe copy and checked, newest first. The first one that passes is your last working version.</p></div>
+        <div class="beat"><span class="k">One click</span><h2>Use this version.</h2><p>A new branch from 10:42. Your broken state is saved first, so even the rewind can be undone. And it tells you what it couldn't bring back.</p></div>
+      </div>
+      <div class="stage" id="stage">
+        <div class="clock"><span class="speed" id="speed"></span><b id="clock">10:42:07</b></div>
+        <div class="layer" id="win">
+          <div class="browser">
+            <div class="bar"><i></i><i></i><i></i><span class="url">localhost:5173</span><span class="chip" id="chip">on tm/recover/cp-0003</span></div>
+            <div class="vp">
+              <div class="mg" id="mg">
+                <div class="hd"><span class="lg">Marigold</span><span class="search">Search recipes</span><span class="tog" aria-hidden="true"></span></div>
+                <div class="h1">What are we<br>cooking tonight?</div>
+                <div class="cards">
+                  <div class="card"><div class="img"></div><b>Shakshuka</b><span>25 min</span></div>
+                  <div class="card"><div class="img"></div><b>Miso ramen</b><span>40 min</span></div>
+                  <div class="card"><div class="img"></div><b>Lemon pasta</b><span>15 min</span></div>
+                  <div class="card"><div class="img"></div><b>Dal tadka</b><span>35 min</span></div>
+                  <div class="card"><div class="img"></div><b>Pad see ew</b><span>20 min</span></div>
+                  <div class="card"><div class="img"></div><b>Focaccia</b><span>2 h</span></div>
+                </div>
+              </div>
+              <div class="err" id="err"><pre>Error: Cannot find module './theme/dark'
+imported from src/App.tsx</pre><div class="term">$ npm test   ·   9 failing</div></div>
+              <span class="preview" id="preview">Preview of 10:42 · not checked yet</span>
+            </div>
+          </div>
+          <dl class="report" id="report">
+            <dt>Restored</dt><dd>Code · 4 project files · 12 config keys · dependencies · Node 24</dd>
+            <dt>Not restored</dt><dd>Database contents · secret values · anything already sent</dd>
+            <dt>Undo</dt><dd>Your 11:58 state was saved before this rewind</dd>
+          </dl>
+        </div>
+        <div class="agent" id="agent">
+          <div class="ah"><span>Coding agent</span><span id="step">Step 1 of 47</span></div>
+          <div class="you">Fix the lint error in RecipeCard.tsx</div>
+          <ul class="log" id="log">
+            <li data-s="12"><span>12</span><span>edit</span><span>src/utils/time.ts</span><em>formatCookTime: "simplified"</em></li>
+            <li data-s="23"><span>23</span><span>run</span><span>rm -rf src/theme</span><em>"looks unused"</em></li>
+            <li data-s="31"><span>31</span><span>run</span><span>npm install date-fns@4</span></li>
+            <li data-s="44"><span>44</span><span>edit</span><span>app.config.json</span><em>theme → themes</em></li>
+            <li data-s="47"><span>47</span><span>done</span><span>All lint errors fixed. ✓</span></li>
+          </ul>
+        </div>
+        <div class="checks" id="checks">
+          <div class="ck"><span class="tm">11:46</span><span class="sm">cp-0005 · safe copy</span><div class="pb"><i></i></div><span class="vb fail">Broken</span><span class="why">9 tests failing</span></div>
+          <div class="ck"><span class="tm">11:21</span><span class="sm">cp-0004 · safe copy</span><div class="pb"><i></i></div><span class="vb fail">Broken</span><span class="why">1 failing: formatCookTime</span></div>
+          <div class="ck"><span class="tm">10:42</span><span class="sm">cp-0003 · safe copy</span><div class="pb"><i></i></div><span class="vb pass">Works</span><span class="why">38 tests passed</span></div>
+          <div class="foot" id="ckfoot">find-good · 3 checks · newest passing: cp-0003 (10:42)</div>
+        </div>
+      </div>
+    </div>
+    <div class="spinebox" id="spinebox">
+      <div class="tabs" id="tabs"><span>10:42</span><span>47 steps</span><span>Broken</span><span>Rewind</span><span>Check</span><span>Use it</span></div>
+      <div class="spine"></div>
+      <svg class="branch" aria-hidden="true"><path id="bpath" d=""/></svg>
+      <span class="blabel" id="blabel">tm/recover/cp-0003</span>
+      <div id="ticks"></div>
+      <div class="dot" id="d0"></div><div class="dot" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div>
+      <div class="dl" id="l0">10:42<br>before agent turn</div><div class="dl" id="l1">11:21<br>before rm -rf</div><div class="dl" id="l2">11:46<br>before config edit</div><div class="dl" id="l3" style="top:8px">11:58 · now</div>
+      <div class="ph" id="ph"></div>
+    </div>
+  </div>
+</section>
+
+<section class="after gut" id="more">
+  <span class="eyebrow" style="margin:0">Every save point holds</span>
+  <h2>Not just code. Everything around it.</h2>
+  <p>Git remembers your code. Time Machine remembers whether it worked, and the files, settings and environment that made it work.</p>
+  <div class="caps">
+    <div class="cap"><span class="st">First release</span><h3>Code</h3><p>Your commit plus the changes you never committed.</p></div>
+    <div class="cap"><span class="st">First release</span><h3>Files</h3><p>The untracked files you choose to keep.</p></div>
+    <div class="cap"><span class="st">First release</span><h3>Settings</h3><p>Which config keys changed. Never your secret values.</p></div>
+    <div class="cap"><span class="st">First release</span><h3>Packages</h3><p>Lockfiles and exact versions, rebuilt cleanly.</p></div>
+    <div class="cap"><span class="st">First release</span><h3>Environment</h3><p>Node, Python and your Dockerfile, as they were.</p></div>
+    <div class="cap"><span class="st">First release</span><h3>The check</h3><p>Your test command, and whether it passed.</p></div>
+    <div class="cap"><span class="st later">Later</span><h3>Experiments</h3><p>Model checkpoints, seeds and scores. Rewind to your best run.</p></div>
+    <div class="cap"><span class="st later">Later</span><h3>Local databases</h3><p>A snapshot of your dev database before risky commands.</p></div>
+  </div>
+  <div class="never">
+    <div><h3>What we can't undo</h3><p style="margin:0;color:var(--ink-2)">Some things leave your computer. No tool can call them back. Every rewind ends with a report that lists them.</p></div>
+    <ul><li>Emails, messages and payments already sent</li><li>Changes to a production database</li><li>A deploy people already saw</li><li>Secret values. We only keep their names</li></ul>
+  </div>
+</section>
+
+<section class="final gut" id="final">
+  <h2>Back to what worked.</h2>
+  <div class="ctas" style="margin:0"><span class="btn dark">Get the Mac app early</span><span class="btn mono" style="font-size:14px">npx timetm init</span></div>
+</section>
+<footer class="gut"><div class="fine"><span>Design concept by Time Machine</span><span>Dramatized demo on a synthetic project</span><span>Not affiliated with Apple Inc.</span></div></footer>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const ramp = (x, a, b) => clamp((x - a) / (b - a));
+  const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+  const SPANS = [[0, .15], [.15, .34], [.34, .46], [.46, .68], [.68, .86], [.86, 1]];
+  const T0 = 10 * 3600 + 42 * 60 + 7, T1 = 11 * 3600 + 58 * 60 + 31;
+  const X0 = 6, X1 = 94;                  // spine positions in percent
+  const stepX = (k) => X0 + (k / 47) * (X1 - X0);
+  const DOTS = [0, 23, 44, 47];           // steps where save points were made
+  const beats = [...document.querySelectorAll(".beat")];
+  const tabs = [...document.querySelectorAll("#tabs span")];
+  const lis = [...document.querySelectorAll("#log li")];
+  const cks = [...document.querySelectorAll(".ck")];
+
+  let tk = ""; for (let k = 1; k <= 47; k++) tk += '<i class="tk" style="left:' + stepX(k) + '%"></i>'; $("ticks").innerHTML = tk;
+  const ticks = [...document.querySelectorAll(".tk")];
+  DOTS.forEach((s, i) => { $("d" + i).style.left = stepX(s) + "%"; $("l" + i).style.left = stepX(s) + "%"; });
+
+  const fmt = (s) => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return h + ":" + String(m).padStart(2, "0") + ":" + String(x).padStart(2, "0"); };
+  let lastT = null, lastTime = 0;
+
+  function local(p, i) { return ramp(p, SPANS[i][0], SPANS[i][1]); }
+  function presence(p, i) { const [a, b] = SPANS[i], w = .02; return Math.min(ramp(p, a - w, a + w), 1 - ramp(p, b - w, b + w)); }
+
+  function render() {
+    const f = $("film"), r = f.getBoundingClientRect(), total = f.offsetHeight - window.innerHeight;
+    const p = clamp(-r.top / total);
+    const b = SPANS.map((_, i) => local(p, i));
+    const active = SPANS.findIndex(([a, z]) => p >= a && p < z);
+    const cur = active < 0 ? 5 : active;
+
+    beats.forEach((el, i) => { const pr = i === 0 ? Math.min(1, 1 - ramp(p, SPANS[0][1] - .02, SPANS[0][1] + .02)) : i === 5 ? ramp(p, SPANS[5][0] - .02, SPANS[5][0] + .02) : presence(p, i); el.style.opacity = pr; el.style.transform = "translateY(" + (1 - pr) * 14 + "px)"; el.setAttribute("aria-hidden", pr < .5); });
+    tabs.forEach((t, i) => t.classList.toggle("on", i === cur));
+
+    // story step (0..47) and clock
+    let step = 0;
+    if (p >= SPANS[1][0]) step = 47 * ease(ramp(b[1], .08, .85));
+    if (p >= SPANS[3][0]) step = 47 * (1 - ease(ramp(b[3], .18, .86)));
+    if (p >= SPANS[4][0]) step = 0;
+    const t = T0 + (T1 - T0) * (step / 47);
+    $("clock").textContent = fmt(p >= SPANS[2][0] && p < SPANS[3][0] ? T1 : t);
+    const now = performance.now();
+    if (lastT !== null && now - lastTime > 30) {
+      const v = (t - lastT) / ((now - lastTime) / 1000);
+      $("speed").textContent = Math.abs(v) < 5 ? (p > SPANS[0][1] && p < SPANS[4][0] ? "❚❚ paused" : "") : (v < 0 ? "◀◀ " : "▶▶ ") + (Math.round(Math.abs(v) / 10) * 10).toLocaleString() + "×";
+      lastT = t; lastTime = now;
+    } else if (lastT === null) { lastT = t; lastTime = now; }
+
+    // lights down during the rewind
+    const dark = Math.min(ramp(b[3], .06, .18), 1 - ramp(b[3], .88, .98)) * (p >= SPANS[3][0] && p < SPANS[4][0] ? 1 : 0);
+    $("lights").style.opacity = dark;
+    $("pin").classList.toggle("dark", dark > .5);
+
+    // window: assemble, night mode, error, preview, checks, recover
+    const appear = easeOut(ramp(b[0], 0, .35));
+    const inChecks = p >= SPANS[4][0] && p < SPANS[5][0];
+    const winOut = inChecks ? 1 - ramp(b[4], 0, .12) : p >= SPANS[5][0] ? ramp(b[5], 0, .2) : 1;
+    $("win").style.opacity = Math.min(appear, winOut);
+    $("win").style.transform = "translateY(" + (1 - appear) * 30 + "px) scale(" + (.96 + .04 * appear) + ")";
+    $("mg").classList.toggle("night", b[0] > .55);
+    const errOn = (p >= SPANS[2][0] && p < SPANS[3][0]) ? ramp(b[2], .15, .45) : (p >= SPANS[3][0] && p < SPANS[4][0]) ? 1 - ramp(b[3], .84, .9) : 0;
+    $("err").style.opacity = errOn;
+    $("preview").style.opacity = (p >= SPANS[3][0] && p < SPANS[4][0]) ? ramp(b[3], .88, .95) : 0;
+    $("chip").style.opacity = p >= SPANS[5][0] ? ramp(b[5], .35, .5) : 0;
+    $("report").style.opacity = p >= SPANS[5][0] ? ramp(b[5], .5, .7) : 0;
+    $("report").style.transform = "translateY(" + (1 - ramp(b[5], .5, .7)) * 12 + "px)";
+
+    // agent panel
+    const agIn = p >= SPANS[1][0] && p < SPANS[2][0] + .03 ? Math.min(easeOut(ramp(b[1], 0, .1)), 1 - ramp(p, SPANS[2][0], SPANS[2][0] + .03)) : 0;
+    $("agent").style.opacity = agIn;
+    $("agent").style.transform = "translateX(" + (1 - agIn) * 40 + "px)";
+    const shown = p >= SPANS[1][0] && p < SPANS[3][0] ? 47 * ease(ramp(b[1], .08, .85)) : step;
+    $("step").textContent = "Step " + Math.max(1, Math.round(shown)) + " of 47";
+    lis.forEach((li) => li.classList.toggle("on", shown >= +li.dataset.s - .5));
+
+    // checks
+    $("checks").style.opacity = inChecks ? Math.min(ramp(b[4], .04, .16), 1) : (p >= SPANS[5][0] ? 1 - ramp(b[5], 0, .15) : 0);
+    const stamps = [[.2, .4], [.4, .6], [.6, .78]];
+    cks.forEach((c, i) => {
+      const lp = p >= SPANS[4][0] ? b[4] : 0, [a, z] = stamps[i];
+      const fan = easeOut(ramp(lp, .04, .2));
+      c.style.transform = "translateY(" + (1 - fan) * 30 + "px) rotate(" + ((i - 1) * 2 * (1 - fan)) + "deg)";
+      c.querySelector(".pb i").style.width = ramp(lp, a, a + (z - a) * .7) * 100 + "%";
+      const sv = ramp(lp, a + (z - a) * .7, z), vb = c.querySelector(".vb");
+      vb.style.opacity = sv; vb.style.transform = "scale(" + (sv < 1 ? .7 + .36 * sv : 1) + ")";
+    });
+    $("ckfoot").style.opacity = p >= SPANS[4][0] ? ramp(b[4], .8, .9) : 0;
+
+    // spine: ticks, dots, playhead, branch
+    const sp = p >= SPANS[0][1] ? 1 : ramp(b[0], .5, .7);
+    ticks.forEach((el, i) => { const k = i + 1; el.style.opacity = k <= step + .01 ? (p >= SPANS[3][0] && p < SPANS[4][0] ? .9 : .55) : (p >= SPANS[3][0] ? .12 : 0); });
+    const verdict = [p >= SPANS[4][0] && b[4] >= .78 ? "pass" : "", p >= SPANS[4][0] && b[4] >= .6 ? "fail" : "", p >= SPANS[4][0] && b[4] >= .4 ? "fail" : "", ""];
+    DOTS.forEach((s, i) => {
+      const vis = i === 0 ? ramp(b[0], .6, .75) : (p >= SPANS[1][0] ? (step >= s - .3 || p >= SPANS[3][0] ? 1 : 0) : 0);
+      const d = $("d" + i); d.style.opacity = vis; d.className = "dot " + verdict[i];
+      $("l" + i).style.opacity = vis * (i === 0 || p >= SPANS[1][0] ? 1 : 0);
+    });
+    const phOn = p >= SPANS[3][0] ? ramp(b[3], .12, .2) : 0;
+    $("ph").style.opacity = phOn;
+    $("ph").style.left = stepX(p >= SPANS[3][0] && p < SPANS[4][0] ? step : 0) + "%";
+
+    const draw = p >= SPANS[5][0] ? ramp(b[5], .15, .45) : 0;
+    const box = $("spinebox").getBoundingClientRect(), x0 = box.width * stepX(0) / 100, x1 = box.width * stepX(30) / 100;
+    const path = "M" + x0 + " 40 C " + (x0 + 40) + " 40, " + (x0 + 40) + " 8, " + (x0 + 90) + " 8 L " + x1 + " 8";
+    const bp = $("bpath"); bp.setAttribute("d", path);
+    const len = bp.getTotalLength ? bp.getTotalLength() : 600; bp.style.strokeDasharray = len; bp.style.strokeDashoffset = len * (1 - draw);
+    $("blabel").style.left = (x0 + 100) + "px"; $("blabel").style.opacity = ramp(draw, .7, 1);
+
+    $("nav").classList.toggle("on", window.scrollY > document.querySelector(".hero").offsetHeight * .55);
+    const h = document.querySelector(".hero").getBoundingClientRect();
+    $("spine0").style.transform = "scaleX(" + clamp(.15 + (-h.top) / (h.height * .5)) + ")";
+  }
+
+  let raf = 0;
+  const req = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); };
+  addEventListener("scroll", req, { passive: true });
+  addEventListener("resize", req);
+  render();
+
+  $("copyPrompt").addEventListener("click", async (e) => {
+    const txt = "Set up Time Machine in this project: run `npx timetm init`, then `tm hook install` so a save point is made before each of your turns. (Concept text. The package is not published yet.)";
+    const b = e.currentTarget;
+    try { await navigator.clipboard.writeText(txt); b.textContent = "Copied. Paste it into your agent."; }
+    catch (_) { b.textContent = "npx timetm init  ·  tm hook install"; }
+    setTimeout(() => { b.textContent = "⧉ Copy agent setup prompt"; }, 2400);
+  });
+})();
+</script>

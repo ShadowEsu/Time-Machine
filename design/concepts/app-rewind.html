@@ -1,0 +1,526 @@
+<title>Time Machine for Mac</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+/* Layout: a single Mac window on a quiet desk, then three overlay studies below. Ink on paper; color only for verdicts. */
+:root {
+  --ink: #0a0a0a; --ink-2: #3d3d3d; --ink-3: #6b6b6b; --ink-4: #a3a3a0;
+  --paper: #ffffff; --mist: #f5f5f3; --desk: #ececea; --hairline: #e6e6e3; --hairline-2: #d6d6d2;
+  --pass-fg: #0f7a3d; --pass-bg: #e8f7ee; --pass-dot: #16a34a;
+  --inc-fg: #8a5a00; --inc-bg: #fff4dc; --inc-dot: #d99a06;
+  --fail-fg: #b42318; --fail-bg: #fdecec; --fail-dot: #dc3b2f;
+  --shadow: 0 1px 2px rgba(10,10,10,.06), 0 12px 40px rgba(10,10,10,.10);
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease-out: cubic-bezier(.22,1,.36,1); --ease-io: cubic-bezier(.65,0,.35,1);
+  --col: 64px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ink: #f2f2f0; --ink-2: #c9c9c5; --ink-3: #9a9a96; --ink-4: #62625f;
+  --paper: #111112; --mist: #18181a; --desk: #0a0a0b; --hairline: #262628; --hairline-2: #333336;
+  --pass-fg: #6ee7a0; --pass-bg: #0e2a1a; --pass-dot: #34d07a;
+  --inc-fg: #f5c661; --inc-bg: #2d2208; --inc-dot: #e8ad2a;
+  --fail-fg: #ff8f84; --fail-bg: #2e1110; --fail-dot: #ef5a4e;
+  --shadow: 0 1px 2px rgba(0,0,0,.5), 0 16px 48px rgba(0,0,0,.55);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ink: #f2f2f0; --ink-2: #c9c9c5; --ink-3: #9a9a96; --ink-4: #62625f;
+  --paper: #111112; --mist: #18181a; --desk: #0a0a0b; --hairline: #262628; --hairline-2: #333336;
+  --pass-fg: #6ee7a0; --pass-bg: #0e2a1a; --pass-dot: #34d07a;
+  --inc-fg: #f5c661; --inc-bg: #2d2208; --inc-dot: #e8ad2a;
+  --fail-fg: #ff8f84; --fail-bg: #2e1110; --fail-dot: #ef5a4e;
+  --shadow: 0 1px 2px rgba(0,0,0,.5), 0 16px 48px rgba(0,0,0,.55);
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 40px; }
+.mono { font-family: var(--font-mono); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+
+/* Intro */
+.intro { display: grid; gap: 10px; max-width: 70ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.intro h1 { margin: 0; font-family: var(--font-display); font-size: clamp(40px, 6vw, 76px); line-height: .95; letter-spacing: -.045em; font-weight: 650; text-wrap: balance; }
+.intro p { margin: 0; color: var(--ink-2); font-size: 17px; text-wrap: pretty; }
+
+/* Window */
+.win { background: var(--paper); border-radius: 14px; box-shadow: var(--shadow); border: 1px solid var(--hairline); overflow: hidden; }
+.titlebar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: var(--hairline-2); display: block; }
+.proj { font-weight: 600; font-size: 14px; }
+.proj span { color: var(--ink-3); font-weight: 400; }
+.steps { display: flex; gap: 6px; align-items: center; margin-left: auto; font-size: 12px; color: var(--ink-3); flex-wrap: wrap; }
+.steps b { font-weight: 500; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--hairline); }
+.steps b.on { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.steps i { width: 14px; height: 1px; background: var(--hairline-2); display: block; }
+
+.scene { background: var(--mist); padding: 28px 28px 0; display: grid; gap: 22px; transition: background .28s var(--ease-out); }
+.toprow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.ask { flex: 1 1 280px; min-width: 0; display: flex; align-items: center; gap: 10px; background: var(--paper); border: 1px solid var(--hairline); border-radius: 10px; padding: 9px 12px; color: var(--ink-3); font-size: 14px; }
+.ask kbd { margin-left: auto; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--hairline-2); border-radius: 5px; padding: 1px 6px; color: var(--ink-3); }
+.btn { border: 1px solid var(--hairline-2); background: var(--paper); border-radius: 999px; padding: 9px 16px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; transition: transform .12s, background .12s; }
+.btn:hover { background: var(--mist); }
+.btn:active { transform: scale(.98); }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.primary:hover { background: var(--ink-2); }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+.btn kbd { font-family: var(--font-mono); font-size: 11px; opacity: .6; }
+
+/* Stage area */
+.stagearea { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 24px; align-items: start; }
+.stagewrap { position: relative; padding-left: 120px; padding-top: 44px; min-width: 0; }
+.ghost { position: absolute; top: 44px; left: 120px; right: 0; height: var(--stageH, 300px); max-width: 100%; border-radius: 12px; background: var(--paper); border: 1px solid var(--hairline); transform-origin: 0 0; transition: transform .32s var(--ease-out), opacity .32s var(--ease-out); overflow: hidden; pointer-events: none; }
+.ghost .glabel { position: absolute; left: 10px; top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+.stage { position: relative; z-index: 2; border-radius: 12px; background: var(--paper); border: 1px solid var(--hairline); box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .3s; }
+.stage.passframe { box-shadow: 0 0 0 1px var(--pass-dot), var(--shadow); }
+.screen { aspect-ratio: 16 / 7; position: relative; overflow: hidden; }
+.verdictline { padding: 14px 18px 16px; border-top: 1px solid var(--hairline); display: grid; gap: 6px; }
+.vl1 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 15px; }
+.vl1 strong { font-weight: 600; }
+.vl1 .t { font-family: var(--font-mono); font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.vl1 .who { color: var(--ink-3); font-size: 13px; }
+.vl2 { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--mist); color: var(--ink-3); border: 1px solid var(--hairline); }
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
+.badge.pass { background: var(--pass-bg); color: var(--pass-fg); border-color: transparent; }
+.badge.pass::before { background: var(--pass-dot); border-color: var(--pass-dot); }
+.badge.fail { background: var(--fail-bg); color: var(--fail-fg); border-color: transparent; }
+.badge.fail::before { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 2px; transform: rotate(45deg); }
+.badge.inc { background: var(--inc-bg); color: var(--inc-fg); border-color: transparent; }
+.badge.inc::before { border-color: var(--inc-dot); background: linear-gradient(90deg, var(--inc-dot) 50%, transparent 50%); }
+.badge.checking::before { animation: breathe 1.2s ease-in-out infinite; }
+.stamp { animation: stamp .42s cubic-bezier(.34,1.56,.64,1); }
+@keyframes stamp { 0% { transform: scale(.7); opacity: 0 } 70% { transform: scale(1.06); opacity: 1 } 100% { transform: scale(1) } }
+@keyframes breathe { 0%,100% { opacity: .3 } 50% { opacity: .9 } }
+.shake { animation: shake .18s ease-in-out; }
+@keyframes shake { 0%,100% { transform: translateX(0) } 33% { transform: translateX(-4px) } 66% { transform: translateX(3px) } }
+
+.nowcard { position: relative; margin-top: 44px; background: var(--paper); border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; display: grid; cursor: pointer; text-align: left; padding: 0; }
+.nowcard .screen { aspect-ratio: 16 / 10; }
+.nowcard .meta { padding: 10px 12px 12px; display: grid; gap: 6px; border-top: 1px solid var(--hairline); }
+.nowcard .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; color: var(--ink-3); }
+
+/* Lists */
+.lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding-left: 120px; }
+.lists h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: -.005em; }
+.lists ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.lists li { display: flex; gap: 10px; align-items: baseline; }
+.lists li::before { font-family: var(--font-mono); font-size: 12px; width: 14px; flex: none; color: var(--ink-3); }
+.back li::before { content: "✓"; color: var(--ink); }
+.noback li::before { content: "◌"; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; padding-left: 120px; align-items: center; min-height: 44px; }
+.hint { font-size: 13px; color: var(--ink-3); }
+.confirm { display: grid; gap: 10px; background: var(--paper); border: 1px solid var(--hairline); border-radius: 12px; padding: 16px 18px; max-width: 560px; }
+.confirm ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.confirm .row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.confirm p { margin: 0; font-size: 13px; color: var(--ink-3); }
+
+/* Ruler */
+.rulerbox { position: relative; overflow-x: auto; overflow-y: hidden; margin: 0 -28px; padding: 12px 28px 16px; border-top: 1px solid var(--hairline); background: var(--paper); }
+.ruler { position: relative; width: calc(var(--n) * var(--col)); min-width: 100%; }
+.forkrow { position: relative; height: 26px; }
+.forkrow svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.forkrow path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 600; stroke-dashoffset: 600; transition: stroke-dashoffset .4s var(--ease-out); }
+.forkrow path.drawn { stroke-dashoffset: 0; }
+.forkrow .fl { position: absolute; top: 0; font-family: var(--font-mono); font-size: 11px; color: var(--ink); white-space: nowrap; opacity: 0; transition: opacity .3s .3s; }
+.forkrow .fl.drawn { opacity: 1; }
+.lane { position: relative; height: 18px; margin-bottom: 6px; }
+.clip { position: absolute; top: 0; height: 18px; border-radius: 999px; background: var(--mist); border: 1px solid var(--hairline-2); font-size: 11px; color: var(--ink-3); display: flex; align-items: center; padding: 0 10px; white-space: nowrap; overflow: hidden; }
+.bars, .ticks, .times { display: grid; grid-template-columns: repeat(var(--n), var(--col)); }
+.bars { height: 26px; align-items: end; }
+.bars i { display: block; width: 6px; margin: 0 auto; background: var(--hairline-2); border-radius: 2px 2px 0 0; transition: opacity .2s; }
+.ticks { height: 34px; align-items: center; position: relative; }
+.ticks::before { content: ""; position: absolute; left: calc(var(--col) / 2); right: calc(var(--col) / 2); top: 50%; height: 1px; background: var(--hairline-2); }
+.tick { position: relative; z-index: 1; width: 28px; height: 28px; margin: 0 auto; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; border-radius: 8px; transition: opacity .2s, transform .15s; }
+.tick:hover { transform: scale(1.25); }
+.tick .g { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink-4); background: var(--paper); display: block; }
+.tick.pass .g { background: var(--pass-dot); border-color: var(--pass-dot); }
+.tick.fail .g { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 2px; transform: rotate(45deg); width: 10px; height: 10px; }
+.tick.inc .g { border-color: var(--inc-dot); background: linear-gradient(90deg, var(--inc-dot) 50%, var(--paper) 50%); }
+.tick.checking .g { animation: breathe 1.2s ease-in-out infinite; border-color: var(--ink); }
+.tick.important .g { width: 13px; height: 13px; }
+.tick.dim, .bars i.dim { opacity: .35; }
+.times { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.times span { text-align: center; white-space: nowrap; }
+.times span.dim { opacity: .45; }
+.playhead { position: absolute; top: 18px; bottom: 16px; width: 0; left: 0; z-index: 3; pointer-events: none; transition: left .42s var(--ease-io); }
+.playhead::before { content: ""; position: absolute; left: -.75px; top: 10px; bottom: 0; width: 1.5px; background: var(--ink); }
+.playhead::after { content: ""; position: absolute; left: -7px; top: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 10px solid var(--ink); }
+.stays { position: absolute; top: 0; font-size: 11px; color: var(--ink-3); white-space: nowrap; transition: left .42s var(--ease-io), opacity .2s; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-3); padding: 10px 0 0; flex-wrap: wrap; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend .tick { width: auto; height: auto; cursor: default; pointer-events: none; }
+
+/* Toast */
+.toast { position: relative; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--ink); color: var(--paper); border-radius: 12px; padding: 12px 16px; font-size: 14px; max-width: 640px; margin-left: 120px; animation: rise .28s var(--ease-out); }
+.toast .btn { background: transparent; color: var(--paper); border-color: rgba(255,255,255,.3); padding: 6px 12px; font-size: 13px; }
+:root[data-theme="dark"] .toast .btn, :root:not([data-theme="light"]) .toast .btn { border-color: currentColor; }
+@keyframes rise { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+/* Mini app screens (the user's own app, drawn in code) */
+.app { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; font-size: clamp(7px, 1.1vw, 12px); background: #fafaf9; color: #18181b; }
+.app.dark { background: #16161a; color: #ececf0; }
+.app .nav { display: flex; align-items: center; gap: 1.2em; padding: .9em 1.4em; border-bottom: 1px solid rgba(127,127,127,.2); }
+.app .logo { font-weight: 700; letter-spacing: -.02em; }
+.app .nav span { opacity: .55; }
+.app .cart { margin-left: auto; border: 1px solid rgba(127,127,127,.35); border-radius: 999px; padding: .25em .9em; }
+.app .body { padding: 1.4em; display: grid; gap: 1em; align-content: start; }
+.app .hero { font-size: 1.9em; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; }
+.app .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9em; }
+.app .p { border-radius: .6em; background: rgba(127,127,127,.12); height: 9em; position: relative; }
+.app .p::after { content: attr(data-n); position: absolute; left: .6em; bottom: .5em; font-size: .9em; opacity: .7; }
+.app.err .body { place-content: center; justify-items: center; text-align: center; gap: .6em; }
+.app .errbox { font-family: var(--font-mono); font-size: .95em; background: rgba(127,127,127,.12); border-radius: .5em; padding: .8em 1em; max-width: 90%; text-align: left; line-height: 1.5; }
+.app .errt { font-size: 1.5em; font-weight: 700; letter-spacing: -.02em; }
+.fp { position: absolute; inset: 0; padding: 1.6em; display: grid; align-content: start; gap: .8em; background: var(--paper); font-size: clamp(8px, 1.2vw, 13px); }
+.fp .k { font-family: var(--font-mono); color: var(--ink-3); font-size: .9em; letter-spacing: .05em; text-transform: uppercase; }
+.fp .h { font-size: 1.6em; font-weight: 650; letter-spacing: -.02em; line-height: 1.15; }
+.fp .mosaic { display: flex; flex-wrap: wrap; gap: .35em; max-width: 26em; }
+.fp .mosaic i { width: 1.1em; height: 1.1em; border-radius: .2em; background: var(--hairline-2); display: block; }
+.fp .mosaic i.b { background: var(--ink-4); }
+.fp .note { color: var(--ink-3); }
+
+/* Overlays */
+.overlays { display: grid; gap: 20px; }
+.overlays h2, .notes h2 { margin: 0; font-size: 28px; letter-spacing: -.03em; font-weight: 650; }
+.ovgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.ov { background: var(--paper); border: 1px solid var(--hairline); border-radius: 14px; padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.ov .cap { font-size: 13px; color: var(--ink-3); }
+.ov h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.menubar { display: flex; justify-content: flex-end; gap: 14px; align-items: center; font-size: 12px; color: var(--ink-2); background: var(--mist); border-radius: 8px; padding: 6px 10px; font-variant-numeric: tabular-nums; }
+.mbicon { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 5px; background: var(--hairline); color: var(--ink); }
+.mbicon svg { display: block; }
+.mbdot { width: 6px; height: 6px; border-radius: 50%; background: var(--fail-dot); }
+.dropdown { border: 1px solid var(--hairline); border-radius: 12px; padding: 12px; display: grid; gap: 10px; box-shadow: var(--shadow); background: var(--paper); }
+.dropdown .st { font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.miniruler { display: flex; gap: 6px; align-items: center; }
+.miniruler i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink-4); display: block; flex: none; }
+.miniruler i.p { background: var(--pass-dot); border-color: var(--pass-dot); }
+.miniruler i.f { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 2px; transform: rotate(45deg); width: 8px; height: 8px; }
+.menu { display: grid; font-size: 13px; }
+.menu span { padding: 5px 6px; border-radius: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.menu span:hover { background: var(--mist); }
+.menu kbd { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+.card { border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; background: var(--paper); border: 1px solid var(--hairline); box-shadow: var(--shadow); }
+.card .top { display: flex; gap: 10px; align-items: flex-start; }
+.card .ic { width: 22px; height: 22px; border-radius: 6px; background: var(--fail-bg); display: grid; place-items: center; flex: none; }
+.card .ic i { width: 8px; height: 8px; background: var(--fail-dot); transform: rotate(45deg); border-radius: 1px; display: block; }
+.card p { margin: 0; font-size: 14px; }
+.card .sub { font-size: 13px; color: var(--ink-3); }
+.card .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.card .btn { padding: 6px 12px; font-size: 13px; }
+.pillwrap { display: grid; gap: 12px; justify-items: center; padding: 10px 0; }
+.pill { display: inline-flex; align-items: center; gap: 10px; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 7px 14px 7px 10px; font-size: 13px; box-shadow: var(--shadow); }
+.pill .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--paper); animation: breathe 1.6s ease-in-out infinite; }
+.pill .mono { font-size: 11.5px; opacity: .7; }
+.pillrest { width: 44px; height: 10px; border-radius: 999px; background: var(--ink); opacity: .85; }
+
+.notes { display: grid; gap: 14px; max-width: 72ch; }
+.notes p { margin: 0; color: var(--ink-2); }
+.notes ul { margin: 0; padding-left: 18px; color: var(--ink-2); display: grid; gap: 6px; }
+.keys { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--ink-3); }
+.keys kbd { font-family: var(--font-mono); font-size: 11.5px; border: 1px solid var(--hairline-2); border-radius: 5px; padding: 1px 6px; color: var(--ink); background: var(--paper); }
+
+@media (max-width: 900px) {
+  .stagearea { grid-template-columns: minmax(0, 1fr); }
+  .stagewrap { padding-left: 0; padding-top: 0; }
+  .ghost { display: none; }
+  .nowcard { margin-top: 0; grid-template-columns: 140px 1fr; }
+  .nowcard .screen { aspect-ratio: auto; min-height: 90px; }
+  .nowcard .meta { border-top: 0; border-left: 1px solid var(--hairline); }
+  .lists, .actions { padding-left: 0; }
+  .toast { margin-left: 0; }
+  .ovgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .scene { padding: 18px 16px 0; }
+  .rulerbox { margin: 0 -16px; padding-inline: 16px; }
+  .lists { grid-template-columns: minmax(0, 1fr); }
+  .steps { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="eyebrow">Design concept · Simulated data · Nothing here is built yet</div>
+    <h1>The Rewind</h1>
+    <p>Your agent broke the shop sometime after lunch. This is the Time View: every save point on one ruler, and color only where a real check ran. Press <b>Find last working</b>, then <b>Use this version</b>.</p>
+  </header>
+
+  <section class="win" aria-label="Time Machine app window, Time View">
+    <div class="titlebar">
+      <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="proj">acme-shop <span>· main</span></div>
+      <div class="steps" aria-label="Rewind steps">
+        <b id="s1" class="on">Find</b><i></i><b id="s2">Try</b><i></i><b id="s3">Use</b><i></i><b id="s4">Done</b>
+      </div>
+    </div>
+
+    <div class="scene" id="scene">
+      <div class="toprow">
+        <div class="ask" role="search"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Go back to before I added Stripe<kbd>⌥ Space</kbd></div>
+        <button class="btn primary" id="findBtn">Find last working <kbd>F</kbd></button>
+      </div>
+
+      <div class="stagearea">
+        <div class="stagewrap" id="stagewrap">
+          <div id="ghosts"></div>
+          <div class="stage" id="stage">
+            <div class="screen" id="screen"></div>
+            <div class="verdictline">
+              <div class="vl1"><span class="t" id="vTime"></span><strong id="vTitle"></strong><span class="who" id="vWho"></span></div>
+              <div class="vl2"><span id="vBadge" class="badge"></span><span id="vEvidence"></span></div>
+            </div>
+          </div>
+        </div>
+        <button class="nowcard" id="nowcard" aria-label="Back to now">
+          <div class="screen" id="nowscreen"></div>
+          <div class="meta"><span class="label">NOW · 3:14 PM</span><span class="badge fail">Broken</span></div>
+        </button>
+      </div>
+
+      <div class="lists">
+        <div class="back"><h3>Comes back</h3><ul id="backList"></ul></div>
+        <div class="noback"><h3>Does not come back</h3><ul id="noList"></ul></div>
+      </div>
+
+      <div class="actions" id="actions"></div>
+      <div id="toastSlot"></div>
+
+      <div class="rulerbox" id="rulerbox">
+        <div class="ruler" id="ruler">
+          <div class="forkrow"><svg id="forksvg" aria-hidden="true"><path id="forkpath" d=""/></svg><span class="fl" id="forklabel">tm/recover/2026-10-14-1042</span></div>
+          <div class="lane" id="lane"></div>
+          <div class="bars" id="bars"></div>
+          <div class="ticks" id="ticks" role="listbox" aria-label="Save points"></div>
+          <div class="times" id="times"></div>
+          <div class="playhead" id="playhead"></div>
+        </div>
+        <div class="legend">
+          <span><span class="tick pass"><span class="g"></span></span>Works</span>
+          <span><span class="tick fail"><span class="g"></span></span>Broken</span>
+          <span><span class="tick inc"><span class="g"></span></span>Couldn't check</span>
+          <span><span class="tick"><span class="g"></span></span>Not checked yet</span>
+          <span class="mono" id="staysLabel">Everything right of the playhead stays saved.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="overlays" aria-label="Overlays">
+    <h2>Overlays that never steal focus</h2>
+    <div class="ovgrid">
+      <div class="ov">
+        <h3>Menu bar</h3>
+        <div class="menubar"><span>Wed 14 Oct</span><span class="mbicon" title="Time Machine"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M7 0v12" stroke="currentColor" stroke-width="1.5"/><path d="M3 0h8L7 4.5z" fill="currentColor"/></svg><span class="mbdot"></span></span><span>3:14 PM</span></div>
+        <div class="dropdown">
+          <div class="st"><span class="badge fail">Broken</span>since 11:20</div>
+          <div class="miniruler" aria-label="Last 8 save points"><i class="p"></i><i></i><i class="p"></i><i class="f"></i><i class="f"></i><i></i><i class="f"></i><i class="f"></i></div>
+          <div class="menu"><span>Save a checkpoint <kbd>⌘S</kbd></span><span>Is it working?</span><span>Rewind to 10:42 <kbd>⌘⇧R</kbd></span><span>Open Time Machine</span></div>
+        </div>
+        <div class="cap">The dot is grey until a check runs. It is never green without a real pass.</div>
+      </div>
+      <div class="ov">
+        <h3>Corner card</h3>
+        <div class="card" role="status">
+          <div class="top"><span class="ic"><i></i></span><div><p><b>Something broke after Claude's last change.</b></p><p class="sub">3 tests fail in auth.test.ts. Last working version: 10:42, Added dark mode.</p></div></div>
+          <div class="row"><button class="btn primary" id="cardRewind">Rewind to 10:42</button><button class="btn">Show what changed</button></div>
+        </div>
+        <div class="cap">Bottom right, shown without taking focus. Broken cards stay until you act. Everything else hides after 8 seconds.</div>
+      </div>
+      <div class="ov">
+        <h3>Agent pill</h3>
+        <div class="pillwrap">
+          <div class="pillrest" aria-hidden="true"></div>
+          <div class="pill"><span class="pulse"></span>Claude Code is working<span class="mono">3 save points</span></div>
+        </div>
+        <div class="cap">Exists only while an agent runs a turn. At rest it is a small capsule. Hover to expand. Hidden in full screen apps.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2>How to read this concept</h2>
+    <p>Everything on this page is simulated. The checks, times and tests are made up to show the flow. The real app runs the same steps on your own project, in a safe copy, and never pushes, merges or deploys.</p>
+    <div class="keys"><span><kbd>J</kbd> <kbd>L</kbd> step through save points</span><span><kbd>F</kbd> find last working</span><span><kbd>↵</kbd> use this version</span><span><kbd>Esc</kbd> back to now</span></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const P = [
+    { t: "9:30",  title: "Started the shop",            who: "You",         files: 12, v: "pass", screen: "shop", ev: "Tests passed in 18 s · safe copy" },
+    { t: "9:48",  title: "Added the product grid",      who: "Claude Code", files: 6,  v: "pass", screen: "shop", ev: "Tests passed in 22 s · safe copy" },
+    { t: "10:05", title: "Cart drawer",                 who: "Claude Code", files: 4,  v: "un", hidden: "pass", screen: "shop", ev: "Tests passed in 24 s · safe copy" },
+    { t: "10:20", title: "Fixed lint errors",           who: "Claude Code", files: 3,  v: "pass", screen: "shop", ev: "Tests passed in 31 s · safe copy" },
+    { t: "10:42", title: "Added dark mode",             who: "Claude Code", files: 9,  v: "pass", screen: "dark", ev: "Tests passed in 41 s · safe copy", important: true },
+    { t: "11:05", title: "Refactored the session helper", who: "Claude Code", files: 7, v: "un", hidden: "fail", screen: "err", ev: "3 tests failed in auth.test.ts" },
+    { t: "11:20", title: "Fixed lint errors in session", who: "Claude Code", files: 14, v: "fail", screen: "err", ev: "3 tests failed in auth.test.ts" },
+    { t: "11:40", title: "Orders table migration",      who: "Claude Code", files: 5,  v: "un", hidden: "fail", screen: "err", ev: "3 tests failed in auth.test.ts" },
+    { t: "12:15", title: "Deploy settings",             who: "Cursor",      files: 2,  v: "un", hidden: "inc", screen: "err", ev: "Needs DATABASE_URL to run the check. Value never saved." },
+    { t: "1:52",  title: "Cart totals in one place",    who: "You",         files: 4,  v: "un", hidden: "fail", screen: "err", ev: "5 tests failed" },
+    { t: "2:05",  title: "Added Stripe checkout",       who: "Claude Code", files: 11, v: "fail", screen: "err", ev: "5 tests failed" },
+    { t: "3:14",  title: "Now",                         who: "Your folder", files: 2,  v: "fail", screen: "err", ev: "5 tests failed · checked 2 min ago", now: true }
+  ];
+  const NOW = P.length - 1;
+  const SESSION = [1, 10];
+  const label = { pass: "Works", fail: "Broken", inc: "Couldn't check", un: "Not checked yet", checking: "Checking" };
+  const cls = { pass: "pass", fail: "fail", inc: "inc", un: "", checking: "checking" };
+  let sel = NOW, busy = false, forked = false, confirming = false;
+  const $ = (id) => document.getElementById(id);
+  document.documentElement.style.setProperty("--n", P.length);
+
+  function appScreen(kind) {
+    if (kind === "err") return '<div class="app err"><div class="nav"><span class="logo">acme</span><span>Shop</span><span>About</span><span class="cart">Cart</span></div><div class="body"><div class="errt">Something went wrong</div><div class="errbox">TypeError: Cannot read properties<br>of undefined (reading \'user\')<br>at getSession (src/lib/session.ts:14)</div></div></div>';
+    const dark = kind === "dark" ? " dark" : "";
+    return '<div class="app' + dark + '"><div class="nav"><span class="logo">acme</span><span>Shop</span><span>About</span><span class="cart">Cart · 2</span></div><div class="body"><div class="hero">Things worth<br>keeping.</div><div class="grid"><div class="p" data-n="Linen tote · $48"></div><div class="p" data-n="Stoneware mug · $32"></div><div class="p" data-n="Field notes · $14"></div></div></div></div>';
+  }
+  function fingerprint(p) {
+    let m = ""; for (let i = 0; i < 28; i++) m += '<i class="' + (i < p.files ? "b" : "") + '"></i>';
+    return '<div class="fp"><div class="k">No screenshot yet · ' + p.files + ' files changed</div><div class="h">' + p.title + '</div><div class="mosaic">' + m + '</div><div class="note">This save point has not been checked. Check it to see if it works.</div></div>';
+  }
+  function screenFor(p) { return (p.v === "un" || p.v === "checking") ? fingerprint(p) : appScreen(p.screen); }
+
+  function coverage(p) {
+    const back = ["Code (commit " + (3 + P.indexOf(p)) + "f9a1c" + P.indexOf(p) + ")", "4 files outside Git", "Settings: 6 config keys", "Packages and Node 24"];
+    const no = ["Database contents", "Secret values (3 names kept)", "Anything already deployed", "Emails or payments already sent"];
+    if (p.v === "inc") no.unshift("Value for DATABASE_URL, needed to run the check");
+    return { back, no };
+  }
+
+  function render() {
+    const p = P[sel];
+    $("screen").innerHTML = screenFor(p);
+    $("vTime").textContent = p.now ? "3:14 pm" : p.t + (sel < 7 ? " am" : " pm");
+    $("vTitle").textContent = p.title;
+    $("vWho").textContent = "· " + p.who;
+    const b = $("vBadge"); b.className = "badge " + cls[p.v]; b.textContent = label[p.v];
+    $("vEvidence").textContent = p.v === "un" ? "No check has run on this save point." : p.v === "checking" ? "Rebuilding in a safe copy, then running npm test" : p.ev;
+    $("stage").classList.toggle("passframe", p.v === "pass");
+    $("nowscreen").innerHTML = appScreen("err");
+    const c = coverage(p);
+    $("backList").innerHTML = c.back.map((x) => "<li>" + x + "</li>").join("");
+    $("noList").innerHTML = c.no.map((x) => "<li>" + x + "</li>").join("");
+    renderGhosts(); renderRuler(); renderActions();
+  }
+
+  function renderGhosts() {
+    let h = "";
+    for (let k = 3; k >= 1; k--) {
+      const i = sel - k; if (i < 0) continue;
+      const s = 1 - 0.08 * k, x = -40 * k, y = -14 * k, o = Math.max(0.15, 1 - 0.24 * k);
+      h += '<div class="ghost" style="transform: translate(' + x + 'px,' + y + 'px) scale(' + s + '); opacity:' + o + '"><span class="glabel">' + P[i].t + '</span></div>';
+    }
+    $("ghosts").innerHTML = h;
+    document.documentElement.style.setProperty("--stageH", $("stage").offsetHeight + "px");
+  }
+
+  function renderRuler() {
+    const maxF = 14;
+    $("bars").innerHTML = P.map((p, i) => '<i class="' + (i > sel ? "dim" : "") + '" style="height:' + Math.max(3, Math.round(Math.log2(1 + p.files) / Math.log2(1 + maxF) * 24)) + 'px"></i>').join("");
+    $("ticks").innerHTML = P.map((p, i) => '<button class="tick ' + cls[p.v] + (p.important ? " important" : "") + (i > sel ? " dim" : "") + '" role="option" aria-selected="' + (i === sel) + '" aria-label="' + p.t + ", " + p.title + ", " + label[p.v] + '" data-i="' + i + '"><span class="g"></span></button>').join("");
+    $("times").innerHTML = P.map((p, i) => '<span class="' + (i > sel ? "dim" : "") + '">' + (p.now ? "NOW" : p.t) + "</span>").join("");
+    const col = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--col"));
+    $("playhead").style.left = (sel * col + col / 2) + "px";
+    $("lane").innerHTML = '<div class="clip" style="left:' + (SESSION[0] * col + 8) + "px;width:" + ((SESSION[1] - SESSION[0] + 1) * col - 16) + 'px">Claude Code session · 9 turns</div>';
+    $("staysLabel").style.opacity = sel < NOW ? 1 : 0.4;
+    $("s1").classList.toggle("on", !forked);
+    $("s3").classList.toggle("on", confirming);
+    $("s4").classList.toggle("on", forked);
+  }
+
+  function renderActions() {
+    const p = P[sel], a = $("actions");
+    if (confirming) {
+      a.innerHTML = '<div class="confirm"><ol><li>Save your current version first, so this is undoable.</li><li>Make a new branch <span class="mono">tm/recover/2026-10-14-1042</span> from 10:42.</li><li>Switch your project folder to that branch.</li></ol><p>We will not push, merge, deploy or delete anything.</p><div class="row"><button class="btn" id="cancelUse">Cancel <kbd>Esc</kbd></button><button class="btn primary" id="doUse">Do it <kbd>↵</kbd></button></div></div>';
+      $("cancelUse").onclick = () => { confirming = false; render(); };
+      $("doUse").onclick = doFork; $("doUse").focus(); return;
+    }
+    if (forked) { a.innerHTML = ""; return; }
+    if (p.now) { a.innerHTML = '<span class="hint">You are looking at now. Pick a save point on the ruler, or press Find last working.</span>'; return; }
+    if (p.v === "un") { a.innerHTML = '<button class="btn primary" id="checkOne">Check this one</button><span class="hint">Rebuilds it in a safe copy and runs npm test.</span>'; $("checkOne").onclick = () => checkOne(sel); return; }
+    const canUse = p.v === "pass";
+    a.innerHTML = '<button class="btn" id="tryBtn" ' + (canUse ? "" : "disabled") + '>Try it first <kbd>T</kbd></button><button class="btn" id="cmpBtn">Compare with now <kbd>C</kbd></button><button class="btn primary" id="useBtn" ' + (canUse ? "" : "disabled") + '>Use this version <kbd>↵</kbd></button>' + (canUse ? "" : '<span class="hint">Only a version that works can be used. Step left to find one.</span>');
+    if (canUse) {
+      $("useBtn").onclick = () => { confirming = true; render(); };
+      $("tryBtn").onclick = () => toast("Opened the 10:42 version in a safe copy at localhost:4173. Your folder is untouched.", false);
+    }
+    $("cmpBtn").onclick = () => toast("Since " + p.t + ": 41 files changed, 1 package added (stripe 17.2), 1 setting changed (NEXTAUTH_URL, value not shown).", false);
+  }
+
+  function toast(msg, withUndo) {
+    $("toastSlot").innerHTML = '<div class="toast" role="status"><span>' + msg + "</span>" + (withUndo ? '<button class="btn" id="undoBtn">Undo ⌘Z</button><button class="btn">See report</button>' : "") + "</div>";
+    if (withUndo) $("undoBtn").onclick = undoFork;
+  }
+
+  function stampBadge(kind) {
+    const b = $("vBadge"); b.classList.remove("stamp", "shake"); void b.offsetWidth;
+    b.classList.add(kind === "pass" ? "stamp" : "shake");
+  }
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms));
+
+  async function checkOne(i) {
+    if (busy) return; busy = true;
+    P[i].v = "checking"; sel = i; render(); await wait(900);
+    P[i].v = P[i].hidden; render(); stampBadge(P[i].v); busy = false;
+  }
+
+  async function findGood() {
+    if (busy || forked) return; busy = true; confirming = false; $("toastSlot").innerHTML = "";
+    for (let i = NOW - 1; i >= 0; i--) {
+      sel = i; render(); await wait(460);
+      if (P[i].v === "un") { P[i].v = "checking"; render(); await wait(820); P[i].v = P[i].hidden; render(); stampBadge(P[i].v); await wait(260); }
+      if (P[i].v === "pass") { stampBadge("pass"); break; }
+    }
+    busy = false;
+    toast("10:42 works. Checked 4 save points on the way: 3 broken, 1 couldn't be checked (needs DATABASE_URL).", false);
+  }
+
+  async function doFork() {
+    confirming = false; forked = true;
+    P[NOW].title = "Before rewind"; P[NOW].who = "Saved automatically";
+    render();
+    const col = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--col"));
+    const x0 = sel * col + col / 2, x1 = Math.min((P.length - 0.5) * col, x0 + 5 * col);
+    $("forkpath").setAttribute("d", "M" + x0 + " 26 C " + (x0 + 30) + " 26, " + (x0 + 30) + " 6, " + (x0 + 70) + " 6 L " + x1 + " 6");
+    $("forklabel").style.left = (x0 + 80) + "px";
+    await wait(30);
+    $("forkpath").classList.add("drawn"); $("forklabel").classList.add("drawn");
+    await wait(420);
+    toast("You are on the 10:42 version. Your other version is saved. Nothing was pushed or deleted.", true);
+  }
+
+  function undoFork() {
+    forked = false; P[NOW].title = "Now"; P[NOW].who = "Your folder";
+    $("forkpath").classList.remove("drawn"); $("forklabel").classList.remove("drawn");
+    toast("Undone. You are back on main, exactly as before.", false); render();
+  }
+
+  $("ticks").addEventListener("click", (e) => { const t = e.target.closest(".tick"); if (!t || busy) return; confirming = false; sel = +t.dataset.i; render(); });
+  $("findBtn").onclick = findGood;
+  $("cardRewind").onclick = () => { $("scene").scrollIntoView({ behavior: "smooth", block: "start" }); findGood(); };
+  $("nowcard").onclick = () => { if (busy) return; confirming = false; sel = NOW; render(); };
+  document.addEventListener("keydown", (e) => {
+    if (busy || e.metaKey || e.ctrlKey || e.altKey || /input|textarea/i.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === "j" || e.key === "ArrowLeft") { if (sel > 0) { confirming = false; sel--; render(); } }
+    else if (k === "l" || e.key === "ArrowRight") { if (sel < NOW) { confirming = false; sel++; render(); } }
+    else if (k === "f") findGood();
+    else if (e.key === "Escape") { confirming = false; sel = NOW; render(); }
+    else if (e.key === "Enter" && !e.target.closest("button")) { if (confirming) doFork(); else if (P[sel].v === "pass" && !forked) { confirming = true; render(); } }
+  });
+  window.addEventListener("resize", renderRuler);
+  render();
+})();
+</script>

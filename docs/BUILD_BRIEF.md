@@ -2,7 +2,7 @@
 
 Status: planning. **Nothing is implemented yet.** Every feature below is planned unless a later version of this file marks it as implemented. Last updated 14 October 2026.
 
-"Time Machine" is a working name only. See section 9.
+Name: **Time Machine** (founder decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
 
 ## 1. What it is
 
@@ -10,7 +10,12 @@ A checkpoint and recovery platform for digital projects, starting with projects 
 
 **Core promise:** understand what changed, recover a working state, and safely move forward.
 
-**One line:** your agent broke it. Time Machine finds the last version that actually works, proves it in a clean copy, and hands you a branch.
+**Pitch lines** (from the round 3 research, all honest about limits):
+
+- Developers: "Git remembers your code. We remember whether it worked."
+- Vision and investors: "Save points for everything you build, with proof of which ones still work."
+- App and short videos: "From 'it worked yesterday' to 'here it is, working.'"
+- Hero tagline: "Back to what worked."
 
 Git already keeps code history. A commit alone is not a complete backup of an application. Time Machine uses Git history and adds context around it: captured files, selected configuration, dependencies, the environment definition, and verification results.
 
@@ -161,7 +166,7 @@ A small TypeScript web app with tests. Checkpoints 1 to 3 work. An agent then "f
 - **Store:** `~/.timemachine` for the CLI, `~/Library/Application Support/<App>` for the app. Content-addressed SHA-256 blobs, compressed, one immutable JSON manifest per checkpoint, append-only audit file. Size budget with thinning; pinned and newest-PASS checkpoints are never thinned.
 - **Isolation:** host mode by default (git worktree, captured files, lockfile install with a dependency cache, clean environment, timeout). The network is blocked during verify using Anthropic's open source sandbox runtime (`srt`, a research preview, so the engine keeps its own fail-closed logic). Docker, OrbStack, or Apple `container` is used when detected.
 - **Desktop:** Electron. The engine runs unchanged in a utility process, and Electron has a built-in non-activating panel for the overlay. Tauri 2 is the fallback if bundle size becomes a real complaint.
-- **Distribution:** npm under a scope we own with trusted publishing and provenance. The bare npm names `tm`, `timemachine`, and `time-machine` are taken by other people. Mac app as a signed, notarized direct download DMG, not the Mac App Store.
+- **Distribution:** npm package `timetm` (command `tm`) with trusted publishing and provenance. The bare names `tm`, `timemachine`, and `time-machine` are taken by other people. Mac app as a signed, notarized direct download DMG, not the Mac App Store.
 
 **ADRs to write before code:** name, store location, default isolation, network blocking method, desktop framework.
 
@@ -226,12 +231,36 @@ Full scripts and targets are in `.private/research/13-pricing-launch-naming.md`.
 
 ## 9. Open decisions
 
-1. **The name.** Apple's US registration 3,583,786 for TIME MACHINE covers software "to recover and restore deleted and overwritten files". That is this product. Do not use the name for the company, app, feature, package, or domain without an attorney's opinion. Shortlist to clear: **Undoable**, **Lastworking**, **Goodstate**, **Oopsback**.
+1. **The name.** Decided: Time Machine, with npm package `timetm` and command `tm` (ADR 0001). The Apple trademark risk is accepted by the founder and recorded there.
 2. **Apple Developer Program.** It is required to sign the Mac app, and the account holder must be 18 or older. A parent or guardian can enroll in their own name. Until then, ship the CLI first.
 3. **Open source license** for the engine and CLI.
 4. **Deadlines:** a16z speedrun SR008 closes 1 November 2026; YC W27 closes 2 November 2026 at 8pm PT.
 
-## 10. Research
+## 10. Rewind everything: the roadmap
+
+All planned. Nothing is implemented yet.
+
+| When | Capability |
+|---|---|
+| Now (MVP) | Code, uncommitted work, chosen files, config key changes, dependency and environment definitions, safe copy check, find last working, recover to a branch, honest report, small local backup, Claude Code hooks, MCP, audit log, the Mac app |
+| Next (6 to 12 months) | One timeline across Claude Code, Cursor, Codex and Gemini; Lovable, Replit and Bolt through GitHub sync; environment fingerprint and "works on my machine" diff; test evidence and flaky test notes; local SQLite and Docker Postgres snapshots before risky commands; Vercel deploy references; "What broke?"; ML save points and "rewind to the best run"; agent rules regressions; morning report for overnight agents |
+| Later | Team sharing, an off-machine encrypted copy, guided Neon or Supabase branch recovery, game projects, verified research badges, Windows and Linux |
+| Never | Unsend emails or payments, undo a deploy people saw, reverse production database writes, restore secret values, promise identical GPU results, replace a full disk backup |
+
+Big new findings that change the plan:
+
+- Pinned `refs/tm/*` commits live inside the project's `.git`, so an `rm -rf` of the project deletes them too. Each checkpoint also writes a small `git bundle` into the external store. Needs an ADR.
+- Node's `fs.copyFile` clone flag does not make APFS clones on macOS. Use `/bin/cp -c`.
+- Cursor can run Claude Code hooks from `.claude/settings.json`, so one hook kit may cover both.
+- 64% of developers now use non-local environments as their main setup (Docker 2025), so the CLI must also run in cloud dev environments, CI and agent sandboxes.
+
+## 11. Design
+
+- App design spec: `design/APP_DESIGN_SPEC.md` (principles, the Rewind "Time View", AI features, every screen, overlays, visual system, copy, accessibility, roadmap).
+- Website spec: `design/WEBSITE_SPEC.md` (12 beat scroll film, hero, sections, other pages, motion, copy deck, asset list).
+- Clickable concepts: `design/concepts/app-rewind.html` and `design/concepts/site-story.html`. Simulated data only.
+
+## 12. Research
 
 All reports are in `.private/research/` (local only, because this repo is public):
 
@@ -239,5 +268,7 @@ All reports are in `.private/research/` (local only, because this repo is public
 - `11` market, pain evidence, sizing, stress test
 - `12` app, overlay, npm, storage, hooks, isolation
 - `13` pricing, distribution, launch scripts, B2B, naming, fundraising
+- `20` 31 big problems, top 10, pitches, capability map, ML, killer demos
+- `21` rewind everything: environments, tests, cross tool timeline, ML, databases, mini backup
 - `03` website design and `04` repos and skills are still valid
 - `01` and `02` were written for the earlier payments idea; their legal and fundraising sections still apply
