@@ -340,7 +340,7 @@ button { font: inherit; color: inherit; }
   function renderFoot() {
     const f = $("sfoot");
     if (confirming) {
-      f.innerHTML = '<div class="confirm"><ol><li>Save your current version first, so this is undoable.</li><li>Make branch <span class="mono">tm/recover/cp-0003</span> from 10:42.</li><li>Switch your project folder to it.</li></ol><p>Nothing is pushed, merged, deployed or deleted.</p></div><button class="btn" id="cancelUse">Cancel</button><button class="btn dark" id="doUse">Do it <kbd>↵</kbd></button>';
+      f.innerHTML = '<div class="confirm"><ol><li>Save your current version first, so this is undoable.</li><li>Make branch <span class="mono">tm/recover/cp-0003</span> from 10:42.</li><li>Put your saved files back in a recovery copy.</li></ol><p>Your current folder is not touched. Nothing is pushed, merged, deployed or deleted.</p></div><button class="btn" id="cancelUse">Cancel</button><button class="btn dark" id="doUse">Do it <kbd>↵</kbd></button>';
       $("cancelUse").onclick = () => { confirming = false; renderFoot(); }; $("doUse").onclick = doUse; $("doUse").focus(); return;
     }
     if (busy) { f.innerHTML = '<div class="msg">Checking <b>' + (P[cur] ? P[cur].t : "") + '</b> in a safe copy. Your folder is untouched.</div><button class="btn" disabled>Use this version</button>'; return; }
@@ -367,8 +367,8 @@ button { font: inherit; color: inherit; }
   function doUse() {
     confirming = false; recovered = true; closeSheet();
     P.push({ t: "3:14", title: "Before rewind", who: "Saved automatically", v: "f", s: "er", ev: "Your broken state, kept so you can undo" });
-    sel = 3; $("branch").textContent = "tm/recover/cp-0003"; $("sub").textContent = "On the 10:42 version · Works"; $("projDot").className = "d p"; render();
-    toast('You are on the 10:42 version. Nothing was pushed or deleted. <button class="btn" id="undo">Undo ⌘Z</button>');
+    sel = 3; $("branch").textContent = "main · tm/recover/cp-0003 ready"; $("sub").textContent = "Recovery branch ready from 10:42 · Works"; $("projDot").className = "d p"; render();
+    toast('Branch tm/recover/cp-0003 is ready. Your folder is unchanged. <button class="btn">Switch to it</button> <button class="btn" id="undo">Undo ⌘Z</button>');
     $("undo").onclick = () => { P.pop(); recovered = false; sel = P.length - 1; $("branch").textContent = "main"; $("sub").textContent = "Broken since 11:21 · 7 save points today"; $("projDot").className = "d f"; render(); toast("Undone. Back on main, exactly as before."); };
   }
 
