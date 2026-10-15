@@ -73,8 +73,26 @@ function canonical(v: unknown): string {
   return JSON.stringify(v);
 }
 
-function seal(p: Project, body: Omit<Manifest, "integrity">): string {
+/**
+ * Signs a record with the store key. This catches accidental edits and edits by tools
+ * that do not read the key. It cannot stop someone who can read the key file.
+ */
+export function sign(p: Project, body: unknown): string {
   return createHmac("sha256", storeKey(p)).update(canonical(body)).digest("hex");
+}
+
+function seal(p: Project, body: Omit<Manifest, "integrity">): string {
+  return sign(p, body);
+}
+
+/** Hands out checkpoint numbers that are never reused, even if a manifest is deleted. */
+export function nextNumber(p: Project): number {
+  const path = join(p.store, "counter");
+  const fromFile = existsSync(path) ? Number(readFileSync(path, "utf8").trim()) || 0 : 0;
+  const last = listIds(p).at(-1);
+  const n = Math.max(fromFile, last ? Number(last.slice(3)) : 0) + 1;
+  writeFileSync(path, `${n}\n`);
+  return n;
 }
 
 export function writeManifest(p: Project, body: Omit<Manifest, "integrity">): Manifest {

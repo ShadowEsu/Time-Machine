@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { audit } from "./audit.js";
+import { onInterrupt } from "./cleanup.js";
 import { loadConfig, type ProjectConfig } from "./config.js";
 import { TmError } from "./errors.js";
 import { runWithTimeout, type TimedResult } from "./exec.js";
@@ -9,6 +10,7 @@ import { materialize, removeWorktree } from "./materialize.js";
 import { resolveProject, type Project } from "./project.js";
 import { detectSandbox } from "./sandbox.js";
 import { looksSecret, parseDotenv, redact } from "./secrets.js";
+import type { Manifest } from "./manifest.js";
 import { ensureStore, listIds, readManifest, stamp } from "./store.js";
 import type { Ctx, VerifyResult } from "./types.js";
 import type { Verdict } from "./verdict.js";
@@ -22,11 +24,11 @@ function cleanEnv(base: NodeJS.ProcessEnv, plain: Record<string, string>): NodeJ
   return { ...env, ...plain, CI: "1", NO_COLOR: "1", TM_VERIFY: "1" };
 }
 
-/** Current secret values, used only to scrub them from check logs. Never stored. */
-function secretValues(p: Project, cfg: ProjectConfig): string[] {
+/** Secret values in the working copy and the rebuilt copy, used only to scrub logs. Never stored. */
+function secretValues(roots: string[], cfg: ProjectConfig): string[] {
   const out: string[] = [];
-  for (const file of cfg.config.files) {
-    const full = join(p.root, file);
+  for (const file of roots.flatMap((r) => cfg.config.files.map((f) => join(r, f)))) {
+    const full = file;
     if (!existsSync(full)) continue;
     for (const { name, value } of parseDotenv(readFileSync(full, "utf8"))) {
       if (!cfg.config.plain.includes(name) || looksSecret(value)) out.push(value);
@@ -72,12 +74,12 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
       reason,
       log,
     };
-    recordVerdict(p, r);
+    recordVerdict(p, r, manifest?.integrity ?? null);
     audit(p, "verify", target, verdict);
     return r;
   };
 
-  let manifest;
+  let manifest: Manifest | null = null;
   try {
     manifest = readManifest(p, target);
   } catch (e) {
@@ -91,12 +93,18 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
 
   const parent = mkdtempSync(join(tmpdir(), `tm-verify-${target}-`));
   const dir = join(parent, p.name);
+  const cleanup = (): void => {
+    removeWorktree(p, dir);
+    rmSync(parent, { recursive: true, force: true });
+  };
+  const dispose = onInterrupt(cleanup);
   try {
     let m;
     try {
       m = materialize(p, manifest, dir);
     } catch (e) {
       if (e instanceof TmError && e.kind === "integrity") return finish("ERROR", e.message);
+      if (e instanceof TmError && e.kind === "not_found") return finish("INCOMPLETE", `${e.message} The check was not run.`);
       throw e;
     }
     const notSaved = [...m.missing, ...manifest.coverage.missing];
@@ -104,7 +112,7 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
     const env = cleanEnv(p.env, m.plainEnv);
     const deadline = Date.now() + cfg.verify.timeoutSeconds * 1000;
     const logPath = join(p.store, "logs", `${target}-${stamp()}.log`);
-    const secrets = secretValues(p, cfg);
+    const secrets = secretValues([p.root, dir], cfg);
     let log = "";
     // Setup (for example npm ci) may need the network to install dependencies, so it runs
     // outside the sandbox. Only the check itself runs under the network policy.
@@ -125,7 +133,7 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
     const { verdict, reason } = judge(r, cfg.verify.timeoutSeconds);
     return finish(verdict, reason, r.code, logPath);
   } finally {
-    removeWorktree(p, dir);
-    rmSync(parent, { recursive: true, force: true });
+    dispose();
+    cleanup();
   }
 }

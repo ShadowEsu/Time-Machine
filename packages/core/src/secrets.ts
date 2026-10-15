@@ -10,7 +10,27 @@ const PATTERNS: RegExp[] = [
   /\bAIza[0-9A-Za-z_-]{35}\b/,
   /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
   /\bsk-[A-Za-z0-9_-]{20,}/,
+  /\bnpm_[A-Za-z0-9]{36}\b/,
+  /\b(rk|pk)_live_[A-Za-z0-9]{16,}/,
+  /\bglpat-[A-Za-z0-9_-]{20,}/,
+  // Env style lines with a secret sounding name, like DB_PASSWORD=... or export API_KEY=...
+  /^\s*(?:export\s+)?[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD|CREDENTIALS?)[A-Z0-9_]*\s*[=:]\s*["']?[^\s"'$]{6,}/m,
 ];
+
+const SECRET_FILE_NAMES: RegExp[] = [
+  /^\.env(\..+)?$/,
+  /^\.(npmrc|pypirc|netrc|git-credentials)$/,
+  /^id_(rsa|dsa|ecdsa|ed25519)$/,
+  /\.(pem|key|p12|pfx|jks|keystore|ppk)$/,
+  /^(credentials|service-account.*)\.json$/,
+];
+const SAFE_EXAMPLES = /^\.env\.(example|sample|template|dist)$/;
+
+/** Files that hold secrets by convention. They are never saved, whatever they contain. */
+export function isSecretFileName(path: string): boolean {
+  const base = path.split("/").pop() ?? path;
+  return !SAFE_EXAMPLES.test(base) && SECRET_FILE_NAMES.some((r) => r.test(base));
+}
 
 export function looksSecret(text: string): boolean {
   return PATTERNS.some((p) => p.test(text));

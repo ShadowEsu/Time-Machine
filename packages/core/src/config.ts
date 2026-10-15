@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
 import { TmError } from "./errors.js";
+import { isSafeRelPath } from "./paths.js";
 
 export const CONFIG_FILE = "timemachine.yml";
 
@@ -31,7 +32,7 @@ const CaptureSchema = z.strictObject({
 });
 
 const ConfigFilesSchema = z.strictObject({
-  files: z.array(z.string()).default([".env"]),
+  files: z.array(z.string().refine(isSafeRelPath, "must be a path inside the project")).default([".env"]),
   plain: z.array(z.string()).default([]),
 });
 

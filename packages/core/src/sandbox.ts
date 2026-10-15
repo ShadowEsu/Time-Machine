@@ -18,7 +18,7 @@ function works(file: string, args: string[], env: NodeJS.ProcessEnv): boolean {
  */
 export function detectSandbox(env: NodeJS.ProcessEnv): Sandbox | null {
   if (env.TM_SANDBOX === "none") return null;
-  if (process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec")) {
+  if (process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec") && works("/usr/bin/sandbox-exec", ["-p", MAC_PROFILE, "/usr/bin/true"], env)) {
     return { name: "sandbox-exec", wrap: (c) => ["/usr/bin/sandbox-exec", ["-p", MAC_PROFILE, "/bin/sh", "-c", c]] };
   }
   if (process.platform === "linux") {

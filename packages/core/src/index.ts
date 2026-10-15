@@ -13,3 +13,5 @@ export { log } from "./audit.js";
 export { hookInstall, runHook, isRisky } from "./hooks.js";
 export { demo } from "./demo.js";
 export { storeDirFor } from "./store.js";
+export { isSafeRelPath } from "./paths.js";
+export { runInterruptCleanups } from "./cleanup.js";

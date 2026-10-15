@@ -16,10 +16,10 @@ export function tempDir(name: string): string {
   return mkdtempSync(join(tmpdir(), `tm-${name}-`));
 }
 
-export function writeConfig(dir: string, verify: Record<string, string | number> = {}): void {
+export function writeConfig(dir: string, verify: Record<string, string | number> = {}, configFiles: string[] = [".env"]): void {
   const v = { command: "node --test", timeoutSeconds: 60, network: "allow", ...verify };
   const lines = Object.entries(v).map(([k, val]) => `  ${k}: ${typeof val === "string" ? JSON.stringify(val) : val}`);
-  writeFileSync(join(dir, "timemachine.yml"), `version: 1\nverify:\n${lines.join("\n")}\nconfig:\n  files: [.env]\n  plain: [PORT]\n`);
+  writeFileSync(join(dir, "timemachine.yml"), `version: 1\nverify:\n${lines.join("\n")}\nconfig:\n  files: ${JSON.stringify(configFiles)}\n  plain: [PORT]\n`);
 }
 
 /** Builds the demo and saves a checkpoint after every step: cp-0001 to cp-0006. */

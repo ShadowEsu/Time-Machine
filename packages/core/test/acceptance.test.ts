@@ -220,7 +220,7 @@ describe("C01 project manifest", () => {
     const dir = tempDir("badcfg");
     git(dir, "init", "-q");
     writeFileSync(join(dir, "timemachine.yml"), "version: 1\nverify:\n  timeoutSeconds: -5\n");
-    await expect(tm.checkpoint({ cwd: dir, tmHome: join(dir, ".store") }, {})).rejects.toThrow(/timeoutSeconds/);
+    await expect(tm.checkpoint({ cwd: dir, tmHome: tempDir("badcfg-store") }, {})).rejects.toThrow(/timeoutSeconds/);
   });
 });
 

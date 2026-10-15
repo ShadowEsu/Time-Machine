@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { isSafeRelPath } from "./paths.js";
+
+const SafePath = z.string().refine(isSafeRelPath, "path must stay inside the project");
 
 const CoverageSchema = z.object({
   captured: z.array(z.string()),
@@ -22,10 +25,10 @@ export const ManifestSchema = z.object({
     changedTracked: z.number().int(),
     dirty: z.boolean(),
   }),
-  files: z.array(z.object({ path: z.string(), sha256: z.string(), size: z.number(), mode: z.number() })),
+  files: z.array(z.object({ path: SafePath, sha256: z.string(), size: z.number(), mode: z.number() })),
   config: z.array(
     z.object({
-      file: z.string(),
+      file: SafePath,
       keys: z.array(
         z.object({
           name: z.string(),
@@ -38,7 +41,7 @@ export const ManifestSchema = z.object({
   ),
   environment: z.object({
     runtimes: z.record(z.string(), z.string()),
-    lockfiles: z.array(z.object({ path: z.string(), sha256: z.string() })),
+    lockfiles: z.array(z.object({ path: SafePath, sha256: z.string() })),
     definitions: z.array(z.object({ path: z.string(), sha256: z.string() })),
   }),
   coverage: CoverageSchema,

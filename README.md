@@ -29,6 +29,8 @@ Every command takes `--json`. Human and JSON output come from the same result.
 
 Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values, only key names and a fingerprint, so you set those again by hand. Every save point and every recovery says what was not restored.
 
+Save points and verdicts are signed with a key stored in `~/.timemachine`. That catches accidental edits and edits by tools that do not read the key. It is not tamper proof against someone who can read that key.
+
 Checks run in **host mode**: a separate Git worktree on your machine with a clean environment and a time limit. That is weaker isolation than a container, and every verdict says so. With `network: deny`, checks run with no network through a sandbox. If no sandbox is available, the check does not run and the verdict is BLOCKED.
 
 ## Verdicts

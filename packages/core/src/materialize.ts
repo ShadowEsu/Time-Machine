@@ -1,9 +1,10 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { TmError } from "./errors.js";
 import { git, gitTry, short } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import type { Project } from "./project.js";
+import { safeTarget } from "./paths.js";
 import { getBlob } from "./store.js";
 
 export interface Materialized {
@@ -50,7 +51,11 @@ export function materialize(p: Project, m: Manifest, dir: string, opts: { branch
         missing.push(f.path);
         continue;
       }
-      const full = join(dir, f.path);
+      const full = safeTarget(dir, f.path);
+      if (!full) {
+        missing.push(`${f.path} (a symbolic link is in the way, so it was not written)`);
+        continue;
+      }
       mkdirSync(dirname(full), { recursive: true });
       writeFileSync(full, buf);
       chmodSync(full, f.mode);
@@ -64,9 +69,13 @@ export function materialize(p: Project, m: Manifest, dir: string, opts: { branch
       for (const k of plain) plainEnv[k.name] = k.value ?? "";
       plainNames.push(...plain.map((k) => k.name));
       if (plain.length) {
-        const full = join(dir, c.file);
-        mkdirSync(dirname(full), { recursive: true });
-        writeFileSync(full, plain.map((k) => `${k.name}=${k.value ?? ""}`).join("\n") + "\n");
+        const full = safeTarget(dir, c.file);
+        if (full) {
+          mkdirSync(dirname(full), { recursive: true });
+          writeFileSync(full, plain.map((k) => `${k.name}=${k.value ?? ""}`).join("\n") + "\n");
+        } else {
+          manual.push(`Write ${c.file} by hand: a symbolic link is in the way, so Time Machine did not write through it`);
+        }
       }
       for (const k of c.keys.filter((k) => k.kind === "secret")) manual.push(`Set ${k.name} in ${c.file}`);
     }
