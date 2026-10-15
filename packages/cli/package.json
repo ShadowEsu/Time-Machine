@@ -1,0 +1,11 @@
+{
+  "name": "timetm",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Save points for your projects, with proof of which ones still work.",
+  "type": "module",
+  "bin": { "tm": "./dist/bin.js" },
+  "dependencies": {
+    "@timetm/core": "workspace:*"
+  }
+}

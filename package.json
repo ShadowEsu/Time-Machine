@@ -1,0 +1,17 @@
+{
+  "name": "time-machine",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "build": "tsc -b packages/core packages/cli",
+    "typecheck": "tsc -b packages/core packages/cli && tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

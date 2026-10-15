@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": { "@timetm/core": ["./packages/core/src/index.ts"] }
+  },
+  "include": ["packages/*/test/**/*.ts", "fixtures/**/*.ts", "vitest.config.ts"]
+}
