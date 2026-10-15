@@ -18,15 +18,17 @@ export interface Io {
 export { VERSION };
 
 async function readAll(input: NodeJS.ReadableStream): Promise<string> {
-  let s = "";
-  for await (const chunk of input) s += typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
-  return s;
+  const chunks: Buffer[] = [];
+  for await (const chunk of input) chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer));
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 /** The command hooks call: `tm` when it is on PATH, otherwise npx. */
 function hookCommand(env: NodeJS.ProcessEnv): string {
   if (env.TM_HOOK_COMMAND) return env.TM_HOOK_COMMAND;
-  return spawnSync("/bin/sh", ["-c", "command -v tm"], { env }).status === 0 ? "tm" : "npx -y timetm";
+  // Only use a `tm` on PATH if it is really this tool, not some other program named tm.
+  const r = spawnSync("tm", ["--version"], { env, encoding: "utf8", timeout: 5000 });
+  return r.status === 0 && r.stdout.trim() === VERSION ? "tm" : "npx -y timetm";
 }
 
 const HELP = `tm: save points for your project, with proof of which ones still work.

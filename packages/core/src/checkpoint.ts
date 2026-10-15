@@ -36,7 +36,7 @@ function containsSecret(path: string, buf: Buffer): boolean {
   return isSecretFileName(path) || looksSecret(buf.toString("latin1"));
 }
 
-function snapshotCommit(p: Project, cfg: ProjectConfig, id: string, head: string | null): { snapshot: string; changedTracked: number; secretTracked: string[] } {
+function snapshotCommit(p: Project, cfg: ProjectConfig, id: string, head: string | null): { snapshot: string; tree: string; changedTracked: number; secretTracked: string[] } {
   const tmp = mkdtempSync(join(tmpdir(), "tm-index-"));
   const index = { GIT_INDEX_FILE: join(tmp, "index") };
   try {
@@ -58,13 +58,13 @@ function snapshotCommit(p: Project, cfg: ProjectConfig, id: string, head: string
     }
     const tree = git(p.root, p.env, ["write-tree"], index);
     const headTree = head ? git(p.root, p.env, ["rev-parse", `${head}^{tree}`]) : null;
-    if (head && tree === headTree) return { snapshot: head, changedTracked: 0, secretTracked };
+    if (head && tree === headTree) return { snapshot: head, tree, changedTracked: 0, secretTracked };
     const changed = head
       ? splitZ(git(p.root, p.env, ["diff-tree", "-r", "-z", "--name-only", headTree ?? head, tree])).length
       : splitZ(git(p.root, p.env, ["ls-files", "-z"], index)).length;
     const args = ["commit-tree", tree, "--no-gpg-sign", "-m", `Time Machine save point ${id}`];
     if (head) args.push("-p", head);
-    return { snapshot: git(p.root, p.env, args), changedTracked: changed, secretTracked };
+    return { snapshot: git(p.root, p.env, args), tree, changedTracked: changed, secretTracked };
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -102,11 +102,15 @@ function digests(root: string, paths: string[]): { path: string; sha256: string 
   return paths.filter((f) => existsSync(join(root, f)) && lstatSync(join(root, f)).isFile()).map((f) => ({ path: f, sha256: sha256(readFileSync(join(root, f))) }));
 }
 
-function sameState(m: Manifest, snapshot: string, files: Manifest["files"], config: Manifest["config"]): boolean {
+/** Same tree on the same HEAD, same saved files, same config. Commit hashes differ by time, so they are not compared. */
+function sameState(p: Project, m: Manifest, head: string | null, tree: string, files: Manifest["files"], config: Manifest["config"]): boolean {
   const f = (x: Manifest["files"]): string => JSON.stringify(x.map((y) => [y.path, y.sha256, y.mode]));
   const c = (x: Manifest["config"]): string => JSON.stringify(x.map((y) => [y.file, y.keys.map((k) => [k.name, k.fingerprint])]));
-  return m.git.snapshot === snapshot && f(m.files) === f(files) && c(m.config) === c(config);
+  const prevTree = gitTry(p.root, p.env, ["rev-parse", "-q", "--verify", `${m.git.snapshot}^{tree}`]);
+  return prevTree.code === 0 && prevTree.stdout.trim() === tree && m.git.head === head && f(m.files) === f(files) && c(m.config) === c(config);
 }
+
+const HIDDEN_NOTE = "(note hidden: it looked like it contained a secret)";
 
 export interface CheckpointOptions {
   note?: string;
@@ -131,7 +135,7 @@ export async function checkpoint(ctx: Ctx, opts: CheckpointOptions = {}): Promis
     const remote = remoteR.code === 0 ? safeRemote(remoteR.stdout.trim()) : null;
 
     const pending = `cp-${String(Number(last?.slice(3) ?? 0) + 1).padStart(4, "0")}`;
-    const { snapshot, changedTracked, secretTracked } = snapshotCommit(p, cfg, pending, head);
+    const { snapshot, tree, changedTracked, secretTracked } = snapshotCommit(p, cfg, pending, head);
 
     const missing: string[] = [];
     const manual: string[] = secretTracked.map((f) => `${f} has uncommitted changes that look like a secret, so its last committed version was saved instead`);
@@ -196,7 +200,7 @@ export async function checkpoint(ctx: Ctx, opts: CheckpointOptions = {}): Promis
     if (opts.skipIfUnchanged && last) {
       try {
         const prev = readManifest(p, last);
-        if (sameState(prev, snapshot, files, config)) return { checkpoint: summarize(prev), skipped: true };
+        if (sameState(p, prev, head, tree, files, config)) return { checkpoint: summarize(prev), skipped: true };
       } catch {
         // The newest checkpoint is unreadable. Save a fresh one.
       }
@@ -273,7 +277,7 @@ function finishCheckpoint(
     storeVersion: 1,
     id,
     createdAt: new Date().toISOString(),
-    note: opts.note ?? "",
+    note: looksSecret(opts.note ?? "") ? HIDDEN_NOTE : (opts.note ?? ""),
     trigger: opts.trigger ?? "manual",
     project: { root: p.root, name: p.name },
     git: gitInfo,

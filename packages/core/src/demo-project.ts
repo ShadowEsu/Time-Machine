@@ -3,7 +3,7 @@
 // someone changes a config value, and a dependency gets added.
 // All data is synthetic. The secret below is fake and never valid anywhere.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 export const FAKE_SECRET = "sk_test_51SyntheticDemoKeyDoNotUse0000000000";
@@ -143,7 +143,6 @@ test("dark mode exists", () => {
 
 /** Creates the demo repo in `dir`. Calls `afterStep` after each step so a test can save a checkpoint. */
 export async function buildDemo(dir: string, afterStep?: (step: DemoStep, index: number) => Promise<void> | void): Promise<void> {
-  rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   git(dir, "init", "-q", "-b", "main");
   for (const [i, step] of DEMO_STEPS.entries()) {

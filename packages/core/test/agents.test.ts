@@ -1,5 +1,5 @@
 // M3: agent hooks (C15), duplicate skipping, and the built-in demo.
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -79,5 +79,59 @@ describe("tm demo", () => {
     expect(r.findGood.found).toBe("cp-0003");
     expect(r.recover.branch).toBe("tm/recover/cp-0003");
     expect(existsSync(join(r.recover.copyDir, "data/themes.json"))).toBe(true);
+  });
+});
+
+describe("second review fixes", () => {
+  test("R1 --if-changed skips even when tracked files have uncommitted edits", async () => {
+    const { dir, ctx } = await setupDemo();
+    write(dir, "src/tips.js", "export const edited = 1;\n");
+    const a = await tm.checkpoint(ctx, { skipIfUnchanged: true });
+    const b = await tm.checkpoint(ctx, { skipIfUnchanged: true });
+    expect(a.skipped).toBe(false);
+    expect(b.skipped).toBe(true);
+    expect(b.checkpoint.id).toBe(a.checkpoint.id);
+  });
+
+  test("R2 the stop hook wakes the agent once per breakage, even after find-good", async () => {
+    const { dir, ctx } = await setupDemo();
+    await tm.verify(ctx, "cp-0003");
+    expect((await tm.runHook(ctx, "stop", { cwd: dir })).exitCode).toBe(2);
+    await tm.findGood(ctx);
+    expect((await tm.runHook(ctx, "stop", { cwd: dir })).exitCode).toBe(0);
+  });
+
+  test("R3 a secret in a checkpoint note is never stored", async () => {
+    const { ctx } = await setupDemo();
+    const r = await tm.checkpoint(ctx, { note: `deploy key ${FAKE_TOKEN}` });
+    expect(r.checkpoint.note).not.toContain(FAKE_TOKEN);
+    expect(JSON.stringify(await tm.timeline(ctx))).not.toContain(FAKE_TOKEN);
+  });
+
+  test("R4 tm demo keeps an existing empty folder as it is and refuses a file", async () => {
+    const root = tempDir("demo-keep");
+    const dir = join(root, "empty");
+    mkdirSync(dir, { mode: 0o700 });
+    await tm.demo({ cwd: root, tmHome: join(root, "store") }, { dir });
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
+    writeFileSync(join(root, "afile"), "x");
+    await expect(tm.demo({ cwd: root, tmHome: join(root, "store") }, { dir: join(root, "afile") })).rejects.toThrow(tm.TmError);
+  });
+
+  test("R5 hook install refuses settings it cannot parse with a usage error, and leaves them alone", async () => {
+    const { dir, ctx } = await setupDemo();
+    mkdirSync(join(dir, ".claude"), { recursive: true });
+    writeFileSync(join(dir, ".claude/settings.json"), "// my notes\n{}");
+    const err = await tm.hookInstall(ctx, { command: "tm" }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(tm.TmError);
+    expect((err as tm.TmError).exitCode).toBe(64);
+    expect(readFileSync(join(dir, ".claude/settings.json"), "utf8")).toBe("// my notes\n{}");
+  });
+
+  test("R6 risky command detection covers common destructive forms", () => {
+    const risky = ["rm -R dir", "rm --recursive --force dir", "rm -rf src", "sudo rm -rf x", "git checkout -f", "git checkout HEAD -- src", "git checkout main -- .", "git switch -f main", "git switch --discard-changes main", "git -C . reset --hard", "git -c a=b reset --hard", "git clean --force -d", "git worktree remove --force ../x", "npm test && git reset --hard HEAD~1"];
+    const safe = ["ls -la", "git status", "git checkout -b feature", "git switch main", "npm test", "git diff -- src"];
+    for (const c of risky) expect(tm.isRisky(c), c).toBe(true);
+    for (const c of safe) expect(tm.isRisky(c), c).toBe(false);
   });
 });

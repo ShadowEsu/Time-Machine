@@ -80,7 +80,13 @@ const fail = (rid: string | number | null, code: number, message: string): Respo
 /** Handles one JSON-RPC message. Returns null for notifications. */
 export async function handleMcp(message: unknown, ctx: tm.Ctx): Promise<Response | null> {
   const req = RequestSchema.safeParse(message);
-  if (!req.success) return fail(null, -32600, "Invalid request");
+  if (!req.success) {
+    const m = message && typeof message === "object" ? (message as Record<string, unknown>) : {};
+    // A response from the client (result or error, no method) needs no reply.
+    if (!("method" in m) && ("result" in m || "error" in m)) return null;
+    const rid = typeof m.id === "string" || typeof m.id === "number" ? m.id : null;
+    return fail(rid, -32600, "Invalid request");
+  }
   const { method, params } = req.data;
   if (req.data.id === undefined) return null;
   const rid = req.data.id;

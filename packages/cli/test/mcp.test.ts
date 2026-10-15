@@ -21,6 +21,11 @@ describe("tm mcp", () => {
     expect(JSON.parse(call.result.content[0]!.text)).toMatchObject({ found: "cp-0003" });
   });
 
+  test("responses from the client get no reply, and errors keep the request id", async () => {
+    expect(await handleMcp({ jsonrpc: "2.0", id: 10, result: {} }, demo.ctx)).toBeNull();
+    expect(await handleMcp({ jsonrpc: "1.0", id: 9, method: "ping" }, demo.ctx)).toMatchObject({ id: 9, error: { code: -32600 } });
+  });
+
   test("bad input gives JSON-RPC errors, not crashes", async () => {
     expect(await handleMcp({ jsonrpc: "2.0", id: 4, method: "nope" }, demo.ctx)).toMatchObject({ error: { code: -32601 } });
     const bad = (await handleMcp({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "verify", arguments: { id: 7 } } }, demo.ctx)) as { result: { isError: boolean } };
