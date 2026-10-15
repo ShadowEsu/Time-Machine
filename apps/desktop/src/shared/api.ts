@@ -32,6 +32,8 @@ export const SettingsSchema = z.strictObject({
   overlayCards: z.boolean().default(true),
   theme: ThemeSchema.default("system"),
   onboarded: z.boolean().default(false),
+  /** Use the plain step by step sheet instead of the Time View. Reduce motion turns it on by itself. */
+  simpleRewind: z.boolean().default(false),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -41,6 +43,7 @@ export const SettingsPatchSchema = z.strictObject({
   overlayCards: z.boolean().optional(),
   theme: ThemeSchema.optional(),
   onboarded: z.boolean().optional(),
+  simpleRewind: z.boolean().optional(),
 });
 
 export const ProjectEntrySchema = z.strictObject({

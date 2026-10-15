@@ -47,7 +47,21 @@ export function triggerLabel(trigger: string): string {
   if (trigger.startsWith("claude-code")) return "Claude Code";
   if (trigger === "recover") return "Before rewind";
   if (trigger === "demo") return "Demo";
+  if (trigger === "mcp") return "Agent";
   return "You";
+}
+
+/** One plain sentence on how a save point was made, from the engine's trigger field. */
+export function triggerSentence(trigger: string): string {
+  if (trigger === "claude-code:prompt") return "Saved by Claude Code before a prompt.";
+  if (trigger === "claude-code:pre-bash") return "A safety save, made before a risky command.";
+  if (trigger === "claude-code:stop") return "Saved by Claude Code when a turn ended.";
+  if (trigger.startsWith("claude-code")) return "Saved by Claude Code.";
+  if (trigger === "recover") return "Saved just before a rewind, so nothing was lost.";
+  if (trigger === "mcp") return "Saved by an agent through the MCP server.";
+  if (trigger === "app") return "Saved from the app.";
+  if (trigger === "demo") return "Part of the demo story.";
+  return "Saved with tm checkpoint.";
 }
 
 export function bytes(n: number): string {

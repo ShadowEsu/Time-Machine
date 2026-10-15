@@ -56,7 +56,7 @@ export class FakeEngine implements TmBridge {
   private points: Point[] = [];
   private audit: { at: string; action: string; target: string | null; result: string }[] = [];
   private branches = new Set<string>();
-  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true };
+  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true };
 
   constructor() {

@@ -1,9 +1,10 @@
-// The app window: projects, History, save point detail, Check it works, the Rewind wizard,
-// Compare, Settings, onboarding and the Inspector. Plain TypeScript, one render function.
+// The app window: projects, History, save point detail, Check it works, the Rewind (the Time
+// View, or the plain wizard sheet), Compare, Settings, onboarding and the Inspector.
+// Plain TypeScript, one render function.
 import type { CheckpointResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
 import type { AppEvent, Bootstrap, Call, CallOf, HookPreview, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, verdictKey, verdictWord, when } from "../shared/format.js";
+import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -23,8 +24,19 @@ interface CheckState {
   error: string | null;
 }
 
+/** Where the user was before the Rewind, so Esc puts them back exactly there. */
+interface ReturnPoint {
+  screen: Screen;
+  selected: string | null;
+  listScroll: number;
+  pageScroll: number;
+}
+
 interface RewindState {
   step: "find" | "try" | "use" | "done";
+  /** "scene" is the Time View. "sheet" is the plain wizard, for Reduce motion or Simple rewind. */
+  mode: "scene" | "sheet";
+  returnTo: ReturnPoint;
   target: string | null;
   finding: boolean;
   find: FindGoodResult | null;
@@ -51,6 +63,8 @@ interface OnboardingState {
   tryResult: VerifyResult | null;
   hook: HookPreview | null;
   hookDone: string | null;
+  /** The save point made right after setup. Saved, not checked, until a check runs. */
+  first: { id: string } | null;
   error: string | null;
 }
 
@@ -83,6 +97,12 @@ interface State {
   toast: string | null;
   demoBusy: boolean;
   openResult: OpenResult | null;
+  /** The last check result per save point in this session, for evidence lines (time taken, network). */
+  verifyResults: Map<string, VerifyResult>;
+  /** Paths changed in each save point since the one before it. Read in the background for the Time View. */
+  changes: Map<string, string[]>;
+  /** A button that shows its pressed state because its shortcut just fired. */
+  flash: { sel: string; until: number } | null;
 }
 
 class ApiFailure extends Error {}
@@ -100,7 +120,7 @@ let root: HTMLElement;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 function emptyOnboarding(): OnboardingState {
-  return { step: 1, path: null, project: null, init: null, current: "", choice: "detected", custom: "", working: false, trying: false, tryResult: null, hook: null, hookDone: null, error: null };
+  return { step: 1, path: null, project: null, init: null, current: "", choice: "detected", custom: "", working: false, trying: false, tryResult: null, hook: null, hookDone: null, first: null, error: null };
 }
 
 // Engine calls
@@ -118,6 +138,10 @@ async function api<M extends Method>(call: CallOf<M>): Promise<Results[M]> {
     st.records.length = Math.min(st.records.length, 20);
   }
   if (!r.ok) throw new ApiFailure(r.error.message);
+  if (call.method === "verify") {
+    const v = r.data as VerifyResult;
+    st.verifyResults.set(v.checkpoint, v);
+  }
   return r.data;
 }
 
@@ -169,6 +193,8 @@ async function selectProject(id: string, screen: Screen = "history"): Promise<vo
     st.projectId = id;
     st.timeline = null;
     st.selected = null;
+    st.changes = new Map();
+    changesFor = "";
   }
   st.screen = screen;
   void bridge.call({ method: "setActive", projectId: id });
@@ -245,7 +271,7 @@ function statusLine(): { v: Verdict | null; text: string } {
     case "ERROR":
       return { v: "ERROR", text: "The last check crashed." };
     default:
-      return { v: null, text: `Newest save point ${newest.id}, ${when(newest.createdAt)}. Press Check it works to find out.` };
+      return { v: null, text: `Saved, not checked. Newest save point ${newest.id}, ${when(newest.createdAt)}. Press Check it works to find out.` };
   }
 }
 
@@ -276,7 +302,7 @@ function sidebar(): string {
 
 function welcome(): string {
   return `<div class="welcome"><div class="inner">
-    <div class="mini-ruler" aria-hidden="true">${glyph("PASS")}${glyph("PASS")}${glyph(null)}${glyph("PASS")}${glyph("FAIL")}${glyph("FAIL")}${glyph("FAIL")}</div>
+    <div class="mini-ruler" aria-hidden="true">${glyph("PASS")}${glyph("PASS")}${glyph(null)}${glyph("PASS")}${glyph("FAIL")}${glyph("FAIL")}${glyph("FAIL")}<span class="ph"></span></div>
     <h1>Save points that know if they work.</h1>
     <p class="lede">Save your project as you go. We check each version in a safe copy. When something breaks, find the last one that works and put it on a new branch. Your folder and branch are not touched.</p>
     <div class="row-btns"><button class="btn dark big" data-act="add">Add a project</button><button class="btn big" data-act="demo">Try the demo</button></div>
@@ -331,7 +357,12 @@ function history(): string {
     if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule">Broke here: ${esc(older.id)} works, ${esc(c.id)} is broken</div>`);
   });
 
-  return `${header}${ruler}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
+  const anyPass = pts.some((c) => c.verdict === "PASS");
+  const first = pts.length === 1 ? pts[0] : null;
+  const hint = first
+    ? `<div class="hintbar">${glyph(first.verdict)}<span>${first.verdict === "PASS" ? `Your first save point passed its check. It is your first way back. Press ${esc(keys("Mod+S"))} to save again.` : `This is your first save point. ${first.verdict ? esc(verdictWord(first.verdict)) : "Saved, not checked"}. Press ${esc(keys("Mod+S"))} to save again, or Check it works to find out if it passes.`}</span></div>`
+    : !anyPass ? `<div class="hintbar">${glyph(null)}<span>No version has passed a check yet. When one does, it becomes your way back.</span><button class="btn" data-act="check" ${busy ? "disabled" : ""}>Check it works</button></div>` : "";
+  return `${header}${ruler}${hint}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
 }
 
 function detail(): string {
@@ -393,13 +424,13 @@ function checkSheet(): string {
       r.verdict === "FAIL" ? (lw ? ` The last version that worked is ${lw.id}, ${when(lw.createdAt)}, ${lw.note}.` : " No earlier save point has passed yet.")
         : r.verdict === "ERROR" ? " This is a problem with the check, not necessarily your project."
           : r.verdict === "PASS" ? ` Checked in a safe copy (basic isolation) in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
-    result = `<div class="big-verdict stamp">${glyph(r.verdict)}<span>${esc(head[r.verdict])}</span></div>
+    result = `<div class="big-verdict ${stampOnce(`check:${r.checkpoint}:${r.verdict}`)}">${glyph(r.verdict)}<span>${esc(head[r.verdict])}</span></div>
       <p>${esc(r.reason + extra)}</p>
       ${st.settings.showGitDetails ? `<div class="git"><div><span class="k">verdict</span> ${esc(r.verdict)} · exit ${esc(String(r.exitCode))} · ${esc(r.isolation)} mode</div><div><span class="k">command</span> ${esc(r.command)}</div>${r.log ? `<div><span class="k">log</span> ${esc(r.log)}</div>` : ""}</div>` : ""}`;
   }
   const done = c.phase === "done" || !!c.error;
   const lw = lastWorking();
-  return `<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Check it works">
+  return `<div class="scrim ${once("scrim:check")}"><div class="sheet" role="dialog" aria-modal="true" aria-label="Check it works">
     <h2>Checking ${esc(p.name)}</h2>${list}${result}
     <p class="small muted">Your project folder is not touched. The check runs in a separate copy.</p>
     <div class="row-btns" style="justify-content:flex-end">
@@ -438,9 +469,10 @@ function rewind(): string {
     } else if (target) {
       const known = !r.find;
       body = `<div class="panel">${r.find ? `<div class="tried">${triedRows}</div>` : ""}
-        <div class="big-verdict stamp">${glyph(target.verdict)}<span>${esc(target.id)} ${target.verdict === "PASS" ? "works." : `is ${verdictWord(target.verdict).toLowerCase()}.`}</span></div>
+        <div class="big-verdict ${stampOnce(`rw:${target.id}:${target.verdict ?? ""}`)}">${glyph(target.verdict)}<span>${esc(target.id)} ${target.verdict === "PASS" ? "works." : `is ${verdictWord(target.verdict).toLowerCase()}.`}</span></div>
         <p>${esc(target.note)} · ${esc(when(target.createdAt))}${known && target.verdict === "PASS" ? " · checked before, in a safe copy" : ""}</p>
         ${target.verdict !== "PASS" ? `<div class="note warn">This save point has not passed a check. The next step checks it in a safe copy.</div>` : ""}
+        <div class="cols"><div class="kv"><span class="h">Comes back</span>${li(comesBackLines(target), "Nothing listed")}</div><div class="kv no"><span class="h">Does not come back</span>${li(notSavedLines(target), "Nothing listed")}</div></div>
         <div class="row-btns"><button class="btn dark" data-act="rw-next-try">Next: Try it <kbd>↵</kbd></button>${known ? '<button class="btn" data-act="rw-find">Search again</button>' : ""}<button class="btn ghost" data-act="history">Pick a different one</button></div></div>`;
     } else {
       body = `<div class="panel"><div class="note warn">${esc(r.target ?? "That save point")} is not in the history of ${esc(p.name)}.</div>
@@ -451,7 +483,7 @@ function rewind(): string {
     body = `<div class="panel"><h3>Try ${esc(target.id)} in a safe copy</h3>
       <p class="muted">We rebuild ${esc(target.id)} in a separate folder and run your check there. Your real folder hasn't changed.</p>
       ${r.trying ? '<div class="steplist"><div class="r"><span class="spin"></span><span>Rebuilding and running your check…</span></div></div>' : ""}
-      ${tr ? `<div class="big-verdict stamp">${glyph(tr.verdict)}<span>${esc(target.id)} ${tr.verdict === "PASS" ? "works." : `: ${verdictWord(tr.verdict)}.`}</span></div><p>${esc(tr.reason)} ${esc(seconds(tr.durationMs))}, safe copy (basic isolation).</p>` : ""}
+      ${tr ? `<div class="big-verdict ${stampOnce(`rwtry:${tr.at}`)}">${glyph(tr.verdict)}<span>${esc(target.id)} ${tr.verdict === "PASS" ? "works." : `: ${verdictWord(tr.verdict)}.`}</span></div><p>${esc(tr.reason)} ${esc(seconds(tr.durationMs))}, safe copy (basic isolation).</p>` : ""}
       ${tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn't confirm ${esc(target.id)} works. You can still use it, but it is not proven.</div>` : ""}
       ${r.openResult ? `<div class="note">A copy you can open is ready.${st.settings.showGitDetails ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : ""}
       <div class="row-btns">
@@ -467,7 +499,7 @@ function rewind(): string {
       <div class="row-btns"><button class="btn ghost" data-act="rw-back-try" ${r.recovering ? "disabled" : ""}>Cancel</button><button class="btn dark" data-act="rw-do" ${r.recovering ? "disabled" : ""}>${r.recovering ? "Working…" : "Do it"}</button></div></div>`;
   } else if (r.step === "done" && r.result) {
     const res = r.result;
-    body = `<div class="panel"><div class="big-verdict stamp">${glyph(res.lastVerdict)}<span>${esc(res.id)} is ready on a new branch.</span></div>
+    body = `<div class="panel"><div class="big-verdict ${stampOnce(`rwdone:${res.branch}`)}">${glyph(res.lastVerdict)}<span>${esc(res.id)} is ready on a new branch.</span></div>
       <p>Last check: ${esc(verdictWord(res.lastVerdict))}${res.lastVerdict ? " (safe copy, basic isolation)" : ". Run Check it works before you rely on it"}.</p>
       <div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> your current version, as ${esc(res.savedBefore)}</div>${st.settings.showGitDetails ? `<div><span class="k">report</span> ${esc(res.reportPath)}</div>` : ""}</div>
       <div class="cols"><div class="kv"><span class="h">Brought back</span>${li(res.restored, "Nothing")}</div><div class="kv no"><span class="h">Not brought back</span>${li(res.notRestored, "Nothing listed")}</div></div>
@@ -475,12 +507,306 @@ function rewind(): string {
       <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
       <div class="row-btns"><button class="btn dark" data-act="history">Done</button><button class="btn" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div></div>`;
   }
-  return `<div class="page"><div class="col">
-    <div><h1>Rewind ${esc(p.name)}</h1><p class="lede">Find the last working version, try it in a safe copy, then use it on a new branch.</p></div>
+  return `<div class="scrim ${once("scrim:rewind")}"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
+    <div class="sheet-head"><div><h2>Rewind ${esc(p.name)}</h2><p class="muted">Find the last working version, try it in a safe copy, then use it on a new branch.</p></div>
+      <button class="btn ghost" data-act="tv-exit" ${r.recovering ? "disabled" : ""}>Close<kbd>Esc</kbd></button></div>
     ${steps(idx, ["Find", "Try", "Use", "Done"])}
     ${r.error ? `<div class="note bad">${esc(r.error)}</div>` : ""}
     ${body}
   </div></div>`;
+}
+
+// The Time View: the Rewind as a full window scene (design spec 3.1). It draws the same
+// Rewind state the plain wizard uses and calls the same engine actions.
+
+const VERDICTS: readonly string[] = ["PASS", "FAIL", "INCOMPLETE", "BLOCKED", "ERROR"];
+function asVerdict(s: string): Verdict | null {
+  return VERDICTS.includes(s) ? (s as Verdict) : null;
+}
+
+/** A recorded verdict only: from the timeline, or from a check that just finished in this search. */
+function shownVerdict(c: TimelineEntry | null): Verdict | null {
+  if (!c) return null;
+  const live = st.rewind?.progress.filter((x) => x.checkpoint === c.id).at(-1);
+  return live ? asVerdict(live.verdict) : c.verdict;
+}
+
+/** The save point being checked right now, if any. */
+function checkingId(): string | null {
+  const r = st.rewind;
+  if (!r) return null;
+  if (r.trying) return r.target;
+  if (!r.finding) return null;
+  const pts = points();
+  const last = r.progress.at(-1);
+  if (!last) return pts.at(-1)?.id ?? null;
+  const i = pts.findIndex((c) => c.id === last.checkpoint);
+  return i > 0 ? (pts[i - 1]?.id ?? null) : null;
+}
+
+/** The save point on the stage, under the playhead. */
+function stageId(): string | null {
+  const r = st.rewind;
+  if (!r) return null;
+  if (r.finding) return checkingId() ?? r.progress.at(-1)?.checkpoint ?? null;
+  return r.target ?? r.find?.tried.at(-1)?.id ?? points().at(-1)?.id ?? null;
+}
+
+/** What a rewind to this save point brings back, in plain words. From the engine's coverage report. */
+function comesBackLines(c: TimelineEntry): string[] {
+  return c.coverage.restorable.map((line) => {
+    if (line === "Code") return st.settings.showGitDetails ? `Code, commit ${short(c.commit)}` : "Code";
+    const files = /^(\d+) saved files?$/.exec(line);
+    if (files) return `${plural(Number(files[1]), "file")} outside Git`;
+    if (line.startsWith("Config values: ")) return `Settings: ${line.slice(15)}`;
+    return line;
+  });
+}
+
+function evidenceFor(c: TimelineEntry, v: Verdict | null): string {
+  const vr = st.verifyResults.get(c.id);
+  const same = vr && vr.verdict === v ? vr : null;
+  const where = `Safe copy, basic isolation (${c.isolation ?? "host"} mode), on this Mac`;
+  const took = same ? ` in ${seconds(same.durationMs)}` : "";
+  const net = same ? (same.network.enforcedBy ? ", network off" : ", network on") : "";
+  switch (v) {
+    case "PASS":
+      return `Passed its check${took}. ${where}${net}.`;
+    case "FAIL":
+      return `Failed its check${took}${same?.exitCode != null ? ` (exit code ${same.exitCode})` : ""}. ${where}${net}.`;
+    case "INCOMPLETE":
+      return "We couldn't finish the check, so we won't call it working.";
+    case "BLOCKED":
+      return "The check needs something before it can run.";
+    case "ERROR":
+      return "The check itself crashed. This doesn't mean the project is broken.";
+    default:
+      return "Saved, not checked. We don't know yet if it works.";
+  }
+}
+
+function mosaic(c: TimelineEntry, prev: TimelineEntry | null): string {
+  if (!prev) return `<div class="cd-foot">The first save point. Nothing before it to compare with.</div>`;
+  const paths = st.changes.get(c.id);
+  if (!paths) return `<div class="cd-foot">Reading what changed…</div>`;
+  if (!paths.length) return `<div class="cd-foot">No file changes since ${esc(prev.id)}.</div>`;
+  const groups = new Map<string, string[]>();
+  for (const f of paths) {
+    const top = f.includes("/") ? f.slice(0, f.indexOf("/")) : "top level";
+    groups.set(top, [...(groups.get(top) ?? []), f]);
+  }
+  // Few files: name them. Many files: one grey square each, grouped by folder.
+  const named = paths.length <= 8;
+  const file = (f: string): string => (named ? `<span class="fc" title="${esc(f)}"><i></i>${esc(f.slice(f.lastIndexOf("/") + 1))}</span>` : `<i title="${esc(f)}"></i>`);
+  const rows = [...groups]
+    .slice(0, 4)
+    .map(([g, fs]) => `<div class="mz"><span class="mz-l">${esc(g)}</span><span class="mz-s ${named ? "named" : ""}">${fs.slice(0, 24).map(file).join("")}</span></div>`)
+    .join("");
+  return `<div class="mosaic">${rows}</div><div class="cd-foot">${esc(plural(paths.length, "file"))} changed since ${esc(prev.id)}</div>`;
+}
+
+function tvCard(c: TimelineEntry, k: number, prev: TimelineEntry | null, still: boolean): string {
+  const v = shownVerdict(c);
+  const on = k === 0;
+  const checking = checkingId() === c.id;
+  const cls = ["tv-card", on ? "on" : "", k < 0 ? "ahead" : "", on && v === "PASS" && !checking ? "earned" : "", checking ? "checking" : ""].filter(Boolean).join(" ");
+  const go = k > 0 && !still ? `data-act="tv-go" data-id="${esc(c.id)}"` : "";
+  const mark = checking ? '<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : badge(v, on ? `${stampOnce(`card:${c.id}:${v ?? ""}`)}` : "");
+  return `<div class="${cls}" data-carry="card-${esc(c.id)}" style="--k:${Math.max(k, -1)}" ${go}>
+    <div class="cd-top"><span class="cd-g">${glyph(v)}</span><span class="cd-when">${esc(clock(c.createdAt))}</span><span class="cd-id">${esc(c.id)}</span><span class="cd-who">${esc(triggerLabel(c.trigger))}</span><span class="cd-v">${mark}</span></div>
+    <div class="cd-title">${esc(c.note)}</div>
+    ${on ? `<div class="cd-sum">${esc(triggerSentence(c.trigger))}</div>` : ""}
+    ${on ? (checking ? `<div class="cd-run"><span class="spin"></span><span>Rebuilding ${esc(c.id)} in a safe copy and running your check. Your folder is not touched.</span></div>` : mosaic(c, prev)) : ""}
+  </div>`;
+}
+
+function tvButton(act: string, label: string, key: string, keyLabel: string, primary: boolean, disabled = false): string {
+  return `<button class="btn big ${primary ? "dark" : ""}" data-act="${act}" data-key="${key}" ${disabled ? "disabled" : ""}>${esc(label)}<kbd>${esc(keyLabel)}</kbd></button>`;
+}
+
+function tvRead(r: RewindState, c: TimelineEntry): string {
+  const newest = points().at(-1);
+  const v = shownVerdict(c);
+  const cols = (a: string, b: string, yes: string[], no: string[]): string =>
+    `<div class="tv-cols"><div class="kv"><span class="h">${esc(a)}</span>${li(yes, "Nothing listed")}</div><div class="kv no"><span class="h">${esc(b)}</span>${li(no, "Nothing listed")}</div></div>`;
+  const meta = `<div class="tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(c.note)} · ${esc(triggerLabel(c.trigger))}</div>`;
+  const error = r.error ? `<div class="note bad">${esc(r.error)}</div>` : "";
+
+  if (r.step === "done" && r.result) {
+    const res = r.result;
+    return `<div class="tv-verdict"><h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">${esc(res.id)} is ready on a new branch.</h2>
+        <div class="tv-ev">${badge(res.lastVerdict, "lg")}<span>Last check: ${esc(verdictWord(res.lastVerdict))}${res.lastVerdict ? `, in a safe copy with basic isolation (${esc(c.isolation ?? "host")} mode) on this Mac.` : ". Run Check it works before you rely on it."}</span></div>
+        <div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> your current version, as ${esc(res.savedBefore)}</div></div></div>
+      ${cols("Brought back", "Not brought back", res.restored, res.notRestored)}
+      <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
+      <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
+      <div class="tv-acts">${tvButton("tv-done", "Done", "enter", "↵", true)}<button class="btn big" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div>`;
+  }
+
+  if (r.finding) {
+    const tried = r.progress.length;
+    return `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">Finding the last version that works</h2>
+        <div class="tv-ev"><span class="vb lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>${esc(c.id)}, ${tried + 1} of up to ${points().length}. Newest first, each in a safe copy.</span></div>
+        ${meta}</div>
+      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
+      <div class="tv-acts"><span class="muted small">Esc leaves this view. The search keeps going and tells you when it is done.</span></div>`;
+  }
+
+  if (r.find && !r.find.found && !r.target) {
+    const last = r.find.tried.at(-1);
+    const why =
+      r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
+        : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
+          : `We couldn't check every save point, so we won't call any of them working. ${last?.reason ?? ""}`;
+    return `<div class="tv-verdict"><h2 class="tv-head">No working version found.</h2><div class="note warn">${esc(why)}</div></div>
+      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
+      <div class="tv-acts">${tvButton("tv-exit", "Back to where I was", "enter", "↵", true)}</div>`;
+  }
+
+  if (r.step === "use") {
+    const proven = v === "PASS";
+    return `<div class="tv-verdict"><h2 class="tv-head">Use the ${esc(c.id)} version?</h2>${meta}</div>
+      ${error}
+      <div class="tv-confirm" role="group" aria-label="Confirm">
+        <div class="cf-h">We will</div>
+        <ol><li>Save your current version first, so nothing is lost.</li><li>Make a new local branch, <span class="mono">tm/recover/${esc(c.id)}</span>, at that version.</li><li>Build a recovery copy next to your project folder.</li></ol>
+        <p><b>We will not push, merge, deploy or delete anything. Your folder and branch are not touched.</b></p>
+        ${proven ? "" : `<div class="note warn">${esc(c.id)} has not passed a check. It is not proven to work.</div>`}
+      </div>
+      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
+      <div class="tv-acts">${tvButton("tv-cancel", "Cancel", "esc", "Esc", false, r.recovering)}${tvButton("tv-do", r.recovering ? "Working…" : "Do it", "enter", "↵", true, r.recovering)}</div>`;
+  }
+
+  const tr = r.tryResult && r.tryResult.checkpoint === c.id ? r.tryResult : null;
+  const proven = v === "PASS";
+  const head = r.trying ? `Trying ${c.id} in a safe copy`
+    : proven ? `${c.id} works.`
+      : v === null ? `${c.id} is saved, not checked.`
+        : `${c.id}: ${verdictWord(v)}.`;
+  const ev = r.trying
+    ? `<span class="vb lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Rebuilding it in a separate folder and running your check. Your real folder hasn't changed.</span>`
+    : `${badge(v, `lg ${stampOnce(`ev:${c.id}:${v ?? ""}`)}`)}<span>${esc(tr && tr.verdict === v && v !== "PASS" && v !== "FAIL" ? `${tr.reason} ` : "")}${esc(evidenceFor(c, v))}</span>`;
+  const warn = r.trying ? ""
+    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn't confirm ${esc(c.id)} works. You can still use it, but it is not proven.</div>`
+      : !proven ? `<div class="note">No passing check is recorded for ${esc(c.id)}. Try it first: we rebuild it in a safe copy and run your check.</div>` : "";
+  const opened = r.openResult && r.openResult.id === c.id
+    ? `<div class="note">A copy you can open is ready. Your folder was not touched.${st.settings.showGitDetails ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : "";
+  const busy = r.trying || !!st.busy;
+  const notNewest = newest && newest.id !== c.id;
+  return `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">${esc(head)}</h2>${meta}<div class="tv-ev">${ev}</div></div>
+    ${error}${warn}${opened}
+    ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
+    <div class="tv-acts">
+      ${tvButton("tv-try", tr ? "Try it again" : "Try it first", "t", "T", !proven, busy)}
+      ${notNewest ? tvButton("tv-compare", "Compare with now", "c", "C", false, busy) : ""}
+      ${tvButton("tv-use", "Use this version", proven ? "enter" : "use", proven ? "↵" : "", proven, busy)}
+      ${r.step === "try" ? `<button class="btn big ghost" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>` : ""}
+    </div>`;
+}
+
+function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
+  const n = pts.length;
+  const x = (i: number): number => ((i + 0.5) / n) * 100;
+  const checking = checkingId();
+  // Agent sessions as clips: runs of save points made by Claude Code.
+  const clips: string[] = [];
+  for (let i = 0; i < n; i++) {
+    if (!pts[i]?.trigger.startsWith("claude-code")) continue;
+    let j = i;
+    while (j + 1 < n && pts[j + 1]?.trigger.startsWith("claude-code")) j++;
+    const half = (0.5 / n) * 100 * 0.7;
+    clips.push(`<span class="clip" style="left:${x(i) - half}%;width:${x(j) - x(i) + half * 2}%"><span>Claude Code session</span></span>`);
+    i = j;
+  }
+  const bars = pts
+    .map((c, i) => {
+      if (i === 0) return "";
+      const ch = st.changes.get(c.id);
+      const h = ch ? Math.max(3, Math.min(24, 4 + 6 * Math.log2(1 + ch.length))) : 3;
+      return `<i class="${ch ? "" : "unk"}" style="left:${x(i)}%;height:${h.toFixed(1)}px" title="${esc(ch ? `${plural(ch.length, "file")} changed` : "Not read yet")}"></i>`;
+    })
+    .join("");
+  const still = r.finding || r.trying || r.recovering || r.step === "done";
+  const ticks = pts
+    .map((c, i) => {
+      const v = shownVerdict(c);
+      const cls = ["tvt", i === cur ? "on" : "", c.id === checking ? "checking" : ""].filter(Boolean).join(" ");
+      return `<button class="${cls}" style="left:${x(i)}%" tabindex="-1" ${still ? "" : `data-act="tv-go" data-id="${esc(c.id)}"`} title="${esc(`${clock(c.createdAt)} · ${c.note} · ${verdictWord(v)}`)}">${c.id === checking ? '<i class="g v-checking-tick" aria-hidden="true"></i>' : glyph(v)}</button>`;
+    })
+    .join("");
+  const near = (i: number): boolean => Math.abs(i - cur) < Math.max(1, n * 0.09);
+  const labels = pts
+    .map((c, i) => {
+      const show = n <= 12 || i === cur || ((i === 0 || i === n - 1) && !near(i));
+      return show ? `<span class="${i === cur ? "on" : ""}" style="left:${x(i)}%">${esc(clock(c.createdAt))}</span>` : "";
+    })
+    .join("");
+  const curEntry = pts[cur];
+  const veilText = r.step === "done" && r.result ? `Your other version is saved as ${r.result.savedBefore}` : "These stay saved";
+  const veil = cur < n - 1 ? `<div class="tv-veil" data-carry="veil" style="left:${x(cur)}%"><span>${esc(veilText)}</span></div>` : "";
+  const fork =
+    r.step === "done" && r.result
+      ? `<svg class="tv-fork" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" vector-effect="non-scaling-stroke" d="M ${x(cur)} 100 C ${x(cur)} 50, ${x(cur)} 30, ${x(cur) + 2.5} 30 L 100 30"/></svg>
+        <span class="fork-l" style="left:calc(${x(cur)}% + 34px)">${esc(r.result.branch)} · new branch, local only</span>`
+      : "";
+  return `<footer class="tv-ruler ${once("tv-ruler", "rise")}${fork ? " forked" : ""}">
+    <div class="tv-track">
+      ${fork}
+      <div class="tv-lane">${clips.join("")}</div>
+      <div class="tv-band" aria-hidden="true">${bars}</div>
+      <div class="tv-ticks" role="slider" tabindex="0" aria-label="Save points. J and L step, Shift J and Shift L jump to the next verdict change." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(curEntry ? `Save point ${cur + 1} of ${n}. ${clock(curEntry.createdAt)}, ${curEntry.note}. ${verdictWord(shownVerdict(curEntry))}.` : "")}">${ticks}</div>
+      <div class="tv-labels" aria-hidden="true">${labels}</div>
+      ${veil}
+      <div class="tv-ph" data-carry="ph" style="left:${x(cur)}%" aria-hidden="true"></div>
+    </div>
+    <div class="tv-legend" aria-hidden="true"><span>${glyph("PASS")}Works</span><span>${glyph("FAIL")}Broken</span><span>${glyph(null)}Not checked yet</span><span class="sp"></span><span><kbd>J</kbd><kbd>L</kbd> step</span><span><kbd>⇧J</kbd><kbd>⇧L</kbd> verdict change</span></div>
+  </footer>`;
+}
+
+function timeView(): string {
+  const r = st.rewind;
+  const p = project();
+  const all = points();
+  if (!r || !p || !all.length) return "";
+  const sid = stageId();
+  let ci = all.findIndex((c) => c.id === sid);
+  if (ci < 0) ci = all.length - 1;
+  const end = Math.max(Math.min(all.length, 60), Math.min(all.length, ci + 21));
+  const pts = all.slice(Math.max(0, end - 60), end);
+  const cur = pts.findIndex((c) => c.id === all[ci]?.id);
+  const c = pts[cur];
+  if (!c) return "";
+  const still = r.finding || r.trying || r.recovering || r.step === "done";
+  const cards = pts
+    .map((x, i) => ({ x, i, k: cur - i }))
+    .filter((o) => o.k >= -1 && o.k <= 6)
+    .map((o) => tvCard(o.x, o.k, pts[o.i - 1] ?? all[all.indexOf(o.x) - 1] ?? null, still))
+    .join("");
+  const newest = all.at(-1);
+  const done = r.step === "done" && r.result;
+  const now = newest
+    ? `<button class="tv-now" data-act="tv-exit" aria-label="Back to now">
+        <span class="eyebrow">Now</span>
+        <span class="nw-t">${esc(newest.note)}</span>
+        <span class="nw-m">${esc(newest.id)} · ${esc(clock(newest.createdAt))}</span>
+        ${badge(shownVerdict(newest))}
+        <span class="nw-h ${done ? stampOnce("nw-saved") : ""}">${done ? `Saved first as ${esc(r.result?.savedBefore ?? "")}` : "Your folder is untouched"}</span>
+      </button>`
+    : "";
+  const idx = { find: 1, try: 2, use: 3, done: 4 }[r.step];
+  return `<div class="tv ${once("tv")} step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}" tabindex="-1">
+    <header class="tv-top">
+      <div class="tv-name"><span class="tri" aria-hidden="true"></span><span>Rewind</span><b>${esc(p.name)}</b></div>
+      ${steps(idx, ["Find", "Try", "Use", "Done"])}
+      <button class="btn ghost" data-act="${r.step === "use" ? "tv-cancel" : "tv-exit"}" data-key="esc" ${r.recovering ? "disabled" : ""}>${r.step === "use" ? "Cancel" : "Back to now"}<kbd>Esc</kbd></button>
+    </header>
+    <div class="tv-body">
+      <div class="tv-depth" aria-hidden="true"><div class="tv-stack">${cards}</div></div>
+      ${now}
+      <section class="tv-read" aria-label="Selected save point">${tvRead(r, c)}</section>
+    </div>
+    ${tvRuler(r, pts, cur)}
+  </div>`;
 }
 
 function compare(): string {
@@ -539,6 +865,7 @@ function settings(): string {
     <div><h1>Settings</h1></div>
     <div class="panel"><h3>General</h3>
       <div class="setrow"><span class="l">Appearance</span><div class="seg">${seg("system", "System")}${seg("light", "Light")}${seg("dark", "Dark")}</div></div>
+      <div class="setrow"><span class="l">Rewind style</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Time View</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same four steps as a plain sheet. It is used on its own when Reduce motion is on.</span></div></div>
       <div class="setrow"><span class="l">Show Git details</span><div class="toggle">${sw("showGitDetails", s.showGitDetails, "Show Git details")}<span class="muted">Adds commit IDs, commands and logs next to the plain words. It never replaces them and never changes a verdict.</span></div></div>
     </div>
     <div class="panel"><h3>Overlays</h3>
@@ -573,14 +900,19 @@ function onboarding(): string {
     const detected = o.init?.verifyCommand ?? "";
     const optRow = (key: OnboardingState["choice"], title: string, cmd: string, rec: boolean): string =>
       `<label class="opt ${o.choice === key ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="${key}" ${o.choice === key ? "checked" : ""}><span><div class="t">${esc(title)}</div>${cmd ? `<div class="d mono">${esc(cmd)}</div>` : ""}</span><span class="small muted">${rec ? "recommended" : ""}</span></label>`;
+    const fv = o.tryResult && o.first && o.tryResult.checkpoint === o.first.id ? o.tryResult.verdict : null;
+    const firstNote = o.first
+      ? `<div class="first-sp">${glyph(fv)}<span><b>Your first save point is made: ${esc(o.first.id)}.</b> ${fv ? `Checked: ${esc(verdictWord(fv))}.` : "Saved, not checked. Try the check below to find out if it works."}</span></div>`
+      : "";
     body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works.</p></div>
+      ${firstNote}
       <div class="panel">
         ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true) : ""}
         ${detected !== "npm run build" ? optRow("build", "Build it", "npm run build", false) : ""}
         <label class="opt ${o.choice === "custom" ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="custom" ${o.choice === "custom" ? "checked" : ""}><span style="display:grid;gap:6px"><div class="t">My own command</div><input class="field" data-model="ob-custom" placeholder="for example: npm test" value="${esc(o.custom)}"></span><span></span></label>
         <p class="small muted">Checks run in a safe copy, never in your folder.${o.init?.network === "deny" ? " The internet is off during checks." : " The internet stays on during checks on this Mac, because no sandbox was found."}</p>
         <div class="row-btns"><button class="btn" data-act="ob-try" ${o.trying ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
-          ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, "stamp")}<span class="small muted">${esc(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
+          ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${esc(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
         ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn't pass right now. That's OK. We'll save it as Broken, and the next version that passes becomes your first working save point.</div>` : ""}
       </div>
       <div class="row-btns"><button class="btn dark" data-act="ob-next2" ${o.working || o.trying ? "disabled" : ""}>Continue</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
@@ -606,7 +938,7 @@ function hookSheet(): string {
   const h = st.hookSheet;
   if (!h) return "";
   const p = st.projects.find((x) => x.id === h.projectId);
-  return `<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Claude Code">
+  return `<div class="scrim ${once("scrim:hook")}"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Claude Code">
     <h2>Connect Claude Code to ${esc(p?.name ?? "this project")}?</h2>
     <p>We'll add these lines to <span class="mono">${esc(h.preview.settingsPath)}</span> and keep everything already there:</p>
     <pre class="code cmd">${esc(h.preview.lines.map((l) => `${l.event}: ${l.command}`).join("\n"))}</pre>
@@ -624,7 +956,7 @@ function inspector(): string {
   const block = (title: string, command: string | null, json: unknown): string => `<div style="display:grid;gap:8px"><div class="kv"><span class="h">${esc(title)}</span></div>
     ${command ? `<pre class="code cmd">${esc(command)}</pre><div class="row-btns"><button class="btn" data-act="copy" data-text="${esc(command)}">Copy as command</button></div>` : '<p class="small muted">No tm command for this. It is app only.</p>'}
     <pre class="code">${esc(JSON.stringify(json, null, 2))}</pre></div>`;
-  return `<aside class="drawer" role="complementary" aria-label="Inspector"><header><h2>Inspector</h2><span class="muted small">${esc(keys("Mod+I"))}</span><button class="btn ghost" data-act="inspector">Close</button></header>
+  return `<aside class="drawer ${once("drawer")}" role="complementary" aria-label="Inspector"><header><h2>Inspector</h2><span class="muted small">${esc(keys("Mod+I"))}</span><button class="btn ghost" data-act="inspector">Close</button></header>
     <div class="body">
       <p class="small muted">The raw engine result and the same action as a tm command. The app and the CLI call the same engine.</p>
       ${rec ? block(`Last action: ${rec.title} · ${when(rec.at)}`, rec.command, rec.json) : '<p class="muted">No actions yet. Press Save now or Check it works.</p>'}
@@ -635,29 +967,108 @@ function inspector(): string {
 
 function busyScrim(): string {
   if (!st.demoBusy) return "";
-  return `<div class="scrim"><div class="sheet"><h2>Building the demo</h2>
+  return `<div class="scrim ${once("scrim:demo")}"><div class="sheet"><h2>Building the demo</h2>
     <div class="steplist"><div class="r"><span class="spin"></span><span>Making Marigold Tips, a small app with tests, then breaking it on purpose. The real engine finds the last working version and prepares a recovery branch.</span></div></div>
     <p class="small muted">This takes a few seconds. It happens in a new temporary folder.</p></div></div>`;
+}
+
+// Motion helpers. The window is redrawn from state, so these carry movement across redraws.
+
+/** Keys seen in the last draw. An entrance animation plays only the first time its key appears. */
+let seenOnce = new Set<string>();
+let drawOnce = new Set<string>();
+function once(key: string, cls = "enter"): string {
+  drawOnce.add(key);
+  return seenOnce.has(key) ? "" : cls;
+}
+/** The verdict stamp plays once, when a verdict is new on screen. */
+function stampOnce(key: string): string {
+  return once(`stamp:${key}`, "stamp");
+}
+
+/** Inline styles of elements marked data-carry, so a redraw can animate from where they were. */
+const carried = new Map<string, string>();
+function captureCarry(): void {
+  document.querySelectorAll<HTMLElement>("[data-carry]").forEach((el) => carried.set(el.dataset.carry ?? "", el.getAttribute("style") ?? ""));
+}
+function applyCarry(): void {
+  const moves: [HTMLElement, string][] = [];
+  document.querySelectorAll<HTMLElement>("[data-carry]").forEach((el) => {
+    const before = carried.get(el.dataset.carry ?? "");
+    const now = el.getAttribute("style") ?? "";
+    if (before === undefined || before === now) return;
+    el.setAttribute("style", `${before};transition:none`);
+    moves.push([el, now]);
+  });
+  if (!moves.length) return;
+  void document.body.offsetWidth;
+  for (const [el, now] of moves) el.setAttribute("style", now);
+}
+
+/** Entering the Time View: the playhead glides in from Now on the right. */
+function enterScene(): void {
+  carried.clear();
+  carried.set("ph", "left:100%");
+  carried.set("veil", "left:100%");
+}
+
+/** A shortcut fired: its button shows the pressed state for about 120 ms, so shortcuts are learned by seeing them. */
+function flash(sel: string): void {
+  st.flash = { sel, until: Date.now() + 120 };
+  applyFlash();
+}
+function applyFlash(): void {
+  const f = st.flash;
+  if (!f) return;
+  const left = f.until - Date.now();
+  const el = root.querySelector<HTMLElement>(f.sel);
+  if (left <= 0 || !el) {
+    if (left <= 0) st.flash = null;
+    return;
+  }
+  el.classList.add("kf");
+  setTimeout(() => el.classList.remove("kf"), left);
+}
+
+/** A selector for the focused control, so focus survives a redraw. */
+function focusKey(): string | null {
+  const a = document.activeElement;
+  if (!(a instanceof HTMLElement) || a === document.body) return null;
+  if (a.dataset.act) return `[data-act="${CSS.escape(a.dataset.act)}"]${a.dataset.id ? `[data-id="${CSS.escape(a.dataset.id)}"]` : ""}`;
+  if (a.dataset.model) return `[data-model="${CSS.escape(a.dataset.model)}"]`;
+  if (a.classList.contains("tv-ticks")) return ".tv-ticks";
+  return null;
 }
 
 function render(): void {
   const scroll = document.getElementById("list")?.scrollTop ?? 0;
   const pageScroll = document.querySelector(".page")?.scrollTop ?? 0;
+  const focus = focusKey();
+  captureCarry();
+  drawOnce = new Set();
+  const scene = st.screen === "rewind" && st.rewind?.mode === "scene";
   const main =
     st.screen === "welcome" ? welcome()
       : st.screen === "onboarding" ? onboarding()
-        : st.screen === "rewind" ? rewind()
+        : st.screen === "rewind" ? (scene ? history() : `${history()}${rewind()}`)
           : st.screen === "compare" ? compare()
             : st.screen === "settings" ? settings()
               : history();
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    <div class="app">${sidebar()}<main class="main"><div class="dragbar"></div>${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}${inspector()}${st.toast ? `<div class="toast" role="status">${esc(st.toast)}</div>` : ""}</main></div></div>`;
+    <div class="app">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}><div class="dragbar"></div>${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${scene ? timeView() : ""}${inspector()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
+  seenOnce = drawOnce;
   const list = document.getElementById("list");
   if (list) list.scrollTop = scroll;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
   placePlayhead();
+  applyCarry();
+  applyFlash();
+  const tv = root.querySelector<HTMLElement>(".tv");
+  const again = focus ? root.querySelector<HTMLElement>(focus) : null;
+  if (again && !(again instanceof HTMLButtonElement && again.disabled)) again.focus({ preventScroll: true });
+  else if (tv && !tv.contains(document.activeElement)) tv.focus({ preventScroll: true });
 }
 
 function placePlayhead(): void {
@@ -720,29 +1131,62 @@ async function checkNow(id?: string): Promise<void> {
   render();
 }
 
-function newRewind(target: string | null): RewindState {
-  return { step: "find", target, finding: false, find: null, progress: [], trying: false, tryResult: null, opening: false, openResult: null, recovering: false, result: null, error: null };
+function reducedMotion(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** The Time View, unless the user asked for the plain sheet or the system asks for less motion. */
+function rewindMode(): RewindState["mode"] {
+  return st.settings.simpleRewind || reducedMotion() ? "sheet" : "scene";
+}
+
+function here(): ReturnPoint {
+  return {
+    screen: st.screen === "rewind" ? "history" : st.screen,
+    selected: st.selected,
+    listScroll: document.getElementById("list")?.scrollTop ?? 0,
+    pageScroll: document.querySelector(".page")?.scrollTop ?? 0,
+  };
+}
+
+function newRewind(target: string | null, returnTo: ReturnPoint = here()): RewindState {
+  return {
+    step: "find", mode: rewindMode(), returnTo, target, finding: false, find: null, progress: [], trying: false, tryResult: null,
+    opening: false, openResult: null, recovering: false, result: null, error: null,
+  };
 }
 
 async function startRewind(target?: string): Promise<void> {
   const p = project();
   if (!p) return;
-  st.screen = "rewind";
-  st.check = null;
-  if (target) {
-    st.rewind = newRewind(target);
+  // A search that is still running in the background: step back into it.
+  if (st.rewind?.finding && !target) {
+    st.screen = "rewind";
     render();
     return;
   }
+  if (st.busy) return;
+  const back = st.screen === "rewind" && st.rewind ? st.rewind.returnTo : here();
+  st.check = null;
+  st.screen = "rewind";
+  enterScene();
+  if (target) {
+    st.rewind = newRewind(target, back);
+    render();
+    void loadChanges();
+    return;
+  }
+  st.rewind = newRewind(null, back);
   await findGood();
 }
 
 async function findGood(): Promise<void> {
   const p = project();
   if (!p || st.busy) return;
-  st.rewind = { ...newRewind(null), finding: true };
+  st.rewind = { ...newRewind(null, st.rewind?.returnTo), finding: true };
   st.busy = "Finding";
   render();
+  void loadChanges();
   try {
     const r = await api({ method: "findGood", projectId: p.id });
     st.rewind = { ...st.rewind, finding: false, find: r, target: r.found };
@@ -752,7 +1196,82 @@ async function findGood(): Promise<void> {
   st.busy = null;
   await loadTimeline();
   await refreshStatuses();
+  if (st.screen !== "rewind" && st.rewind) {
+    const found = st.rewind.find?.found;
+    toast(found ? `Found it. ${found} is the last version that works. Press ${keys("Mod+Shift+R")} to see it.` : "We could not find a version that passes its check.");
+    return;
+  }
   render();
+}
+
+/** Leave the Rewind with no change, back to exactly where the user was. */
+function exitRewind(): void {
+  const r = st.rewind;
+  const finished = r?.step === "done" ? r.result : null;
+  const back = r?.returnTo ?? { screen: "history" as Screen, selected: st.selected, listScroll: 0, pageScroll: 0 };
+  // A running search keeps going in the background. Everything else is let go.
+  if (!r?.finding) st.rewind = null;
+  st.screen = back.screen;
+  const ids = points().map((c) => c.id);
+  if (back.selected && ids.includes(back.selected)) st.selected = back.selected;
+  render();
+  const list = document.getElementById("list");
+  if (list) list.scrollTop = back.listScroll;
+  const page = document.querySelector(".page");
+  if (page) page.scrollTop = back.pageScroll;
+  if (finished) toast(`${finished.branch} is ready. Your folder and branch were not touched. Nothing was pushed.`);
+}
+
+/** Put the Time View playhead on another save point. Nothing runs until Try or Use. */
+function tvGo(id: string | undefined): void {
+  const r = st.rewind;
+  if (!id || !r || r.finding || r.trying || r.recovering || r.step === "done" || r.target === id) return;
+  if (!entry(id)) return;
+  r.target = id;
+  r.step = "find";
+  r.error = null;
+  render();
+}
+
+function tvStep(how: "back" | "forward" | "prevChange" | "nextChange" | "first" | "last"): void {
+  const pts = points();
+  const i = pts.findIndex((c) => c.id === st.rewind?.target);
+  if (i < 0) return;
+  const v = (j: number): string => verdictKey(shownVerdict(pts[j] ?? null));
+  let j = i;
+  if (how === "back") j = i - 1;
+  else if (how === "forward") j = i + 1;
+  else if (how === "first") j = 0;
+  else if (how === "last") j = pts.length - 1;
+  else if (how === "prevChange") {
+    j = i - 1;
+    while (j > 0 && v(j) === v(j + 1)) j--;
+  } else {
+    j = i + 1;
+    while (j < pts.length - 1 && v(j) === v(j - 1)) j++;
+  }
+  tvGo(pts[Math.max(0, Math.min(pts.length - 1, j))]?.id);
+}
+
+/** Read what changed in each save point, oldest first, without blocking anything. */
+let changesFor = "";
+async function loadChanges(): Promise<void> {
+  const p = project();
+  const pts = points().slice(-40);
+  const key = `${p?.id ?? ""}:${pts.at(-1)?.id ?? ""}`;
+  if (!p || changesFor === key) return;
+  changesFor = key;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    if (!a || !b || st.changes.has(b.id)) continue;
+    const r = await bridge.call({ method: "diff", projectId: p.id, a: a.id, b: b.id });
+    if (st.projectId !== p.id) return;
+    if (!r.ok) continue;
+    const d = r.data;
+    st.changes.set(b.id, [...d.code.map((x) => x.path), ...d.files.added, ...d.files.removed, ...d.files.changed]);
+  }
+  if (st.screen === "rewind" && st.rewind?.mode === "scene") render();
 }
 
 async function rewindTry(): Promise<void> {
@@ -772,6 +1291,13 @@ async function rewindTry(): Promise<void> {
   st.busy = null;
   await loadTimeline();
   render();
+}
+
+async function tvTry(): Promise<void> {
+  const r = st.rewind;
+  if (!r?.target || st.busy || r.finding || r.recovering) return;
+  r.step = "try";
+  await rewindTry();
 }
 
 async function rewindOpen(): Promise<void> {
@@ -890,7 +1416,9 @@ async function obNext1(): Promise<void> {
     const init = await api({ method: "init", projectId: proj.id });
     st.projectId = proj.id;
     void bridge.call({ method: "setActive", projectId: proj.id });
-    st.onboarding = { ...o, step: 2, project: proj, init, current: init.verifyCommand, choice: init.verifyCommand ? "detected" : "custom", custom: init.verifyCommand ? "" : "", working: false };
+    // The first save point, made for the user. It stays "Saved, not checked" until a check runs.
+    const first = await api({ method: "checkpoint", projectId: proj.id, note: "First save point", ifChanged: true });
+    st.onboarding = { ...o, step: 2, project: proj, init, first: first.checkpoint, current: init.verifyCommand, choice: init.verifyCommand ? "detected" : "custom", custom: "", working: false };
   } catch (e) {
     st.onboarding = { ...o, working: false, error: msg(e) };
   }
@@ -926,8 +1454,8 @@ async function obTry(): Promise<void> {
   render();
   try {
     if (await obApplyCheck()) {
-      const saved = await api({ method: "checkpoint", projectId: o.project.id, note: "First save point", ifChanged: true });
-      o.tryResult = await api({ method: "verify", projectId: o.project.id, id: saved.checkpoint.id });
+      const id = o.first?.id ?? (await api({ method: "checkpoint", projectId: o.project.id, note: "First save point", ifChanged: true })).checkpoint.id;
+      o.tryResult = await api({ method: "verify", projectId: o.project.id, id });
     }
   } catch (e) {
     o.error = msg(e);
@@ -981,7 +1509,8 @@ async function obFinish(): Promise<void> {
     st.onboarding = emptyOnboarding();
     await refreshStatuses();
     await selectProject(id);
-    toast("You're set. Each tick is a save point. Green means it passed a check.");
+    const v = points().at(-1)?.verdict ?? null;
+    toast(v === "PASS" ? "You're set. Your newest save point passed its check." : v ? `You're set. Your newest save point is ${verdictWord(v).toLowerCase()}.` : "You're set. Your newest save point is saved, not checked. A tick turns green only after a check passes.");
   } catch (e) {
     o.error = msg(e);
     o.working = false;
@@ -1058,10 +1587,38 @@ async function onClick(el: HTMLElement): Promise<void> {
       st.inspector = !st.inspector;
       return render();
     case "history":
+      if (st.screen === "rewind") return exitRewind();
       st.screen = "history";
       st.rewind = null;
       await loadTimeline();
       return render();
+    case "tv-exit":
+    case "tv-done":
+      if (!st.rewind?.recovering) exitRewind();
+      return;
+    case "tv-go":
+      return tvGo(d.id);
+    case "tv-try":
+      return tvTry();
+    case "tv-use":
+      if (st.rewind && !st.busy) {
+        st.rewind.step = "use";
+        render();
+      }
+      return;
+    case "tv-cancel":
+      if (st.rewind && !st.rewind.recovering) {
+        st.rewind.step = st.rewind.tryResult?.checkpoint === st.rewind.target ? "try" : "find";
+        render();
+      }
+      return;
+    case "tv-do":
+      return rewindDo();
+    case "tv-compare":
+      if (st.rewind?.target) return openCompare(st.rewind.target, points().at(-1)?.id);
+      return;
+    case "rewind-style":
+      return setSetting({ simpleRewind: d.v === "sheet" });
     case "reload":
       await loadTimeline();
       return render();
@@ -1194,7 +1751,7 @@ async function onClick(el: HTMLElement): Promise<void> {
 }
 
 function shortcut(action: ShortcutAction): void {
-  const inProject = !!project() && st.screen !== "onboarding";
+  const inProject = !!project() && st.screen !== "onboarding" && st.screen !== "rewind";
   switch (action) {
     case "save":
       if (inProject) void saveNow();
@@ -1219,10 +1776,73 @@ function shortcut(action: ShortcutAction): void {
   }
 }
 
+/** The Rewind's own keys. Returns true when the key was used. */
+function rewindKey(e: KeyboardEvent): boolean {
+  const r = st.rewind;
+  if (!r || st.screen !== "rewind" || e.metaKey || e.ctrlKey || e.altKey) return false;
+  const k = e.key;
+  if (r.mode === "sheet") {
+    if (r.recovering) return false;
+    if (k === "Escape") exitRewind();
+    else if (k === "Enter") root.querySelector<HTMLButtonElement>(".rw-sheet .btn.dark:not([disabled])")?.click();
+    else return false;
+    return true;
+  }
+  if (k === "Escape") {
+    flash('.tv [data-key="esc"]');
+    if (r.recovering) return true;
+    if (r.step === "use") {
+      r.step = r.tryResult?.checkpoint === r.target ? "try" : "find";
+      render();
+    } else exitRewind();
+    return true;
+  }
+  if (k === "Enter") {
+    // Enter never waits for an animation. It does the main action now.
+    flash('.tv [data-key="enter"]');
+    if (r.finding || r.trying || r.recovering || st.busy) return true;
+    if (r.step === "done" || (r.find && !r.find.found && !r.target)) {
+      exitRewind();
+      return true;
+    }
+    const c = entry(r.target);
+    if (!c) return true;
+    if (r.step === "use") void rewindDo();
+    else if (shownVerdict(c) === "PASS") {
+      r.step = "use";
+      render();
+    } else void tvTry();
+    return true;
+  }
+  if (r.finding || r.trying || r.recovering || r.step === "done") return false;
+  const lower = k.toLowerCase();
+  if (lower === "j" || k === "ArrowLeft") tvStep(e.shiftKey ? "prevChange" : "back");
+  else if (lower === "l" || k === "ArrowRight") tvStep(e.shiftKey ? "nextChange" : "forward");
+  else if (k === "Home") tvStep("first");
+  else if (k === "End") tvStep("last");
+  else if (lower === "t" && !e.shiftKey && r.step !== "use") {
+    flash('.tv [data-key="t"]');
+    void tvTry();
+  } else if (lower === "c" && !e.shiftKey && r.step !== "use" && r.target && points().at(-1)?.id !== r.target) {
+    flash('.tv [data-key="c"]');
+    void openCompare(r.target, points().at(-1)?.id);
+  } else return false;
+  return true;
+}
+
 function onKey(e: KeyboardEvent): void {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   const k = e.key.toLowerCase();
   const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+  if (k === "escape" && st.inspector) {
+    st.inspector = false;
+    render();
+    return;
+  }
+  if (!typing && rewindKey(e)) {
+    e.preventDefault();
+    return;
+  }
   if (mod && e.shiftKey && k === "r") return void (e.preventDefault(), shortcut("rewind"));
   if (mod && e.shiftKey && k === "c") return void (e.preventDefault(), shortcut("compare"));
   if (mod && e.shiftKey && k === "t" && opts.onStrip) {
@@ -1231,14 +1851,13 @@ function onKey(e: KeyboardEvent): void {
     if (p) opts.onStrip(p.id);
     return;
   }
-  if (mod && k === "s") return void (e.preventDefault(), shortcut("save"));
-  if (mod && k === "enter") return void (e.preventDefault(), shortcut("check"));
-  if (mod && k === "i") return void (e.preventDefault(), shortcut("inspector"));
-  if (mod && k === ",") return void (e.preventDefault(), shortcut("settings"));
+  if (mod && k === "s") return void (e.preventDefault(), flash('[data-act="save"]'), shortcut("save"));
+  if (mod && k === "enter") return void (e.preventDefault(), flash('[data-act="check"]'), shortcut("check"));
+  if (mod && k === "i") return void (e.preventDefault(), shortcut("inspector"), flash('.side [data-act="inspector"]'));
+  if (mod && k === ",") return void (e.preventDefault(), flash('.side [data-act="settings"]'), shortcut("settings"));
   if (mod && k === "n") return void (e.preventDefault(), shortcut("add"));
   if (k === "escape") {
-    if (st.inspector) st.inspector = false;
-    else if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
+    if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
     else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
     render();
     return;
@@ -1250,6 +1869,7 @@ function onKey(e: KeyboardEvent): void {
   if (k === "arrowdown" || k === "j" || k === "arrowleft") st.selected = pts[Math.max(0, i - 1)]?.id ?? st.selected;
   else if (k === "arrowup" || k === "l" || k === "arrowright") st.selected = pts[Math.min(pts.length - 1, i + 1)]?.id ?? st.selected;
   else if (k === "c" && st.selected && pts.at(-1)?.id !== st.selected) return void openCompare(st.selected, pts.at(-1)?.id);
+  else if (k === " " && st.selected) return void (e.preventDefault(), startRewind(st.selected));
   else return;
   e.preventDefault();
   render();
@@ -1307,9 +1927,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "history" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
     compare: { a: null, b: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, records: [], storage: null,
-    hookSheet: null, toast: null, demoBusy: false, openResult: null,
+    hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null,
   };
   if (isMac()) document.documentElement.classList.add("mac");
+  if (!o.preview) document.documentElement.classList.add("native");
   applyTheme();
   root.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
