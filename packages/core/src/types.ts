@@ -50,6 +50,8 @@ export interface InitResult {
 
 export interface CheckpointResult {
   checkpoint: CheckpointSummary;
+  /** True when nothing changed and the newest checkpoint was returned instead. */
+  skipped: boolean;
 }
 
 export interface TimelineEntry extends CheckpointSummary {
@@ -111,4 +113,27 @@ export interface AuditEntry {
 
 export interface LogResult {
   entries: AuditEntry[];
+}
+
+export type HookEvent = "prompt" | "pre-bash" | "stop";
+
+export interface HookResult {
+  event: HookEvent;
+  exitCode: 0 | 2;
+  checkpoint: string | null;
+  verdict: Verdict | null;
+  message: string;
+}
+
+export interface HookInstallResult {
+  settingsPath: string;
+  added: string[];
+  alreadyPresent: string[];
+}
+
+export interface DemoResult {
+  dir: string;
+  checkpoints: { id: string; note: string; expect: "PASS" | "FAIL" }[];
+  findGood: FindGoodResult;
+  recover: RecoverResult;
 }

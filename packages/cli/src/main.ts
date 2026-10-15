@@ -1,6 +1,9 @@
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import * as tm from "@timetm/core";
-import { fmtCheckpoint, fmtDiff, fmtFindGood, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
+import { spawnSync } from "node:child_process";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
+import { serveMcp } from "./mcp.js";
+import { VERSION } from "./version.js";
 
 export interface Io {
   cwd: string;
@@ -8,23 +11,42 @@ export interface Io {
   stdout: (s: string) => void;
   stderr: (s: string) => void;
   isTTY: boolean;
+  /** Standard input, for hooks and the MCP server. */
+  stdin?: NodeJS.ReadableStream;
 }
 
-export const VERSION = "0.1.0";
+export { VERSION };
+
+async function readAll(input: NodeJS.ReadableStream): Promise<string> {
+  let s = "";
+  for await (const chunk of input) s += typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
+  return s;
+}
+
+/** The command hooks call: `tm` when it is on PATH, otherwise npx. */
+function hookCommand(env: NodeJS.ProcessEnv): string {
+  if (env.TM_HOOK_COMMAND) return env.TM_HOOK_COMMAND;
+  return spawnSync("/bin/sh", ["-c", "command -v tm"], { env }).status === 0 ? "tm" : "npx -y timetm";
+}
 
 const HELP = `tm: save points for your project, with proof of which ones still work.
 
 Usage: tm <command> [options]
 
   init                  Create timemachine.yml with a guessed check
+  demo [dir]            Build a broken demo project and watch it get rescued
   checkpoint [-m note]  Save a checkpoint of the project as it is now
+                        --if-changed skips it when nothing changed, --trigger names the source
   timeline              List checkpoints and their verdicts
   diff <a> <b>          Compare two checkpoints
-  open <cp>             Rebuild a checkpoint in a separate folder
+  open <cp> [--dir d]   Rebuild a checkpoint in a separate folder
   verify [cp]           Run the check on a checkpoint (default: newest)
   find-good             Find the newest checkpoint that passes
   recover <cp>          Make a recovery branch and copy. Never pushes
   log                   Show the audit log
+  hook install          Add Claude Code hooks to .claude/settings.json
+  hook <event>          Run a hook: prompt, pre-bash or stop (reads JSON on stdin)
+  mcp                   Run the MCP server on stdio for AI agents
 
 Options: --json   machine readable output   -h, --help   --version
 
@@ -39,11 +61,15 @@ const OPTIONS = {
   message: { type: "string", short: "m" },
   trigger: { type: "string" },
   dir: { type: "string" },
+  "if-changed": { type: "boolean" },
 } as const satisfies ParseArgsConfig["options"];
 
 const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
   init: { args: [0, 0], flags: [] },
-  checkpoint: { args: [0, 0], flags: ["message", "trigger"] },
+  checkpoint: { args: [0, 0], flags: ["message", "trigger", "if-changed"] },
+  demo: { args: [0, 1], flags: [] },
+  hook: { args: [1, 1], flags: [] },
+  mcp: { args: [0, 0], flags: [] },
   timeline: { args: [0, 0], flags: [] },
   diff: { args: [2, 2], flags: [] },
   open: { args: [1, 1], flags: ["dir"] },
@@ -76,7 +102,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const spec = ALLOWED[command];
     if (!spec) throw new UsageError(`Unknown command "${command}". Run tm --help.`);
     if (args.length < spec.args[0] || args.length > spec.args[1]) throw new UsageError(`Wrong number of arguments for ${command}. Run tm --help.`);
-    for (const flag of ["message", "trigger", "dir"] as const) {
+    for (const flag of ["message", "trigger", "dir", "if-changed"] as const) {
       if (values[flag] !== undefined && !spec.flags.includes(flag)) throw new UsageError(`--${flag} does not apply to ${command}.`);
     }
 
@@ -95,7 +121,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "checkpoint": {
         const note = str(values.message);
         const trigger = str(values.trigger);
-        const r = await tm.checkpoint(ctx, { ...(note !== undefined ? { note } : {}), ...(trigger !== undefined ? { trigger } : {}) });
+        const r = await tm.checkpoint(ctx, { ...(note !== undefined ? { note } : {}), ...(trigger !== undefined ? { trigger } : {}), skipIfUnchanged: values["if-changed"] === true });
         print(r, fmtCheckpoint(r));
         return 0;
       }
@@ -128,6 +154,34 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "recover": {
         const r = await tm.recover(ctx, args[0] ?? "");
         print(r, fmtRecover(r));
+        return 0;
+      }
+      case "demo": {
+        const r = await tm.demo(ctx, args[0] !== undefined ? { dir: args[0] } : {});
+        print(r, fmtDemo(r, style));
+        return 0;
+      }
+      case "hook": {
+        const event = args[0] ?? "";
+        if (event === "install") {
+          const r = await tm.hookInstall(ctx, { command: hookCommand(io.env) });
+          print(r, fmtHookInstall(r));
+          return 0;
+        }
+        if (event !== "prompt" && event !== "pre-bash" && event !== "stop") throw new UsageError(`Unknown hook "${event}". Use install, prompt, pre-bash or stop.`);
+        let input: unknown = {};
+        try {
+          input = JSON.parse((io.stdin ? await readAll(io.stdin) : "") || "{}");
+        } catch {
+          input = {};
+        }
+        const r = await tm.runHook(ctx, event, input);
+        if (json) io.stdout(`${JSON.stringify(r)}\n`);
+        if (r.message) io.stderr(`${r.message}\n`);
+        return r.exitCode;
+      }
+      case "mcp": {
+        await serveMcp(ctx, io.stdin ?? process.stdin, io.stdout);
         return 0;
       }
       case "log": {

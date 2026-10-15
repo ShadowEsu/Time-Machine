@@ -4,7 +4,7 @@ Save points for your projects, with proof of which ones still work.
 
 When an AI agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check, rebuilds it in a separate copy, and prepares a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
-**Status: early. Not on npm yet.** The engine and CLI below work and are tested. The Mac app, agent hooks and MCP server are planned.
+**Status: early. Not on npm yet.** The engine, the CLI, Claude Code hooks and the MCP server below work and are tested. The Mac app is planned.
 
 ## What works today
 
@@ -19,6 +19,9 @@ When an AI agent or a late night change breaks your project, Time Machine finds 
 | `tm find-good` | Walks back until a save point passes |
 | `tm recover cp-0003` | Saves your current state first, then makes branch `tm/recover/cp-0003` and a recovery copy |
 | `tm log` | Shows the append-only audit log |
+| `tm demo` | Builds a small broken project and rescues it, so you can watch the whole thing in a minute |
+| `tm hook install` | Adds Claude Code hooks: a save point before each prompt and risky command, and a check when Claude stops that tells it if a working state just broke |
+| `tm mcp` | An MCP server so agents can save, check, find and recover through the same engine |
 
 Every command takes `--json`. Human and JSON output come from the same result.
 
@@ -42,19 +45,20 @@ Usage errors exit 64.
 
 ## Try it from source
 
-Needs Node 22.18 or newer, pnpm and Git.
+Needs Node 22 or newer, pnpm and Git.
 
 ```sh
 pnpm install
 pnpm build
 pnpm test            # runs the acceptance tests V01 to V14 on a synthetic demo project
-node packages/cli/dist/bin.js --help
+node packages/cli/dist/tm.js demo
 ```
 
 Save points live outside your project in `~/.timemachine` (or `$TM_HOME`), so deleting the project folder does not delete them.
 
 ## Docs
 
+- `docs/GUIDE.md`: the user guide
 - `docs/BUILD_BRIEF.md`: scope and requirements
 - `docs/PLAN.md`: milestones and dates
 - `docs/adr/`: decisions

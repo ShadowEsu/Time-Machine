@@ -77,7 +77,20 @@ function digests(root: string, paths: string[]): { path: string; sha256: string 
   return paths.filter((f) => existsSync(join(root, f)) && lstatSync(join(root, f)).isFile()).map((f) => ({ path: f, sha256: sha256(readFileSync(join(root, f))) }));
 }
 
-export async function checkpoint(ctx: Ctx, opts: { note?: string; trigger?: string } = {}): Promise<CheckpointResult> {
+function sameState(m: Manifest, snapshot: string, files: Manifest["files"], config: Manifest["config"]): boolean {
+  const f = (x: Manifest["files"]): string => JSON.stringify(x.map((y) => [y.path, y.sha256, y.mode]));
+  const c = (x: Manifest["config"]): string => JSON.stringify(x.map((y) => [y.file, y.keys.map((k) => [k.name, k.fingerprint])]));
+  return m.git.snapshot === snapshot && f(m.files) === f(files) && c(m.config) === c(config);
+}
+
+export interface CheckpointOptions {
+  note?: string;
+  trigger?: string;
+  /** Return the newest checkpoint instead of a new one when nothing changed. */
+  skipIfUnchanged?: boolean;
+}
+
+export async function checkpoint(ctx: Ctx, opts: CheckpointOptions = {}): Promise<CheckpointResult> {
   const p = resolveProject(ctx);
   const { config: cfg } = loadConfig(p.root);
   ensureStore(p);
@@ -94,7 +107,6 @@ export async function checkpoint(ctx: Ctx, opts: { note?: string; trigger?: stri
     const remote = remoteR.code === 0 ? safeRemote(remoteR.stdout.trim()) : null;
 
     const { snapshot, changedTracked } = snapshotCommit(p, cfg, id, head);
-    git(p.root, p.env, ["update-ref", `refs/tm/${id}`, snapshot]);
 
     const missing: string[] = [];
     const manual: string[] = [];
@@ -135,6 +147,16 @@ export async function checkpoint(ctx: Ctx, opts: { note?: string; trigger?: stri
       });
       config.push({ file, keys });
     }
+
+    if (opts.skipIfUnchanged && last) {
+      try {
+        const prev = readManifest(p, last);
+        if (sameState(prev, snapshot, files, config)) return { checkpoint: summarize(prev), skipped: true };
+      } catch {
+        // The newest checkpoint is unreadable. Save a fresh one.
+      }
+    }
+    git(p.root, p.env, ["update-ref", `refs/tm/${id}`, snapshot]);
 
     const environment = {
       runtimes: runtimeVersions(p),
@@ -193,6 +215,6 @@ export async function checkpoint(ctx: Ctx, opts: { note?: string; trigger?: stri
       bundle,
     });
     audit(p, "checkpoint", id, "saved");
-    return { checkpoint: summarize(manifest) };
+    return { checkpoint: summarize(manifest), skipped: false };
   });
 }

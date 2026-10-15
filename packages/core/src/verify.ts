@@ -101,10 +101,27 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
     }
     const notSaved = [...m.missing, ...manifest.coverage.missing];
     if (notSaved.length) return finish("INCOMPLETE", `Some saved files are missing: ${notSaved.join(", ")}. The check was not run.`);
-    const [file, args] = sandbox ? sandbox.wrap(command) : ["/bin/sh", ["-c", command]];
-    const r = await runWithTimeout(file, args, { cwd: dir, env: cleanEnv(p.env, m.plainEnv), timeoutMs: cfg.verify.timeoutSeconds * 1000 });
+    const env = cleanEnv(p.env, m.plainEnv);
+    const deadline = Date.now() + cfg.verify.timeoutSeconds * 1000;
     const logPath = join(p.store, "logs", `${target}-${stamp()}.log`);
-    writeFileSync(logPath, redact(`$ ${command}\n${r.output}`, secretValues(p, cfg)));
+    const secrets = secretValues(p, cfg);
+    let log = "";
+    // Setup (for example npm ci) may need the network to install dependencies, so it runs
+    // outside the sandbox. Only the check itself runs under the network policy.
+    if (cfg.verify.setup.trim()) {
+      const s = await runWithTimeout("/bin/sh", ["-c", cfg.verify.setup], { cwd: dir, env, timeoutMs: deadline - Date.now() });
+      log += `$ ${cfg.verify.setup}\n${s.output}\n`;
+      const judged = judge(s, cfg.verify.timeoutSeconds);
+      if (judged.verdict !== "PASS") {
+        writeFileSync(logPath, redact(log, secrets));
+        const reason = judged.verdict === "FAIL" ? `The setup step failed with exit code ${s.code}, so the check did not run.` : `Setup: ${judged.reason}`;
+        return finish(judged.verdict, reason, s.code, logPath);
+      }
+    }
+    const [file, args] = sandbox ? sandbox.wrap(cfg.verify.command) : ["/bin/sh", ["-c", cfg.verify.command]];
+    const r = await runWithTimeout(file, args, { cwd: dir, env, timeoutMs: Math.max(1, deadline - Date.now()) });
+    log += `$ ${cfg.verify.command}\n${r.output}`;
+    writeFileSync(logPath, redact(log, secrets));
     const { verdict, reason } = judge(r, cfg.verify.timeoutSeconds);
     return finish(verdict, reason, r.code, logPath);
   } finally {

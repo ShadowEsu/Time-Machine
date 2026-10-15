@@ -10,4 +10,6 @@ export { verify } from "./verify.js";
 export { findGood } from "./findGood.js";
 export { recover } from "./recover.js";
 export { log } from "./audit.js";
+export { hookInstall, runHook, isRisky } from "./hooks.js";
+export { demo } from "./demo.js";
 export { storeDirFor } from "./store.js";

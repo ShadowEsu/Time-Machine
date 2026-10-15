@@ -1,6 +1,6 @@
 // Human output. Every line is built from the same result object the --json flag prints,
 // so the two can never disagree.
-import type { CheckpointResult, DiffResult, FindGoodResult, InitResult, LogResult, OpenResult, RecoverResult, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
+import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, LogResult, OpenResult, RecoverResult, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -40,6 +40,7 @@ export function fmtInit(r: InitResult): string {
 
 export function fmtCheckpoint(r: CheckpointResult): string {
   const c = r.checkpoint;
+  if (r.skipped) return `Nothing changed since ${c.id}, so no new checkpoint was saved.`;
   return [
     `Saved ${c.id}${c.note ? `  "${c.note}"` : ""}`,
     ...c.coverage.captured.map((x) => `  ${x}`),
@@ -122,4 +123,31 @@ export function fmtRecover(r: RecoverResult): string {
 export function fmtLog(r: LogResult): string {
   if (!r.entries.length) return "The audit log is empty.";
   return r.entries.map((e) => `${e.at}  ${pad(e.action, 10)} ${pad(e.target ?? "", 9)} ${e.result}`).join("\n");
+}
+
+export function fmtDemo(r: DemoResult, s: Style): string {
+  return [
+    `Built a demo project, Marigold Tips, in ${r.dir}`,
+    ...r.checkpoints.map((c) => `  ${pad(c.id, 9)} ${pad(c.note, 28)}${c.note.startsWith("Agent") ? "  <- an agent's lint fix broke it here" : ""}`),
+    "",
+    "$ tm find-good",
+    fmtFindGood(r.findGood, s),
+    "",
+    `$ tm recover ${r.recover.id}`,
+    fmtRecover(r.recover),
+    "",
+    "Try it yourself:",
+    `  cd ${r.dir}`,
+    "  tm timeline",
+  ].join("\n");
+}
+
+export function fmtHookInstall(r: HookInstallResult): string {
+  return [
+    r.added.length ? `Added Claude Code hooks to ${r.settingsPath}: ${r.added.join(", ")}` : `Claude Code hooks were already in ${r.settingsPath}`,
+    "  Before each prompt and before risky shell commands, a checkpoint is saved if anything changed.",
+    "  When Claude stops, the newest checkpoint is checked. If it passed before and fails now, Claude is told which checkpoint last worked.",
+    "Claude Code runs project hooks only after you trust the folder.",
+    "For the MCP server too: claude mcp add timemachine -- tm mcp",
+  ].join("\n");
 }

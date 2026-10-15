@@ -1,0 +1,343 @@
+# Time Machine user guide
+
+Save points for your projects, with proof of which ones still work.
+
+## 1. What Time Machine is and is not
+
+Time Machine saves your project as save points. The CLI calls them checkpoints, with IDs like `cp-0003`. Each one records your code (including uncommitted changes), files not in Git yet, config key names, and dependency and environment digests.
+
+Later it can rebuild any save point in a separate copy, run your check there, and tell you which one still works. Then it prepares a recovery branch for you.
+
+What it is not:
+
+- It is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project folder.
+- It never stores secret values. You set those again by hand.
+- It does not replace a full disk backup.
+- Checks run in host mode by default. That is weaker isolation than a container, and every verdict says so.
+- A save point that was never checked is shown as "not checked", never as working.
+
+## 2. Install
+
+Time Machine is not on npm yet. `npx timetm init` is coming soon. For now, build it from source.
+
+You need Node 22 or newer, pnpm and Git.
+
+```sh
+git clone <this repository> Time-Machine
+cd Time-Machine
+pnpm install
+pnpm build
+node packages/cli/dist/tm.js --help
+```
+
+To run `tm` from any folder, link it onto your PATH:
+
+```sh
+chmod +x packages/cli/dist/tm.js
+ln -s "$PWD/packages/cli/dist/tm.js" ~/.local/bin/tm
+tm --version
+```
+
+The agent hooks and the MCP server call `tm` by name, so they need this link.
+
+## 3. Two minute tour
+
+```sh
+tm demo
+```
+
+`tm demo [dir]` builds a synthetic project called "Marigold Tips", a tiny JavaScript tip calculator with tests. It records 6 save points:
+
+| Save point | Note | Works? |
+|---|---|---|
+| cp-0001 | Initial tip calculator | yes |
+| cp-0002 | Added split bill | yes |
+| cp-0003 | Added dark mode | yes |
+| cp-0004 | Agent: fixed lint warnings | no, rounding broke |
+| cp-0005 | Changed currency | no |
+| cp-0006 | Added a dependency | no |
+
+Then it runs `find-good` and `recover` so you see the whole rescue in under a minute. It lands on cp-0003 and creates the branch `tm/recover/cp-0003`. Pass a folder name to choose where the demo goes. The demo uses your normal store, so its save points show up next to your own projects. All data in it is fake.
+
+## 4. Your own project in ten minutes
+
+Your project must be a Git repository.
+
+**Step 1. Set it up.**
+
+```sh
+cd my-app
+tm init
+```
+
+```
+Created /home/you/my-app/timemachine.yml
+  Check     npm test
+  Network   on during checks
+Next: tm checkpoint -m "first save point"
+```
+
+`init` guesses the check: `npm test`, then `npm run build`, then `cargo test`, `go test ./...` or `pytest`. If it finds nothing, the check is empty. Open `timemachine.yml` and set `verify.command`.
+
+If your check needs dependencies, add a setup step such as `setup: "npm ci"`. Checks run in a fresh copy with no `node_modules`. Setup always has the network.
+
+**Step 2. Save.**
+
+```sh
+tm checkpoint -m "Added dark mode"
+```
+
+```
+Saved cp-0003  "Added dark mode"
+  Code: commit 4e1d0b7 on main, including 2 uncommitted changes
+  Files: 1 file not in Git
+  Config: 2 keys in .env (0 saved, 2 name only)
+  Environment: platform linux-x64, node v22.18.0, git 2.43.0
+Not saved
+  Secret values in .env: PORT, STRIPE_SECRET_KEY
+  Databases, deployed versions and external services are not captured
+Not checked yet.
+Next: tm verify cp-0003
+```
+
+**Step 3. Check it.**
+
+```sh
+tm verify cp-0003
+```
+
+```
+PASS       cp-0003 works (host mode, network on, 1.4 s)
+           The check passed.
+           Log: /home/you/.timemachine/projects/9f2c41d07a3be815/logs/cp-0003-2026-10-15T10-42-07-311Z.log
+```
+
+**Step 4. When something breaks, find the last working version.**
+
+```sh
+tm find-good
+```
+
+```
+  cp-0006   FAIL       The check failed with exit code 1.
+  cp-0005   FAIL       The check failed with exit code 1.
+  cp-0004   FAIL       The check failed with exit code 1.
+  cp-0003   PASS       The check passed.
+PASS  cp-0003 is the newest version that works.
+Next: tm recover cp-0003
+```
+
+**Step 5. Recover.**
+
+```sh
+tm recover cp-0003
+```
+
+```
+Recovery ready for cp-0003. Nothing was pushed, merged or deployed. Your folder and branch were not touched.
+  Branch          tm/recover/cp-0003
+  Recovery copy   /home/you/my-app-recovered-cp-0003
+  Saved first     cp-0007, your state before this recovery
+  Last check      PASS
+Restored
+  Code at commit 4e1d0b7
+  1 saved file
+Not restored
+  Secret values in .env: PORT, STRIPE_SECRET_KEY
+  Databases, deployed versions and external services are not captured
+Manual steps
+  Set PORT in .env in the recovery copy.
+  Set STRIPE_SECRET_KEY in .env in the recovery copy.
+  Review the recovery copy at /home/you/my-app-recovered-cp-0003.
+  To use it in your main folder: git worktree remove "/home/you/my-app-recovered-cp-0003", then git switch tm/recover/cp-0003
+Report: /home/you/.timemachine/projects/9f2c41d07a3be815/reports/recover-cp-0003-2026-10-15T10-45-12-004Z.md
+```
+
+Your broken state was saved first as cp-0007, so you can always come back to it.
+
+## 5. Commands reference
+
+Every command takes `--json`. The JSON and the human output come from the same result. `-h`, `--help` and `--version` work everywhere.
+
+| Command | What it does |
+|---|---|
+| `tm init` | Writes `timemachine.yml` with a guessed check. Keeps an existing file. |
+| `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. |
+| `tm timeline` | Lists save points, newest first, with verdicts. |
+| `tm diff <a> <b>` | Compares code, files, config keys, dependencies and environment. |
+| `tm open <cp> [--dir path]` | Rebuilds a save point in a separate folder. Default is a temp folder. |
+| `tm verify [cp]` | Runs the check on a save point. Default is the newest. |
+| `tm find-good` | Checks save points from newest to oldest until one passes. |
+| `tm recover <cp>` | Saves your current state, then makes a recovery branch and copy. |
+| `tm log` | Shows the append-only audit log. |
+| `tm demo [dir]` | Builds the Marigold Tips demo and runs the rescue. |
+| `tm hook install` | Adds Claude Code hooks to `.claude/settings.json`. |
+| `tm hook <prompt\|pre-bash\|stop>` | What the hooks call. Reads hook JSON on stdin. |
+| `tm mcp` | Runs an MCP server over stdio. |
+
+`checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`.
+
+`timeline` rows look like this:
+
+```
+History of my-app
+cp-0004   FAIL        2026-10-15 10:51  8a03f6e  Agent: fixed lint warnings
+cp-0003   PASS        2026-10-15 10:42  4e1d0b7  Added dark mode
+```
+
+`diff` lines use `+` added, `-` removed, `~` changed, and Git's `A`, `M`, `D` for code.
+
+**Exit codes.** `verify` and `find-good` exit with the verdict code: PASS 0, FAIL 1, INCOMPLETE 2, BLOCKED 3, ERROR 4. Other commands exit 0 on success and 4 on an error, such as "There are no checkpoints yet". Usage errors exit 64. That includes bad flags, unknown commands and an invalid `timemachine.yml`.
+
+## 6. timemachine.yml reference
+
+The file lives at your project root. Unknown keys are rejected, so typos show up as errors.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `version` | `1` | `1` | File format version. |
+| `verify.command` | string | `""` | The check. Exit 0 means it works. Empty means BLOCKED. |
+| `verify.setup` | string | `""` | Runs before the check, for example `npm ci`. Shares the time limit. It always has the network so it can install dependencies. |
+| `verify.timeoutSeconds` | whole number, 1 to 86400 | `600` | Longer checks stop with ERROR. |
+| `verify.network` | `allow` or `deny` | `allow` | `deny` turns the network off during checks. Needs a sandbox. |
+| `capture.untracked` | boolean | `true` | Save files not in Git, unless `.gitignore` skips them. |
+| `capture.include` | list of paths or patterns | `[]` | Ignored files to save anyway. |
+| `capture.maxFileMB` | number, up to 1024 | `5` | Larger files are not saved. |
+| `config.files` | list of paths | `[".env"]` | Config files. Only key names and a fingerprint are saved. |
+| `config.plain` | list of key names | `[]` | Keys whose values are safe to save, unless they look like a secret. |
+| `environment.files` | list of paths | see below | Environment definitions to fingerprint. |
+
+The default `environment.files` list is `Dockerfile`, `docker-compose.yml`, `compose.yaml`, `.nvmrc`, `.node-version`, `.tool-versions`, `.python-version` and `.devcontainer/devcontainer.json`.
+
+`tm init` writes `network: deny` only when it finds a sandbox. Otherwise it writes `allow`.
+
+Example:
+
+```yaml
+version: 1
+verify:
+  setup: "npm ci"
+  command: "npm test"
+  timeoutSeconds: 600
+  network: allow
+capture:
+  untracked: true
+  include: ["data/seed.json"]
+  maxFileMB: 5
+config:
+  files: [".env"]
+  plain: ["PORT", "LOG_LEVEL"]
+```
+
+## 7. What is saved and what is not
+
+**Saved:**
+
+- Code, including uncommitted changes to tracked files. Each save point is a Git commit pinned at `refs/tm/<id>` and also written as a Git bundle into the store.
+- Files not in Git yet, unless `.gitignore` skips them, plus anything in `capture.include`.
+- Config key names and a fingerprint, so changes show up in `diff`. Values only for keys in `config.plain`.
+- Lockfile digests (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `go.sum` and others), environment file digests, and Node, Git and platform versions.
+
+**Not saved:**
+
+- Secret values. A file that looks like it contains a secret is skipped and listed.
+- Files over `capture.maxFileMB`, and symbolic links. These are listed as missing.
+- Installed dependencies such as `node_modules`. Only the lockfile digest is kept.
+- Databases, deployed versions and external services.
+
+Every save point lists what it did not save.
+
+**Where the store lives.** In `~/.timemachine`, or `$TM_HOME` if you set it. Each project gets a folder at `projects/<hash of the project path>/` with `objects/`, `checkpoints/`, `bundles/`, `logs/`, `reports/`, `audit.jsonl` and `project.json`. Deleting your project folder does not delete its save points. Keep `~/.timemachine/key` too. It seals every save point, and save points cannot be read without it.
+
+## 8. Verdicts and what to do
+
+| Verdict | Exit | Meaning | What to do |
+|---|---|---|---|
+| PASS | 0 | The check passed. | Safe to recover to. |
+| FAIL | 1 | The check failed. | Run `tm find-good`. Read the log path shown. |
+| INCOMPLETE | 2 | Something saved is missing, so the check did not run. | See the listed files. Raise `capture.maxFileMB`, or skip the file in `.gitignore`. |
+| BLOCKED | 3 | The check cannot run yet. | Fix the reason shown. |
+| ERROR | 4 | The check crashed, timed out, or the save point failed its integrity check. | Raise `verify.timeoutSeconds`, make sure the command is installed, or pick another save point. |
+
+`find-good` keeps going past FAIL, INCOMPLETE and ERROR. It stops at the first PASS, or at BLOCKED.
+
+**Common BLOCKED reasons:**
+
+- No check is set up. Add `verify.command` to `timemachine.yml`.
+- The network is set to `deny` but no sandbox is available. Time Machine never runs the check with the network on in that case. Fix it one of two ways:
+  - On Linux, install bubblewrap, for example `sudo apt install bubblewrap`. On macOS the built in `sandbox-exec` is used.
+  - Or set `verify.network: allow`.
+
+With `network: deny`, the `setup` step still has the network so it can install dependencies. Only the check itself runs without it.
+
+Checks run with a clean environment. Only `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `TMPDIR`, `SHELL` and your `config.plain` values are passed in, plus `CI=1`. A check that needs a secret value may fail.
+
+## 9. Using it with AI agents
+
+### Claude Code hooks
+
+```sh
+tm hook install
+```
+
+This adds hooks to the project's `.claude/settings.json`. Your existing settings stay.
+
+- **Before each prompt:** saves a save point. It is skipped if nothing changed.
+- **Before risky shell commands** like `rm -rf` or `git reset --hard`: saves a save point first.
+- **When Claude stops:** saves and runs the check. If the check passed before and fails now, it tells Claude which save point last worked.
+
+Hooks never block the agent because of their own errors. Prompt text that looks like a secret is never stored.
+
+The hooks call `tm hook prompt`, `tm hook pre-bash` and `tm hook stop`. You do not run these yourself.
+
+### MCP server
+
+```sh
+claude mcp add timemachine -- tm mcp
+```
+
+`tm mcp` runs over stdio and offers these tools: `checkpoint`, `timeline`, `diff`, `verify`, `find_good`, `recover` and `log`. They call the same engine as the CLI, so the answers match.
+
+## 10. Safety promises
+
+- **Your folder and branch are never touched.** `open`, `verify` and `find-good` work in separate Git worktrees. `recover` creates a new branch and a recovery copy next to your project. Switching is up to you.
+- **Nothing is pushed, merged or deployed.** Ever.
+- **Your current state is saved before a recovery**, so a recovery can be undone.
+- **Secret values are never stored**, in the store, logs or reports. Check logs are scrubbed of current secret values.
+- **Host mode is always labeled.** Every verdict says which isolation mode and network rule it ran with.
+- **Save points are sealed.** A changed save point fails its integrity check and gives ERROR, not PASS.
+- **Every action is in the audit log.** See `tm log`.
+
+## 11. FAQ and troubleshooting
+
+**"This folder is not inside a Git repository."** Run `git init`, then make a first commit. Time Machine works best with at least one commit. Without one, every file counts as not in Git, so the size limit and secret scan apply to all of them.
+
+**"There are no checkpoints yet."** Run `tm checkpoint` first.
+
+**How do I use the recovery in my main folder?** Remove the recovery copy, then switch:
+
+```sh
+git worktree remove "/home/you/my-app-recovered-cp-0003"
+git switch tm/recover/cp-0003
+```
+
+**`tm open` left a folder behind.** That copy is yours to inspect. Remove it with `git worktree remove <path>`.
+
+**How do I clean up?**
+
+- Recovery branches: `git branch -D tm/recover/cp-0003`.
+- Pinned refs: `git for-each-ref refs/tm` lists them. Remove one with `git update-ref -d refs/tm/cp-0003`.
+- A whole project's store: find the folder under `~/.timemachine/projects/` whose `project.json` names your project, and delete it. This deletes its save points for good.
+
+**How much disk does it use?** Files are stored once by content and compressed, so repeats cost nothing. Bundles hold only new commits. Large files are skipped above `capture.maxFileMB`. Check with `du -sh ~/.timemachine`. Automatic thinning is not built yet.
+
+## 12. Planned, not built yet
+
+These are planned. None of them work today.
+
+- **Mac app** with Save now, Check it works and Rewind buttons, a History screen and a menu bar status dot.
+- **Container isolation** with Docker, OrbStack or Apple `container`, labeled as stronger than host mode.
+- **Dependency cache**, so checks do not reinstall packages every time.
+- **npm package** `timetm`, with `npx timetm init`.
+- **Store thinning** with a size budget. Pinned and newest PASS save points will never be thinned.
+- Hook kits for Cursor, Codex and Gemini CLI.

@@ -1,11 +1,34 @@
 {
   "name": "timetm",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Save points for your projects, with proof of which ones still work.",
+  "keywords": [
+    "checkpoint",
+    "recovery",
+    "git",
+    "ai-agents",
+    "claude-code",
+    "mcp"
+  ],
   "type": "module",
-  "bin": { "tm": "./dist/bin.js" },
-  "dependencies": {
-    "@timetm/core": "workspace:*"
+  "bin": {
+    "tm": "dist/tm.js",
+    "timetm": "dist/tm.js"
+  },
+  "files": [
+    "dist/tm.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bundle": "esbuild src/bin.ts --bundle --platform=node --format=esm --target=node22 --minify --legal-comments=eof --outfile=dist/tm.js \"--banner:js=import { createRequire as __tmRequire } from 'node:module'; const require = __tmRequire(import.meta.url);\""
+  },
+  "devDependencies": {
+    "@timetm/core": "workspace:*",
+    "esbuild": "^0.28.2",
+    "zod": "^4.6.7"
   }
 }

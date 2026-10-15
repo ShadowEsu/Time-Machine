@@ -31,3 +31,13 @@ export function latestVerdicts(p: Project): Map<string, VerdictRecord> {
   }
   return out;
 }
+
+/** The most recent verdict recorded for any checkpoint. */
+export function lastVerdict(p: Project): VerdictRecord | null {
+  const all = readJsonl(join(p.store, "verdicts.jsonl"));
+  for (let i = all.length - 1; i >= 0; i--) {
+    const r = VerdictRecordSchema.safeParse(all[i]);
+    if (r.success) return r.data;
+  }
+  return null;
+}

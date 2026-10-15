@@ -25,7 +25,7 @@ describe("Phase A acceptance", () => {
   test("V01 open, verify and find-good never modify the working copy or current branch", async () => {
     const { dir, ctx } = await setupDemo();
     write(dir, "notes.txt", "draft, not committed\n");
-    write(dir, "src/tips.ts", "// edited but not saved to Git\n");
+    write(dir, "src/tips.js", "// edited but not saved to Git\n");
     const before = snapshotState(dir);
     const opened = await tm.open(ctx, "cp-0002");
     await tm.verify(ctx, "cp-0004");
@@ -36,8 +36,8 @@ describe("Phase A acceptance", () => {
 
   test("V02 uncommitted changes restore exactly", async () => {
     const { dir, ctx } = await setupDemo();
-    write(dir, "src/tips.ts", "export const wip = 1;\n");
-    rmSync(join(dir, "test/split.test.ts"));
+    write(dir, "src/tips.js", "export const wip = 1;\n");
+    rmSync(join(dir, "test/split.test.js"));
     write(dir, "src/new-feature.ts", "export const draft = true;\n");
     write(dir, "src/staged.ts", "export const staged = true;\n");
     git(dir, "add", "src/staged.ts");
@@ -45,7 +45,7 @@ describe("Phase A acceptance", () => {
     expect(cp.checkpoint.dirty).toBe(true);
     const opened = await tm.open(ctx, cp.checkpoint.id);
     expect(fileMap(opened.dir)).toEqual(fileMap(dir));
-    expect(existsSync(join(opened.dir, "test/split.test.ts"))).toBe(false);
+    expect(existsSync(join(opened.dir, "test/split.test.js"))).toBe(false);
   });
 
   test("V03 secret values never appear in the store, logs or reports", async () => {
@@ -164,6 +164,16 @@ describe("Phase A acceptance", () => {
     const v = await tm.verify(ctx, "cp-0003");
     if (v.verdict === "BLOCKED") return; // no sandbox on this machine: covered by V10
     expect(v.network.enforcedBy).not.toBeNull();
+    expect(v.verdict).toBe("PASS");
+  });
+
+  test.runIf(process.platform === "linux")("V10c setup can install dependencies with the network, the check runs without it", async () => {
+    const { dir, ctx } = await setupDemo();
+    const ifaces = "Object.keys(require('os').networkInterfaces()).filter((k)=>k!=='lo').length";
+    writeConfig(dir, { setup: `node -e "process.exit(${ifaces} ? 0 : 1)"`, command: `node -e "process.exit(${ifaces} ? 1 : 0)"`, network: "deny" });
+    const v = await tm.verify(ctx, "cp-0003");
+    if (v.verdict === "BLOCKED") return; // no sandbox on this machine: covered by V10
+    expect(v.reason).toBe("The check passed.");
     expect(v.verdict).toBe("PASS");
   });
 

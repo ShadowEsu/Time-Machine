@@ -1,6 +1,6 @@
 # Time Machine build brief
 
-Status: Phase A engine and CLI partly implemented (15 October 2026). **Implemented and tested:** C01 to C14 in host mode, and acceptance tests V01 to V14. **Still planned:** C15 agent hooks, `tm hook install`, `tm mcp`, the container isolation adapter, the dependency cache, and all of Phase B. Everything else in this file is planned unless marked implemented here.
+Status: Phase A engine and CLI partly implemented (15 October 2026). **Implemented and tested:** C01 to C15 in host mode (C15 for Claude Code), `tm demo`, `tm mcp`, and acceptance tests V01 to V14. **Still planned:** Git hooks, the container isolation adapter, the dependency cache, store thinning, npm publishing, and all of Phase B. Everything else in this file is planned unless marked implemented here.
 
 Name: **Time Machine** (founder decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
 
