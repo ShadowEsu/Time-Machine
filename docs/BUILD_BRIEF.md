@@ -1,6 +1,6 @@
 # Time Machine build brief
 
-Status: planning. **Nothing is implemented yet.** Every feature below is planned unless a later version of this file marks it as implemented. Last updated 14 October 2026.
+Status: Phase A engine and CLI partly implemented (15 October 2026). **Implemented and tested:** C01 to C14 in host mode, and acceptance tests V01 to V14. **Still planned:** C15 agent hooks, `tm hook install`, `tm mcp`, the container isolation adapter, the dependency cache, and all of Phase B. Everything else in this file is planned unless marked implemented here.
 
 Name: **Time Machine** (founder decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
 

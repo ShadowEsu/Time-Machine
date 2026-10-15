@@ -1,6 +1,6 @@
 # Plan to MVP
 
-Status: plan. Nothing below is built yet unless marked done. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
+Status: M0 done. M1 and M2 done early (15 October): the demo runs end to end and V01 to V14 pass. Next is M3. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
 
 ## Goal
 
@@ -10,9 +10,9 @@ By 31 October 2026, a stranger can run `npx timetm init` on the demo project, br
 
 | # | Dates | What ships | Done when |
 |---|---|---|---|
-| M0 | 15 to 16 Oct | pnpm workspace, `packages/core`, `packages/cli`, TS strict, Zod, Vitest, CI. Demo fixture with a broken history. V01 to V14 written and failing | `pnpm test` runs and shows 14 red tests for the right reasons |
-| M1 | 17 to 21 Oct | `tm init`, `tm checkpoint`, external store, `refs/tm/*`, git bundle, secret safe config, coverage report, `tm timeline`, `tm diff`, audit log | Save point tests green. No secret value appears in the store, logs or test output |
-| M2 | 22 to 25 Oct | `tm open` (worktree), `tm verify` (host mode, timeout, clean env, network rule), `tm find-good`, `tm recover` | The demo runs end to end. The working copy and current branch are byte for byte unchanged after every command |
+| M0 (done) | 15 to 16 Oct | pnpm workspace, `packages/core`, `packages/cli`, TS strict, Zod, Vitest, CI. Demo fixture with a broken history. V01 to V14 written and failing | `pnpm test` runs and shows 14 red tests for the right reasons |
+| M1 (done) | 17 to 21 Oct | `tm init`, `tm checkpoint`, external store, `refs/tm/*`, git bundle, secret safe config, coverage report, `tm timeline`, `tm diff`, audit log | Save point tests green. No secret value appears in the store, logs or test output |
+| M2 (done) | 22 to 25 Oct | `tm open` (worktree), `tm verify` (host mode, timeout, clean env, network rule), `tm find-good`, `tm recover` | The demo runs end to end. The working copy and current branch are byte for byte unchanged after every command |
 | M3 | 26 to 28 Oct | `--json` on every command, exit codes per ADR 0005, Claude Code hook kit, `tm mcp`, publish `timetm` 0.1 to npm | All V tests green on macOS and Linux CI. `npx timetm --help` works from a clean machine |
 | M4 | 29 to 31 Oct | 60 second demo video, one page site with waitlist, Terms and Privacy reviewed, both applications submitted | Applications sent. The site says what is built and what is planned |
 | M5 | Nov to Dec | Phase B Mac app (D01 to D08), full scroll story site | Per the brief |
