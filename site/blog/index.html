@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blog. Time Machine</title>
+<meta name="description" content="Notes from building Time Machine: agent rewinds and the shell, save points that prove they work, our honest limits, the psychology of a safety net, and the plan.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eceae4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Blog. Time Machine">
+<meta property="og:description" content="Notes from building Time Machine: agent rewinds and the shell, save points that prove they work, our honest limits, the psychology of a safety net, and the plan.">
+<meta property="og:image" content="../assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+<section class="hero" aria-labelledby="hero-h">
+  <div class="wrap">
+    <p class="k rv">Blog <span class="tag tag-dev">5 posts</span></p>
+    <h1 class="dx rv" style="--d:1" id="hero-h">Notes from<br><span class="dim">the build.</span></h1>
+    <p class="sub rv" style="--d:2">What we learn building a way back for people who code with agents. Short, plain, and honest about what is built and what is planned.</p>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0;border-top:0" aria-label="All posts">
+  <div class="wrap">
+    <ol class="posts">
+      <li class="rv"><a class="prow" href="rewind-does-not-cover-the-shell.html"><span class="meta"><b>No. 01</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>Your agent's rewind does not cover the shell</h2><p>Built in checkpoints track the agent's own file edits. The biggest changes happen in the shell, where the rewind cannot see.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
+      <li class="rv"><a class="prow" href="a-save-point-should-prove-it-works.html"><span class="meta"><b>No. 02</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>A save point should prove it works</h2><p>A backup tells you what your files looked like. Why every save point gets a verdict, and the rules that keep that verdict honest.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
+      <li class="rv"><a class="prow" href="what-time-machine-does-not-do.html"><span class="meta"><b>No. 03</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>What Time Machine does not do</h2><p>Databases, deploys, secret values, container isolation and more. Everything we do not cover today, in one place.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
+      <li class="rv"><a class="prow" href="why-a-safety-net-makes-people-braver.html"><span class="meta"><b>No. 04</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>Why a safety net makes people braver</h2><p>Easy reversal, loss aversion, the peak end rule and the 66 day habit. The research behind the design, and why we refuse streaks.</p></div><span class="go">6 min <span aria-hidden="true">→</span></span></a></li>
+      <li class="rv"><a class="prow" href="building-in-the-open.html"><span class="meta"><b>No. 05</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>Building Time Machine in the open: the plan, and why we will raise</h2><p>Where we are, how gates decide what comes next, and what raising money would pay for.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
+    </ol>
+    <p class="cap-note rv">All posts by Preston Susanto, founder.</p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../terms.html">Terms (draft)</a>
+        <a href="../privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>

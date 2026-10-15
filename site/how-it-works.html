@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How it works. Time Machine</title>
+<meta name="description" content="How Time Machine works: save your project while agents work, check each save point in a separate copy, find the newest one that works, and recover it on a new branch. Real commands, verdicts and exit codes.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eceae4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="How it works. Time Machine">
+<meta property="og:description" content="How Time Machine works: save your project while agents work, check each save point in a separate copy, find the newest one that works, and recover it on a new branch. Real commands, verdicts and exit codes.">
+<meta property="og:image" content="assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html" aria-current="page">How it works</a>
+      <a href="security.html">Security</a>
+      <a href="company.html">Company</a>
+      <a href="blog/index.html">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+<section class="hero" aria-labelledby="hero-h">
+  <div class="wrap hero-g">
+    <div>
+      <p class="k rv">How it works <span class="tag tag-now">CLI built today</span></p>
+      <h1 class="dx rv" style="--d:1" id="hero-h">One loop.<br><span class="dim">Four steps.</span></h1>
+      <p class="sub rv" style="--d:2">Time Machine saves your project while agents work. It checks each save point in a separate copy, finds the newest one that works, and brings it back on a new branch. Your folder is never touched.</p>
+      <div class="btn-row rv" style="--d:3"><a class="btn btn-primary" href="#developers">See the commands</a><a class="btn btn-ghost" href="#verdicts">Read the verdicts</a></div>
+    </div>
+    <div class="rv" style="--d:2">
+      <div class="stagebox">
+        <div class="mod tilt" data-stepper data-angles="-120,-40,40,120" role="group" aria-label="The loop, step by step">
+          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">loop · v0</span><span class="grille"></span></div>
+          <div class="loop-body">
+            <div class="scr" aria-live="polite">
+              <div data-pane>
+                <p class="st"><span>01 save</span><span>10:42:07</span></p>
+                <p><span class="c">$</span> tm checkpoint -m "Added dark mode"</p>
+                <p>Saved cp-0003 "Added dark mode"</p>
+                <p class="c">Code, 1 file, 2 config keys</p>
+                <p class="c">Not saved: secret values</p>
+                <p>Not checked yet.</p>
+              </div>
+              <div data-pane hidden>
+                <p class="st"><span>02 check</span><span>safe copy</span></p>
+                <p><span class="c">$</span> tm verify cp-0003</p>
+                <p><span class="g">PASS</span> cp-0003 works</p>
+                <p class="c">host mode, network on, 1.4 s</p>
+                <p class="c">The check passed.</p>
+              </div>
+              <div data-pane hidden>
+                <p class="st"><span>03 find</span><span>newest first</span></p>
+                <p><span class="c">$</span> tm find-good</p>
+                <p>cp-0006 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
+                <p>cp-0005 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
+                <p>cp-0004 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
+                <p>cp-0003 <span class="g">PASS</span> newest that works</p>
+              </div>
+              <div data-pane hidden>
+                <p class="st"><span>04 recover</span><span>new branch</span></p>
+                <p><span class="c">$</span> tm recover cp-0003</p>
+                <p>Branch tm/recover/cp-0003</p>
+                <p class="c">Saved first: cp-0007</p>
+                <p>Nothing pushed, merged or deployed.</p>
+                <p class="c">Your folder was not touched.</p>
+              </div>
+            </div>
+            <div class="knob-w">
+              <div class="ticks" aria-hidden="true"><i style="--a:-120deg"><b>1</b></i><i style="--a:-40deg"><b>2</b></i><i style="--a:40deg"><b>3</b></i><i style="--a:120deg"><b>4</b></i></div>
+              <button class="knob" type="button" data-knob aria-label="Next step"><span class="knob-rot"></span></button>
+            </div>
+            <div class="keys">
+              <button class="mk" type="button" data-step aria-pressed="true"><span class="mk-cap"><i></i>01</span><span class="silk">save</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>02</span><span class="silk">check</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>03</span><span class="silk">find</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>04</span><span class="silk">recover</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap-note">Turn the knob or press a key. Output from a real tm demo run, shortened.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="loop" aria-labelledby="loop-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">01</span> The loop</p><h2 class="hx2" id="loop-h">Save. Check.<br>Find. Recover.</h2></div>
+      <p class="sub rv" style="--d:1">Each step is one command. With the Claude Code hooks installed, the first two happen on their own while your agent works.</p>
+    </div>
+    <ol class="steps" style="list-style:none;margin:0;padding:0">
+      <li class="step rv">
+        <p class="n">01 Save</p>
+        <h3 class="h4">Save the whole project.</h3>
+        <p>A save point records your code, including uncommitted changes, files not in Git yet, config key names, and dependency and environment fingerprints. It is stored outside your project.</p>
+        <pre class="term"><span class="p">$ </span>tm checkpoint -m "Added dark mode"
+Saved cp-0003  "Added dark mode"
+<span class="d">Not checked yet.</span></pre>
+      </li>
+      <li class="step rv" style="--d:1">
+        <p class="n">02 Check</p>
+        <h3 class="h4">Run your check in a safe copy.</h3>
+        <p>Time Machine rebuilds the save point in a separate Git worktree and runs your own check there, like <code>npm test</code>, with a clean environment and a time limit.</p>
+        <pre class="term"><span class="p">$ </span>tm verify cp-0003
+<span class="ok">PASS</span>  cp-0003 works
+<span class="d">(host mode, network on, 1.4 s)</span></pre>
+      </li>
+      <li class="step rv" style="--d:2">
+        <p class="n">03 Find</p>
+        <h3 class="h4">Find the last version that works.</h3>
+        <p>When something breaks, <code>find-good</code> checks save points from newest to oldest and stops at the first one that passes.</p>
+        <pre class="term"><span class="p">$ </span>tm find-good
+cp-0004   <span class="no">FAIL</span>
+cp-0003   <span class="ok">PASS</span>
+<span class="ok">PASS</span>  cp-0003 is the newest
+      version that works.</pre>
+      </li>
+      <li class="step rv" style="--d:3">
+        <p class="n">04 Recover</p>
+        <h3 class="h4">Bring it back on a new branch.</h3>
+        <p>Recover saves your current state first. Then it makes a new branch and a recovery copy next to your project. It never switches your folder, and never pushes, merges or deploys.</p>
+        <pre class="term"><span class="p">$ </span>tm recover cp-0003
+Branch      tm/recover/cp-0003
+Saved first cp-0007</pre>
+      </li>
+    </ol>
+    <p class="cap-note rv">Switching to the recovery is up to you. The recovery report gives you the two Git commands to do it.</p>
+  </div>
+</section>
+
+<section class="sec" id="save-point" aria-labelledby="sp-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">02</span> A save point</p><h2 class="hx2" id="sp-h">What it holds.<br><span class="dim">What it does not.</span></h2></div>
+      <p class="sub rv" style="--d:1">Every save point lists what it did not save. So does every recovery. Nothing that was missed is ever shown as safe.</p>
+    </div>
+    <div class="ledger">
+      <div class="rv">
+        <h3><span class="pill pill-works">Saved</span></h3>
+        <ul>
+          <li><b>Code, with uncommitted changes.</b> Pinned at <code>refs/tm/&lt;id&gt;</code> and written as a Git bundle into the store.</li>
+          <li><b>Files not in Git yet,</b> unless <code>.gitignore</code> skips them, plus anything you list in <code>capture.include</code>.</li>
+          <li><b>Config key names</b> and a fingerprint, so a changed value shows up in <code>tm diff</code>. Values only for keys you mark as plain.</li>
+          <li><b>Fingerprints</b> of lockfiles and environment files, and the Node, Git and platform versions.</li>
+        </ul>
+      </div>
+      <div class="rv no-bg" style="--d:1">
+        <h3><span class="pill pill-none">Not saved</span></h3>
+        <ul>
+          <li><b>Secret values.</b> A file that looks like it holds a secret is skipped and listed. You set secret values again by hand.</li>
+          <li><b>Files over the size limit</b> (5 MB by default) and symbolic links. Both are listed as missing.</li>
+          <li><b>Installed dependencies</b> like <code>node_modules</code>. Only the lockfile fingerprint is kept.</li>
+          <li><b>Databases, deployed versions, emails, payments</b> and anything else outside your project folder.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="strip rv">
+      <span class="silk-l">Where it lives</span>
+      <span><code>~/.timemachine</code>, or <code>$TM_HOME</code>, one folder per project. Deleting your project folder does not delete its save points.</span>
+      <a href="security.html#store">How the store works</a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="verdicts" aria-labelledby="v-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">03</span> Verdicts</p><h2 class="hx2" id="v-h">Five verdicts.<br>Fixed exit codes.</h2></div>
+      <p class="sub rv" style="--d:1"><code>tm verify</code> and <code>tm find-good</code> exit with the verdict code, so scripts and agents can act on it. A save point that was never checked is shown as not checked, never as working.</p>
+    </div>
+    <div class="v-grid">
+      <div class="vt-wrap rv">
+        <table class="vt" id="vt">
+          <thead><tr><th scope="col">Verdict</th><th scope="col">Exit</th><th scope="col">In the app</th><th scope="col">Meaning</th><th scope="col">What to do</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill pill-works">PASS</span></td><td data-l="Exit code"><span class="code">0</span></td><td data-l="In the app">Works</td><td data-l="Meaning">The check passed.</td><td data-l="What to do">Safe to recover to.</td></tr>
+            <tr><td><span class="pill pill-broken">FAIL</span></td><td data-l="Exit code"><span class="code">1</span></td><td data-l="In the app">Broken</td><td data-l="Meaning">The check failed.</td><td data-l="What to do">Run <code>tm find-good</code>. Read the log path shown.</td></tr>
+            <tr><td><span class="pill pill-none">INCOMPLETE</span></td><td data-l="Exit code"><span class="code">2</span></td><td data-l="In the app">Couldn't check</td><td data-l="Meaning">Something saved is missing, or setup failed, so the check did not run.</td><td data-l="What to do">See the listed files. Raise <code>capture.maxFileMB</code>, or skip the file in <code>.gitignore</code>.</td></tr>
+            <tr><td><span class="pill pill-none">BLOCKED</span></td><td data-l="Exit code"><span class="code">3</span></td><td data-l="In the app">Needs something</td><td data-l="Meaning">The check cannot run yet. For example, no check is set up, or the network should be off and no sandbox can enforce it.</td><td data-l="What to do">Fix the reason shown.</td></tr>
+            <tr><td><span class="pill pill-none">ERROR</span></td><td data-l="Exit code"><span class="code">4</span></td><td data-l="In the app">Check crashed</td><td data-l="Meaning">The check crashed, timed out, or the save point failed its integrity check.</td><td data-l="What to do">Raise <code>verify.timeoutSeconds</code>, check the command is installed, or pick another save point.</td></tr>
+          </tbody>
+        </table>
+        <p class="cap-note"><code>find-good</code> keeps going past FAIL, INCOMPLETE and ERROR. It stops at the first PASS, or at BLOCKED. Other commands exit 0 on success and 4 on an error. Usage errors exit 64, so they never look like INCOMPLETE. The app words are for the Mac app, in development.</p>
+      </div>
+      <div class="v-side rv" style="--d:1">
+        <div class="mod" data-stepper data-rows="#vt tbody tr" role="group" aria-label="Exit code readout">
+          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">exit code</span><span class="grille"></span></div>
+          <div class="scr" aria-live="polite">
+            <div data-pane class="exit-scr"><span class="seg">0</span><p class="seg-w g">PASS</p><p class="c">Works</p><p class="c">The check passed.</p></div>
+            <div data-pane class="exit-scr" hidden><span class="seg">1</span><p class="seg-w r">FAIL</p><p class="c">Broken</p><p class="c">The check failed.</p></div>
+            <div data-pane class="exit-scr" hidden><span class="seg">2</span><p class="seg-w">INCOMPLETE</p><p class="c">Couldn't check</p><p class="c">Something saved is missing.</p></div>
+            <div data-pane class="exit-scr" hidden><span class="seg">3</span><p class="seg-w">BLOCKED</p><p class="c">Needs something</p><p class="c">The check cannot run yet.</p></div>
+            <div data-pane class="exit-scr" hidden><span class="seg">4</span><p class="seg-w">ERROR</p><p class="c">Check crashed</p><p class="c">Crash, timeout or integrity.</p></div>
+          </div>
+          <div class="keys exit-keys">
+            <button class="mk" type="button" data-step data-v="works" aria-pressed="true"><span class="mk-cap"><i></i>0</span><span class="silk">pass</span></button>
+            <button class="mk" type="button" data-step data-v="broken" aria-pressed="false"><span class="mk-cap"><i></i>1</span><span class="silk">fail</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>2</span><span class="silk">incomplete</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>3</span><span class="silk">blocked</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>4</span><span class="silk">error</span></button>
+          </div>
+          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">verdict</span></div>
+        </div>
+        <p class="cap-note">Press a code to light up its row.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="paths" aria-labelledby="paths-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">04</span> Two ways in</p><h2 class="hx2" id="paths-h">One engine.<br>Two ways in.</h2></div>
+      <p class="sub rv" style="--d:1">The Mac app and the command line call the same engine. They can never disagree about what works.</p>
+    </div>
+    <div class="paths">
+      <article class="card path rv" id="builders">
+        <span class="tag tag-dev">In development</span>
+        <h3>For builders</h3>
+        <p class="txt">You build with Claude Code, Cursor or another agent, and you would rather not live in a terminal. The Mac app puts the same loop behind plain buttons.</p>
+        <ul>
+          <li>A history of save points, each marked Works, Broken or Not checked yet.</li>
+          <li>Save point detail, with what was saved and what was not.</li>
+          <li>Rewind and Compare, on the same engine as the CLI.</li>
+          <li>A calm menu bar dot. No badges, no streaks.</li>
+        </ul>
+        <div class="shot">
+          <picture>
+            <source srcset="assets/img/mac-app-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="assets/img/mac-app-light.jpg" width="2560" height="1520" loading="lazy" decoding="async" alt="The Time Machine Mac app in development, showing the Marigold Tips demo project. Six save points, newest first. cp-0006 is Broken. cp-0003 Added dark mode Works. A side panel lists what was saved and what was not.">
+          </picture>
+        </div>
+        <p class="cap-note">In development. Demo data. Not available to download yet.</p>
+      </article>
+      <article class="card path rv" id="developers" style="--d:1">
+        <span class="tag tag-now">Built</span>
+        <h3>For developers</h3>
+        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every command takes <code>--json</code>, and the JSON and the human output come from the same result.</p>
+        <h4>See the whole rescue in a minute</h4>
+        <pre class="term"><span class="p">$ </span>tm demo</pre>
+        <p class="txt">Builds a small synthetic app, Marigold Tips, breaks it the way an agent might, then finds and recovers the last working version with the real engine.</p>
+        <h4>On your own project</h4>
+        <pre class="term"><span class="p">$ </span>tm init
+<span class="p">$ </span>tm checkpoint -m "first save point"
+<span class="p">$ </span>tm verify
+<span class="p">$ </span>tm find-good
+<span class="p">$ </span>tm recover cp-0003</pre>
+        <h4>Claude Code hooks</h4>
+        <pre class="term"><span class="p">$ </span>tm hook install</pre>
+        <p class="txt">Saves before each prompt, and before risky shell commands like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code> or <code>DROP TABLE</code>. At the end of each turn it saves and runs your check. If a working state just broke, it tells Claude which save point last worked. The hooks never block your agent because of their own errors.</p>
+        <h4>MCP server</h4>
+        <pre class="term"><span class="p">$ </span>claude mcp add timemachine -- tm mcp</pre>
+        <p class="txt">Seven tools: <code>checkpoint</code>, <code>timeline</code>, <code>diff</code>, <code>verify</code>, <code>find_good</code>, <code>recover</code> and <code>log</code>. Same engine, same answers.</p>
+        <h4>Install <span class="tag tag-plan" style="margin-left:8px">Not on npm yet</span></h4>
+        <p class="txt">Build from source today with Node 22 or newer, pnpm and Git. The package will be <code>timetm</code>, and the command is <code>tm</code>. <code>npx timetm init</code> does not work yet.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="commands" aria-labelledby="cmd-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">05</span> Reference</p><h2 class="hx2" id="cmd-h">Every command.</h2></div>
+      <p class="sub rv" style="--d:1">Twelve commands, all built and tested. <code>-h</code>, <code>--help</code> and <code>--version</code> work everywhere.</p>
+    </div>
+    <dl class="cmds rv">
+      <div><dt>tm init</dt><dd>Writes <code>timemachine.yml</code> with a guessed check, like <code>npm test</code>. Keeps an existing file.</dd></div>
+      <div><dt>tm checkpoint</dt><dd>Saves a save point. <code>-m</code> adds a note. <code>--if-changed</code> skips it when nothing changed.</dd></div>
+      <div><dt>tm timeline</dt><dd>Lists save points, newest first, with their verdicts.</dd></div>
+      <div><dt>tm diff a b</dt><dd>Compares code, files, config keys, dependencies and environment.</dd></div>
+      <div><dt>tm open cp</dt><dd>Rebuilds a save point in a separate folder.</dd></div>
+      <div><dt>tm verify [cp]</dt><dd>Runs your check on a save point. The newest by default.</dd></div>
+      <div><dt>tm find-good</dt><dd>Checks from newest to oldest until one passes.</dd></div>
+      <div><dt>tm recover cp</dt><dd>Saves your current state, then makes a recovery branch and copy.</dd></div>
+      <div><dt>tm log</dt><dd>Shows the append-only audit log.</dd></div>
+      <div><dt>tm demo</dt><dd>Builds the Marigold Tips demo and runs the rescue.</dd></div>
+      <div><dt>tm hook install</dt><dd>Adds the Claude Code hooks to <code>.claude/settings.json</code>. Your other settings stay.</dd></div>
+      <div><dt>tm mcp</dt><dd>Runs the MCP server over stdio.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="assets/pages.js" defer></script>
+<script src="assets/waitlist.js" defer></script>
+</body>
+</html>

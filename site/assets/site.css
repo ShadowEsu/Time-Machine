@@ -253,6 +253,25 @@ em { font-style: italic; }
 .wl-hp { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .wl-status { min-height: 1.5em; margin: 0; font-size: 15px; font-weight: 500; }
 .wl-privacy { margin: 0; color: var(--ink-3); font-size: 13.5px; }
+.wl-privacy a { color: inherit; }
+/* Form states, set by waitlist.js. Same rules as the home page. */
+.wl-status:empty { min-height: 0; }
+.wl-status[data-state] { display: flex; gap: 10px; align-items: baseline; padding: 12px 14px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); line-height: 1.45; }
+.wl-status[data-state]::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; transform: translateY(-1px); background: var(--ink-3); }
+.wl-status[data-state="ok"] { color: var(--works-fg); background: var(--works-bg); box-shadow: none; }
+.wl-status[data-state="ok"]::before { background: var(--works-dot); }
+.wl-status[data-state="error"] { color: var(--ink); }
+.wl-status[data-state="error"]::before { background: var(--broken-dot); border-radius: 1px; transform: rotate(45deg) scale(.86); }
+.wl-status[data-state="info"] { color: var(--ink-2); }
+.wl-status[data-state="pending"] { color: var(--ink-3); }
+.wl-status[data-state="pending"]::before { animation: wl-pulse 1s ease-in-out infinite; }
+.wl-status a { color: inherit; font-weight: 600; text-decoration: underline; }
+@keyframes wl-pulse { 50% { opacity: .25; } }
+form[data-waitlist][data-state="pending"] .btn { opacity: .6; cursor: progress; }
+form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
+.wl input[aria-invalid="true"] { border-color: var(--broken-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--broken-dot) 18%, transparent); }
+.wl-consent input[aria-invalid="true"] { outline: 2px solid var(--broken-dot); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .wl-status[data-state="pending"]::before { animation: none; } }
 @media (max-width: 520px) { .wl-row { flex-direction: column; } .wl input[type="email"] { flex: none; width: 100%; } .wl-row .btn { width: 100%; } }
 
 /* Footer. Markup:

@@ -7,14 +7,30 @@
 <meta name="description" content="Draft Privacy Policy for Time Machine. Not in effect. Needs lawyer review.">
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Privacy Policy (draft). Time Machine">
+<meta property="og:description" content="Draft Privacy Policy for Time Machine. Not in effect. Needs lawyer review.">
+<meta property="og:image" content="assets/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
 </head>
 <body class="legal">
 <a class="skip" href="#main">Skip to content</a>
 <div class="draftbar" role="note">DRAFT. Not in effect.</div>
-<header class="top">
-  <div class="wrap"><a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a></div>
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+      <a href="security.html">Security</a>
+      <a href="company.html">Company</a>
+      <a href="blog/index.html">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="index.html#waitlist">Join the waitlist</a>
+  </div>
 </header>
 <main id="main">
   <article class="wrap">
@@ -44,6 +60,9 @@
       </table>
     </div>
     <p><strong>Telemetry is off by default.</strong> If you turn it on, it sends event names, durations, verdict codes, app version and OS version. It never sends code, file names, paths, commit messages, branch names, setting names or values, or anything from your check output. You can turn it off at any time.</p>
+
+    <h2>Waitlist <span class="tag tag-plan draft-tag">Draft</span></h2>
+    <p><strong>Draft, pending lawyer review.</strong> When you join the waitlist, we store four things: your email address, that you ticked the consent box, the page you signed up from, and the time. They are stored in Supabase, written by a function hosted on Vercel. We do not store your IP address. To have your entry deleted, email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a>.</p>
 
     <h2>3. What we never do</h2>
     <ul>
@@ -78,11 +97,21 @@
     <p><span class="ph">[Operator]</span>, <span class="ph">[Contact]</span></p>
   </article>
 </main>
-<footer>
+<footer class="foot">
   <div class="wrap">
-    <a href="index.html">Time Machine home</a>
-    <a href="terms.html">Terms (draft)</a>
-    <span>DRAFT. Not in effect.</span>
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
   </div>
 </footer>
 </body>

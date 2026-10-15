@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your agent's rewind does not cover the shell. Time Machine</title>
+<meta name="description" content="Built in agent checkpoints track the agent's own file edits. The biggest changes happen in the shell. What that gap means, and how Time Machine covers it.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eceae4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Your agent's rewind does not cover the shell">
+<meta property="og:description" content="Built in agent checkpoints track the agent's own file edits. The biggest changes happen in the shell. What that gap means, and how Time Machine covers it.">
+<meta property="og:image" content="../assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta property="article:published_time" content="2026-10-15">
+<meta property="article:author" content="Preston Susanto">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-10-15">15 October 2026</time><span aria-hidden="true">·</span><span>5 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title">Your agent's rewind does not cover the shell</h1>
+    <p class="sub rv" style="--d:2">Built in checkpoints are useful. But they track the agent's own file edits, and a lot of real damage happens somewhere else.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">PS</span><span><b>Preston Susanto</b><br>Founder, Time Machine</span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>Coding agents now come with a rewind. In Claude Code you can press Escape twice, or run <code>/rewind</code>, pick an earlier point in the conversation, and roll the code back. It feels like a time machine. For a lot of mistakes, it is enough.</p>
+<p>But look closely at what it tracks. Claude Code's checkpoints record edits made through its own file editing tools. Its documentation says plainly that changes made by Bash commands are not tracked. If the agent runs <code>rm</code>, <code>mv</code>, <code>cp</code>, a migration, a code generator or <code>git reset</code> in the shell, the rewind does not know it happened. Eon wrote up this gap in detail, and it matches the docs.</p>
+<p>That matters, because the shell is where agents make their biggest moves.</p>
+
+<h2>Where the big changes happen</h2>
+<p>An edit tool changes one file at a time, with a diff you can read. A shell command can change a thousand files in one line. Think about what an agent runs on a normal day:</p>
+<ul>
+  <li><code>npm install</code>, which rewrites the lockfile and <code>node_modules</code></li>
+  <li>a formatter or a linter with <code>--fix</code>, across the whole project</li>
+  <li><code>rm -rf</code> on a build folder, or on a folder it thinks is a build folder</li>
+  <li><code>git checkout</code>, <code>git reset --hard</code> or <code>git clean -f</code></li>
+  <li>a database migration or a seed script</li>
+</ul>
+<p>None of these is an edit tool call. Every one of them can break a project that worked a minute ago.</p>
+<p>Public incidents show the pattern. A Cursor user reported that an agent permanently deleted a production resource folder. A Gemini CLI user lost files while the agent tried to reorganize them. Replit's agent wiped a production database during a code freeze. These were not typos in one file. They were commands.</p>
+
+<h2>Undo is not the same as a way back</h2>
+<p>Editor undo goes back one edit. An agent rewind goes back through the agent's own edits. Git goes back to a commit, if you made one. Each of these answers the question "what did the files look like?"</p>
+<p>None of them answers the question you actually have after a bad session: which version still works?</p>
+<p>That second question is harder than it sounds. You might have six candidate states. Some broke at the edit you can see. Some broke because of a dependency the agent added three steps later. Checking each one by hand, in your real folder, is slow. It also puts the state you are in right now at risk.</p>
+
+<h2>What Time Machine does instead</h2>
+<p>Time Machine does not try to watch every file write. It saves the whole project at the moments that matter, stores it outside the project, and then checks the result.</p>
+<p>With the Claude Code hooks installed, using <code>tm hook install</code>, it saves:</p>
+<ul>
+  <li>before each prompt, if anything changed</li>
+  <li>before risky shell commands, like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code>, <code>DROP TABLE</code> and similar</li>
+  <li>at the end of each turn, and then it runs your check</li>
+</ul>
+<p>If the check passed before and fails now, the hook tells Claude which save point last worked. The agent hears it in the same session, while the context is still fresh.</p>
+<p>A save point holds your code, including uncommitted changes, files not in Git yet, config key names, and dependency and environment fingerprints. It lives in <code>~/.timemachine</code> with a Git bundle, so an <code>rm -rf</code> on the project does not take the save points with it.</p>
+<p>When something breaks, <code>tm find-good</code> rebuilds save points in a separate Git worktree, newest first, and runs your check on each one until one passes:</p>
+<pre class="term"><span class="p">$ </span>tm find-good
+  cp-0006   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0005   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0004   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0003   <span class="ok">PASS</span>       The check passed.
+<span class="ok">PASS</span>  cp-0003 is the newest version that works.</pre>
+<p>Then <code>tm recover cp-0003</code> puts that version on a new branch, <code>tm/recover/cp-0003</code>, with a recovery copy next to your project. Your folder and current branch are not touched. Nothing is pushed, merged or deployed.</p>
+
+<h2>What it still cannot do</h2>
+<p>A save point covers your project folder. It does not cover a database the migration changed, a deploy that already went out, or an email that was sent. The Replit case would still need a database backup. Time Machine says so on every save point and every recovery report, under "Not restored".</p>
+<p>It also never stores secret values. After a recovery you set keys like <code>STRIPE_SECRET_KEY</code> again by hand, and the report lists each one.</p>
+
+<h2>The short version</h2>
+<p>Use your agent's rewind. It is good at what it covers. But know where it stops. If your agent can run shell commands, you want a save point the shell cannot reach, and a check that tells you which one works.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://www.eon.io/blog/claude-code-rewind-bash" rel="noopener">Eon: Claude Code rewind and Bash changes</a></li>
+    <li><a href="https://code.claude.com/docs/en/checkpointing" rel="noopener">Anthropic: Claude Code checkpointing documentation</a></li>
+    <li><a href="https://forum.cursor.com/t/agent-permanently-deleted-entire-production-resource-folder-seeking-acknowledgment-and-support/167875" rel="noopener">Cursor forum: agent permanently deleted entire production resource folder</a></li>
+    <li><a href="https://incidentdatabase.ai/reports/6120" rel="noopener">AI Incident Database: Gemini CLI deleted a user's files</a></li>
+    <li><a href="https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure" rel="noopener">Fortune: AI coding tool Replit wiped a database and called it a catastrophic failure</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="nx" href="a-save-point-should-prove-it-works.html"><span>Next</span><b>A save point should prove it works</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../terms.html">Terms (draft)</a>
+        <a href="../privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>

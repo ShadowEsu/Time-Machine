@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Security. Time Machine</title>
+<meta name="description" content="Time Machine is local first. Save points stay on your machine, secret values are never stored, checks run in a separate copy with the network off when a sandbox exists, and nothing is pushed, merged or deployed. Plus our honest limits.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eceae4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Security. Time Machine">
+<meta property="og:description" content="Time Machine is local first. Save points stay on your machine, secret values are never stored, checks run in a separate copy with the network off when a sandbox exists, and nothing is pushed, merged or deployed. Plus our honest limits.">
+<meta property="og:image" content="assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+      <a href="security.html" aria-current="page">Security</a>
+      <a href="company.html">Company</a>
+      <a href="blog/index.html">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+<section class="hero" aria-labelledby="hero-h">
+  <div class="wrap hero-g">
+    <div>
+      <p class="k rv">Security</p>
+      <h1 class="dx rv" style="--d:1" id="hero-h">Local first.<br><span class="dim">Honest limits.</span></h1>
+      <p class="sub rv" style="--d:2">Your code and your save points stay on your computer. Secret values are never stored. Nothing is pushed, merged or deployed. And where our protection stops, we say so.</p>
+      <div class="btn-row rv" style="--d:3"><a class="btn btn-primary" href="#limits">Read the limits</a><a class="btn btn-ghost" href="#report">Report an issue</a></div>
+    </div>
+    <div class="slip-w rv" style="--d:2">
+      <div class="slip-sh">
+        <div class="slip" role="img" aria-label="A recovery receipt. Nothing was pushed, merged or deployed. Not restored: secret values for PORT and STRIPE_SECRET_KEY, and databases, deployed versions and external services. Key names only. Values never stored.">
+          <p class="h">Time Machine<span>recovery receipt · Marigold Tips</span></p>
+          <p class="kk">$ tm recover cp-0003</p>
+          <p>Nothing was pushed, merged or deployed. Your folder and branch were not touched.</p>
+          <div class="cut"></div>
+          <p class="kk" style="margin-top:0">Branch</p>
+          <p>tm/recover/cp-0003</p>
+          <p class="kk">Not restored</p>
+          <p>Secret values in .env: PORT, STRIPE_SECRET_KEY</p>
+          <p>Databases, deployed versions and external services are not captured</p>
+          <p class="kk">Manual steps</p>
+          <p>Set PORT in .env in the recovery copy.</p>
+          <p>Set STRIPE_SECRET_KEY in .env in the recovery copy.</p>
+          <div class="cut"></div>
+          <p class="end">Key names only. Values never stored.</p>
+          <span class="stamp" aria-hidden="true">Local</span>
+        </div>
+      </div>
+      <p class="cap-note">From a real tm demo run. The keys are fake.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="pr-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">01</span> Principles</p><h2 class="hx2" id="pr-h">Six rules the engine keeps.</h2></div>
+      <p class="sub rv" style="--d:1">These are built and tested today, on macOS and Linux CI. They apply to the CLI, the hooks and the MCP server, which all call the same engine.</p>
+    </div>
+    <div class="grid3">
+      <div class="cell rv"><span class="n">01</span><h3 class="h4">Local first</h3><p>The <code>tm</code> tool has no account and no server. Save points, logs, reports and the audit log live on your machine. We cannot see them.</p></div>
+      <div class="cell rv" style="--d:1"><span class="n">02</span><h3 class="h4">Secret values never stored</h3><p>Only key names and a keyed fingerprint. Not in the store, the logs, the reports, or our own tests.</p></div>
+      <div class="cell rv" style="--d:2"><span class="n">03</span><h3 class="h4">Signed save points</h3><p>Each save point and each verdict is signed with a key on your machine. A changed save point gives ERROR, never PASS.</p></div>
+      <div class="cell rv"><span class="n">04</span><h3 class="h4">A separate copy</h3><p>Checks run in a separate Git worktree with a clean environment and a time limit. The network is off when a sandbox can enforce it.</p></div>
+      <div class="cell rv" style="--d:1"><span class="n">05</span><h3 class="h4">Never pushes, merges or deploys</h3><p>Recover makes a new branch and a recovery copy. It never switches your folder. Switching is up to you.</p></div>
+      <div class="cell rv" style="--d:2"><span class="n">06</span><h3 class="h4">Everything is logged</h3><p>Every action goes in an append-only audit log in the store. Read it with <code>tm log</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="store" aria-labelledby="st-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">02</span> Where it lives</p><h2 class="hx2" id="st-h">Outside your project.<br><span class="dim">On your machine.</span></h2></div>
+      <p class="sub rv" style="--d:1">If an agent runs <code>rm -rf</code> on your project, the save points are somewhere else.</p>
+    </div>
+    <div class="split">
+      <pre class="tree rv" aria-label="The store folder layout">~/.timemachine/          <span class="d">or $TM_HOME</span>
+├── key                  <span class="d">seals every save point</span>
+└── projects/
+    └── 9f2c41d07a3be815/ <span class="d">hash of the path</span>
+        ├── objects/     <span class="d">files, stored once</span>
+        ├── checkpoints/ <span class="d">signed manifests</span>
+        ├── bundles/     <span class="d">Git bundles</span>
+        ├── logs/        <span class="d">check logs</span>
+        ├── reports/     <span class="d">recovery reports</span>
+        ├── audit.jsonl  <span class="d">append only</span>
+        └── project.json</pre>
+      <ul class="facts rv" style="--d:1">
+        <li><b>One folder per project,</b> named by a hash of the project path. A store inside the project is refused.</li>
+        <li><b>Code survives the folder.</b> Each save point is a Git commit pinned at <code>refs/tm/&lt;id&gt;</code>, and also written as a Git bundle into the store. Deleting your project does not delete its save points.</li>
+        <li><b>Files are stored once by content</b> and compressed, so repeats cost nothing. Check disk use with <code>du -sh ~/.timemachine</code>.</li>
+        <li><b>Keep the key.</b> <code>~/.timemachine/key</code> seals every save point. Save points cannot be read without it.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="secrets" aria-labelledby="se-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">03</span> Secrets</p><h2 class="hx2" id="se-h">Key names only.<br>Never values.</h2></div>
+      <p class="sub rv" style="--d:1">After a recovery, you set secret values again by hand. The report lists each one, so nothing is a surprise.</p>
+    </div>
+    <div class="split">
+      <ul class="facts rv">
+        <li><b>For files like <code>.env</code>,</b> Time Machine saves the key names and a keyed fingerprint. The fingerprint shows a value changed, in <code>tm diff</code>, without storing it.</li>
+        <li><b>Secret files are never saved.</b> Names like <code>.env</code> files (except examples), <code>.npmrc</code>, <code>*.pem</code> and <code>*.key</code> are skipped, and so is any file whose content matches a secret pattern. Each one is listed.</li>
+        <li><b>A tracked file that now holds a secret</b> keeps its last committed version in the save point.</li>
+        <li><b>Check logs are scrubbed</b> of current secret values. The hooks never store prompt text that looks like a secret.</li>
+        <li><b>Plain values are opt in.</b> Only keys you list in <code>config.plain</code> keep their value, and not even then if the value looks like a secret.</li>
+      </ul>
+      <div class="rv" style="--d:1">
+        <div class="envs">
+          <div class="from"><span class="lbl">Your .env</span><p>PORT=••••</p><p>STRIPE_SECRET_KEY=••••••••</p></div>
+          <span class="arr" aria-hidden="true">→</span>
+          <div class="to"><span class="lbl">In the store</span><p>PORT · name only</p><p>STRIPE_SECRET_KEY · name only</p></div>
+        </div>
+        <p class="cap-note">The values on the left never leave your project folder.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="signed" aria-labelledby="si-h">
+  <div class="wrap split">
+    <div class="rv">
+      <p class="k"><span class="n">04</span> Signed manifests</p>
+      <h2 class="hx2" id="si-h">A changed save point fails.</h2>
+    </div>
+    <div class="rv" style="--d:1">
+      <p class="txt">Each save point has one manifest: a JSON file that lists everything it holds. Manifests and verdicts are signed with the key in <code>~/.timemachine</code>.</p>
+      <p class="txt">A verdict is bound to the exact manifest it was made for, so an old PASS can never stick to a new save point. If a save point was changed after it was saved, its integrity check fails and the verdict is ERROR, not PASS. Save point numbers come from a counter and are never reused.</p>
+      <div class="callout">
+        <h3 class="h4">What the signature does not do</h3>
+        <p>It catches accidental edits, and edits by tools that do not read the key. It does not stop someone who can read <code>~/.timemachine/key</code>. We do not call it tamper proof.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="network" aria-labelledby="nw-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">05</span> The safe copy</p><h2 class="hx2" id="nw-h">Network off,<br>or no check at all.</h2></div>
+      <p class="sub rv" style="--d:1">If you ask for the network to be off and we cannot enforce it, the check does not run. It never quietly runs online instead.</p>
+    </div>
+    <div class="split">
+      <div class="rv">
+        <p class="txt"><code>verify</code>, <code>open</code> and <code>find-good</code> work in a separate Git worktree. Your folder and current branch are never touched.</p>
+        <p class="txt">The check gets a clean environment: <code>PATH</code>, <code>HOME</code>, locale, proxy and certificate settings, package manager settings, your <code>config.plain</code> values and <code>CI=1</code>. Nothing else.</p>
+        <p class="txt">With <code>network: deny</code>, the check runs inside a sandbox: <code>sandbox-exec</code> on macOS, <code>bwrap</code> or <code>unshare</code> on Linux. If none is available, the verdict is BLOCKED and tells you how to fix it.</p>
+        <p class="txt">The setup step, like <code>npm ci</code>, always has the network so it can install dependencies. Only the check itself runs offline.</p>
+        <p class="txt">Today this is host mode: a separate copy on your machine, running as you. That is weaker than a container, and every verdict says which mode and network rule it ran with. Container isolation is <span class="tag tag-plan">Planned</span></p>
+      </div>
+      <div class="rv" style="--d:1">
+        <div class="mod" data-switchboard role="group" aria-label="Network rule simulator">
+          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">network rule</span><span class="grille"></span></div>
+          <div class="scr" style="min-height:132px" aria-live="polite">
+            <div data-pane="off">
+              <p class="st"><span>network: deny</span><span>sandbox found</span></p>
+              <p><span class="c">$</span> tm verify cp-0003</p>
+              <p><span class="g">PASS</span> cp-0003 works</p>
+              <p class="c">host mode, network off</p>
+              <p class="c">The check ran in the sandbox.</p>
+            </div>
+            <div data-pane="blocked" hidden>
+              <p class="st"><span>network: deny</span><span>no sandbox</span></p>
+              <p><span class="c">$</span> tm verify cp-0003</p>
+              <p>BLOCKED <span class="c">exit 3</span></p>
+              <p class="c">The check did not run.</p>
+              <p class="c">Install bubblewrap, or set allow.</p>
+            </div>
+            <div data-pane="allow" hidden>
+              <p class="st"><span>network: allow</span><span>no sandbox needed</span></p>
+              <p><span class="c">$</span> tm verify cp-0003</p>
+              <p><span class="g">PASS</span> cp-0003 works</p>
+              <p class="c">host mode, network on, 1.4 s</p>
+              <p class="c">The verdict says network on.</p>
+            </div>
+          </div>
+          <div class="sw-row">
+            <button class="sw" type="button" role="switch" aria-checked="true" data-sw="deny"><span class="sw-t" aria-hidden="true"></span><span class="sw-l"><b>network: deny</b><span>in timemachine.yml</span></span></button>
+            <button class="sw" type="button" role="switch" aria-checked="true" data-sw="sandbox"><span class="sw-t" aria-hidden="true"></span><span class="sw-l"><b>Sandbox found</b><span>bwrap or sandbox-exec</span></span></button>
+          </div>
+          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">check runs</span></div>
+        </div>
+        <p class="cap-note">Flip the switches. A simulation of the rule. It runs nothing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="never" aria-labelledby="nv-h">
+  <div class="wrap split">
+    <div class="rv">
+      <p class="k"><span class="n">06</span> Your work stays yours</p>
+      <h2 class="hx2" id="nv-h">Never pushes.<br>Never merges.<br>Never deploys.</h2>
+    </div>
+    <ul class="facts rv" style="--d:1">
+      <li><b>Your state is saved first.</b> Before a recovery, Time Machine saves where you are now as a new save point, so you can always come back to it.</li>
+      <li><b>A new branch, not your branch.</b> Recover makes <code>tm/recover/&lt;id&gt;</code> and a recovery copy next to your project.</li>
+      <li><b>You decide when to switch.</b> It does not change your folder or your current branch. The report gives you the commands.</li>
+      <li><b>Paths stay inside.</b> Restores never write through a symbolic link, and saved paths must stay inside the project.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="waitlist-data" aria-labelledby="wd-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">07</span> The waitlist</p><h2 class="hx2" id="wd-h">Four fields.<br><span class="dim">No IP address.</span></h2></div>
+      <p class="sub rv" style="--d:1">The waitlist is the only thing on this site that stores personal data. Here is all of it.</p>
+    </div>
+    <div class="rv">
+      <table class="kv">
+        <tbody>
+          <tr><th scope="row">What we store</th><td>Your email, that you ticked the consent box, the page you joined from, and the time.</td></tr>
+          <tr><th scope="row">What we do not</th><td>No IP address, no browser details, no cookies.</td></tr>
+          <tr><th scope="row">Where</th><td>One table in Supabase, written by one function hosted on Vercel. Nothing else writes to it.</td></tr>
+          <tr><th scope="row">Who can read it</th><td>Row level security is on with no public access. Only the server key can read or write, and that key lives only in the Vercel project settings.</td></tr>
+          <tr><th scope="row">Logs</th><td>The function never logs or echoes your email.</td></tr>
+          <tr><th scope="row">No fake success</th><td>The form says you are on the list only when the row was saved. If saving fails, it asks you to email us.</td></tr>
+          <tr><th scope="row">Deleting it</th><td>Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> and we delete your row.</td></tr>
+        </tbody>
+      </table>
+      <p class="cap-note">More in the <a href="privacy.html">privacy policy</a>, which is a draft pending lawyer review.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="report" aria-labelledby="rp-h">
+  <div class="wrap split">
+    <div class="rv">
+      <p class="k"><span class="n">08</span> Report a security issue</p>
+      <h2 class="hx2" id="rp-h">Found something?<br>Tell me first.</h2>
+    </div>
+    <div class="rv" style="--d:1">
+      <p class="txt">Email <a href="mailto:preston@unvibe.site?subject=Security">preston@unvibe.site</a> with Security in the subject. Include what you found, how to reproduce it, and what it affects.</p>
+      <p class="txt">Please do not access other people's data, and give me a fair chance to fix it before you share it publicly. I read every report myself, and every fix starts with a test that shows the bug. There is no bug bounty yet.</p>
+      <div class="btn-row"><a class="btn btn-primary" href="mailto:preston@unvibe.site?subject=Security">Email a report</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="limits" aria-labelledby="li-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">09</span> Honest limits</p><h2 class="hx2" id="li-h">What this does not protect.</h2></div>
+      <p class="sub rv" style="--d:1">A safety tool that oversells is worse than none. If you find a limit that is not on this list, tell us.</p>
+    </div>
+    <ol class="limits rv">
+      <li><span><b>Not universal undo.</b> Databases, deployed versions, emails, payments and anything outside your project folder are not captured.</span></li>
+      <li><span><b>Host mode is weaker than a container.</b> A check runs as you, on your machine, in a separate copy. Container isolation is Planned.</span></li>
+      <li><span><b>The signature is not tamper proof</b> against someone who can read <code>~/.timemachine/key</code>.</span></li>
+      <li><span><b>Setup has the network,</b> even with <code>network: deny</code>. Only the check runs offline.</span></li>
+      <li><span><b>A PASS proves your check passed.</b> It does not prove your app is correct. The verdict is only as good as the check.</span></li>
+      <li><span><b>Not a disk backup.</b> Keep one.</span></li>
+      <li><span><b>No outside security review yet.</b> One is part of why we are raising. Until then, this page is our own account.</span></li>
+      <li><span><b>Early software.</b> Not on npm yet. The Mac app is in development.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="assets/pages.js" defer></script>
+<script src="assets/waitlist.js" defer></script>
+</body>
+</html>

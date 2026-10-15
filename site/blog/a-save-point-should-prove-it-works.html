@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A save point should prove it works. Time Machine</title>
+<meta name="description" content="A backup tells you what your files looked like. It does not tell you whether they ran. Why every Time Machine save point gets a verdict, and the rules that keep it honest.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eceae4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="A save point should prove it works">
+<meta property="og:description" content="A backup tells you what your files looked like. It does not tell you whether they ran. Why every Time Machine save point gets a verdict, and the rules that keep it honest.">
+<meta property="og:image" content="../assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta property="article:published_time" content="2026-10-15">
+<meta property="article:author" content="Preston Susanto">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-10-15">15 October 2026</time><span aria-hidden="true">·</span><span>5 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title">A save point should prove it works</h1>
+    <p class="sub rv" style="--d:2">A backup tells you what your files looked like. It does not tell you whether they ran. That gap is the whole product.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">PS</span><span><b>Preston Susanto</b><br>Founder, Time Machine</span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>Most tools that save your work answer one question: what did the files look like at 10:42? Git does this. Cloud sync does this. Your editor's local history does this. They are all good at it.</p>
+<p>After an agent session goes wrong, that is not the question you have. The question is: which of these versions still works?</p>
+
+<h2>Six save points, one question</h2>
+<p>Here is the demo that ships with <code>tm</code>. Running <code>tm demo</code> builds a small synthetic tip calculator called Marigold Tips and records six save points:</p>
+<table>
+  <thead><tr><th scope="col">Save point</th><th scope="col">Note</th><th scope="col">Works?</th></tr></thead>
+  <tbody>
+    <tr><td>cp-0001</td><td>Initial tip calculator</td><td>yes</td></tr>
+    <tr><td>cp-0002</td><td>Added split bill</td><td>yes</td></tr>
+    <tr><td>cp-0003</td><td>Added dark mode</td><td>yes</td></tr>
+    <tr><td>cp-0004</td><td>Agent: fixed lint warnings</td><td>no, rounding broke</td></tr>
+    <tr><td>cp-0005</td><td>Changed currency</td><td>no</td></tr>
+    <tr><td>cp-0006</td><td>Added a dependency</td><td>no</td></tr>
+  </tbody>
+</table>
+<p>An agent fixed some lint warnings in cp-0004, and tip rounding broke. Then two more changes landed on top. By cp-0006 the tests fail, and the cause is three steps back.</p>
+<p>If all you have is a list of six snapshots, you start guessing. Open one, install, run the tests, read the output, try the next. In your real folder, with your current state still in it.</p>
+
+<h2>Make the check part of the save point</h2>
+<p>Time Machine attaches a verdict to each save point. You choose the check once, in <code>timemachine.yml</code>. <code>tm init</code> guesses it for you: <code>npm test</code>, then <code>npm run build</code>, then <code>cargo test</code>, <code>go test ./...</code> or <code>pytest</code>.</p>
+<p>To check a save point, <code>tm verify</code> rebuilds it in a separate Git worktree, runs your setup step such as <code>npm ci</code>, then runs your check with a clean environment and a time limit. The result is one of five verdicts, each with a fixed exit code:</p>
+<ul>
+  <li><b>PASS</b>, exit 0. The check passed.</li>
+  <li><b>FAIL</b>, exit 1. The check failed.</li>
+  <li><b>INCOMPLETE</b>, exit 2. Something saved is missing, or setup failed, so the check did not run.</li>
+  <li><b>BLOCKED</b>, exit 3. The check cannot run yet.</li>
+  <li><b>ERROR</b>, exit 4. The check crashed, timed out, or the save point failed its integrity check.</li>
+</ul>
+<p><code>tm find-good</code> walks back from the newest save point and stops at the first PASS:</p>
+<pre class="term"><span class="p">$ </span>tm find-good
+  cp-0006   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0005   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0004   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0003   <span class="ok">PASS</span>       The check passed.
+<span class="ok">PASS</span>  cp-0003 is the newest version that works.
+Next: tm recover cp-0003</pre>
+<p>Then <code>tm recover cp-0003</code> makes the branch <code>tm/recover/cp-0003</code>. It saves your broken state first, as cp-0007, so nothing you had is lost.</p>
+
+<h2>Never show unchecked as working</h2>
+<p>The most dangerous thing a tool like this could say is "works" when it does not. So the engine has rules:</p>
+<ul>
+  <li>A save point that was never checked is shown as not checked. Never as working.</li>
+  <li>A verdict is signed and bound to the exact save point it was made for. An old PASS can never stick to a new save point.</li>
+  <li>If a save point changed after it was saved, its integrity check fails and the verdict is ERROR, not PASS.</li>
+  <li>If you asked for the network to be off and no sandbox can enforce it, the verdict is BLOCKED. The check does not quietly run online.</li>
+  <li>Every verdict says how it ran: the isolation mode, network on or off, and how long it took.</li>
+</ul>
+<p>Today the isolation mode is host mode: a separate copy on your own machine, not a container. That is weaker isolation, and the verdict says so instead of hiding it.</p>
+
+<h2>Proof has limits too</h2>
+<p>A PASS means your check passed. It does not mean your app is correct. If your tests do not cover tip rounding, a PASS will not catch a rounding bug. The verdict is only as good as the check you give it.</p>
+<p>So the first thing worth doing is choosing a check you would trust yourself. Even a weak one beats none. <code>npm run build</code> alone catches a lot of agent damage: a deleted file, a broken import, a dependency that does not install.</p>
+
+<h2>Why this matters more with agents</h2>
+<p>When you write code yourself, you usually know the last moment it worked. With an agent, you often do not. It made forty changes while you read something else, and then it said "All done!"</p>
+<p>A verdict on every save point turns "when did it last work?" into one command. Survey data points the same way. InfoWorld reports that only about 7 percent of developers trust AI with important decisions, but about 48 percent trust it when the output is easy to check. A save point with a verdict is easy to check. That is the point.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://www.infoworld.com/article/4233357/ai-distrust-is-githubs-opportunity.html" rel="noopener">InfoWorld: AI distrust is GitHub's opportunity</a></li>
+    <li><a href="https://git-scm.com/docs/git-worktree" rel="noopener">Git documentation: git worktree</a></li>
+    <li><a href="https://git-scm.com/docs/git-bundle" rel="noopener">Git documentation: git bundle</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="pv" href="rewind-does-not-cover-the-shell.html"><span>Previous</span><b>Your agent's rewind does not cover the shell</b></a><a class="nx" href="what-time-machine-does-not-do.html"><span>Next</span><b>What Time Machine does not do</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../terms.html">Terms (draft)</a>
+        <a href="../privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>
