@@ -1,8 +1,8 @@
 # Plan to MVP
 
-Status (15 October): M0 to M3 done except the npm publish. M4 site built and deployed to Vercel behind Vercel login (only the founder's team can see it). Two independent reviews found 17 bugs; all fixed with tests first. Verified on a real project (sindresorhus/slugify). CI green on macOS and Linux, Node 22 and 24.
+Status (15 October 2026): M0 to M3 done except the npm publish. 54 engine and CLI tests pass on macOS and Linux CI, Node 22 and 24. Two independent reviews found 17 bugs; all fixed with tests first. Verified on a real project (sindresorhus/slugify). The M4 one page site is deployed to Vercel behind Vercel login (only the founder's team can see it). In progress in this session, not finished or reviewed yet: more site pages, the Mac app screens including the Time View, and the waitlist backend (a Vercel function and one Supabase table, ADR 0006, with 14 tests of its own). Drafts are ready for the demo video script, the a16z and YC applications, and outreach. The action connector is proposed for v2 (ADR 0007).
 
-Waiting on the founder: npm account and license (publish), a waitlist endpoint, who signs for money, lawyer review, and turning off Vercel login protection when the copy is approved. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
+Waiting on the founder: npm account and license (publish), a Supabase project and two Vercel settings for the waitlist (ADR 0006), who signs for money, lawyer review, and turning off Vercel login protection when the copy is approved. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
 
 ## Goal
 
@@ -30,9 +30,9 @@ Each milestone ends with a commit and push. A milestone is not done if any test 
 | Pick an open source license for the engine and CLI | 20 Oct | Apache 2.0 or MIT keep adoption easy. Recorded as an ADR |
 | Decide who signs for money: a parent or guardian, or a company with an adult officer | 28 Oct | Blocks Stripe, Apple and the Terms. See `docs/legal/README.md` |
 | Pick and buy a domain | 28 Oct | Needed for the site and support email |
-| Find 5 builders who use coding agents for think aloud tests | 31 Oct | Per the ethical attention rules |
+| Find 5 builders who use coding agents for think aloud tests | 31 Oct | How and what to say: `docs/OUTREACH.md` |
 | Lawyer review of Terms and Privacy | Before the first paid user | A law school clinic or startup program can help |
-| Record the demo video | 30 Oct | Script in the brief, section 4 |
+| Record the demo video | 30 Oct | Script: `docs/DEMO_SCRIPT.md` |
 
 ## Website plan (M4 first, full film in M5)
 
@@ -46,7 +46,7 @@ No backend is needed for the MVP. The CLI is free and fully local. When Pro laun
 
 | Piece | Choice | Why |
 |---|---|---|
-| Waitlist | One table: email, consent, date. Tally form or Supabase | Smallest thing that works |
+| Waitlist | One Supabase table (email, consent, source, date) and one Vercel function. Built, waiting on founder setup (ADR 0006) | Smallest thing that works |
 | Payments | Stripe Checkout and the Stripe customer portal | Cancel online in one place. We never touch card numbers |
 | The Ladder | A webhook counts paid months and moves the subscription to the next price | Matches ADR 0002. Notice emails 7 to 30 days before each step |
 | License | A signed license file checked offline by the app, refreshed every 30 days, with grace | The app keeps working offline. Restores never check the license |
