@@ -1,5 +1,6 @@
 // Fixes from the security review. Each test reproduces a confirmed issue.
 import { appendFileSync, chmodSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, test } from "vitest";
@@ -155,6 +156,16 @@ describe("security review fixes", () => {
     const other = tempDir("abs");
     const store = tm.storeDirFor({ cwd: dir, env: { ...process.env, TM_HOME: join("..", "..", other.split("/").pop() ?? "") } });
     expect(store.startsWith("/")).toBe(true);
+  });
+
+  test("H15 inside-the-project checks see through symlinked paths (macOS /var is /private/var)", async () => {
+    const { root, dir } = await setupDemo();
+    const link = join(dirname(root), `${root.split("/").pop()}-link`);
+    symlinkSync(root, link);
+    const viaLink: tm.Ctx = { cwd: join(link, "marigold"), tmHome: join(link, "store") };
+    await expect(tm.open(viaLink, "cp-0001", { dir: "inside" })).rejects.toThrow(/inside the project/);
+    await expect(tm.checkpoint({ cwd: join(link, "marigold"), env: { ...process.env, TM_HOME: "relstore" } }, {})).rejects.toThrow(/inside the project/);
+    expect(dir).toBeTruthy();
   });
 
   test("H13 open --dir inside the project is refused", async () => {

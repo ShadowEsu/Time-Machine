@@ -1,5 +1,5 @@
-import { lstatSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { lstatSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** A path saved in a manifest must be relative and stay inside the project. */
 export function isSafeRelPath(p: string): boolean {
@@ -7,8 +7,19 @@ export function isSafeRelPath(p: string): boolean {
   return p.split("/").every((part) => part !== "" && part !== "." && part !== "..");
 }
 
+/** Resolves symbolic links in the part of the path that exists (macOS /var is /private/var). */
+function realish(p: string): string {
+  const abs = resolve(p);
+  try {
+    return realpathSync(abs);
+  } catch {
+    const parent = dirname(abs);
+    return parent === abs ? abs : join(realish(parent), basename(abs));
+  }
+}
+
 export function isInside(parent: string, child: string): boolean {
-  const r = relative(resolve(parent), resolve(child));
+  const r = relative(realish(parent), realish(child));
   return r === "" || (!r.startsWith(`..${sep}`) && r !== ".." && !isAbsolute(r));
 }
 
