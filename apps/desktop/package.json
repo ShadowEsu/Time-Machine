@@ -1,0 +1,19 @@
+{
+  "name": "@timetm/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Time Machine for Mac. Save points that know if they work.",
+  "main": "out/main.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "install-electron && node scripts/build.mjs && electron .",
+    "preview:build": "node scripts/build.mjs --preview",
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json"
+  },
+  "devDependencies": {
+    "@timetm/core": "workspace:*",
+    "electron": "44.5.1",
+    "esbuild": "^0.28.2",
+    "zod": "^4.6.7"
+  }
+}

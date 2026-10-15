@@ -1,0 +1,160 @@
+/* Time Machine site: shared tokens, base, header, footer and legal pages.
+   Tokens follow design/WEB_V2_RESEARCH.md section 2. Colour carries meaning only for verdicts. */
+
+:root {
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --fs-hero: clamp(52px, 2.6rem + 5.4vw, 124px);
+  --fs-h2: clamp(40px, 1.9rem + 3.4vw, 80px);
+  --fs-h3: clamp(20px, 1rem + .8vw, 26px);
+  --fs-lead: clamp(18px, 1rem + .4vw, 22px);
+  --fs-body: 17px;
+  --fs-small: 14px;
+
+  --section: clamp(96px, 12vw, 176px);
+  --gutter: clamp(16px, 4vw, 64px);
+  --max-page: 1200px;
+
+  --paper: #faf8f3;
+  --card: #ffffff;
+  --mist: #f2efe7;
+  --hairline: #e5e0d5;
+  --line: rgba(28, 24, 16, .09);
+  --line-2: rgba(28, 24, 16, .17);
+  --ink: #151411;
+  --ink-2: #3d3b36;
+  --ink-3: #66635c;
+  --ink-4: #a39f95;
+  --glass: rgba(255, 255, 255, .74);
+  --glass-line: rgba(28, 24, 16, .09);
+  --dawn-1: #e7effc;
+  --dawn-2: #f8e8d8;
+  --dawn-3: #f3f0fb;
+
+  --works-fg: #0f7a3d; --works-bg: #e6f6ec; --works-dot: #12a150;
+  --broken-fg: #b42318; --broken-bg: #fdeceb; --broken-dot: #e5484d;
+
+  --term-bg: #161512;
+  --term-ink: #ecebe5;
+  --term-dim: #8f8b82;
+  --term-line: rgba(255, 255, 255, .08);
+  --t-pass: #4ade80;
+  --t-fail: #f87171;
+
+  --r-chip: 8px; --r-btn: 999px; --r-card: 20px; --r-window: 14px;
+  --shadow-card: 0 1px 2px rgba(28, 24, 16, .05), 0 10px 30px -14px rgba(28, 24, 16, .16);
+  --shadow-lift: 0 2px 4px rgba(28, 24, 16, .06), 0 22px 44px -18px rgba(28, 24, 16, .26);
+  --shadow-window: 0 0 0 1px rgba(28, 24, 16, .07), 0 2px 4px rgba(28, 24, 16, .05), 0 34px 80px -26px rgba(28, 24, 16, .34);
+
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in: cubic-bezier(.64, 0, .78, 0);
+  --ease-inout: cubic-bezier(.65, 0, .35, 1);
+  --spring-card: cubic-bezier(.22, 1, .36, 1);
+  --spring-verdict: cubic-bezier(.34, 1.4, .64, 1);
+  --dur-reveal: .6s;
+  --rise: 24px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0d0d0c; --card: #161614; --mist: #1a1917; --hairline: #2b2a26;
+    --line: rgba(255, 255, 255, .09); --line-2: rgba(255, 255, 255, .17);
+    --ink: #f3f1eb; --ink-2: #cdc9c0; --ink-3: #9d998f; --ink-4: #66635c;
+    --glass: rgba(24, 24, 22, .72); --glass-line: rgba(255, 255, 255, .1);
+    --dawn-1: #0f1727; --dawn-2: #21180f; --dawn-3: #15131f;
+    --works-fg: #4ade80; --works-bg: #0f2a1a; --works-dot: #22c55e;
+    --broken-fg: #f87171; --broken-bg: #2e1212; --broken-dot: #ef4444;
+    --term-bg: #121210; --term-line: rgba(255, 255, 255, .09);
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, .06), 0 10px 30px -14px rgba(0, 0, 0, .7);
+    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, .09), 0 22px 44px -18px rgba(0, 0, 0, .85);
+    --shadow-window: 0 0 0 1px rgba(255, 255, 255, .09), 0 34px 80px -26px rgba(0, 0, 0, .9);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0d0d0c; --card: #161614; --mist: #1a1917; --hairline: #2b2a26;
+  --line: rgba(255, 255, 255, .09); --line-2: rgba(255, 255, 255, .17);
+  --ink: #f3f1eb; --ink-2: #cdc9c0; --ink-3: #9d998f; --ink-4: #66635c;
+  --glass: rgba(24, 24, 22, .72); --glass-line: rgba(255, 255, 255, .1);
+  --dawn-1: #0f1727; --dawn-2: #21180f; --dawn-3: #15131f;
+  --works-fg: #4ade80; --works-bg: #0f2a1a; --works-dot: #22c55e;
+  --broken-fg: #f87171; --broken-bg: #2e1212; --broken-dot: #ef4444;
+  --term-bg: #121210; --term-line: rgba(255, 255, 255, .09);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, .06), 0 10px 30px -14px rgba(0, 0, 0, .7);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, .09), 0 22px 44px -18px rgba(0, 0, 0, .85);
+  --shadow-window: 0 0 0 1px rgba(255, 255, 255, .09), 0 34px 80px -26px rgba(0, 0, 0, .9);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { overflow-x: clip; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  /* Paper grain: one static tile, painted with the page, no blending per frame. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .38 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; text-underline-offset: 3px; }
+img, svg { display: block; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 16px; top: -60px; z-index: 100; background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 500; text-decoration: none; }
+.skip:focus { top: 12px; }
+.wrap { max-width: var(--max-page); margin: 0 auto; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); }
+.mono, code, kbd { font-family: var(--font-mono); }
+code { font-size: .92em; }
+
+/* Brand mark: a rewind triangle on ink. Never a clock. */
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; letter-spacing: -.015em; text-decoration: none; }
+.mark { width: 24px; height: 24px; border-radius: 7px; background: var(--ink); display: grid; place-items: center; flex: none; }
+.mark i { display: block; width: 9px; height: 10px; margin-left: -1px; background: var(--paper); clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 24px;
+  border-radius: var(--r-btn); border: 0; font: 500 16px/1 var(--font-body); letter-spacing: -.01em; cursor: pointer;
+  text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), opacity .2s;
+}
+.btn:active { transform: scale(.97); transition-duration: .14s; }
+.btn-primary { background: var(--ink); color: var(--paper); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 10px 24px -12px rgba(20, 18, 14, .55); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 16px 30px -12px rgba(20, 18, 14, .6); }
+.btn-primary:active { transform: scale(.97); }
+.btn[disabled] { opacity: .5; cursor: default; transform: none; }
+.btn-sm { min-height: 40px; padding: 0 18px; font-size: 14.5px; }
+
+/* Legal pages */
+.legal .draftbar { position: sticky; top: 0; z-index: 5; background: var(--ink); color: var(--paper); text-align: center; padding: 10px 16px; font: 500 12.5px/1.4 var(--font-mono); letter-spacing: .06em; }
+.legal .wrap { max-width: 760px; }
+.legal header.top { padding: 28px 0 0; }
+.legal main { padding: 64px 0 96px; }
+.legal h1 { margin: 0; font: 400 clamp(44px, 7vw, 76px)/1 var(--font-display); letter-spacing: -.015em; }
+.legal .banner { margin: 32px 0 8px; padding: 20px 22px; border: 1.5px dashed var(--ink-3); border-radius: 14px; background: var(--card); }
+.legal .banner strong { display: block; font-size: 18px; letter-spacing: -.01em; }
+.legal .banner p { margin: 6px 0 0; color: var(--ink-2); font-size: 15px; }
+.legal article { font-size: 16.5px; line-height: 1.7; }
+.legal h2 { margin: 52px 0 0; font: 400 30px/1.15 var(--font-display); letter-spacing: -.01em; }
+.legal p { margin: 14px 0 0; }
+.legal ul { margin: 14px 0 0; padding-left: 22px; }
+.legal li { margin: 6px 0; }
+.legal li::marker { color: var(--ink-3); }
+.legal .ph { font-family: var(--font-mono); font-size: .86em; background: var(--mist); padding: 1px 6px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--line); }
+.legal .tablewrap { margin-top: 16px; overflow-x: auto; border-radius: 14px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+.legal table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.legal th, .legal td { text-align: left; padding: 12px 16px; border-top: 1px solid var(--line); }
+.legal thead th { border-top: 0; font: 500 11.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); background: var(--mist); }
+.legal footer { border-top: 1px solid var(--line); padding: 32px 0 calc(32px + env(safe-area-inset-bottom, 0px)); font-size: 14px; color: var(--ink-3); }
+.legal footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.legal footer a:hover { color: var(--ink); }

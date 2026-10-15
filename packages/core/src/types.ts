@@ -48,6 +48,11 @@ export interface InitResult {
   sandbox: string | null;
 }
 
+export interface SetCheckResult {
+  configPath: string;
+  verifyCommand: string;
+}
+
 export interface CheckpointResult {
   checkpoint: CheckpointSummary;
   /** True when nothing changed and the newest checkpoint was returned instead. */
