@@ -107,4 +107,31 @@ The full vocabulary table, CLI style rules and sample terminal output are in `.p
 - Recovery never switches the user's folder. It creates the branch and a recovery copy. Switching is a separate button the user presses.
 - Checkpoint IDs look like `cp-0003`.
 - Install line: `npx timetm init`. Command: `tm`.
-- Proposed: usage errors exit with 64 so they never collide with INCOMPLETE (2). Needs an ADR before code.
+- Usage errors exit with 64 so they never collide with INCOMPLETE (2). See ADR 0005.
+
+## 8. Ethical attention rules
+
+Source: the founder's "Ethical attention design" guide (October 2026). Attention is borrowed. People must be able to understand, choose, pause and leave without penalty. Each rule below is a design hypothesis to test with real users, not a law.
+
+| Study | What it found | Our rule |
+|---|---|---|
+| Iyengar and Lepper 2000, choice overload | Smaller choice sets led to more follow through | One primary action per screen: "Go back to the last working version". One quiet alternative: "See all save points". The full list is always one click away. |
+| Fogg 2009, behavior model | An action needs motivation, ability and a prompt at the same moment | Make the step easier before adding a prompt. Prompts are relevant, dismissible and user controlled. Never prompt during a rewind or a check. |
+| Salganik, Dodds and Watts 2006, social influence | Popularity signals made outcomes more unequal and less predictable | Only real numbers with a source and a time range ("104 of 120 sessions, last 30 days"). No invented counts or testimonials. Popularity is never shown as proof of quality. |
+| Kivetz, Urminsky and Zheng 2006, goal gradient | People push harder near a goal they can see | Show honest progress on goals the user chose, with the math visible ("Month 5 of 6 to $8"). No fake head starts, hidden resets, or punishment for stopping. Grace and pause keep earned steps. |
+
+**What we optimize:** task success (a verified rescue), informed return, trust and accessibility. Never raw time in app.
+
+**Human gate.** An AI may inspect approved screens and propose changes. A person approves any public copy, experiment, notification, pricing change, or interface change with real user impact.
+
+**Evidence record** for every proposed UX change:
+
+| Field | What to write |
+|---|---|
+| Screen | URL or screen ID, date, audience, task, device |
+| Observation | The exact friction, the evidence, severity, uncertainty |
+| Research link | Paper, finding, mechanism, limits |
+| Change | Component, before and after, copy, accessibility impact |
+| Measure | Primary metric, guardrail, segment, decision rule, rollback path |
+
+**Testing order:** moderated think-aloud sessions with 5 real users first, then a bounded A/B test only if needed. A higher click rate is not success if comprehension, wrong purchases or support contacts get worse.

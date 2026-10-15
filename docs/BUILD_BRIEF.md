@@ -234,8 +234,10 @@ Full scripts and targets are in `.private/research/13-pricing-launch-naming.md`.
 1. **The name.** Decided: Time Machine, with npm package `timetm` and command `tm` (ADR 0001). The Apple trademark risk is accepted by the founder and recorded there.
 2. **Apple Developer Program.** It is required to sign the Mac app, and the account holder must be 18 or older. A parent or guardian can enroll in their own name. Until then, ship the CLI first.
 3. **Open source license** for the engine and CLI.
-4. **Loyalty pricing.** Founder idea: $1 off each consecutive month until free. Modeled: it caps lifetime revenue at $45 per subscriber. Recommended instead, "The Ladder": $9, then $8 from month 7, $7 from month 13, $6 from month 25 (annual $79, $69, $59), with "yours to keep" after 12 paid months, 30 day grace, pause, and the first 500 subscribers starting at $8. Keeps about 88% of flat revenue. Awaiting founder choice.
-5. **Deadlines:** a16z speedrun SR008 closes 1 November 2026; YC W27 closes 2 November 2026 at 8pm PT.
+4. **Loyalty pricing.** Decided: "The Ladder" (ADR 0002).
+5. **Deadlines:** a16z speedrun SR008 closes 1 November 2026; YC W27 closes 2 November 2026 at 8pm PT. Dated milestones are in `docs/PLAN.md`.
+6. **Who signs for money.** The founder is under 18. A parent or guardian, or a company with an adult officer, must be the seller before Pro, Stripe or the Apple program. See `docs/legal/README.md`.
+7. **Engine decisions** recorded: store location (ADR 0003), isolation and network (ADR 0004), exit codes (ADR 0005).
 
 ## 10. Rewind everything: the roadmap
 
@@ -260,7 +262,8 @@ Big new findings that change the plan:
 - App design spec: `design/APP_DESIGN_SPEC.md` (principles, the Rewind "Time View", AI features, every screen, overlays, visual system, copy, accessibility, roadmap).
 - Website spec: `design/WEBSITE_SPEC.md` (12 beat scroll film, hero, sections, other pages, motion, copy deck, asset list).
 - Clickable concepts: `design/concepts/app-rewind.html` and `design/concepts/site-story.html`. Simulated data only.
-- Experience principles: `design/EXPERIENCE.md` (psychology, habit loop, aha moment, metrics, what we never do, two experiences on one engine).
+- Experience principles: `design/EXPERIENCE.md` (psychology, habit loop, aha moment, metrics, what we never do, two experiences on one engine, ethical attention rules).
+- Legal drafts: `docs/legal/` (Terms, Privacy). Not in effect until a lawyer reviews them.
 
 ## 12. Research
 
