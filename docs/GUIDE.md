@@ -270,7 +270,7 @@ Every save point lists what it did not save.
 
 With `network: deny`, the `setup` step still has the network so it can install dependencies. Only the check itself runs without it.
 
-Checks run with a clean environment. Only `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `TMPDIR`, `SHELL` and your `config.plain` values are passed in, plus `CI=1`. A check that needs a secret value may fail.
+Checks run with a clean environment. Only `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `TMPDIR`, `SHELL`, proxy and certificate settings, package manager settings like `npm_config_*`, and your `config.plain` values are passed in, plus `CI=1`. A check that needs a secret value may fail.
 
 ## 9. Using it with AI agents
 

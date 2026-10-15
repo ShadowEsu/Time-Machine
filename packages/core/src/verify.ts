@@ -17,10 +17,12 @@ import type { Verdict } from "./verdict.js";
 import { recordVerdict } from "./verdicts.js";
 
 const KEEP_ENV = ["PATH", "HOME", "USER", "LOGNAME", "LANG", "TMPDIR", "SHELL", "SystemRoot"];
+/** Network and package manager settings. Without them, installs fail behind proxies and custom certificates. */
+const KEEP_ENV_PATTERN = /^(https?_proxy|no_proxy|all_proxy|node_extra_ca_certs|ssl_cert_file|ssl_cert_dir|requests_ca_bundle|npm_config_.+|yarn_.+|pnpm_.+|pip_.+|uv_.+|cargo_.+|goproxy|goflags|corepack_.+)$/i;
 
 function cleanEnv(base: NodeJS.ProcessEnv, plain: Record<string, string>): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const k of KEEP_ENV) if (base[k] !== undefined) env[k] = base[k];
+  for (const [k, v] of Object.entries(base)) if (v !== undefined && (KEEP_ENV.includes(k) || KEEP_ENV_PATTERN.test(k))) env[k] = v;
   return { ...env, ...plain, CI: "1", NO_COLOR: "1", TM_VERIFY: "1" };
 }
 
@@ -122,8 +124,10 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
       const judged = judge(s, cfg.verify.timeoutSeconds);
       if (judged.verdict !== "PASS") {
         writeFileSync(logPath, redact(log, secrets));
-        const reason = judged.verdict === "FAIL" ? `The setup step failed with exit code ${s.code}, so the check did not run.` : `Setup: ${judged.reason}`;
-        return finish(judged.verdict, reason, s.code, logPath);
+        // A failed install does not prove the code is broken (the network or a proxy may be
+        // the cause), so it is INCOMPLETE, never FAIL. Timeouts and crashes stay ERROR.
+        if (judged.verdict === "FAIL") return finish("INCOMPLETE", `The setup step failed with exit code ${s.code}, so the check did not run. See the log.`, s.code, logPath);
+        return finish(judged.verdict, `Setup: ${judged.reason}`, s.code, logPath);
       }
     }
     const [file, args] = sandbox ? sandbox.wrap(cfg.verify.command) : ["/bin/sh", ["-c", cfg.verify.command]];

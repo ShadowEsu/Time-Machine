@@ -23,5 +23,6 @@ Host mode is weaker isolation than a container. We say so on every verdict.
 ## Amendment, 15 October 2026
 
 - **Sandboxes used today:** `sandbox-exec` on macOS, `bwrap` or `unshare` (a network namespace) on Linux. Anthropic's `srt` is not wired in yet. The fail closed rule is unchanged.
-- **Setup has the network.** `verify.setup` (for example `npm ci`) runs outside the sandbox so it can install dependencies. Only `verify.command` runs under the network policy. A failing setup gives FAIL and the check does not run.
+- **Setup has the network.** `verify.setup` (for example `npm ci`) runs outside the sandbox so it can install dependencies. Only `verify.command` runs under the network policy. A failing setup gives INCOMPLETE (a failed install does not prove the code is broken) and the check does not run.
 - Reason: with deny on, an install step could never work, so people would turn deny off entirely. This keeps the check itself offline, which is what the policy is for.
+- **Network settings pass through.** The clean environment keeps proxy, certificate and package manager settings (`HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS`, `npm_config_*` and similar). Found when `npm install` failed behind a proxy on a real project.

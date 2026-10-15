@@ -138,6 +138,17 @@ describe("security review fixes", () => {
     expect(v.durationMs).toBeLessThan(5000);
   });
 
+  test("H14 setup and check keep proxy and certificate settings, and a failed setup is INCOMPLETE", async () => {
+    const { dir, ctx } = await setupDemo();
+    writeConfig(dir, { setup: 'test -n "$HTTPS_PROXY" && test -n "$npm_config_registry"', command: 'test -n "$NODE_EXTRA_CA_CERTS"' });
+    const env = { ...ctx.env, HTTPS_PROXY: "http://proxy.invalid:3128", npm_config_registry: "https://registry.invalid/", NODE_EXTRA_CA_CERTS: "/tmp/ca.pem" };
+    expect((await tm.verify({ ...ctx, env }, "cp-0003")).verdict).toBe("PASS");
+    writeConfig(dir, { setup: "exit 7" });
+    const v = await tm.verify(ctx, "cp-0003");
+    expect(v.verdict).toBe("INCOMPLETE");
+    expect(v.reason).toMatch(/setup/i);
+  });
+
   test("H12 a relative TM_HOME is made absolute and may not sit inside the project", async () => {
     const { dir } = await setupDemo();
     await expect(tm.checkpoint({ cwd: dir, env: { ...process.env, TM_HOME: "relstore" } }, {})).rejects.toThrow(/inside the project/);
