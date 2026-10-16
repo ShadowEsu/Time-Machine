@@ -3,6 +3,7 @@
 import { z } from "zod";
 import type {
   CheckpointResult,
+  CleanStoreResult,
   DemoResult,
   DiffResult,
   FindGoodResult,
@@ -13,6 +14,7 @@ import type {
   RecoverResult,
   SetCheckResult,
   TimelineResult,
+  UndoRecoverResult,
   Verdict,
   VerifyResult,
 } from "@timetm/core";
@@ -27,6 +29,24 @@ const AbsPath = z.string().min(1).max(4096).refine((s) => s.startsWith("/") || /
 
 export const ThemeSchema = z.enum(["system", "light", "dark"]);
 
+const MODIFIERS = new Set(["Command", "Cmd", "Control", "Ctrl", "CommandOrControl", "CmdOrCtrl", "Alt", "Option", "Shift", "Super", "Meta"]);
+const HOTKEY_KEY = /^(?:[A-Z0-9]|F(?:[1-9]|1\d|2[0-4])|Space|Tab|Backspace|Delete|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Plus|[,./;'[\]\\`=-])$/;
+
+/**
+ * A global shortcut in Electron accelerator form, such as Control+Alt+T. At least one
+ * modifier other than Shift, so it can't swallow normal typing in other apps.
+ */
+export const HotkeySchema = z
+  .string()
+  .max(60)
+  .refine((s) => {
+    const parts = s.split("+");
+    const key = parts.pop() ?? "";
+    return HOTKEY_KEY.test(key) && parts.every((m) => MODIFIERS.has(m)) && new Set(parts).size === parts.length && parts.some((m) => m !== "Shift");
+  }, "Use one or more modifier keys and one key, like Control+Alt+T.");
+
+export const DEFAULT_HOTKEY = "Control+Alt+T";
+
 export const SettingsSchema = z.strictObject({
   showGitDetails: z.boolean().default(false),
   overlayCards: z.boolean().default(true),
@@ -34,6 +54,10 @@ export const SettingsSchema = z.strictObject({
   onboarded: z.boolean().default(false),
   /** Use the plain step by step sheet instead of the Time View. Reduce motion turns it on by itself. */
   simpleRewind: z.boolean().default(false),
+  /** Shows the app window from any app. Null turns it off. */
+  hotkey: HotkeySchema.nullable().default(DEFAULT_HOTKEY),
+  /** The small "Claude Code is working" pill while an agent turn is in progress. */
+  agentPill: z.boolean().default(true),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -44,6 +68,8 @@ export const SettingsPatchSchema = z.strictObject({
   theme: ThemeSchema.optional(),
   onboarded: z.boolean().optional(),
   simpleRewind: z.boolean().optional(),
+  hotkey: HotkeySchema.nullable().optional(),
+  agentPill: z.boolean().optional(),
 });
 
 export const ProjectEntrySchema = z.strictObject({
@@ -71,11 +97,15 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("verify"), projectId: ProjectId, id: CheckpointId }),
   z.strictObject({ method: z.literal("findGood"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("recover"), projectId: ProjectId, id: CheckpointId }),
+  z.strictObject({ method: z.literal("undoRecover"), projectId: ProjectId, id: CheckpointId, branch: z.string().regex(/^tm\/recover\/cp-\d{4,}(-\d+)?$/), copyDir: AbsPath }),
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookPreview"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookInstall"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("demo") }),
   z.strictObject({ method: z.literal("storage") }),
+  z.strictObject({ method: z.literal("cleanStore"), projectId: ProjectId, apply: z.boolean() }),
+  z.strictObject({ method: z.literal("agents") }),
+  z.strictObject({ method: z.literal("isolation") }),
   z.strictObject({ method: z.literal("setSettings"), patch: SettingsPatchSchema }),
   z.strictObject({ method: z.literal("reveal"), path: AbsPath }),
   z.strictObject({ method: z.literal("readReport"), path: AbsPath }),
@@ -98,7 +128,10 @@ export interface Bootstrap {
   platform: string;
   settings: Settings;
   projects: ProjectEntry[];
+  /** The shortcut that shows the app window. Empty when it is off. */
   hotkey: string;
+  /** False when the shortcut is set but another app already owns it. */
+  hotkeyActive: boolean;
   storeDir: string;
   preview: boolean;
 }
@@ -114,6 +147,27 @@ export interface StorageRow {
   name: string;
   bytes: number;
   storeDir: string;
+}
+
+/** Claude Code hook lines in one project's .claude/settings.json. */
+export interface AgentRow {
+  projectId: string;
+  name: string;
+  /** "partial": some of our three lines are there. "unreadable": the file is not plain JSON, so it was left alone. "unavailable": the project could not be read. */
+  claudeCode: "connected" | "partial" | "not-connected" | "unreadable" | "unavailable";
+  settingsPath: string | null;
+  /** Hook events still missing: UserPromptSubmit, PreToolUse, Stop. */
+  missing: string[];
+  /** True from the prompt hook until the stop hook, for at most an hour. */
+  working: boolean;
+  workingSince: string | null;
+}
+
+export interface IsolationInfo {
+  /** The only mode implemented. Checks run in a separate Git worktree on this Mac. */
+  mode: "host";
+  /** What blocks the network during checks when a project asks for it, or null when nothing on this Mac can. */
+  networkSandbox: string | null;
 }
 
 /** What each method returns. */
@@ -132,11 +186,15 @@ export interface Results {
   verify: VerifyResult;
   findGood: FindGoodResult;
   recover: RecoverResult;
+  undoRecover: UndoRecoverResult;
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;
   demo: { project: ProjectEntry; result: DemoResult };
   storage: StorageRow[];
+  cleanStore: CleanStoreResult;
+  agents: AgentRow[];
+  isolation: IsolationInfo;
   setSettings: Settings;
   reveal: true;
   readReport: string;
@@ -207,6 +265,13 @@ export type OverlayContent =
       projectName: string;
       points: { id: string; verdict: Verdict | null; note: string; createdAt: string }[];
       hideAfterMs: number;
+    }
+  | {
+      /** Shown only while an agent turn is in progress. It never hides on a timer. */
+      kind: "pill";
+      projectId: string;
+      projectName: string;
+      agent: string;
     };
 
 export interface OverlayBridge {

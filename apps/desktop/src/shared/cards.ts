@@ -17,7 +17,7 @@ const BROKEN_MS = 20000;
  * The card for a new verdict on the newest save point, or null when there is nothing worth
  * saying. `before` is the verdict the newest save point had before this change, if any.
  */
-export function verdictCard(projectId: string, projectName: string, points: CardPoint[], before: Verdict | null): OverlayContent | null {
+export function verdictCard(projectId: string, projectName: string, points: CardPoint[], before: Verdict | null): Extract<OverlayContent, { kind: "card" }> | null {
   const newest = points.at(-1);
   if (!newest?.verdict) return null;
   const working = [...points].reverse().find((p) => p.id !== newest.id && p.verdict === "PASS") ?? null;
@@ -30,7 +30,7 @@ export function verdictCard(projectId: string, projectName: string, points: Card
           title: "Something broke after the last change.",
           body: `Last working version: ${working.id}, ${when(working.createdAt)}, ${working.note}.`,
           primary: { label: `Rewind to ${working.id}`, action: { kind: "rewind", projectId, target: working.id } },
-          secondary: { label: "Show what changed", action: { kind: "compare", projectId, a: working.id, b: newest.id } },
+          secondary: { label: "See what broke", action: { kind: "compare", projectId, a: working.id, b: newest.id } },
           hideAfterMs: BROKEN_MS,
         };
       }

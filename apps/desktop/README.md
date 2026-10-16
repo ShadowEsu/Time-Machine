@@ -31,8 +31,8 @@ Other scripts, run from the root with `pnpm --filter @timetm/desktop <script>`:
 - **Time View:** the Rewind as a full window scene. Open it with Find the last working version, `⌘⇧R`, Space on a save point in History, or the Rewind button on a red corner card. The selected save point sits on a stage card with the files it changed. Older save points recede to the left in a depth corridor. A Now card on the right shows the newest save point. Under the stage: the verdict with its evidence, then Comes back and Does not come back as two equal columns. At the bottom: a ruler with agent session clips, an activity band (files changed per save point), verdict ticks and a playhead. Everything right of the playhead is dimmed and labeled "These stay saved". `J` and `L` step, `⇧J` and `⇧L` jump to the previous or next verdict change, `T` tries, `C` compares, `Enter` does the main action at once, `Esc` goes back to exactly where you were. Use always saves your current version first and makes a new branch. It never switches your folder. Green appears only for a save point with a recorded PASS. It uses the same wizard state and the same engine calls (find-good, verify, open, recover).
 - **Simple rewind:** the same four steps as a plain sheet. It is used when Reduce motion is on, or when Settings, Rewind style is set to Simple.
 - **Compare (D05):** code, files outside Git, settings (names only), packages and environment.
-- **Menu bar dot and overlay (D06):** the dot is green only when every project's newest save point has a real PASS, red on any FAIL, grey otherwise. A corner card appears when a check on the newest save point gives a new result. The card never takes focus and hides on its own unless you hover it. `⌘⇧T` shows a timeline strip.
-- **Settings (D07):** Show Git details, appearance, rewind style, corner cards, storage used per project, the hotkey, and Claude Code connections.
+- **Menu bar dot and overlay (D06):** the dot is green only when every project's newest save point has a real PASS, red on any FAIL, a grey open arc while Claude Code is in a turn or the app is running an action, grey otherwise. A corner card appears only when a project's verdict turns from PASS to FAIL, with Rewind and See what broke. Both open the app window on the screen the card was on. The card never takes focus and hides on its own unless you hover it. While Claude Code is in a turn, a small pill at the bottom of the screen says so. It comes from the hook audit lines ("agent-turn started" at each prompt, "ended" at stop) and counts as over after an hour without an end. The timeline strip is in the menu bar menu.
+- **Settings (D07):** Show Git details, appearance, rewind style, corner cards, agent pill, storage used per project with a cleanup of old check logs, isolation mode (basic, with the network sandbox found on this Mac), Claude Code connection status per project, and the global shortcut that shows the app window (`⌃⌥T` by default, can be changed or turned off). Settings are stored as Zod checked JSON in the app's data folder.
 - **Inspector (`⌘I`):** the raw engine result and the same action as a `tm` command, with Copy.
 
 Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs something, Check crashed, Not checked yet. Color only confirms. When a shortcut fires, its button shows its pressed state for about 120 ms.
@@ -40,9 +40,9 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 ## Planned, not built
 
 - Signing, notarization and auto update (D08). Until then macOS asks you to confirm the first open.
-- Clean up of old save points, stronger isolation with Docker or Apple container, Cursor, Codex and Gemini hooks, automatic hourly saves.
+- Thinning old save points (cleanup removes old check logs only), stronger isolation with Docker or Apple container, Cursor, Codex and Gemini hooks, automatic hourly saves.
 - From the Time View design: screenshots per save point (the stage shows the changed files instead), sounds and haptics, hover skimming, zoom levels, the "Back to now" toolbar pill, Undo of a rewind, and stopping a running search (Esc leaves the view, the search keeps going).
-- AI summaries, "What broke?", the Ask bar, pinning, and the agent pill from the design spec.
+- AI summaries, "What broke?", the Ask bar, pinning, and from the overlay design: Focus mode handling, a Recent cards list, card frequency limits, and a draggable pill.
 
 ## Browser preview
 

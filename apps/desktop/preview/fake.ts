@@ -30,7 +30,7 @@ function hash(s: string): string {
   return (h.toString(16).padStart(8, "0") + "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678").slice(0, 40);
 }
 
-function makePoint(n: number, note: string, time: string, trigger: string, tracked: FileMap, untracked: FileMap, lockfiles: FileMap): Point {
+function makePoint(n: number, note: string, time: string, trigger: string, tracked: FileMap, untracked: FileMap, lockfiles: FileMap, prompt?: string): Point {
   const id = `cp-${String(n).padStart(4, "0")}`;
   const commit = hash(`${id}${JSON.stringify(tracked)}`);
   const files = Object.keys(untracked).length;
@@ -42,6 +42,7 @@ function makePoint(n: number, note: string, time: string, trigger: string, track
   return {
     entry: {
       id, createdAt: time, note, trigger, commit, branch: "main", dirty: files > 0, files,
+      agent: trigger.startsWith("claude-code") ? { name: "Claude Code", ...(prompt ? { prompt } : {}) } : null,
       coverage: { captured, restorable: ["Code", ...(files ? [`${files} saved file${files === 1 ? "" : "s"}`] : [])], missing: [], manual: [SECRETS, NOT_CAPTURED] },
       verdict: null, isolation: null,
     },
@@ -56,7 +57,7 @@ export class FakeEngine implements TmBridge {
   private points: Point[] = [];
   private audit: { at: string; action: string; target: string | null; result: string }[] = [];
   private branches = new Set<string>();
-  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false };
+  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false, hotkey: "Control+Alt+T", agentPill: true };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true };
 
   constructor() {
@@ -74,11 +75,11 @@ export class FakeEngine implements TmBridge {
     const themes = { ...cfg, "data/themes.json": "1" };
     this.points = [
       makePoint(1, "Initial tip calculator", ago(148), "app", base, cfg, {}),
-      makePoint(2, "Added split bill", ago(113), "claude-code:stop", split, cfg, {}),
-      makePoint(3, "Added dark mode", ago(76), "claude-code:stop", dark, themes, {}),
-      makePoint(4, "Agent: fixed lint warnings", ago(37), "claude-code:stop", broke, themes, {}),
+      makePoint(2, "Added split bill", ago(113), "claude-code:stop", split, cfg, {}, "add a split bill button"),
+      makePoint(3, "Added dark mode", ago(76), "claude-code:stop", dark, themes, {}, "add dark mode"),
+      makePoint(4, "Agent: fixed lint warnings", ago(37), "claude-code:stop", broke, themes, {}, "fix the lint warnings"),
       makePoint(5, "Changed currency", ago(12), "app", eur, themes, {}),
-      makePoint(6, "Added a dependency", ago(3), "claude-code:stop", dep, themes, { "package-lock.json": "1" }),
+      makePoint(6, "Added a dependency", ago(3), "claude-code:stop", dep, themes, { "package-lock.json": "1" }, "format prices with a currency package"),
     ];
     // Checked when they were saved: the first three worked. The check after the last agent turn failed.
     for (const id of ["cp-0001", "cp-0002", "cp-0003"]) this.setVerdict(id, "PASS");
@@ -184,7 +185,8 @@ export class FakeEngine implements TmBridge {
   private async dispatch(call: Call): Promise<unknown> {
     switch (call.method) {
       case "bootstrap":
-        return { platform: "darwin", settings: this.settings, projects: [this.project], hotkey: "CommandOrControl+Shift+T", storeDir: "~/.timemachine", preview: true };
+        // A browser page can't own a global shortcut, so it is never active here.
+        return { platform: "darwin", settings: this.settings, projects: [this.project], hotkey: this.settings.hotkey ?? "", hotkeyActive: false, storeDir: "~/.timemachine", preview: true };
       case "chooseFolder":
       case "addProject":
         throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
@@ -252,6 +254,13 @@ export class FakeEngine implements TmBridge {
         this.audit.push({ at: new Date().toISOString(), action: "recover", target: call.id, result: `branch ${branch}` });
         return r;
       }
+      case "undoRecover": {
+        await wait(500);
+        if (!this.branches.has(call.branch)) throw new Error(`There is no branch ${call.branch}. It may already be gone.`);
+        this.branches.delete(call.branch);
+        this.audit.push({ at: new Date().toISOString(), action: "undo-recover", target: call.id, result: `removed branch ${call.branch} and its recovery copy` });
+        return { id: call.id, removedBranch: call.branch, removedCopy: call.copyDir };
+      }
       case "log":
         return { entries: this.audit };
       case "hookPreview":
@@ -266,6 +275,13 @@ export class FakeEngine implements TmBridge {
         throw new Error("This preview is the demo. Reload the page to start the story over.");
       case "storage":
         return [{ projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" }];
+      case "cleanStore":
+        await wait(200);
+        return { files: [], bytes: 0, applied: call.apply };
+      case "agents":
+        return [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }];
+      case "isolation":
+        return { mode: "host", networkSandbox: "sandbox-exec" };
       case "setSettings":
         this.settings = { ...this.settings, ...call.patch };
         return this.settings;

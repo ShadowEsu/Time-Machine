@@ -5,7 +5,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import * as tm from "@timetm/core";
-import type { Call, HookPreview, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
+import type { AgentRow, Call, HookPreview, IsolationInfo, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
+import { agentTurnStart } from "./rules.js";
 import type { AppState } from "./state.js";
 
 type EngineCall = Exclude<Call, { method: "bootstrap" | "chooseFolder" | "setSettings" | "reveal" | "copy" | "setActive" }>;
@@ -103,6 +104,33 @@ export class Engine {
     });
   }
 
+  /** Claude Code connection per project, read from its .claude/settings.json. Never writes. */
+  async agents(): Promise<AgentRow[]> {
+    return Promise.all(
+      this.state.projects.map(async (p): Promise<AgentRow> => {
+        const base = { projectId: p.id, name: p.name };
+        try {
+          if (!existsSync(p.path)) throw new Error("moved");
+          const ctx = this.ctx(p);
+          const s = await tm.hookStatus(ctx, { command: this.hookPreview(p).command });
+          const since = agentTurnStart((await tm.log(ctx)).entries, Date.now());
+          const claudeCode = !s.readable ? "unreadable" : !s.missing.length ? "connected" : s.present.length ? "partial" : "not-connected";
+          return { ...base, claudeCode, settingsPath: s.settingsPath, missing: s.missing, working: since !== null, workingSince: since };
+        } catch {
+          return { ...base, claudeCode: "unavailable", settingsPath: null, missing: [], working: false, workingSince: null };
+        }
+      }),
+    );
+  }
+
+  private sandboxName: string | null | undefined;
+
+  /** Detecting the sandbox runs a tiny command, so it is done once per session. */
+  isolation(): IsolationInfo {
+    if (this.sandboxName === undefined) this.sandboxName = tm.detectSandbox(process.env)?.name ?? null;
+    return { mode: "host", networkSandbox: this.sandboxName };
+  }
+
   async run(call: EngineCall): Promise<Res<Results[EngineCall["method"]]>> {
     try {
       return { ok: true, data: await this.dispatch(call) };
@@ -132,6 +160,10 @@ export class Engine {
       }
       case "storage":
         return this.storage();
+      case "agents":
+        return this.agents();
+      case "isolation":
+        return this.isolation();
       case "readReport": {
         if (!this.allowedPaths.has(call.path) || !call.path.endsWith(".md")) throw new tm.TmError("usage", "That report is not one this app made.");
         return readFileSync(call.path, "utf8");
@@ -179,8 +211,13 @@ export class Engine {
           this.allowedPaths.add(r.reportPath);
           return r;
         });
+      case "undoRecover":
+        return this.serial(p.id, "Undoing the rewind", () => tm.undoRecover(ctx, { id: call.id, branch: call.branch, copyDir: call.copyDir }));
       case "hookInstall":
         return this.serial(p.id, "Connecting Claude Code", () => tm.hookInstall(ctx, { command: this.hookPreview(p).command }));
+      case "cleanStore":
+        if (!call.apply) return tm.cleanStore(ctx, { apply: false });
+        return this.serial(p.id, "Cleaning up", () => tm.cleanStore(ctx, { apply: true }));
     }
   }
 }

@@ -22,6 +22,16 @@ export function mountOverlay(host: HTMLElement, content: OverlayContent, hooks: 
   };
   const dismiss: OverlayAction = { kind: "dismiss" };
 
+  if (content.kind === "pill") {
+    // No timer and no close button: it lives exactly as long as the agent turn.
+    host.innerHTML = `<button class="ov-pill" role="status" aria-live="polite" title="Open the History of ${esc(content.projectName)}"><span class="breath" aria-hidden="true"></span>${esc(content.agent)} is working · ${esc(content.projectName)}</button>`;
+    const open: OverlayAction = { kind: "history", projectId: content.projectId };
+    host.querySelector("button")?.addEventListener("click", () => hooks.act(open));
+    return () => {
+      host.innerHTML = "";
+    };
+  }
+
   if (content.kind === "card") {
     const btn = (b: typeof content.primary, dark: boolean): string =>
       b ? `<button class="btn${dark ? " dark" : ""}" data-ov="${id(b.action)}">${esc(b.label)}</button>` : "";

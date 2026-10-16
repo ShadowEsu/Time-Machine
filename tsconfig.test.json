@@ -4,7 +4,7 @@
     "composite": false,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "paths": { "@timetm/core": ["./packages/core/src/index.ts"] }
+    "paths": { "@timetm/core": ["./packages/core/src/index.ts"], "@timetm/core/verdict": ["./packages/core/src/verdict.ts"] }
   },
-  "include": ["packages/*/test/**/*.ts", "fixtures/**/*.ts", "vitest.config.ts"]
+  "include": ["packages/*/test/**/*.ts", "apps/*/test/**/*.ts", "fixtures/**/*.ts", "vitest.config.ts"]
 }

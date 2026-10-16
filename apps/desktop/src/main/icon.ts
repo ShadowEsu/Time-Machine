@@ -1,7 +1,6 @@
 // Draws the menu bar icon: the playhead glyph with a small verdict dot. No image files needed.
 import { deflateSync } from "node:zlib";
-
-export type DotState = "pass" | "fail" | "none";
+import type { DotState } from "./rules.js";
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -35,7 +34,8 @@ function png(size: number, rgba: Buffer): Buffer {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
 }
 
-const COLORS: Record<DotState, [number, number, number]> = { pass: [34, 197, 94], fail: [239, 68, 68], none: [142, 142, 138] };
+// Working is grey, never a verdict color: nothing has been proven yet.
+const COLORS: Record<DotState, [number, number, number]> = { pass: [34, 197, 94], fail: [239, 68, 68], none: [142, 142, 138], working: [142, 142, 138] };
 
 /** A 32 px image meant to be shown at 16 pt (scale factor 2). */
 export function trayIcon(state: DotState): Buffer {
@@ -57,7 +57,9 @@ export function trayIcon(state: DotState): Buffer {
           const tri = py >= 3 && py <= 10 && Math.abs(px - 12.25) <= (10 - py) * 0.75;
           // Verdict dot. Not checked yet is a hollow ring, never a filled color.
           const r = Math.hypot(px - 23, py - 22);
-          const inDot = state === "none" ? r <= 6 && r >= 3.8 : r <= 6;
+          // Working is an open 270 degree arc, the still frame of the spec's rotating arc.
+          const ring = r <= 6 && r >= 3.8;
+          const inDot = state === "none" ? ring : state === "working" ? ring && !(px > 23 && py < 22) : r <= 6;
           if (inDot) d++;
           else if (bar || tri) g++;
         }

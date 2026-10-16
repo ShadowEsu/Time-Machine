@@ -17,3 +17,4 @@ export { storeDirFor } from "./store.js";
 export { isSafeRelPath } from "./paths.js";
 export { runInterruptCleanups } from "./cleanup.js";
 export { cleanStore, type CleanStoreResult } from "./storeClean.js";
+export { detectSandbox } from "./sandbox.js";
