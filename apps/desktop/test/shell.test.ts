@@ -9,6 +9,7 @@ import { Engine } from "../src/main/engine.ts";
 import { AppState } from "../src/main/state.ts";
 import { CallSchema, HotkeySchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
 import { verdictCard } from "../src/shared/cards.ts";
+import { when } from "../src/shared/format.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
 
@@ -117,15 +118,16 @@ describe("corner card", () => {
     expect(projectVerdict([{ id: "cp-0001", verdict: null }])).toBeNull();
   });
 
-  test("the break card offers Rewind and Show what changed", () => {
+  test("the break card offers to go back by time, never by save point id, and See what changed", () => {
     const card = verdictCard("p", "acme", [
       { id: "cp-0002", verdict: "PASS", note: "Added dark mode", createdAt: "2026-10-14T10:42:00Z" },
       { id: "cp-0003", verdict: "FAIL", note: "After agent turn", createdAt: "2026-10-14T11:00:00Z" },
     ], "PASS");
-    expect(card?.primary?.label).toBe("Rewind to cp-0002");
+    expect(card?.primary?.label).toBe(`Go back to the ${when("2026-10-14T10:42:00Z")} version`);
     expect(card?.primary?.action).toEqual({ kind: "rewind", projectId: "p", target: "cp-0002" });
+    expect(`${card?.title} ${card?.body} ${card?.primary?.label}`).not.toContain("cp-");
     // It only opens Compare. "What broke?" is planned, so the button must not promise it.
-    expect(card?.secondary?.label).toBe("Show what changed");
+    expect(card?.secondary?.label).toBe("See what changed");
     expect(card?.secondary?.action).toEqual({ kind: "compare", projectId: "p", a: "cp-0002", b: "cp-0003" });
   });
 });

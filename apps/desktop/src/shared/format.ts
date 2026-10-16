@@ -14,17 +14,17 @@ export function verdictWord(v: Verdict | null): string {
   return APP_WORDS[v ?? "UNVERIFIED"];
 }
 
-/** Just the time of day, "10:42". */
+/** Just the time of day, "10:42" or "8:16 PM" by locale. */
 export function clock(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 /** "10:42" today, "Mon 10:42" otherwise. */
 export function when(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "unknown time";
-  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const time = clock(iso);
   const sameDay = d.toDateString() === now.toDateString();
   if (sameDay) return time;
   const day = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });

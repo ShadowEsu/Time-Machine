@@ -47,11 +47,11 @@ export function mountOverlay(host: HTMLElement, content: OverlayContent, hooks: 
     const newest = pts.at(-1);
     const working = [...pts].reverse().find((p) => p.verdict === "PASS" && p.id !== newest?.id);
     const ticks = pts
-      .map((p) => `<button class="tk" data-ov="${id({ kind: "history", projectId: content.projectId, target: p.id })}" data-tip="${esc(`${p.id} · ${when(p.createdAt)} · ${p.note} · ${verdictWord(p.verdict)}`)}" aria-label="${esc(`${p.id}, ${p.note}, ${verdictWord(p.verdict)}`)}">${glyph(p.verdict)}</button>`)
+      .map((p) => `<button class="tk" data-ov="${id({ kind: "history", projectId: content.projectId, target: p.id })}" data-tip="${esc(`${when(p.createdAt)} · ${p.note} · ${verdictWord(p.verdict)}`)}" aria-label="${esc(`${when(p.createdAt)}, ${p.note}, ${verdictWord(p.verdict)}`)}">${glyph(p.verdict)}</button>`)
       .join("");
     host.innerHTML = `<div class="ov-strip" role="dialog" aria-label="Timeline">
       <div class="hd">${esc(content.projectName)} <span class="muted">${pts.length ? `${pts.length} save points, newest on the right` : "No save points yet"}</span>
-        ${working && newest?.verdict !== "PASS" ? `<button class="btn dark" data-ov="${id({ kind: "rewind", projectId: content.projectId, target: working.id })}"><span class="tri"></span>Rewind to ${esc(working.id)}</button>` : ""}
+        ${working && newest?.verdict !== "PASS" ? `<button class="btn dark" data-ov="${id({ kind: "rewind", projectId: content.projectId, target: working.id })}"><span class="tri"></span>Go back to the ${esc(when(working.createdAt))} version</button>` : ""}
         <button class="btn ghost x" data-ov="${id(dismiss)}" aria-label="Close timeline">Close</button></div>
       <div class="ticks">${ticks}</div>
       <div class="tip">Hover a save point to see it. Click to open it in the app.</div>

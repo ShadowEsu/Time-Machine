@@ -28,9 +28,9 @@ export function verdictCard(projectId: string, projectName: string, points: Card
         return {
           ...base,
           title: "Something broke after the last change.",
-          body: `Last working version: ${working.id}, ${when(working.createdAt)}, ${working.note}.`,
-          primary: { label: `Rewind to ${working.id}`, action: { kind: "rewind", projectId, target: working.id } },
-          secondary: { label: "Show what changed", action: { kind: "compare", projectId, a: working.id, b: newest.id } },
+          body: `The last version that works is from ${when(working.createdAt)}: ${working.note}.`,
+          primary: { label: `Go back to the ${when(working.createdAt)} version`, action: { kind: "rewind", projectId, target: working.id } },
+          secondary: { label: "See what changed", action: { kind: "compare", projectId, a: working.id, b: newest.id } },
           hideAfterMs: BROKEN_MS,
         };
       }
@@ -46,7 +46,7 @@ export function verdictCard(projectId: string, projectName: string, points: Card
       return {
         ...base,
         title: before === "FAIL" ? "Fixed. It works again." : "Still works.",
-        body: `${newest.id}, ${newest.note}, passed its check in a safe copy.`,
+        body: `The ${when(newest.createdAt)} version, ${newest.note}, passed its check in a safe copy.`,
         primary: null,
         secondary: { label: "Show", action: { kind: "history", projectId, target: newest.id } },
         hideAfterMs: INFO_MS,
