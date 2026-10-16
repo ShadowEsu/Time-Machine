@@ -1,6 +1,7 @@
 // Pure decisions for the menu bar dot, the corner card, the agent pill and where windows go.
 // No Electron imports, so they are unit tested in apps/desktop/test.
-import type { Verdict } from "../shared/api.js";
+import { npxHookCommand } from "@timetm/core";
+import type { ProjectStatus, Verdict } from "../shared/api.js";
 
 export type DotState = "pass" | "fail" | "none" | "working";
 
@@ -60,6 +61,30 @@ export function dotState(newest: (Verdict | null)[], working: boolean): DotState
   if (working) return "working";
   if (newest.length && newest.every((v) => v === "PASS")) return "pass";
   return "none";
+}
+
+/** What the dot rests on per project. A project that moved or has no save points counts as unchecked, never as working. */
+export function trayVerdicts(statuses: ProjectStatus[]): (Verdict | null)[] {
+  return statuses.map((s) => (s.problem ? null : (s.newest?.verdict ?? null)));
+}
+
+const quote = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`;
+
+/**
+ * The commands the Claude Code hooks could call, best first. TM_HOOK_COMMAND wins on its own.
+ * Then the CLI this app can run itself, as quoted absolute paths with the app's own Node
+ * (Electron run as Node). Last, npx with the version pinned, never the bare package name.
+ */
+export function hookCandidates(o: { override: string | undefined; nodePath: string; cliScript: string | null; version: string }): string[] {
+  if (o.override) return [o.override];
+  const own = o.cliScript ? [`ELECTRON_RUN_AS_NODE=1 ${quote(o.nodePath)} ${quote(o.cliScript)}`] : [];
+  return [...own, npxHookCommand(o.version)];
+}
+
+/** The first command that runs. When none does, the last one, marked as not running. */
+export async function firstRunning(candidates: string[], probe: (command: string) => Promise<boolean>): Promise<{ command: string; runs: boolean }> {
+  for (const command of candidates) if (await probe(command)) return { command, runs: true };
+  return { command: candidates.at(-1) ?? "", runs: false };
 }
 
 /** Keeps a window of this size inside the work area, centered on it when it has to move. */

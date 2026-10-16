@@ -1,5 +1,5 @@
 // Builds the Electron app into out/, or with --preview the browser preview into preview/dist/.
-import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -34,10 +34,22 @@ if (preview) {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const node = { ...common, platform: "node", format: "cjs", target: "node22", external: ["electron"] };
+  // The Claude Code hooks call this copy of the CLI with the app's own Node, so they never
+  // depend on a package name on npm. The npx fallback is pinned to the same version.
+  const cliVersion = JSON.parse(readFileSync(resolve(here, "../../packages/cli/package.json"), "utf8")).version;
   await Promise.all([
-    build({ ...node, entryPoints: [join(here, "src/main/main.ts")], outfile: join(out, "main.cjs") }),
+    build({ ...node, entryPoints: [join(here, "src/main/main.ts")], outfile: join(out, "main.cjs"), define: { __TM_CLI_VERSION__: JSON.stringify(cliVersion) } }),
     build({ ...node, entryPoints: [join(here, "src/preload/main.ts")], outfile: join(out, "preload.cjs") }),
     build({ ...node, entryPoints: [join(here, "src/preload/overlay.ts")], outfile: join(out, "preload-overlay.cjs") }),
+    build({
+      ...common,
+      platform: "node",
+      format: "esm",
+      target: "node22",
+      entryPoints: [resolve(here, "../../packages/cli/src/bin.ts")],
+      outfile: join(out, "tm.mjs"),
+      banner: { js: "import { createRequire as __tmRequire } from 'node:module'; const require = __tmRequire(import.meta.url);" },
+    }),
     build({ ...web, entryPoints: [join(here, "src/renderer/index.ts")], outfile: join(out, "renderer.js") }),
     build({ ...web, entryPoints: [join(here, "src/renderer/overlay.ts")], outfile: join(out, "overlay.js") }),
   ]);

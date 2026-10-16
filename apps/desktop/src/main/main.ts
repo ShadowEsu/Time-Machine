@@ -8,7 +8,7 @@ import { verdictCard } from "../shared/cards.js";
 import { verdictWord } from "../shared/format.js";
 import { Engine } from "./engine.js";
 import { trayIcon } from "./icon.js";
-import { agentTurnStart, dotState, placeOn, projectVerdict, shouldShowBreakCard } from "./rules.js";
+import { agentTurnStart, dotState, hookCandidates, placeOn, projectVerdict, shouldShowBreakCard, trayVerdicts } from "./rules.js";
 import { AppState } from "./state.js";
 import { StoreWatcher } from "./watch.js";
 
@@ -125,8 +125,9 @@ function panelWindow(width: number, height: number): BrowserWindow {
   lockDown(win);
   // "floating" sits above normal windows but below the menu bar, Spotlight and screen savers.
   win.setAlwaysOnTop(true, "floating");
-  // On every Space, but never over a full screen app.
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+  // On every Space, but never over a full screen app. skipTransformProcessType keeps macOS
+  // from turning the app into a different process type, so no Dock flash and no focus change.
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false, skipTransformProcessType: true });
   void win.loadFile(join(OUT, "overlay.html"));
   return win;
 }
@@ -286,10 +287,9 @@ async function primeWatchState(): Promise<void> {
 async function refreshTray(): Promise<void> {
   if (!tray) return;
   const statuses = await Promise.all(state.projects.map((p) => engine.status(p)));
-  const newest = statuses.flatMap((s) => (s.newest ? [s.newest.verdict] : []));
   const agentIn = state.projects.find((p) => turnStart.has(p.id));
   const busyIn = state.projects.find((p) => engine.busy.has(p.id));
-  const dot = dotState(newest, !!agentIn || !!busyIn);
+  const dot = dotState(trayVerdicts(statuses), !!agentIn || !!busyIn);
   tray.setImage(nativeImage.createFromBuffer(trayIcon(dot), { scaleFactor: 2 }));
   const active = state.active();
   const lines: MenuItemConstructorOptions[] = statuses.map((s) => {
@@ -484,9 +484,13 @@ let watcher: StoreWatcher | null = null;
 
 void app.whenReady().then(async () => {
   state = new AppState(app.getPath("userData"));
-  engine = new Engine(state);
+  engine = new Engine(state, {
+    candidates: hookCandidates({ override: process.env.TM_HOOK_COMMAND, nodePath: process.execPath, cliScript: join(OUT, "tm.mjs"), version: __TM_CLI_VERSION__ }),
+    version: __TM_CLI_VERSION__,
+  });
   // No window of this app needs the camera, microphone, notifications or anything else.
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, done) => done(false));
+  session.defaultSession.setPermissionCheckHandler(() => false);
   appMenu();
   ipcMain.handle("tm:call", handleCall);
   ipcMain.on("overlay:act", (e, raw: unknown) => {

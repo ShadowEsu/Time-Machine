@@ -8,6 +8,7 @@ import type {
   DiffResult,
   FindGoodResult,
   HookInstallResult,
+  HookState,
   InitResult,
   LogResult,
   OpenResult,
@@ -30,11 +31,15 @@ const AbsPath = z.string().min(1).max(4096).refine((s) => s.startsWith("/") || /
 export const ThemeSchema = z.enum(["system", "light", "dark"]);
 
 const MODIFIERS = new Set(["Command", "Cmd", "Control", "Ctrl", "CommandOrControl", "CmdOrCtrl", "Alt", "Option", "Shift", "Super", "Meta"]);
+/** Modifiers that make a key a command rather than typing. Without one, Option and Shift type characters. */
+const COMMAND_MODIFIERS = new Set(["Command", "Cmd", "Control", "Ctrl", "CommandOrControl", "CmdOrCtrl", "Super", "Meta"]);
+/** Copy, paste, cut, undo, quit, close and select all stay with the app in front, with any extra modifier. */
+const RESERVED_KEYS = new Set(["C", "V", "X", "Z", "Q", "W", "A"]);
 const HOTKEY_KEY = /^(?:[A-Z0-9]|F(?:[1-9]|1\d|2[0-4])|Space|Tab|Backspace|Delete|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Plus|[,./;'[\]\\`=-])$/;
 
 /**
- * A global shortcut in Electron accelerator form, such as Control+Alt+T. At least one
- * modifier other than Shift, so it can't swallow normal typing in other apps.
+ * A global shortcut in Electron accelerator form, such as Control+Alt+T. Two modifiers, one
+ * of them Control or Command, so it can't swallow typing, and never a key other apps rely on.
  */
 export const HotkeySchema = z
   .string()
@@ -42,8 +47,15 @@ export const HotkeySchema = z
   .refine((s) => {
     const parts = s.split("+");
     const key = parts.pop() ?? "";
-    return HOTKEY_KEY.test(key) && parts.every((m) => MODIFIERS.has(m)) && new Set(parts).size === parts.length && parts.some((m) => m !== "Shift");
-  }, "Use one or more modifier keys and one key, like Control+Alt+T.");
+    return (
+      HOTKEY_KEY.test(key) &&
+      parts.length >= 2 &&
+      parts.every((m) => MODIFIERS.has(m)) &&
+      new Set(parts).size === parts.length &&
+      parts.some((m) => COMMAND_MODIFIERS.has(m)) &&
+      !RESERVED_KEYS.has(key)
+    );
+  }, "Use two modifier keys, one of them Control or Command, and one key, like Control+Alt+T. Copy, paste, cut, undo, quit, close and select all are kept for other apps.");
 
 export const DEFAULT_HOTKEY = "Control+Alt+T";
 
@@ -103,7 +115,15 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("hookInstall"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("demo") }),
   z.strictObject({ method: z.literal("storage") }),
-  z.strictObject({ method: z.literal("cleanStore"), projectId: ProjectId, apply: z.boolean() }),
+  z
+    .strictObject({
+      method: z.literal("cleanStore"),
+      projectId: ProjectId,
+      apply: z.boolean(),
+      /** When applying: exactly the files the preview showed. Only these can be removed. */
+      files: z.array(z.string().max(300).regex(/^logs\/(?!\.\.?$)[^/\\]+$/)).max(100_000).optional(),
+    })
+    .refine((c) => !c.apply || c.files !== undefined, "Removing needs the list of files the preview showed."),
   z.strictObject({ method: z.literal("agents") }),
   z.strictObject({ method: z.literal("isolation") }),
   z.strictObject({ method: z.literal("setSettings"), patch: SettingsPatchSchema }),
@@ -139,6 +159,8 @@ export interface Bootstrap {
 export interface HookPreview {
   settingsPath: string;
   command: string;
+  /** True when `command --version` answered with this version on this Mac. Nothing is added when false. */
+  runs: boolean;
   lines: { event: string; command: string }[];
 }
 
@@ -153,8 +175,8 @@ export interface StorageRow {
 export interface AgentRow {
   projectId: string;
   name: string;
-  /** "partial": some of our three lines are there. "unreadable": the file is not plain JSON, so it was left alone. "unavailable": the project could not be read. */
-  claudeCode: "connected" | "partial" | "not-connected" | "unreadable" | "unavailable";
+  /** "partial": some of our three lines are there. "not-running": our lines are there, but the command did not answer. "unreadable": the file is not plain JSON, so it was left alone. "unavailable": the project could not be read. */
+  claudeCode: HookState | "unavailable";
   settingsPath: string | null;
   /** Hook events still missing: UserPromptSubmit, PreToolUse, Stop. */
   missing: string[];

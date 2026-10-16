@@ -124,6 +124,9 @@ const TITLES: Partial<{ [M in Method]: string }> = {
   cleanStore: "Clean up storage",
 };
 
+/** Shown instead of "Add these lines" when the hook command did not answer its version check. */
+const hookNotRunning = "This command does not run on this Mac yet, so we won't add it. Claude Code would fail at every prompt and nothing would be saved.";
+
 let bridge: TmBridge;
 let opts: StartOptions;
 let st: State;
@@ -754,8 +757,9 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
   const n = pts.length;
   const x = (i: number): number => ((i + 0.5) / n) * 100;
   const checking = checkingId();
-  // Agent sessions as clips: runs of save points made by the same agent. Older save points name it by trigger.
-  const agentOf = (c: TimelineEntry | undefined): string | null => c?.agent?.name ?? (c?.trigger.startsWith("claude-code") ? "Claude Code" : null);
+  // Agent sessions as clips: runs of save points made by the same agent. Only the agent the engine
+  // recorded counts, never a guess from the trigger, so the app and the CLI agree.
+  const agentOf = (c: TimelineEntry | undefined): string | null => c?.agent?.name ?? null;
   const clips: string[] = [];
   for (let i = 0; i < n; i++) {
     const name = agentOf(pts[i]);
@@ -931,6 +935,7 @@ function settings(): string {
     : loading;
   const agentWords: { [K in AgentRow["claudeCode"]]: string } = {
     connected: "Claude Code is connected",
+    "not-running": "Connected, but the command does not run yet. Nothing is saved until it does",
     partial: "Partly connected",
     "not-connected": "Not connected",
     unreadable: "Its .claude/settings.json is not plain JSON, so we left it alone",
@@ -960,11 +965,11 @@ function settings(): string {
     <div class="panel"><h3>Shortcut</h3>
       <div class="setrow"><span class="l">Open Time Machine</span><div style="display:grid;gap:6px">
         <div class="row-btns"><input class="field hotkey" data-model="hotkey" aria-label="Shortcut" placeholder="for example: Control+Alt+T" value="${esc(st.hotkeyDraft ?? hk ?? "")}"><button class="btn" data-act="hotkey-save">Save</button>${hk ? '<button class="btn ghost" data-act="hotkey-off">Turn off</button>' : ""}</div>
-        <span class="muted">Works from any app. ${esc(hotkeyState)} Use a modifier such as Control, Option or Command, plus a key.</span></div></div>
+        <span class="muted">Works from any app. ${esc(hotkeyState)} Use two modifier keys, one of them Control or Command, plus a key.</span></div></div>
       <div class="setrow"><span class="l">Timeline strip</span><div class="muted">Open it from the menu bar.</div></div>
     </div>
     <div class="panel"><h3>Overlays</h3>
-      <div class="setrow"><span class="l">Corner cards</span><div class="toggle">${sw("overlayCards", s.overlayCards, "Corner cards")}<span class="muted">A small card when a check on the newest save point gives a new result. It never takes focus and hides on its own.</span></div></div>
+      <div class="setrow"><span class="l">Corner cards</span><div class="toggle">${sw("overlayCards", s.overlayCards, "Corner cards")}<span class="muted">Only when a project that worked breaks. It never takes focus and hides on its own.</span></div></div>
       <div class="setrow"><span class="l">Agent pill</span><div class="toggle">${sw("agentPill", s.agentPill, "Agent pill")}<span class="muted">A small pill while a connected agent is working. It goes away when the turn ends.</span></div></div>
     </div>
     <div class="panel"><h3>Checks</h3>
@@ -1019,9 +1024,9 @@ function onboarding(): string {
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
         <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or from the menu bar.</div></span><span></span></label>
-        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Claude Code's own rewind does not cover files changed by shell commands like rm, mv or sed -i. A save point made just before them does. Adds hooks to ${esc(h?.settingsPath ?? ".claude/settings.json")}. We show the exact lines first.</div>
+        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. Adds hooks to ${esc(h?.settingsPath ?? ".claude/settings.json")}. We show the exact lines first.</div>
           ${h ? `<pre class="code" style="margin-top:8px">${esc(h.lines.map((l) => `${l.event}: ${l.command}`).join("\n"))}</pre>` : ""}
-          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : `<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="ob-hook" ${o.working ? "disabled" : ""}>Add these lines</button></div>`}</span><span class="small muted">recommended</span></div>
+          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : `<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="ob-hook" ${o.working ? "disabled" : ""}>Add these lines</button></div>`}</span><span class="small muted">recommended</span></div>
         <div class="opt"><span></span><span><div class="t">Every hour while files are changing</div><div class="d">Not built yet.</div></span><span class="planned">planned</span></div>
       </div>
       <div class="row-btns"><button class="btn dark" data-act="ob-finish" ${o.working ? "disabled" : ""}>${o.working ? "Saving…" : "Finish"}</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
@@ -1041,8 +1046,8 @@ function hookSheet(): string {
     <p>We'll add these lines to <span class="mono">${esc(h.preview.settingsPath)}</span> and keep everything already there:</p>
     <pre class="code cmd">${esc(h.preview.lines.map((l) => `${l.event}: ${l.command}`).join("\n"))}</pre>
     <p class="small muted">Claude Code will then save before each prompt and before risky commands, and check after each turn. If a turn breaks a working version, Claude is told.</p>
-    ${h.error ? `<div class="note bad">${esc(h.error)}</div>` : ""}${h.done ? `<div class="note">${esc(h.done)}</div>` : ""}
-    <div class="row-btns" style="justify-content:flex-end"><button class="btn ghost" data-act="hook-close">${h.done ? "Done" : "Cancel"}</button>${h.done ? "" : `<button class="btn dark" data-act="hook-do" ${h.working ? "disabled" : ""}>Add these lines</button>`}</div>
+    ${!h.preview.runs && !h.done ? `<div class="note bad">${esc(hookNotRunning)}</div>` : ""}${h.error ? `<div class="note bad">${esc(h.error)}</div>` : ""}${h.done ? `<div class="note">${esc(h.done)}</div>` : ""}
+    <div class="row-btns" style="justify-content:flex-end"><button class="btn ghost" data-act="hook-close">${h.done ? "Done" : "Cancel"}</button>${h.done || !h.preview.runs ? "" : `<button class="btn dark" data-act="hook-do" ${h.working ? "disabled" : ""}>Add these lines</button>`}</div>
   </div></div>`;
 }
 
@@ -1730,13 +1735,15 @@ async function setSetting(patch: Partial<Settings>): Promise<void> {
   render();
 }
 
-/** Store clean up: a preview first, then the real removal of exactly what the engine finds then. */
+/** Store clean up: a preview first, then the removal of exactly the files the preview showed. */
 async function cleanStore(projectId: string, apply: boolean): Promise<void> {
   if (st.cleanup?.working) return;
-  st.cleanup = { projectId, result: st.cleanup?.projectId === projectId ? st.cleanup.result : null, working: true };
+  const shown = st.cleanup?.projectId === projectId ? st.cleanup.result : null;
+  if (apply && !shown) return;
+  st.cleanup = { projectId, result: shown, working: true };
   render();
   try {
-    const result = await api({ method: "cleanStore", projectId, apply });
+    const result = await api(apply ? { method: "cleanStore", projectId, apply, files: shown?.files ?? [] } : { method: "cleanStore", projectId, apply });
     st.cleanup = { projectId, result, working: false };
     if (apply) st.storage = await api({ method: "storage" });
   } catch (e) {
@@ -2056,7 +2063,9 @@ function onKey(e: KeyboardEvent): void {
   if (mod && k === "i") return void (e.preventDefault(), shortcut("inspector"), flash('.side [data-act="inspector"]'));
   if (mod && k === ",") return void (e.preventDefault(), flash('.side [data-act="settings"]'), shortcut("settings"));
   if (mod && k === "n") return void (e.preventDefault(), shortcut("add"));
-  if (mod && k === "z" && !e.shiftKey && !typing && st.undo && !st.undo.working) return void (e.preventDefault(), flash('[data-act="undo-rewind"]'), undoRewind());
+  // Undo a rewind only where its button is: the Done step and History.
+  const undoHere = st.screen === "history" || (st.screen === "rewind" && st.rewind?.step === "done");
+  if (mod && k === "z" && !e.shiftKey && !typing && undoHere && st.undo && !st.undo.working) return void (e.preventDefault(), flash('[data-act="undo-rewind"]'), undoRewind());
   if (k === "escape") {
     if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
     else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;

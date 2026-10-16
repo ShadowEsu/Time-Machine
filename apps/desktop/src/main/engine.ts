@@ -6,10 +6,16 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import * as tm from "@timetm/core";
 import type { AgentRow, Call, HookPreview, IsolationInfo, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
-import { agentTurnStart } from "./rules.js";
+import { agentTurnStart, firstRunning } from "./rules.js";
 import type { AppState } from "./state.js";
 
 type EngineCall = Exclude<Call, { method: "bootstrap" | "chooseFolder" | "setSettings" | "reveal" | "copy" | "setActive" }>;
+
+/** The commands the Claude Code hooks may call, best first, and the version they must answer with. */
+export interface HookSetup {
+  candidates: string[];
+  version: string;
+}
 
 export class Engine {
   /** Paths the engine handed back in this session. Only these can be revealed or read. */
@@ -18,7 +24,10 @@ export class Engine {
   readonly busy = new Map<string, string>();
   private readonly queues = new Map<string, Promise<unknown>>();
 
-  constructor(private readonly state: AppState) {
+  constructor(
+    private readonly state: AppState,
+    private readonly hook: HookSetup,
+  ) {
     for (const p of state.projects) this.allowedPaths.add(p.path);
   }
 
@@ -77,11 +86,13 @@ export class Engine {
     return entry;
   }
 
-  hookPreview(p: ProjectEntry): HookPreview {
-    const command = process.env.TM_HOOK_COMMAND ?? "npx -y timetm";
+  /** The hook lines for this project, with the first command that answers `--version` with this version. */
+  async hookPreview(p: ProjectEntry): Promise<HookPreview> {
+    const { command, runs } = await firstRunning(this.hook.candidates, (c) => tm.probeHookCommand(c, this.hook.version, p.path, process.env));
     return {
       settingsPath: join(p.path, ".claude", "settings.json"),
       command,
+      runs,
       lines: [
         { event: "UserPromptSubmit", command: `${command} hook prompt` },
         { event: "PreToolUse (Bash)", command: `${command} hook pre-bash` },
@@ -104,7 +115,11 @@ export class Engine {
     });
   }
 
-  /** Claude Code connection per project, read from its .claude/settings.json. Never writes. */
+  /**
+   * Claude Code connection per project, read from its .claude/settings.json. Never writes.
+   * The lines are looked up for each command the app could have written, and "connected"
+   * needs the command to answer, so a missing CLI shows as connected but not running.
+   */
   async agents(): Promise<AgentRow[]> {
     return Promise.all(
       this.state.projects.map(async (p): Promise<AgentRow> => {
@@ -112,10 +127,14 @@ export class Engine {
         try {
           if (!existsSync(p.path)) throw new Error("moved");
           const ctx = this.ctx(p);
-          const s = await tm.hookStatus(ctx, { command: this.hookPreview(p).command });
+          let s: tm.HookStatusResult | null = null;
+          for (const command of this.hook.candidates) {
+            s = await tm.hookStatus(ctx, { command, version: this.hook.version });
+            if (!s.readable || s.present.length) break;
+          }
+          if (!s) throw new Error("no hook command");
           const since = agentTurnStart((await tm.log(ctx)).entries, Date.now());
-          const claudeCode = !s.readable ? "unreadable" : !s.missing.length ? "connected" : s.present.length ? "partial" : "not-connected";
-          return { ...base, claudeCode, settingsPath: s.settingsPath, missing: s.missing, working: since !== null, workingSince: since };
+          return { ...base, claudeCode: s.state, settingsPath: s.settingsPath, missing: s.missing, working: since !== null, workingSince: since };
         } catch {
           return { ...base, claudeCode: "unavailable", settingsPath: null, missing: [], working: false, workingSince: null };
         }
@@ -211,13 +230,28 @@ export class Engine {
           this.allowedPaths.add(r.reportPath);
           return r;
         });
-      case "undoRecover":
-        return this.serial(p.id, "Undoing the rewind", () => tm.undoRecover(ctx, { id: call.id, branch: call.branch, copyDir: call.copyDir }));
+      case "undoRecover": {
+        // Core refuses anything that is not this exact recovery copy. The app also only passes on
+        // a copy it made in this session.
+        const { copyDir } = call;
+        if (!this.allowedPaths.has(copyDir)) throw new tm.TmError("usage", `${copyDir} is not a recovery copy this app made, so it was left alone.`);
+        return this.serial(p.id, "Undoing the rewind", async () => {
+          const r = await tm.undoRecover(ctx, { id: call.id, branch: call.branch, copyDir });
+          this.allowedPaths.delete(copyDir);
+          return r;
+        });
+      }
       case "hookInstall":
-        return this.serial(p.id, "Connecting Claude Code", () => tm.hookInstall(ctx, { command: this.hookPreview(p).command }));
+        return this.serial(p.id, "Connecting Claude Code", async () => {
+          const h = await this.hookPreview(p);
+          if (!h.runs) {
+            throw new tm.TmError("usage", `The hook command does not run on this Mac yet (${h.command} --version did not answer ${this.hook.version}), so nothing was added. From a source checkout, run pnpm build first.`);
+          }
+          return tm.hookInstall(ctx, { command: h.command });
+        });
       case "cleanStore":
         if (!call.apply) return tm.cleanStore(ctx, { apply: false });
-        return this.serial(p.id, "Cleaning up", () => tm.cleanStore(ctx, { apply: true }));
+        return this.serial(p.id, "Cleaning up", () => tm.cleanStore(ctx, { apply: true, files: call.files ?? [] }));
     }
   }
 }

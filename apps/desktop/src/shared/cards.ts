@@ -30,7 +30,7 @@ export function verdictCard(projectId: string, projectName: string, points: Card
           title: "Something broke after the last change.",
           body: `Last working version: ${working.id}, ${when(working.createdAt)}, ${working.note}.`,
           primary: { label: `Rewind to ${working.id}`, action: { kind: "rewind", projectId, target: working.id } },
-          secondary: { label: "See what broke", action: { kind: "compare", projectId, a: working.id, b: newest.id } },
+          secondary: { label: "Show what changed", action: { kind: "compare", projectId, a: working.id, b: newest.id } },
           hideAfterMs: BROKEN_MS,
         };
       }

@@ -263,11 +263,14 @@ export class FakeEngine implements TmBridge {
       }
       case "log":
         return { entries: this.audit };
-      case "hookPreview":
+      case "hookPreview": {
+        // What a source checkout run of the app writes: its own copy of the CLI, run by its own Node.
+        const command = "ELECTRON_RUN_AS_NODE=1 '/Users/you/code/Time-Machine/apps/desktop/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron' '/Users/you/code/Time-Machine/apps/desktop/out/tm.mjs'";
         return {
-          settingsPath: `${ROOT}/.claude/settings.json`, command: "npx -y timetm",
-          lines: [{ event: "UserPromptSubmit", command: "npx -y timetm hook prompt" }, { event: "PreToolUse (Bash)", command: "npx -y timetm hook pre-bash" }, { event: "Stop", command: "npx -y timetm hook stop" }],
+          settingsPath: `${ROOT}/.claude/settings.json`, command, runs: true,
+          lines: [{ event: "UserPromptSubmit", command: `${command} hook prompt` }, { event: "PreToolUse (Bash)", command: `${command} hook pre-bash` }, { event: "Stop", command: `${command} hook stop` }],
         };
+      }
       case "hookInstall":
         await wait(300);
         return { settingsPath: `${ROOT}/.claude/settings.json`, added: [], alreadyPresent: ["UserPromptSubmit", "PreToolUse", "Stop"] };
