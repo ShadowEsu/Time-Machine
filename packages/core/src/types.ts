@@ -15,11 +15,19 @@ export interface Coverage {
   manual: string[];
 }
 
+/** The agent that made a save point. The prompt is clipped and never holds secret looking text. */
+export interface AgentInfo {
+  name: string;
+  prompt?: string;
+}
+
 export interface CheckpointSummary {
   id: string;
   createdAt: string;
   note: string;
   trigger: string;
+  /** Null when a person made it (the app, the CLI) or for save points made before this was recorded. */
+  agent: AgentInfo | null;
   commit: string;
   branch: string | null;
   dirty: boolean;
@@ -107,6 +115,14 @@ export interface RecoverResult {
   notRestored: string[];
   manualSteps: string[];
   pushed: false;
+}
+
+/** What undoing a recovery removed. Save points are never removed, including the one made before the recovery. */
+export interface UndoRecoverResult {
+  id: string;
+  removedBranch: string;
+  /** Null when the recovery copy was already gone. */
+  removedCopy: string | null;
 }
 
 export interface AuditEntry {

@@ -5,8 +5,8 @@ import { z } from "zod";
 import { audit } from "./audit.js";
 import { checkpoint } from "./checkpoint.js";
 import { TmError } from "./errors.js";
-import { resolveProject } from "./project.js";
-import { looksSecret } from "./secrets.js";
+import { resolveProject, type Project } from "./project.js";
+import { clipSafe } from "./secrets.js";
 import type { Ctx, HookEvent, HookInstallResult, HookResult } from "./types.js";
 import { verify } from "./verify.js";
 import { latestVerdicts } from "./verdicts.js";
@@ -45,10 +45,25 @@ const HookInputSchema = z.looseObject({
   stop_hook_active: z.boolean().optional(),
 });
 
-function clip(text: string, n = 72): string {
-  const one = text.replace(/\s+/g, " ").trim();
-  if (looksSecret(one)) return "(text hidden: it looked like it contained a secret)";
-  return one.length > n ? `${one.slice(0, n - 3)}...` : one;
+function clip(text: string): string {
+  return clipSafe(text, 72);
+}
+
+/** The prompt of the agent turn in progress, so every save point in the turn names it. Clipped and secret safe. */
+const TurnSchema = z.object({ prompt: z.string().max(200) });
+const TURN_FILE = "agent-turn.json";
+
+function turnPrompt(p: Project): string | undefined {
+  try {
+    const r = TurnSchema.safeParse(JSON.parse(readFileSync(join(p.store, TURN_FILE), "utf8")));
+    return r.success && r.data.prompt ? r.data.prompt : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function claude(prompt: string | undefined): { name: string; prompt?: string } {
+  return prompt ? { name: "Claude Code", prompt } : { name: "Claude Code" };
 }
 
 const none = (event: HookEvent, message = ""): HookResult => ({ event, exitCode: 0, checkpoint: null, verdict: null, message });
@@ -64,17 +79,22 @@ export async function runHook(ctx: Ctx, event: HookEvent, input: unknown): Promi
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
     const p = resolveProject(c);
     if (event === "prompt") {
-      const r = await checkpoint(c, { note: `Before agent turn: ${clip(data.prompt ?? "")}`, trigger: "claude-code:prompt", skipIfUnchanged: true });
+      // The app shows "agent is working" from this line until the matching "ended".
+      audit(p, "agent-turn", null, "started");
+      const prompt = clipSafe(data.prompt ?? "", 120);
+      const r = await checkpoint(c, { note: `Before agent turn: ${clip(data.prompt ?? "")}`, trigger: "claude-code:prompt", agent: claude(prompt), skipIfUnchanged: true });
+      writeFileSync(join(p.store, TURN_FILE), JSON.stringify({ prompt }) + "\n");
       return { event, exitCode: 0, checkpoint: r.skipped ? null : r.checkpoint.id, verdict: null, message: "" };
     }
     if (event === "pre-bash") {
       const command = data.tool_input?.command ?? "";
       if (!isRisky(command)) return none(event);
-      const r = await checkpoint(c, { note: `Before risky command: ${clip(command)}`, trigger: "claude-code:pre-bash", skipIfUnchanged: true });
+      const r = await checkpoint(c, { note: `Before risky command: ${clip(command)}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
       return { event, exitCode: 0, checkpoint: r.checkpoint.id, verdict: null, message: "" };
     }
     // stop: save, check, and compare with the newest earlier verdict.
-    const r = await checkpoint(c, { note: "After agent turn", trigger: "claude-code:stop", skipIfUnchanged: true });
+    audit(p, "agent-turn", null, "ended");
+    const r = await checkpoint(c, { note: "After agent turn", trigger: "claude-code:stop", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
     const id = r.checkpoint.id;
     // Wake only on a fresh break: this checkpoint was never checked before, and the newest
     // earlier checkpoint with a verdict passed. A known breakage is reported once.
@@ -105,6 +125,15 @@ const SettingsSchema = z.looseObject({
   hooks: z.record(z.string(), z.array(z.looseObject({ matcher: z.string().optional(), hooks: z.array(z.looseObject({ command: z.string().optional() })) }))).optional(),
 });
 
+/** The three lines Time Machine adds, in the order they are added. */
+function wantedHooks(command: string): { event: string; matcher?: string; entry: HookEntry }[] {
+  return [
+    { event: "UserPromptSubmit", entry: { type: "command", command: `${command} hook prompt`, timeout: 30 } },
+    { event: "PreToolUse", matcher: "Bash", entry: { type: "command", command: `${command} hook pre-bash`, timeout: 30 } },
+    { event: "Stop", entry: { type: "command", command: `${command} hook stop`, timeout: 600, asyncRewake: true } },
+  ];
+}
+
 /** Adds the hooks to .claude/settings.json in the project, keeping everything already there. */
 export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<HookInstallResult> {
   const p = resolveProject(ctx);
@@ -122,14 +151,9 @@ export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<
     settings = r.data;
   }
   const hooks = settings.hooks ?? {};
-  const wanted: { event: string; matcher?: string; entry: HookEntry }[] = [
-    { event: "UserPromptSubmit", entry: { type: "command", command: `${opts.command} hook prompt`, timeout: 30 } },
-    { event: "PreToolUse", matcher: "Bash", entry: { type: "command", command: `${opts.command} hook pre-bash`, timeout: 30 } },
-    { event: "Stop", entry: { type: "command", command: `${opts.command} hook stop`, timeout: 600, asyncRewake: true } },
-  ];
   const added: string[] = [];
   const alreadyPresent: string[] = [];
-  for (const w of wanted) {
+  for (const w of wantedHooks(opts.command)) {
     const groups = hooks[w.event] ?? [];
     const exists = groups.some((g) => g.hooks.some((h) => h.command === w.entry.command));
     if (exists) {
@@ -144,4 +168,32 @@ export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<
   writeFileSync(settingsPath, JSON.stringify({ ...settings, hooks }, null, 2) + "\n");
   audit(p, "hook-install", null, added.length ? `added ${added.join(", ")}` : "already installed");
   return { settingsPath, added, alreadyPresent };
+}
+
+export interface HookStatusResult {
+  settingsPath: string;
+  /** False when the file exists but is not plain JSON in the expected shape. Nothing was changed. */
+  readable: boolean;
+  /** Hook events that already run this command. */
+  present: string[];
+  missing: string[];
+}
+
+/** Reads .claude/settings.json and says which of our lines are there. Never writes. */
+export async function hookStatus(ctx: Ctx, opts: { command: string }): Promise<HookStatusResult> {
+  const p = resolveProject(ctx);
+  const settingsPath = join(p.root, ".claude", "settings.json");
+  const wanted = wantedHooks(opts.command);
+  let settings: z.infer<typeof SettingsSchema> = {};
+  if (existsSync(settingsPath)) {
+    try {
+      const r = SettingsSchema.safeParse(JSON.parse(readFileSync(settingsPath, "utf8")));
+      if (!r.success) throw new Error("shape");
+      settings = r.data;
+    } catch {
+      return { settingsPath, readable: false, present: [], missing: wanted.map((w) => w.event) };
+    }
+  }
+  const present = wanted.filter((w) => (settings.hooks?.[w.event] ?? []).some((g) => g.hooks.some((h) => h.command === w.entry.command))).map((w) => w.event);
+  return { settingsPath, readable: true, present, missing: wanted.map((w) => w.event).filter((e) => !present.includes(e)) };
 }

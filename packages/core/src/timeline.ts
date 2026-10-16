@@ -15,7 +15,7 @@ export async function timeline(ctx: Ctx): Promise<TimelineResult> {
     } catch (e) {
       const reason = e instanceof TmError ? e.message : String(e);
       return {
-        id, createdAt: "", note: reason, trigger: "", commit: "", branch: null, dirty: false, files: 0,
+        id, createdAt: "", note: reason, trigger: "", agent: null, commit: "", branch: null, dirty: false, files: 0,
         coverage: { captured: [], restorable: [], missing: [], manual: [] }, verdict: "ERROR", isolation: null,
       };
     }

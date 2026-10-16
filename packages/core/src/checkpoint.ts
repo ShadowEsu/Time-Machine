@@ -7,9 +7,9 @@ import { git, gitTry, safeRemote, short, splitZ } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import { runSync } from "./exec.js";
 import { resolveProject, type Project } from "./project.js";
-import { fingerprint, isSecretFileName, looksSecret, parseDotenv } from "./secrets.js";
+import { clipSafe, fingerprint, isSecretFileName, looksSecret, parseDotenv } from "./secrets.js";
 import { ensureStore, listIds, nextNumber, putBlob, readManifest, sha256, storeKey, withLock, writeManifest } from "./store.js";
-import type { CheckpointResult, CheckpointSummary, Ctx } from "./types.js";
+import type { AgentInfo, CheckpointResult, CheckpointSummary, Ctx } from "./types.js";
 
 export const NOT_CAPTURED = "Databases, deployed versions and external services are not captured";
 
@@ -23,12 +23,28 @@ export function summarize(m: Manifest): CheckpointSummary {
     createdAt: m.createdAt,
     note: m.note,
     trigger: m.trigger,
+    agent: m.agent ?? null,
     commit: m.git.snapshot,
     branch: m.git.branch,
     dirty: m.git.dirty,
     files: m.files.length,
     coverage: m.coverage,
   };
+}
+
+/** The agent behind a trigger. The app, the CLI and Time Machine itself are a person, so they have none. */
+export function agentFromTrigger(trigger: string): AgentInfo | null {
+  if (trigger.startsWith("claude-code")) return { name: "Claude Code" };
+  if (trigger === "mcp") return { name: "MCP agent" };
+  return null;
+}
+
+/** The agent to record: the caller's, else the one the trigger names. Names and prompts are clipped and secret safe. */
+function agentFor(trigger: string, given: AgentInfo | undefined): AgentInfo | undefined {
+  const a = given ?? agentFromTrigger(trigger);
+  if (!a) return undefined;
+  const prompt = a.prompt === undefined ? "" : clipSafe(a.prompt, 120);
+  return { name: clipSafe(a.name, 60, "Agent"), ...(prompt ? { prompt } : {}) };
 }
 
 /** Records the tracked working tree as a commit without touching the user's index, HEAD or branch. */
@@ -115,6 +131,8 @@ const HIDDEN_NOTE = "(note hidden: it looked like it contained a secret)";
 export interface CheckpointOptions {
   note?: string;
   trigger?: string;
+  /** The agent that asked for this save point. Without it, the agent is derived from the trigger. */
+  agent?: AgentInfo;
   /** Return the newest checkpoint instead of a new one when nothing changed. */
   skipIfUnchanged?: boolean;
 }
@@ -279,6 +297,7 @@ function finishCheckpoint(
     createdAt: new Date().toISOString(),
     note: looksSecret(opts.note ?? "") ? HIDDEN_NOTE : (opts.note ?? ""),
     trigger: opts.trigger ?? "manual",
+    agent: agentFor(opts.trigger ?? "manual", opts.agent),
     project: { root: p.root, name: p.name },
     git: gitInfo,
     files,

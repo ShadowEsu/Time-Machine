@@ -28,7 +28,7 @@ export function recordVerdict(p: Project, r: VerdictRecord, manifestIntegrity: s
 }
 
 /** Valid verdicts in the order they were recorded. Forged, unsigned or stale lines are dropped. */
-function validVerdicts(p: Project): VerdictRecord[] {
+export function validVerdicts(p: Project): VerdictRecord[] {
   const integrity = new Map<string, string | null>();
   const current = (id: string): string | null => {
     if (!integrity.has(id)) {

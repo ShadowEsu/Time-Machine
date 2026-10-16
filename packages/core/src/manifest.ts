@@ -16,6 +16,8 @@ export const ManifestSchema = z.object({
   createdAt: z.string(),
   note: z.string(),
   trigger: z.string(),
+  /** Which agent made this save point, and the prompt it was working on. Older manifests have none. */
+  agent: z.object({ name: z.string().max(60), prompt: z.string().max(200).optional() }).optional(),
   project: z.object({ root: z.string(), name: z.string() }),
   git: z.object({
     head: z.string().nullable(),

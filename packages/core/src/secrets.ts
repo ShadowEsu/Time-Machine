@@ -36,6 +36,13 @@ export function looksSecret(text: string): boolean {
   return PATTERNS.some((p) => p.test(text));
 }
 
+/** Free text (a prompt, a command) made safe to store: one line, clipped, hidden when it looks like a secret. */
+export function clipSafe(text: string, n: number, hidden = "(text hidden: it looked like it contained a secret)"): string {
+  const one = text.replace(/\s+/g, " ").trim();
+  if (looksSecret(text) || looksSecret(one)) return hidden;
+  return one.length > n ? `${one.slice(0, n - 3)}...` : one;
+}
+
 export function isBinary(buf: Buffer): boolean {
   return buf.subarray(0, 8000).includes(0);
 }
