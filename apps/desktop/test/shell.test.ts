@@ -11,6 +11,7 @@ import { CallSchema, HotkeySchema, SettingsPatchSchema, SettingsSchema } from ".
 import { verdictCard } from "../src/shared/cards.ts";
 import { when } from "../src/shared/format.ts";
 import { projectStatus } from "../src/renderer/status.ts";
+import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
 
@@ -173,6 +174,24 @@ describe("project status", () => {
     expect(s.v).toBeNull();
     expect(s.head).toBe("Not checked yet.");
     expect(s.primary.act).toBe("check");
+  });
+});
+
+describe("jump to", () => {
+  const items: PaletteItem[] = [
+    { group: "Actions", label: "Save now", hint: "⌘S", act: "save" },
+    { group: "Projects", label: "marigold-tips", hint: "Broken", act: "project", id: "p", verdict: "FAIL" },
+    { group: "Save points", label: "7:03 PM · Claude Code: add dark mode", hint: "Works", act: "open", id: "cp-0003", verdict: "PASS" },
+  ];
+
+  test("every typed word must match, in any order, ignoring case", () => {
+    expect(filterPalette(items, "DARK 7:03").map((i) => i.id)).toEqual(["cp-0003"]);
+    expect(filterPalette(items, "works dark").map((i) => i.id)).toEqual(["cp-0003"]);
+    expect(filterPalette(items, "dark broken")).toEqual([]);
+  });
+
+  test("an empty query keeps every item in order", () => {
+    expect(filterPalette(items, "  ")).toEqual(items);
   });
 });
 

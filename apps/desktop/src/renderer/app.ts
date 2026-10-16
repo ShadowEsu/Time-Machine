@@ -6,6 +6,7 @@ import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, Isolatio
 import { tmCommand } from "../shared/commands.js";
 import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
 import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, shortTitle, type StatusButton } from "./status.js";
+import { filterPalette, type PaletteItem } from "./palette.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -103,6 +104,10 @@ interface State {
   drawer: boolean;
   /** The open ⋯ menu, if any. */
   menu: string | null;
+  /** "Jump to…" (⌘K): the typed text and the highlighted row. */
+  palette: { q: string; i: number } | null;
+  /** The shortcut sheet (?). */
+  keysSheet: boolean;
   records: Record[];
   storage: StorageRow[] | null;
   agents: AgentRow[] | null;
@@ -1169,7 +1174,102 @@ function toolbar(): string {
     : "";
   return `<div class="toolbar"><span class="tb-where">${esc(where)}</span>
     ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
-    <span class="tb-sp"></span>${more}</div>`;
+    <span class="tb-sp"></span>
+    <button class="jump" data-act="palette" aria-label="Jump to"><span>Jump to…</span><kbd>${esc(keys("Mod+K"))}</kbd></button>${more}</div>`;
+}
+
+/** Everything "Jump to…" can reach: actions first, then projects, then recent save points. */
+function paletteItems(): PaletteItem[] {
+  const p = project();
+  const pts = points();
+  const lw = lastWorking();
+  const newest = pts.at(-1);
+  const items: PaletteItem[] = [];
+  if (p && newest) {
+    items.push({ group: "Actions", label: "Save now", hint: keys("Mod+S"), act: "save" }, { group: "Actions", label: "Check it works", hint: keys("Mod+Enter"), act: "check" });
+    if (lw && newest.verdict !== "PASS") items.push({ group: "Actions", label: goBackLabel(lw), hint: "last working version", act: "rewind-to", id: lw.id });
+    items.push({ group: "Actions", label: "Find the last working version", hint: "", act: "find" });
+    items.push({ group: "Actions", label: lw ? `Compare the ${when(lw.createdAt)} version with now` : "Compare with now", hint: keys("Mod+Shift+C"), act: "compare", ...(lw ? { a: lw.id, b: "now" } : {}) });
+  }
+  items.push(
+    { group: "Actions", label: "Agents", hint: "connections", act: "agents" },
+    { group: "Actions", label: "Storage", hint: "space and clean up", act: "storage" },
+    { group: "Actions", label: "Settings", hint: keys("Mod+,"), act: "settings" },
+    { group: "Actions", label: "Add project", hint: keys("Mod+N"), act: "add" },
+    { group: "Actions", label: "Show shortcuts", hint: "?", act: "keys" },
+  );
+  for (const x of st.projects) {
+    const s = st.statuses.get(x.id);
+    items.push({ group: "Projects", label: x.name, hint: s?.problem ? "Can't find it" : verdictWord(s?.newest?.verdict ?? null), act: "project", id: x.id, verdict: s?.problem ? "ERROR" : (s?.newest?.verdict ?? null) });
+  }
+  for (const c of [...pts].reverse().slice(0, 12)) {
+    items.push({ group: "Save points", label: `${when(c.createdAt)} · ${title(c)}`, hint: verdictWord(c.verdict), act: "open", id: c.id, verdict: c.verdict });
+  }
+  return items;
+}
+
+function paletteList(): string {
+  const pal = st.palette;
+  if (!pal) return "";
+  const shown = filterPalette(paletteItems(), pal.q);
+  if (!shown.length) return `<div class="pal-empty muted">Nothing matches “${esc(pal.q)}”.</div>`;
+  let group = "";
+  return shown
+    .map((it, i) => {
+      const head = it.group !== group ? `<div class="pal-g">${esc((group = it.group))}</div>` : "";
+      const data = `${it.id ? ` data-id="${esc(it.id)}"` : ""}${it.a ? ` data-a="${esc(it.a)}"` : ""}${it.b ? ` data-b="${esc(it.b)}"` : ""}`;
+      return `${head}<button class="pal-i ${i === pal.i ? "on" : ""}" role="option" aria-selected="${i === pal.i}" data-act="${it.act}"${data} data-pi="${i}">${it.verdict !== undefined ? glyph(it.verdict) : '<span class="pal-dot" aria-hidden="true"></span>'}<span class="pal-l">${esc(it.label)}</span><span class="pal-h">${esc(it.hint)}</span></button>`;
+    })
+    .join("");
+}
+
+function paletteView(): string {
+  if (!st.palette) return "";
+  return `<div class="scrim pal-scrim ${once("scrim:pal")}"><div class="pal" role="dialog" aria-modal="true" aria-label="Jump to">
+    <input class="pal-q" data-model="pal" placeholder="Jump to a project, a save point or an action…" value="${esc(st.palette.q)}" aria-label="Jump to" autocomplete="off" spellcheck="false">
+    <div class="pal-list" role="listbox">${paletteList()}</div>
+    <div class="pal-foot muted"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>Esc</kbd> close</span></div>
+  </div></div>`;
+}
+
+/** Only shortcuts that work today. */
+function keysSheetView(): string {
+  if (!st.keysSheet) return "";
+  const row = (k: string, what: string): string => `<div class="ks-r"><span class="ks-k">${k.split(" ").map((x) => `<kbd>${esc(keys(x))}</kbd>`).join("")}</span><span>${esc(what)}</span></div>`;
+  return `<div class="scrim ${once("scrim:keys")}"><div class="sheet ks" role="dialog" aria-modal="true" aria-label="Shortcuts">
+    <div class="sheet-head"><h2>Shortcuts</h2><button class="btn ghost" data-act="close-keys">Close<kbd>Esc</kbd></button></div>
+    <div class="ks-cols">
+      <div><div class="ks-h">Everywhere</div>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Go back to the last working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last rewind")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
+      <div><div class="ks-h">History</div>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("Space", "Go back to it")}${row("C", "Compare with now")}${row("Esc", "Close the drawer")}
+        <div class="ks-h">Going back</div>${row("J L", "Step one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Use this version, or try it if it is not proven")}${row("Esc", "Back to now, no change")}</div>
+    </div></div></div>`;
+}
+
+function openPalette(): void {
+  st.palette = st.palette ? null : { q: "", i: 0 };
+  st.menu = null;
+  render();
+  root.querySelector<HTMLInputElement>(".pal-q")?.focus();
+}
+
+/** Keys while "Jump to…" is open. Returns true when the key was used. */
+function paletteKey(e: KeyboardEvent): boolean {
+  const pal = st.palette;
+  if (!pal) return false;
+  const n = filterPalette(paletteItems(), pal.q).length;
+  if (e.key === "Escape") {
+    st.palette = null;
+    render();
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    pal.i = n ? (pal.i + (e.key === "ArrowDown" ? 1 : n - 1)) % n : 0;
+    const list = root.querySelector(".pal-list");
+    if (list) list.innerHTML = paletteList();
+    root.querySelector(".pal-i.on")?.scrollIntoView({ block: "nearest" });
+  } else if (e.key === "Enter") {
+    root.querySelector<HTMLButtonElement>(".pal-i.on")?.click();
+  } else return false;
+  e.preventDefault();
+  return true;
 }
 
 function render(): void {
@@ -1190,7 +1290,7 @@ function render(): void {
                   : history();
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    <div class="app">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${scene ? timeView() : ""}${inspector()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
+    <div class="app">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
   seenOnce = drawOnce;
   const list = document.getElementById("list");
   if (list) list.scrollTop = scroll;
@@ -1779,11 +1879,20 @@ function startAdd(): void {
 
 async function onClick(el: HTMLElement): Promise<void> {
   const d = el.dataset;
-  // Any action closes an open ⋯ menu. Opening one is the only exception.
+  // Any action closes an open ⋯ menu and the palette. Opening them is the only exception.
   if (d.act !== "menu") st.menu = null;
+  if (d.act !== "palette") st.palette = null;
   switch (d.act) {
     case "menu":
       st.menu = st.menu === d.v ? null : (d.v ?? null);
+      return render();
+    case "palette":
+      return openPalette();
+    case "keys":
+      st.keysSheet = true;
+      return render();
+    case "close-keys":
+      st.keysSheet = false;
       return render();
     case "project":
       if (d.id) await selectProject(d.id);
@@ -1833,6 +1942,11 @@ async function onClick(el: HTMLElement): Promise<void> {
       await loadTimeline();
       return render();
     case "open":
+      // From the palette on another screen: show History first, then the drawer.
+      if (st.screen !== "history") {
+        st.screen = "history";
+        st.rewind = null;
+      }
       if (st.selected !== d.id) st.openResult = null;
       st.selected = d.id ?? null;
       st.drawer = true;
@@ -2029,6 +2143,14 @@ function onKey(e: KeyboardEvent): void {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   const k = e.key.toLowerCase();
   const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+  if (paletteKey(e)) return;
+  if (st.keysSheet && (k === "escape" || k === "?")) {
+    st.keysSheet = false;
+    render();
+    return;
+  }
+  if (mod && k === "k") return void (e.preventDefault(), openPalette());
+  if (k === "?" && !typing && !mod) return void (e.preventDefault(), (st.keysSheet = true), render());
   if (k === "escape" && st.menu) {
     st.menu = null;
     render();
@@ -2135,7 +2257,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   st = {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "history" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
-    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false, menu: null, records: [], storage: null,
+    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false, menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, isolation: null, cleanup: null, hotkeyDraft: null, hotkeyActive: boot.data.hotkeyActive,
     hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
   };
@@ -2146,6 +2268,12 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     const target = e.target as HTMLElement;
     if (target.classList.contains("scrim") && st.check && (st.check.phase === "done" || st.check.error)) {
       st.check = null;
+      render();
+      return;
+    }
+    if (target.classList.contains("scrim") && (st.palette || st.keysSheet)) {
+      st.palette = null;
+      st.keysSheet = false;
       render();
       return;
     }
@@ -2160,6 +2288,12 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     const t = e.target as HTMLInputElement;
     if (t.dataset.model === "hotkey") {
       st.hotkeyDraft = t.value;
+      return;
+    }
+    if (t.dataset.model === "pal" && st.palette) {
+      st.palette = { q: t.value, i: 0 };
+      const list = root.querySelector(".pal-list");
+      if (list) list.innerHTML = paletteList();
       return;
     }
     if (t.dataset.model === "ob-custom") {
