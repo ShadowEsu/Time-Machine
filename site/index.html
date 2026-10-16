@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Time Machine. Rewind to what worked.</title>
-<meta name="description" content="Time Machine saves checkpoints of your project while coding agents work, runs your own check on each one in a separate copy, and brings back the newest one that works on a new branch. Early: the tm command line tool works today. Not on npm yet. The Mac app is in development.">
+<meta name="description" content="Your agent can break things. Time Machine proves which version still works and gets you back to it. Claude Code's rewind does not track files changed by Bash commands. Time Machine saves your project before each prompt and before risky shell commands. Early: the tm command line tool works today. Not on npm yet. The Mac app is in development and not signed or shipped yet.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#eceae4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Time Machine">
 <meta property="og:title" content="Time Machine. Rewind to what worked.">
-<meta property="og:description" content="Checkpoints while coding agents work, proof of which ones still run, and an honest receipt when you bring one back. Early. The CLI works today.">
+<meta property="og:description" content="Your agent can break things. Time Machine proves which version still works and gets you back to it. Early. The CLI works today.">
 <meta property="og:image" content="assets/img/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -130,7 +130,8 @@
     <p class="chip r" data-r="0 0 .5 .8"><span class="ring" aria-hidden="true"></span>Early. The tm command line tool works today.</p>
     <h1 class="hero-h" id="hero-h"><span class="r" data-r="0 0 .45 .8">Rewind to</span> <span class="r" data-r="0 0 .5 .85">what worked.</span></h1>
     <div class="hero-sub r" data-r="0 0 .4 .75">
-      <p>Time Machine saves checkpoints of your project while coding agents work, and proves which ones still run.</p>
+      <p>Your agent can break things. Time Machine proves which version still works and gets you back to it.</p>
+      <p class="gap"><b>The gap.</b> Claude Code's rewind "does not track files modified by Bash commands", like <code>rm</code>, <code>mv</code> or <code>sed -i</code>. With its Claude Code hooks, Time Machine saves your project before each prompt and before risky shell commands, outside the project folder. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Source: Claude Code docs</a></p>
       <div class="ctas"><a class="btn btn-primary" href="#waitlist">Join the waitlist</a><a class="btn btn-ghost" href="#act-rewind">Turn the dial <span class="arr" aria-hidden="true"></span></a></div>
     </div>
   </div>
@@ -171,7 +172,7 @@
         <li class="r" data-r=".58 .62"><time>11:13</time><span>Agent: "All done!"</span></li>
         <li class="r err" data-r=".7 .76"><time>11:14</time><span>You run <code class="cmd">npm test</code>. Exit code 1. Tips round wrong.</span></li>
       </ol>
-      <p class="sub r" data-r=".78 .86">Undo goes back one edit. Built in rewind tools cover their own file edits, not what shell commands changed.</p>
+      <p class="sub r" data-r=".78 .86">Undo goes back one edit. Claude Code's rewind skips files changed by Bash commands. Time Machine kept a save point at each step.</p>
       <p class="fine-s r" data-r=".84 .92">Dramatized on a synthetic demo project. Save point IDs, verdicts and command output come from a real <code>tm demo</code> run. Times other than 10:42 and 10:51 are illustrative.</p>
     </div>
   </div>
@@ -274,7 +275,7 @@
       </div>
       <div class="spec-col">
         <p class="spec-k"><span class="tag tag-dev">In development</span></p>
-        <dl class="spec-list"><dt>Mac app</dt><dd>The same engine, with a timeline you can see.</dd></dl>
+        <dl class="spec-list"><dt>Mac app</dt><dd>The same engine, with a timeline you can see. Not signed or shipped yet.</dd></dl>
         <p class="spec-k"><span class="tag tag-plan">Not on npm yet</span></p>
         <dl class="spec-list"><dt>The <code>tm</code> CLI</dt><dd>Join the waitlist for one email when it is published.</dd></dl>
         <p class="spec-k"><span class="tag tag-plan">Planned</span></p>
@@ -286,9 +287,10 @@
       </div>
     </div>
     <div class="vs" aria-label="What each kind of rewind covers">
-      <div class="vs-row"><p class="vs-k">Built in agent rewind<span>Editor and agent checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Their own file edits</span></div></div>
-      <div class="vs-row"><p class="vs-k">Time Machine<span>tm, today</span></p><div class="vs-bar"><i style="--w:1"></i><span>Your whole project, plus a check that proves it runs</span></div></div>
+      <div class="vs-row"><p class="vs-k">Claude Code rewind<span>Built in checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Edits made by its file editing tools. Not Bash commands</span></div></div>
+      <div class="vs-row"><p class="vs-k">Time Machine<span>tm, today</span></p><div class="vs-bar"><i style="--w:1"></i><span>Your project folder at each save point, plus a check that proves it runs</span></div></div>
     </div>
+    <p class="fine-s">Claude Code: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">checkpointing docs, "Bash command changes not tracked"</a>. Time Machine does not save secret values, databases, deployed versions or files over the size limit.</p>
 
     <div class="app" aria-labelledby="app-h">
       <div class="app-copy">
@@ -304,7 +306,7 @@
             <img src="assets/img/mac-app-light.jpg" width="2560" height="1520" loading="lazy" decoding="async" alt="The Time Machine Mac app showing the marigold-tips demo project. Six save points, newest first. cp-0006 Added a dependency is Broken. cp-0003 Added dark mode at 10:42 AM Works. A side panel lists what was saved and what was not.">
           </picture>
         </div>
-        <figcaption>Mac app, in development. Browser preview with demo data. Not available to download yet.</figcaption>
+        <figcaption>Mac app, in development. Not signed or shipped yet. Browser preview with demo data. Not available to download.</figcaption>
       </figure>
     </div>
   </div>

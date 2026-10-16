@@ -68,7 +68,7 @@
 <p>There are 54 engine and CLI tests. They pass on macOS and Linux in CI. Save points live in <code>~/.timemachine</code> with a Git bundle, and secret values are never stored, only key names.</p>
 <p>We also ran it on a real open source project, sindresorhus/slugify. That found something the synthetic tests did not: behind a network proxy, <code>npm install</code> failed inside the safe copy, because the clean environment dropped the proxy settings. The fix started with a failing test, like every fix here. Proxy, certificate and package manager settings now pass through.</p>
 <p>Two independent reviews of the engine found 17 bugs in total. All 17 were fixed the same way: a test that shows the bug first, then the fix.</p>
-<p>What is not done: the npm package <code>timetm</code> is not published yet, so you build from source. The Mac app is in development.</p>
+<p>What is not done: the npm package <code>timetm</code> is not published yet, so you build from source. The Mac app is in development, and not signed or shipped yet.</p>
 
 <h2>Gates, not dates</h2>
 <p>Dates are easy to promise and easy to miss. A gate is an outcome you can check. Each stage starts when the one before it passes its gate.</p>

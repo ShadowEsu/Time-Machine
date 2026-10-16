@@ -75,8 +75,8 @@
       <article class="inc rv">
         <span class="n">Rewind gap</span>
         <h3>Claude Code's rewind does not cover the shell.</h3>
-        <p>Its checkpoints track edits made by its own file tools. Changes made by Bash commands, like <code>rm</code> or <code>mv</code>, are not tracked.</p>
-        <p class="src">Source: <a href="https://www.eon.io/blog/claude-code-rewind-bash" rel="noopener">eon.io</a></p>
+        <p>Its docs say checkpointing "does not track files modified by Bash commands". Changes made by commands like <code>rm</code> or <code>mv</code> cannot be undone through rewind.</p>
+        <p class="src">Sources: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Claude Code docs</a>, <a href="https://www.eon.io/blog/claude-code-rewind-bash" rel="noopener">eon.io</a></p>
       </article>
       <article class="inc rv" style="--d:1">
         <span class="n">Deleted folder</span>
@@ -128,8 +128,8 @@
       <li><span><b>Checks in a separate copy</b><span class="d">With the network off when a sandbox exists, and BLOCKED when that cannot be enforced.</span></span><span class="tag tag-now">Built</span></li>
       <li><span><b>Tests</b><span class="d">54 engine and CLI tests on macOS and Linux CI. Also tested on a real open source project, sindresorhus/slugify.</span></span><span class="tag tag-now">Built</span></li>
       <li><span><b>npm package</b><span class="d"><code>timetm</code>, command <code>tm</code>. Build from source until then.</span></span><span class="tag tag-plan">Not published yet</span></li>
-      <li><span><b>Mac app</b><span class="d">History, save point detail, Rewind and Compare, on the same engine.</span></span><span class="tag tag-dev">In development</span></li>
-      <li><span><b>Action connector for Claude and ChatGPT</b><span class="d">Record what agents do in apps like Gmail and Slack, and reverse only what can honestly be reversed.</span></span><span class="tag tag-plan">Planned</span></li>
+      <li><span><b>Mac app</b><span class="d">History, save point detail, Rewind and Compare, on the same engine. Not signed or shipped yet.</span></span><span class="tag tag-dev">In development</span></li>
+      <li><span><b>Action connector for Claude and ChatGPT</b><span class="d">Version 2. Record what agents do in apps like Gmail and Slack, and reverse only what can honestly be reversed. Not available.</span></span><span class="tag tag-plan">Planned</span></li>
       <li><span><b>The Ladder pricing</b><span class="d">A Pro plan that gets cheaper the longer you stay. The CLI stays free. Restores are never paywalled. Nothing is for sale yet.</span></span><span class="tag tag-plan">Planned</span></li>
     </ul>
   </div>
@@ -176,7 +176,7 @@
         <div class="g-pane" data-pane>
           <p class="k">Gate 2 · Mac app</p>
           <p><b>Done when:</b> someone who does not use a terminal can go back to the last working version with one button, on the same engine as the CLI, in a signed Mac app.</p>
-          <p><b>Status:</b> in development. The screens run in a preview with demo data.</p>
+          <p><b>Status:</b> in development. Not signed or shipped yet. The screens run in a preview with demo data.</p>
         </div>
         <div class="g-pane" data-pane hidden>
           <p class="k">Gate 3 · Action connector</p>

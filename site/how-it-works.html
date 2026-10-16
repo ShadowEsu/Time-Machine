@@ -83,7 +83,7 @@
                 <p>Branch tm/recover/cp-0003</p>
                 <p class="c">Saved first: cp-0007</p>
                 <p>Nothing pushed, merged or deployed.</p>
-                <p class="c">Your folder was not touched.</p>
+                <p class="c">Not restored: secret values.</p>
               </div>
             </div>
             <div class="knob-w">
@@ -143,10 +143,11 @@ cp-0003   <span class="ok">PASS</span>
         <p>Recover saves your current state first. Then it makes a new branch and a recovery copy next to your project. It never switches your folder, and never pushes, merges or deploys.</p>
         <pre class="term"><span class="p">$ </span>tm recover cp-0003
 Branch      tm/recover/cp-0003
-Saved first cp-0007</pre>
+Saved first cp-0007
+<span class="d">Not restored: secret values</span></pre>
       </li>
     </ol>
-    <p class="cap-note rv">Switching to the recovery is up to you. The recovery report gives you the two Git commands to do it.</p>
+    <p class="cap-note rv">Switching to the recovery is up to you. The recovery report gives you the two Git commands to do it. It also lists every secret key you need to set again by hand, and what was never captured, like databases and deployed versions.</p>
   </div>
 </section>
 
@@ -237,7 +238,7 @@ Saved first cp-0007</pre>
     </div>
     <div class="paths">
       <article class="card path rv" id="builders">
-        <span class="tag tag-dev">In development</span>
+        <span class="tag tag-dev">In development. Not shipped</span>
         <h3>For builders</h3>
         <p class="txt">You build with Claude Code, Cursor or another agent, and you would rather not live in a terminal. The Mac app puts the same loop behind plain buttons.</p>
         <ul>
@@ -252,7 +253,7 @@ Saved first cp-0007</pre>
             <img src="assets/img/mac-app-light.jpg" width="2560" height="1520" loading="lazy" decoding="async" alt="The Time Machine Mac app in development, showing the Marigold Tips demo project. Six save points, newest first. cp-0006 is Broken. cp-0003 Added dark mode Works. A side panel lists what was saved and what was not.">
           </picture>
         </div>
-        <p class="cap-note">In development. Demo data. Not available to download yet.</p>
+        <p class="cap-note">In development. Not signed or shipped yet. Demo data. Not available to download.</p>
       </article>
       <article class="card path rv" id="developers" style="--d:1">
         <span class="tag tag-now">Built</span>
@@ -269,7 +270,7 @@ Saved first cp-0007</pre>
 <span class="p">$ </span>tm recover cp-0003</pre>
         <h4>Claude Code hooks</h4>
         <pre class="term"><span class="p">$ </span>tm hook install</pre>
-        <p class="txt">Saves before each prompt, and before risky shell commands like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code> or <code>DROP TABLE</code>. At the end of each turn it saves and runs your check. If a working state just broke, it tells Claude which save point last worked. The hooks never block your agent because of their own errors.</p>
+        <p class="txt">Claude Code's own rewind <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">does not track files modified by Bash commands</a>. These hooks save your project before each prompt, and before risky shell commands like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code> or <code>DROP TABLE</code>. For other shell changes, like <code>mv</code> or <code>sed -i</code>, you can go back to the save point taken before that prompt. At the end of each turn it saves and runs your check. If a working state just broke, it tells Claude which save point last worked. The hooks never block your agent because of their own errors.</p>
         <h4>MCP server</h4>
         <pre class="term"><span class="p">$ </span>claude mcp add timemachine -- tm mcp</pre>
         <p class="txt">Seven tools: <code>checkpoint</code>, <code>timeline</code>, <code>diff</code>, <code>verify</code>, <code>find_good</code>, <code>recover</code> and <code>log</code>. Same engine, same answers.</p>

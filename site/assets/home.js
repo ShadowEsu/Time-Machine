@@ -125,7 +125,7 @@
   /* ---------- poses: x, y as viewport fractions, s on top of the base scale ---------- */
   const P = (d, m) => () => (mob ? m : d);
   const POSE = {
-    hero0: P({ x: 0.72, y: 0.66, s: 1.28, rx: 56, ry: 0, rz: -26 }, { x: 0.5, y: 0.55, s: 1.0, rx: 54, ry: 0, rz: -20 }),
+    hero0: P({ x: 0.72, y: 0.66, s: 1.28, rx: 56, ry: 0, rz: -26 }, { x: 0.5, y: 0.46, s: 0.86, rx: 54, ry: 0, rz: -20 }),
     hero1: P({ x: 0.74, y: 0.62, s: 1.0, rx: 14, ry: -20, rz: 2 }, { x: 0.5, y: 0.5, s: 0.94, rx: 16, ry: -8, rz: 0 }),
     promise: P({ x: 0.7, y: 0.52, s: 1.1, rx: 6, ry: -12, rz: 0 }, { x: 0.5, y: 0.25, s: 0.86, rx: 8, ry: 0, rz: 0 }),
     brk: P({ x: 0.7, y: 0.52, s: 1.06, rx: 5, ry: -15, rz: 0 }, { x: 0.5, y: 0.2, s: 0.74, rx: 6, ry: 0, rz: 0 }),
