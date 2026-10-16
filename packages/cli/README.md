@@ -20,14 +20,14 @@ When an AI agent or a late night change breaks your project, Time Machine finds 
 | `tm recover cp-0003` | Saves your current state first, then makes branch `tm/recover/cp-0003` and a recovery copy |
 | `tm log` | Shows the append-only audit log |
 | `tm demo` | Builds a small broken project and rescues it, so you can watch the whole thing in a minute |
-| `tm hook install` | Adds Claude Code hooks: a save point before each prompt and risky command, and a check when Claude stops that tells it if a working state just broke |
+| `tm hook install` | Adds Claude Code hooks: a save point before each prompt and risky command, and a check when Claude stops that tells it if a working state just broke. The hooks call `tm` when this same version is on your PATH, otherwise `npx -y timetm@<version>`, pinned to this exact version. That fallback does not run until `timetm` is on npm |
 | `tm mcp` | An MCP server so agents can save, check, find and recover through the same engine |
 
 Every command takes `--json`. Human and JSON output come from the same result.
 
 ## What it does not do
 
-Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values, only key names and a fingerprint, so you set those again by hand. Every save point and every recovery says what was not restored.
+Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values, only key names and a fingerprint, so you set those again by hand. Files your `.gitignore` skips are not saved, and each save point lists them. The hooks hide a prompt or a risky command when it looks like a secret, holds a current secret value from your config files such as `.env`, or has a URL with a user and password, like `postgres://user:pass@host`. Only the hooks can mark a save point as made by Claude Code: `tm checkpoint --trigger claude-code...` is refused with exit code 64. Every save point and every recovery says what was not restored.
 
 Save points and verdicts are signed with a key stored in `~/.timemachine`. That catches accidental edits and edits by tools that do not read the key. It is not tamper proof against someone who can read that key.
 

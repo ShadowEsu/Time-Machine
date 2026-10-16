@@ -175,9 +175,9 @@ Every command takes `--json`. The JSON and the human output come from the same r
 | `tm hook <prompt\|pre-bash\|stop>` | What the hooks call. Reads hook JSON on stdin. |
 | `tm mcp` | Runs an MCP server over stdio. |
 
-`checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`.
+`checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`. A trigger that starts with `claude-code` is refused with a usage error (exit code 64), because only the hooks (`tm hook`) can mark a save point as made by Claude Code.
 
-Each save point also records which agent made it, when one did: `agent: { name, prompt }` in `tm timeline --json`. The Claude Code hooks record "Claude Code" and the prompt of the current turn, clipped to one line. A prompt that looks like it holds a secret is stored as "(text hidden...)" instead, the same rule as notes. `--trigger mcp` records "MCP agent". Save points made by you, the app, or older versions of Time Machine have `agent: null`.
+Each save point also records which agent made it, when one did: `agent: { name, prompt }` in `tm timeline --json`. The Claude Code hooks record "Claude Code" and the prompt of the current turn, clipped to one line. A prompt is stored as "(text hidden...)" instead when it looks like it holds a secret (the same rule as notes), when it contains any current secret value from the project's config files such as `.env`, or when it contains a URL with a user and password, like `postgres://user:pass@host`. `--trigger mcp` records "MCP agent". Save points made by you, the app, or older versions of Time Machine have `agent: null`.
 
 `timeline` rows look like this:
 
@@ -245,6 +245,7 @@ config:
 - Secret values. A file that looks like it contains a secret is skipped and listed.
 - Files over `capture.maxFileMB`, and symbolic links. These are listed as missing.
 - Installed dependencies such as `node_modules`. Only the lockfile digest is kept.
+- Files your `.gitignore` skips. Each save point lists them, for example "Files your .gitignore skips were not saved: node_modules/, dist/".
 - Databases, deployed versions and external services.
 
 Every save point lists what it did not save.
@@ -288,9 +289,9 @@ This adds hooks to the project's `.claude/settings.json`. Your existing settings
 - **Before risky shell commands** like `rm -rf` or `git reset --hard`: saves a save point first.
 - **When Claude stops:** saves and runs the check. If the check passed before and fails now, it tells Claude which save point last worked.
 
-Hooks never block the agent because of their own errors. Prompt text that looks like a secret is never stored.
+Hooks never block the agent because of their own errors. Prompt text and the risky command in a save point's note are hidden when they look like a secret, hold a current secret value from your config files such as `.env`, or have a URL with a user and password in it.
 
-The hooks call `tm hook prompt`, `tm hook pre-bash` and `tm hook stop`. You do not run these yourself.
+The hooks call `tm hook prompt`, `tm hook pre-bash` and `tm hook stop`. You do not run these yourself. If a `tm` that is this same version is on your PATH, the hooks call `tm`. Otherwise they call `npx -y timetm@<version>`, pinned to the exact version that installed them. Until `timetm` is on npm, that fallback does not run, so put your built `tm` on your PATH before `tm hook install`.
 
 ### MCP server
 

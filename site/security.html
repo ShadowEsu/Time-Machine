@@ -129,7 +129,7 @@
         <li><b>For files like <code>.env</code>,</b> Time Machine saves the key names and a keyed fingerprint. The fingerprint shows a value changed, in <code>tm diff</code>, without storing it.</li>
         <li><b>Secret files are never saved.</b> Names like <code>.env</code> files (except examples), <code>.npmrc</code>, <code>*.pem</code> and <code>*.key</code> are skipped, and so is any file whose content matches a secret pattern. Each one is listed.</li>
         <li><b>A tracked file that now holds a secret</b> keeps its last committed version in the save point.</li>
-        <li><b>Check logs are scrubbed</b> of current secret values. The hooks never store prompt text that looks like a secret.</li>
+        <li><b>Check logs are scrubbed</b> of current secret values. The hooks never store prompt text that looks like a secret, holds a current secret value from your config files, or has a URL with a password in it.</li>
         <li><b>Plain values are opt in.</b> Only keys you list in <code>config.plain</code> keep their value, and not even then if the value looks like a secret.</li>
       </ul>
       <div class="rv" style="--d:1">
