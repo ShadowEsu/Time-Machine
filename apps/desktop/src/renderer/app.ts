@@ -37,7 +37,10 @@ interface ReturnPoint {
 }
 
 interface RewindState {
-  step: "find" | "try" | "use" | "done";
+  /** Find runs only when no working version is known. Review shows one version and Use. Done has Undo. */
+  step: "find" | "review" | "done";
+  /** True when this Rewind started with a search, so the step bar shows Find. */
+  searched: boolean;
   /** "scene" is the Time View. "sheet" is the plain wizard, for Reduce motion or Simple rewind. */
   mode: "scene" | "sheet";
   returnTo: ReturnPoint;
@@ -435,7 +438,7 @@ function drawer(): string {
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
     : "";
-  return `<aside class="sp ${once("sp")}" role="dialog" aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
+  return `<aside class="spd ${once("spd")}" role="dialog" aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
     <header class="sp-top"><span class="eyebrow">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(triggerLabel(c.trigger))}</span>
       ${menuButton("sp", "More actions for this save point", more)}
       <button class="btn ghost" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
@@ -497,86 +500,33 @@ function checkSheet(): string {
   </div></div>`;
 }
 
+/** Review, then Done. A search first only when no working version was known. */
+function rewindSteps(r: RewindState): string {
+  const labels = r.searched ? ["Find", "Review", "Done"] : ["Review", "Done"];
+  return steps(r.step === "done" ? labels.length : r.step === "review" ? labels.length - 1 : 1, labels);
+}
+
+/** The plain Rewind sheet, for Reduce motion or Simple rewind. Same steps and actions as the Time View. */
 function rewind(): string {
   const r = st.rewind;
   const p = project();
   if (!r || !p) return history();
-  const idx = { find: 1, try: 2, use: 3, done: 4 }[r.step];
-  const target = entry(r.target);
-  let body = "";
-  if (r.step === "find") {
-    const tried = r.find?.tried ?? r.progress.map((x) => ({ id: x.checkpoint, verdict: x.verdict as Verdict, reason: "" }));
-    const triedRows = tried
-      .map((t) => {
-        const c = entry(t.id);
-        return `<div class="r"><span class="mono">${esc(t.id)}</span><span>${esc(c ? title(c) : "")}${t.reason && st.settings.showGitDetails ? ` <span class="muted small">${esc(t.reason)}</span>` : ""}</span>${badge(t.verdict)}</div>`;
-      })
-      .join("");
-    if (r.finding) {
-      body = `<div class="panel"><h3>Finding the last version that works</h3><p class="muted">Checking newest first, each one in a safe copy. Your folder is not touched.</p>
-        <div class="tried">${triedRows}<div class="r"><span class="spin"></span><span class="muted">Checking the next save point…</span><span></span></div></div></div>`;
-    } else if (r.find && !r.find.found) {
-      const last = r.find.tried.at(-1);
-      const why =
-        r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
-          : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
-            : `We couldn't check every save point, so we won't call any of them working. ${last?.reason ?? ""}`;
-      body = `<div class="panel"><h3>No working version found</h3><div class="tried">${triedRows}</div><div class="note warn">${esc(why)}</div>
-        <div class="row-btns"><button class="btn" data-act="history">Back to History</button></div></div>`;
-    } else if (target) {
-      const known = !r.find;
-      body = `<div class="panel">${r.find ? `<div class="tried">${triedRows}</div>` : ""}
-        <div class="big-verdict ${stampOnce(`rw:${target.id}:${target.verdict ?? ""}`)}">${glyph(target.verdict)}<span>${esc(target.id)} ${target.verdict === "PASS" ? "works." : `is ${verdictWord(target.verdict).toLowerCase()}.`}</span></div>
-        <p>${esc(title(target))} · ${esc(when(target.createdAt))}${known && target.verdict === "PASS" ? " · checked before, in a safe copy" : ""}</p>
-        ${target.verdict !== "PASS" ? `<div class="note warn">This save point has not passed a check. The next step checks it in a safe copy.</div>` : ""}
-        <div class="cols"><div class="kv"><span class="h">Comes back</span>${li(comesBackLines(target), "Nothing listed")}</div><div class="kv no"><span class="h">Does not come back</span>${li(notSavedLines(target), "Nothing listed")}</div></div>
-        <div class="row-btns"><button class="btn dark" data-act="rw-next-try">Next: Try it <kbd>↵</kbd></button>${known ? '<button class="btn" data-act="rw-find">Search again</button>' : ""}<button class="btn ghost" data-act="history">Pick a different one</button></div></div>`;
-    } else {
-      body = `<div class="panel"><div class="note warn">${esc(r.target ?? "That save point")} is not in the history of ${esc(p.name)}.</div>
-        <div class="row-btns"><button class="btn dark" data-act="rw-find">Find the last working version</button><button class="btn ghost" data-act="history">Back to History</button></div></div>`;
-    }
-  } else if (r.step === "try" && target) {
-    const tr = r.tryResult;
-    body = `<div class="panel"><h3>Try ${esc(target.id)} in a safe copy</h3>
-      <p class="muted">We rebuild ${esc(target.id)} in a separate folder and run your check there. Your real folder hasn't changed.</p>
-      ${r.trying ? '<div class="steplist"><div class="r"><span class="spin"></span><span>Rebuilding and running your check…</span></div></div>' : ""}
-      ${tr ? `<div class="big-verdict ${stampOnce(`rwtry:${tr.at}`)}">${glyph(tr.verdict)}<span>${esc(target.id)} ${tr.verdict === "PASS" ? "works." : `: ${verdictWord(tr.verdict)}.`}</span></div><p>${esc(tr.reason)} ${esc(seconds(tr.durationMs))}, safe copy (basic isolation).</p>` : ""}
-      ${tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn't confirm ${esc(target.id)} works. You can still use it, but it is not proven.</div>` : ""}
-      ${r.openResult ? `<div class="note">A copy you can open is ready.${st.settings.showGitDetails ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : ""}
-      <div class="row-btns">
-        ${!tr && !r.trying ? '<button class="btn dark" data-act="rw-try">Check it in a safe copy</button>' : ""}
-        ${tr ? `<button class="btn ${tr.verdict === "PASS" ? "dark" : ""}" data-act="rw-next-use">${tr.verdict === "PASS" ? "Next: Use this version" : "Use it anyway"}</button>` : ""}
-        <button class="btn" data-act="rw-open" ${r.opening ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>
-        <button class="btn ghost" data-act="rw-back-find">Back</button></div></div>`;
-  } else if (r.step === "use" && target) {
-    body = `<div class="panel confirm"><h3>Use the ${esc(target.id)} version?</h3>
-      <p>We will:</p><ol><li>Save your current version first, so nothing is lost.</li><li>Make a new local branch, <span class="mono">tm/recover/${esc(target.id)}</span>, at that version.</li><li>Build a recovery copy next to your project folder.</li></ol>
-      <p><b>We will not push, merge, deploy or delete anything. Your folder and branch are not touched.</b></p>
-      ${r.tryResult?.verdict !== "PASS" && target.verdict !== "PASS" ? `<div class="note warn">${esc(target.id)} has not passed a check.</div>` : ""}
-      <div class="row-btns"><button class="btn ghost" data-act="rw-back-try" ${r.recovering ? "disabled" : ""}>Cancel</button><button class="btn dark" data-act="rw-do" ${r.recovering ? "disabled" : ""}>${r.recovering ? "Working…" : "Do it"}</button></div></div>`;
-  } else if (r.step === "done" && r.result) {
-    const res = r.result;
-    body = `<div class="panel"><div class="big-verdict ${stampOnce(`rwdone:${res.branch}`)}">${glyph(res.lastVerdict)}<span>${esc(res.id)} is ready on a new branch.</span></div>
-      <p>Last check: ${esc(verdictWord(res.lastVerdict))}${res.lastVerdict ? " (safe copy, basic isolation)" : ". Run Check it works before you rely on it"}.</p>
-      <div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> your current version, as ${esc(res.savedBefore)}</div>${st.settings.showGitDetails ? `<div><span class="k">report</span> ${esc(res.reportPath)}</div>` : ""}</div>
-      <div class="cols"><div class="kv"><span class="h">Brought back</span>${li(res.restored, "Nothing")}</div><div class="kv no"><span class="h">Not brought back</span>${li(res.notRestored, "Nothing listed")}</div></div>
-      <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
-      <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
-      ${undoNote(res)}
-      <div class="row-btns"><button class="btn dark" data-act="history">Done</button>${undoButton("")}<button class="btn" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div></div>`;
-  }
+  const c = entry(stageId());
+  const tried = r.find?.tried ?? r.progress.map((x) => ({ id: x.checkpoint, verdict: asVerdict(x.verdict), reason: "" }));
+  const triedRows = r.step === "find" && tried.length
+    ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? clock(e.createdAt) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
+    : "";
+  const body = c ? tvRead(r, c) : `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div><div class="tv-acts">${tvButton("find", "Find the last working version", "enter", "↵", true)}</div>`;
   return `<div class="scrim ${once("scrim:rewind")}"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
-    <div class="sheet-head"><div><h2>Rewind ${esc(p.name)}</h2><p class="muted">Find the last working version, try it in a safe copy, then use it on a new branch.</p></div>
+    <div class="sheet-head"><div><h2>Go back in ${esc(p.name)}</h2>${rewindSteps(r)}</div>
       <button class="btn ghost" data-act="tv-exit" ${r.recovering ? "disabled" : ""}>Close<kbd>Esc</kbd></button></div>
-    ${steps(idx, ["Find", "Try", "Use", "Done"])}
-    ${r.error ? `<div class="note bad">${esc(r.error)}</div>` : ""}
-    ${body}
+    ${triedRows}${body}
   </div></div>`;
 }
 
 /** What Undo does, said plainly before anyone presses it. */
 function undoNote(res: RecoverResult): string {
-  return `<p class="small muted">Undo removes the new branch ${esc(res.branch)} and the recovery copy. Every save point stays, including ${esc(res.savedBefore)}, your version from just before. Undo stops if you changed anything in the recovery copy or added commits to the branch.</p>`;
+  return `<p class="small muted">Undo removes the new branch${st.settings.showGitDetails ? ` ${esc(res.branch)}` : ""} and the recovery copy. Every save point stays, including your version from just before. Undo stops if you changed anything in the recovery copy or added commits to the branch.</p>`;
 }
 function undoButton(size: string): string {
   const u = st.undo;
@@ -633,14 +583,14 @@ function comesBackLines(c: TimelineEntry): string[] {
 function evidenceFor(c: TimelineEntry, v: Verdict | null): string {
   const vr = st.verifyResults.get(c.id);
   const same = vr && vr.verdict === v ? vr : null;
-  const where = `Safe copy, basic isolation (${c.isolation ?? "host"} mode), on this Mac`;
+  const where = `In a safe copy on this Mac${st.settings.showGitDetails ? ` (basic isolation, ${c.isolation ?? "host"} mode)` : ""}`;
   const took = same ? ` in ${seconds(same.durationMs)}` : "";
   const net = same ? (same.network.enforcedBy ? ", network off" : ", network on") : "";
   switch (v) {
     case "PASS":
       return `Passed its check${took}. ${where}${net}.`;
     case "FAIL":
-      return `Failed its check${took}${same?.exitCode != null ? ` (exit code ${same.exitCode})` : ""}. ${where}${net}.`;
+      return `Failed its check${took}${same?.exitCode != null && st.settings.showGitDetails ? ` (exit code ${same.exitCode})` : ""}. ${where}${net}.`;
     case "INCOMPLETE":
       return "We couldn't finish the check, so we won't call it working.";
     case "BLOCKED":
@@ -656,7 +606,7 @@ function mosaic(c: TimelineEntry, prev: TimelineEntry | null): string {
   if (!prev) return `<div class="cd-foot">The first save point. Nothing before it to compare with.</div>`;
   const paths = st.changes.get(c.id);
   if (!paths) return `<div class="cd-foot">Reading what changed…</div>`;
-  if (!paths.length) return `<div class="cd-foot">No file changes since ${esc(prev.id)}.</div>`;
+  if (!paths.length) return `<div class="cd-foot">No file changes since the save point before.</div>`;
   const groups = new Map<string, string[]>();
   for (const f of paths) {
     const top = f.includes("/") ? f.slice(0, f.indexOf("/")) : "top level";
@@ -669,7 +619,7 @@ function mosaic(c: TimelineEntry, prev: TimelineEntry | null): string {
     .slice(0, 4)
     .map(([g, fs]) => `<div class="mz"><span class="mz-l">${esc(g)}</span><span class="mz-s ${named ? "named" : ""}">${fs.slice(0, 24).map(file).join("")}</span></div>`)
     .join("");
-  return `<div class="mosaic">${rows}</div><div class="cd-foot">${esc(plural(paths.length, "file"))} changed since ${esc(prev.id)}</div>`;
+  return `<div class="mosaic">${rows}</div><div class="cd-foot">${esc(plural(paths.length, "file"))} changed since the save point before</div>`;
 }
 
 function tvCard(c: TimelineEntry, k: number, prev: TimelineEntry | null, still: boolean): string {
@@ -680,10 +630,10 @@ function tvCard(c: TimelineEntry, k: number, prev: TimelineEntry | null, still: 
   const go = k > 0 && !still ? `data-act="tv-go" data-id="${esc(c.id)}"` : "";
   const mark = checking ? '<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : badge(v, on ? `${stampOnce(`card:${c.id}:${v ?? ""}`)}` : "");
   return `<div class="${cls}" data-carry="card-${esc(c.id)}" style="--k:${Math.max(k, -1)}" ${go}>
-    <div class="cd-top"><span class="cd-g">${glyph(v)}</span><span class="cd-when">${esc(clock(c.createdAt))}</span><span class="cd-id">${esc(c.id)}</span><span class="cd-who">${esc(triggerLabel(c.trigger))}</span><span class="cd-v">${mark}</span></div>
+    <div class="cd-top"><span class="cd-g">${glyph(v)}</span><span class="cd-when">${esc(clock(c.createdAt))}</span>${st.settings.showGitDetails ? `<span class="cd-id">${esc(c.id)}</span>` : ""}<span class="cd-who">${esc(triggerLabel(c.trigger))}</span><span class="cd-v">${mark}</span></div>
     <div class="cd-title">${esc(title(c))}</div>
     ${on ? `<div class="cd-sum">${esc(triggerSentence(c.trigger))}</div>` : ""}
-    ${on ? (checking ? `<div class="cd-run"><span class="spin"></span><span>Rebuilding ${esc(c.id)} in a safe copy and running your check. Your folder is not touched.</span></div>` : mosaic(c, prev)) : ""}
+    ${on ? (checking ? `<div class="cd-run"><span class="spin"></span><span>Rebuilding this version in a safe copy and running your check. Your folder is not touched.</span></div>` : mosaic(c, prev)) : ""}
   </div>`;
 }
 
@@ -691,9 +641,26 @@ function tvButton(act: string, label: string, key: string, keyLabel: string, pri
   return `<button class="btn big ${primary ? "dark" : ""}" data-act="${act}" data-key="${key}" ${disabled ? "disabled" : ""}>${esc(label)}<kbd>${esc(keyLabel)}</kbd></button>`;
 }
 
+/** What a version is, said the way people say it. */
+function versionHead(c: TimelineEntry, v: Verdict | null): string {
+  const name = `The ${pointName(c.id)} version`;
+  const rest: { [K in Verdict | "none"]: string } = {
+    PASS: "works.", FAIL: "is broken.", INCOMPLETE: "couldn't be checked.", BLOCKED: "needs something before it can be checked.", ERROR: "had a check that crashed.", none: "is not checked yet.",
+  };
+  return `${name} ${rest[v ?? "none"]}`;
+}
+
+/** Use, said before anyone presses it. This is the confirmation: nothing here touches the folder, and Undo is one key. */
+function useWill(c: TimelineEntry): string {
+  return `<div class="will"><span class="h">When you use it, we</span><ol><li>Save your current version first, so nothing is lost.</li><li>Put this version on a new local branch${st.settings.showGitDetails ? `, <span class="mono">tm/recover/${esc(c.id)}</span>` : ""}.</li><li>Build a recovery copy next to your project folder.</li></ol>
+    <p><b>Nothing is pushed, merged, deployed or deleted. Your folder and branch are not touched.</b> You can undo it.</p></div>`;
+}
+
+/** The reading pane of the Rewind, in the Time View and in the plain sheet: Find, Review, Done. */
 function tvRead(r: RewindState, c: TimelineEntry): string {
   const newest = points().at(-1);
   const v = shownVerdict(c);
+  const git = st.settings.showGitDetails;
   const cols = (a: string, b: string, yes: string[], no: string[]): string =>
     `<div class="tv-cols"><div class="kv"><span class="h">${esc(a)}</span>${li(yes, "Nothing listed")}</div><div class="kv no"><span class="h">${esc(b)}</span>${li(no, "Nothing listed")}</div></div>`;
   const meta = `<div class="tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(title(c))} · ${esc(triggerLabel(c.trigger))}</div>`;
@@ -701,20 +668,20 @@ function tvRead(r: RewindState, c: TimelineEntry): string {
 
   if (r.step === "done" && r.result) {
     const res = r.result;
-    return `<div class="tv-verdict"><h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">${esc(res.id)} is ready on a new branch.</h2>
-        <div class="tv-ev">${badge(res.lastVerdict, "lg")}<span>Last check: ${esc(verdictWord(res.lastVerdict))}${res.lastVerdict ? `, in a safe copy with basic isolation (${esc(c.isolation ?? "host")} mode) on this Mac.` : ". Run Check it works before you rely on it."}</span></div>
-        <div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> your current version, as ${esc(res.savedBefore)}</div></div></div>
+    return `<div class="tv-verdict"><h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">The ${esc(pointName(res.id))} version is ready on a new branch.</h2>
+        <div class="tv-ev">${badge(res.lastVerdict, "lg")}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a safe copy on this Mac.` : "Not checked yet. Run Check it works before you rely on it."}</span></div></div>
+      <div class="facts"><div>Your current version was saved first. It is in History.</div><div>A recovery copy of this version is next to your project folder.</div></div>
+      ${git ? `<div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> ${esc(res.savedBefore)}</div><div><span class="k">report</span> ${esc(res.reportPath)}</div></div>` : ""}
       ${cols("Brought back", "Not brought back", res.restored, res.notRestored)}
       <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
       <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
       ${undoNote(res)}
-      <div class="tv-acts">${tvButton("tv-done", "Done", "enter", "↵", true)}${undoButton("big")}<button class="btn big" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div>`;
+      <div class="tv-acts">${tvButton("tv-done", "Done", "enter", "↵", true)}${undoButton("big")}<button class="btn big ghost" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big ghost" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div>`;
   }
 
   if (r.finding) {
-    const tried = r.progress.length;
     return `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">Finding the last version that works</h2>
-        <div class="tv-ev"><span class="vb lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>${esc(c.id)}, ${tried + 1} of up to ${points().length}. Newest first, each in a safe copy.</span></div>
+        <div class="tv-ev"><span class="vb lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>The ${esc(pointName(c.id))} version, ${r.progress.length + 1} of up to ${points().length}. Newest first, each in a safe copy.</span></div>
         ${meta}</div>
       ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
       <div class="tv-acts"><span class="muted small">Esc leaves this view. The search keeps going and tells you when it is done.</span></div>`;
@@ -731,44 +698,29 @@ function tvRead(r: RewindState, c: TimelineEntry): string {
       <div class="tv-acts">${tvButton("tv-exit", "Back to where I was", "enter", "↵", true)}</div>`;
   }
 
-  if (r.step === "use") {
-    const proven = v === "PASS";
-    return `<div class="tv-verdict"><h2 class="tv-head">Use the ${esc(c.id)} version?</h2>${meta}</div>
-      ${error}
-      <div class="tv-confirm" role="group" aria-label="Confirm">
-        <div class="cf-h">We will</div>
-        <ol><li>Save your current version first, so nothing is lost.</li><li>Make a new local branch, <span class="mono">tm/recover/${esc(c.id)}</span>, at that version.</li><li>Build a recovery copy next to your project folder.</li></ol>
-        <p><b>We will not push, merge, deploy or delete anything. Your folder and branch are not touched.</b></p>
-        ${proven ? "" : `<div class="note warn">${esc(c.id)} has not passed a check. It is not proven to work.</div>`}
-      </div>
-      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
-      <div class="tv-acts">${tvButton("tv-cancel", "Cancel", "esc", "Esc", false, r.recovering)}${tvButton("tv-do", r.recovering ? "Working…" : "Do it", "enter", "↵", true, r.recovering)}</div>`;
-  }
-
+  // Review: the version, what comes back, what Use will do. Use is the primary action only when it is proven.
   const tr = r.tryResult && r.tryResult.checkpoint === c.id ? r.tryResult : null;
   const proven = v === "PASS";
-  const head = r.trying ? `Trying ${c.id} in a safe copy`
-    : proven ? `${c.id} works.`
-      : v === null ? `${c.id} is saved, not checked.`
-        : `${c.id}: ${verdictWord(v)}.`;
+  const head = r.trying ? `Trying the ${pointName(c.id)} version in a safe copy` : versionHead(c, v);
   const ev = r.trying
     ? `<span class="vb lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Rebuilding it in a separate folder and running your check. Your real folder hasn't changed.</span>`
     : `${badge(v, `lg ${stampOnce(`ev:${c.id}:${v ?? ""}`)}`)}<span>${esc(tr && tr.verdict === v && v !== "PASS" && v !== "FAIL" ? `${tr.reason} ` : "")}${esc(evidenceFor(c, v))}</span>`;
-  const warn = r.trying ? ""
-    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn't confirm ${esc(c.id)} works. You can still use it, but it is not proven.</div>`
-      : !proven ? `<div class="note">No passing check is recorded for ${esc(c.id)}. Try it first: we rebuild it in a safe copy and run your check.</div>` : "";
+  const warn = r.trying || r.recovering ? ""
+    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn't confirm this version works. You can still use it, but it is not proven.</div>`
+      : !proven ? `<div class="note">No passing check is recorded for this version. Try it first: we rebuild it in a safe copy and run your check.</div>` : "";
   const opened = r.openResult && r.openResult.id === c.id
-    ? `<div class="note">A copy you can open is ready. Your folder was not touched.${st.settings.showGitDetails ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : "";
-  const busy = r.trying || !!st.busy;
+    ? `<div class="note">A copy you can open is ready. Your folder was not touched.${git ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : "";
+  const busy = r.trying || r.recovering || !!st.busy;
   const notNewest = newest && newest.id !== c.id;
   return `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">${esc(head)}</h2>${meta}<div class="tv-ev">${ev}</div></div>
     ${error}${warn}${opened}
     ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
+    ${useWill(c)}
     <div class="tv-acts">
       ${tvButton("tv-try", tr ? "Try it again" : "Try it first", "t", "T", !proven, busy)}
       ${notNewest ? tvButton("tv-compare", "Compare with now", "c", "C", false, busy) : ""}
-      ${tvButton("tv-use", "Use this version", proven ? "enter" : "use", proven ? "↵" : "", proven, busy)}
-      ${r.step === "try" ? `<button class="btn big ghost" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>` : ""}
+      ${tvButton("tv-use", r.recovering ? "Working…" : proven ? "Use this version" : "Use it anyway", proven ? "enter" : "use", proven ? "↵" : "", proven, busy)}
+      ${tr ? `<button class="btn big ghost" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>` : ""}
     </div>`;
 }
 
@@ -813,12 +765,12 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
     })
     .join("");
   const curEntry = pts[cur];
-  const veilText = r.step === "done" && r.result ? `Your other version is saved as ${r.result.savedBefore}` : "These stay saved";
+  const veilText = r.step === "done" && r.result ? "Your other version is saved" : "These stay saved";
   const veil = cur < n - 1 ? `<div class="tv-veil" data-carry="veil" style="left:${x(cur)}%"><span>${esc(veilText)}</span></div>` : "";
   const fork =
     r.step === "done" && r.result
       ? `<svg class="tv-fork" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" vector-effect="non-scaling-stroke" d="M ${x(cur)} 100 C ${x(cur)} 50, ${x(cur)} 30, ${x(cur) + 2.5} 30 L 100 30"/></svg>
-        <span class="fork-l" style="left:calc(${x(cur)}% + 34px)">${esc(r.result.branch)} · new branch, local only</span>`
+        <span class="fork-l" style="left:calc(${x(cur)}% + 34px)">${esc(st.settings.showGitDetails ? `${r.result.branch} · new branch, local only` : "New branch, local only")}</span>`
       : "";
   return `<footer class="tv-ruler ${once("tv-ruler", "rise")}${fork ? " forked" : ""}">
     <div class="tv-track">
@@ -859,17 +811,16 @@ function timeView(): string {
     ? `<button class="tv-now" data-act="tv-exit" aria-label="Back to now">
         <span class="eyebrow">Now</span>
         <span class="nw-t">${esc(title(newest))}</span>
-        <span class="nw-m">${esc(newest.id)} · ${esc(clock(newest.createdAt))}</span>
+        <span class="nw-m">${esc(clock(newest.createdAt))}</span>
         ${badge(shownVerdict(newest))}
-        <span class="nw-h ${done ? stampOnce("nw-saved") : ""}">${done ? `Saved first as ${esc(r.result?.savedBefore ?? "")}` : "Your folder is untouched"}</span>
+        <span class="nw-h ${done ? stampOnce("nw-saved") : ""}">${done ? "Saved first, so nothing was lost" : "Your folder is untouched"}</span>
       </button>`
     : "";
-  const idx = { find: 1, try: 2, use: 3, done: 4 }[r.step];
   return `<div class="tv ${once("tv")} step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}" tabindex="-1">
     <header class="tv-top">
-      <div class="tv-name"><span class="tri" aria-hidden="true"></span><span>Rewind</span><b>${esc(p.name)}</b></div>
-      ${steps(idx, ["Find", "Try", "Use", "Done"])}
-      <button class="btn ghost" data-act="${r.step === "use" ? "tv-cancel" : "tv-exit"}" data-key="esc" ${r.recovering ? "disabled" : ""}>${r.step === "use" ? "Cancel" : "Back to now"}<kbd>Esc</kbd></button>
+      <div class="tv-name"><span class="tri" aria-hidden="true"></span><span>Go back</span><b>${esc(p.name)}</b></div>
+      ${rewindSteps(r)}
+      <button class="btn ghost" data-act="tv-exit" data-key="esc" ${r.recovering ? "disabled" : ""}>Back to now<kbd>Esc</kbd></button>
     </header>
     <div class="tv-body">
       <div class="tv-depth" aria-hidden="true"><div class="tv-stack">${cards}</div></div>
@@ -1334,7 +1285,7 @@ function here(): ReturnPoint {
 
 function newRewind(target: string | null, returnTo: ReturnPoint = here()): RewindState {
   return {
-    step: "find", mode: rewindMode(), returnTo, target, finding: false, find: null, progress: [], trying: false, tryResult: null,
+    step: target ? "review" : "find", searched: false, mode: rewindMode(), returnTo, target, finding: false, find: null, progress: [], trying: false, tryResult: null,
     opening: false, openResult: null, recovering: false, result: null, error: null,
   };
 }
@@ -1378,13 +1329,13 @@ async function startRewind(target?: string, search = false): Promise<void> {
 async function findGood(): Promise<void> {
   const p = project();
   if (!p || st.busy) return;
-  st.rewind = { ...newRewind(null, st.rewind?.returnTo), finding: true };
+  st.rewind = { ...newRewind(null, st.rewind?.returnTo), finding: true, searched: true };
   st.busy = "Finding";
   render();
   void loadChanges();
   try {
     const r = await api({ method: "findGood", projectId: p.id });
-    st.rewind = { ...st.rewind, finding: false, find: r, target: r.found };
+    st.rewind = { ...st.rewind, finding: false, find: r, target: r.found, step: r.found ? "review" : "find" };
   } catch (e) {
     st.rewind = { ...st.rewind, finding: false, error: msg(e) };
   }
@@ -1423,7 +1374,7 @@ function tvGo(id: string | undefined): void {
   if (!id || !r || r.finding || r.trying || r.recovering || r.step === "done" || r.target === id) return;
   if (!entry(id)) return;
   r.target = id;
-  r.step = "find";
+  r.step = "review";
   r.error = null;
   render();
 }
@@ -1491,7 +1442,7 @@ async function rewindTry(): Promise<void> {
 async function tvTry(): Promise<void> {
   const r = st.rewind;
   if (!r?.target || st.busy || r.finding || r.recovering) return;
-  r.step = "try";
+  r.step = "review";
   await rewindTry();
 }
 
@@ -1543,7 +1494,7 @@ async function undoRewind(): Promise<void> {
     st.undo = null;
     st.busy = null;
     if (st.screen === "rewind" && st.rewind?.step === "done") {
-      st.rewind = { ...st.rewind, result: null, step: "find" };
+      st.rewind = { ...st.rewind, result: null, step: "review" };
       exitRewind();
     }
     await loadTimeline();
@@ -1872,18 +1823,6 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "tv-try":
       return tvTry();
     case "tv-use":
-      if (st.rewind && !st.busy) {
-        st.rewind.step = "use";
-        render();
-      }
-      return;
-    case "tv-cancel":
-      if (st.rewind && !st.rewind.recovering) {
-        st.rewind.step = st.rewind.tryResult?.checkpoint === st.rewind.target ? "try" : "find";
-        render();
-      }
-      return;
-    case "tv-do":
       return rewindDo();
     case "tv-compare":
       if (st.rewind?.target) return openCompare(st.rewind.target, "now");
@@ -1915,28 +1854,8 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "rewind-to":
     case "use":
       return startRewind(d.id);
-    case "rw-find":
-      return findGood();
-    case "rw-next-try":
-      if (st.rewind) st.rewind.step = "try";
-      render();
-      if (st.rewind && !st.rewind.tryResult) await rewindTry();
-      return;
-    case "rw-try":
-      return rewindTry();
     case "rw-open":
       return rewindOpen();
-    case "rw-next-use":
-      if (st.rewind) st.rewind.step = "use";
-      return render();
-    case "rw-back-find":
-      if (st.rewind) st.rewind.step = "find";
-      return render();
-    case "rw-back-try":
-      if (st.rewind) st.rewind.step = "try";
-      return render();
-    case "rw-do":
-      return rewindDo();
     case "try":
       if (d.id) await tryCopy(d.id);
       return;
@@ -2065,30 +1984,19 @@ function shortcut(action: ShortcutAction): void {
   }
 }
 
-/** The Rewind's own keys. Returns true when the key was used. */
+/** The Rewind's own keys, in the Time View and the plain sheet. Returns true when the key was used. */
 function rewindKey(e: KeyboardEvent): boolean {
   const r = st.rewind;
   if (!r || st.screen !== "rewind" || e.metaKey || e.ctrlKey || e.altKey) return false;
   const k = e.key;
-  if (r.mode === "sheet") {
-    if (r.recovering) return false;
-    if (k === "Escape") exitRewind();
-    else if (k === "Enter") root.querySelector<HTMLButtonElement>(".rw-sheet .btn.dark:not([disabled])")?.click();
-    else return false;
-    return true;
-  }
   if (k === "Escape") {
-    flash('.tv [data-key="esc"]');
-    if (r.recovering) return true;
-    if (r.step === "use") {
-      r.step = r.tryResult?.checkpoint === r.target ? "try" : "find";
-      render();
-    } else exitRewind();
+    flash('[data-key="esc"]');
+    if (!r.recovering) exitRewind();
     return true;
   }
   if (k === "Enter") {
-    // Enter never waits for an animation. It does the main action now.
-    flash('.tv [data-key="enter"]');
+    // Enter never waits for an animation. It does the main action now: Use when proven, else Try.
+    flash('[data-key="enter"]');
     if (r.finding || r.trying || r.recovering || st.busy) return true;
     if (r.step === "done" || (r.find && !r.find.found && !r.target)) {
       exitRewind();
@@ -2096,24 +2004,22 @@ function rewindKey(e: KeyboardEvent): boolean {
     }
     const c = entry(r.target);
     if (!c) return true;
-    if (r.step === "use") void rewindDo();
-    else if (shownVerdict(c) === "PASS") {
-      r.step = "use";
-      render();
-    } else void tvTry();
+    if (shownVerdict(c) === "PASS") void rewindDo();
+    else void tvTry();
     return true;
   }
   if (r.finding || r.trying || r.recovering || r.step === "done") return false;
   const lower = k.toLowerCase();
-  if (lower === "j" || k === "ArrowLeft") tvStep(e.shiftKey ? "prevChange" : "back");
-  else if (lower === "l" || k === "ArrowRight") tvStep(e.shiftKey ? "nextChange" : "forward");
-  else if (k === "Home") tvStep("first");
-  else if (k === "End") tvStep("last");
-  else if (lower === "t" && !e.shiftKey && r.step !== "use") {
-    flash('.tv [data-key="t"]');
+  const scene = r.mode === "scene";
+  if (scene && (lower === "j" || k === "ArrowLeft")) tvStep(e.shiftKey ? "prevChange" : "back");
+  else if (scene && (lower === "l" || k === "ArrowRight")) tvStep(e.shiftKey ? "nextChange" : "forward");
+  else if (scene && k === "Home") tvStep("first");
+  else if (scene && k === "End") tvStep("last");
+  else if (lower === "t" && !e.shiftKey) {
+    flash('[data-key="t"]');
     void tvTry();
-  } else if (lower === "c" && !e.shiftKey && r.step !== "use" && r.target && points().at(-1)?.id !== r.target) {
-    flash('.tv [data-key="c"]');
+  } else if (lower === "c" && !e.shiftKey && r.target && points().at(-1)?.id !== r.target) {
+    flash('[data-key="c"]');
     void openCompare(r.target, "now");
   } else return false;
   return true;
