@@ -10,7 +10,7 @@ import { AppState } from "../src/main/state.ts";
 import { CallSchema, HotkeySchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
 import { verdictCard } from "../src/shared/cards.ts";
 import { when } from "../src/shared/format.ts";
-import { projectStatus } from "../src/renderer/status.ts";
+import { pointTitle, projectStatus } from "../src/renderer/status.ts";
 import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
@@ -174,6 +174,18 @@ describe("project status", () => {
     expect(s.v).toBeNull();
     expect(s.head).toBe("Not checked yet.");
     expect(s.primary.act).toBe("check");
+  });
+
+  test("a save point names its agent once: dropped beside an author line, kept without one", () => {
+    const stop = { note: "After agent turn", trigger: "claude-code:stop", agent: { name: "Claude Code", prompt: "add dark mode" } };
+    expect(pointTitle(stop)).toBe("Claude Code: add dark mode");
+    expect(pointTitle(stop, "Claude Code")).toBe("Add dark mode");
+    expect(pointTitle(stop, "Agent")).toBe("Claude Code: add dark mode");
+    const prompt = { ...stop, trigger: "claude-code:prompt" };
+    expect(pointTitle(prompt)).toBe("Before Claude Code: add dark mode");
+    expect(pointTitle(prompt, "Claude Code")).toBe("Before the prompt: add dark mode");
+    expect(pointTitle({ ...stop, trigger: "claude-code:pre-bash", note: "Before risky command: rm -rf dist" }, "Safety save")).toBe("Before risky command: rm -rf dist");
+    expect(pointTitle({ note: "Saved by you", trigger: "app", agent: null }, "You")).toBe("Saved by you");
   });
 });
 

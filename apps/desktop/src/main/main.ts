@@ -392,8 +392,8 @@ function appMenu(): void {
       submenu: [
         shortcut("Save now", "CmdOrCtrl+S", "save"),
         shortcut("Check it works", "CmdOrCtrl+Enter", "check"),
-        shortcut("Find the last working version", "CmdOrCtrl+Shift+R", "rewind"),
-        shortcut("Compare", "CmdOrCtrl+Shift+C", "compare"),
+        shortcut("Go back to a working version", "CmdOrCtrl+Shift+R", "rewind"),
+        shortcut("Compare with now", "CmdOrCtrl+Shift+C", "compare"),
         { type: "separator" },
         shortcut("Inspector", "CmdOrCtrl+I", "inspector"),
         shortcut("Settings", "CmdOrCtrl+,", "settings"),

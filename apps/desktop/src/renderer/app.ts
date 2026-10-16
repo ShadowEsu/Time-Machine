@@ -5,7 +5,7 @@ import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, In
 import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
-import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, shortTitle, type StatusButton } from "./status.js";
+import { goBackLabel, lastWorking as lastWorkingOf, pointTitle, projectStatus, shortTitle, type StatusButton } from "./status.js";
 import { filterPalette, type PaletteItem } from "./palette.js";
 
 export interface StartOptions {
@@ -266,14 +266,12 @@ function short(sha: string): string {
   return sha.slice(0, 7);
 }
 
-/** A save point's title. Agent save points read like "Claude Code: add dark mode". Safety saves keep their command. */
-function title(c: TimelineEntry): string {
+/** A save point's title. `author` is the author line shown beside it, if any, so the agent is named once. */
+function title(c: TimelineEntry, author: string | null = null): string {
   // The engine names the save it makes before a rewind by save point id. Say it by time instead.
   const before = c.trigger === "recover" ? /^Before recovering (\S+)$/.exec(c.note) : null;
   if (before?.[1]) return `Before going back to the ${pointName(before[1])} version`;
-  const a = c.agent;
-  if (!a?.prompt || c.trigger === "claude-code:pre-bash") return c.note;
-  return c.trigger === "claude-code:prompt" ? `Before ${a.name}: ${a.prompt}` : `${a.name}: ${a.prompt}`;
+  return pointTitle(c, author);
 }
 
 /** Coverage lines in plain words. Git details add the commit, never replace the words. */
@@ -379,7 +377,7 @@ function history(): string {
     const hint = c.id === lw?.id && newest?.verdict !== "PASS" ? '<span class="wayback">Last version that works</span>' : "";
     rows.push(`<button class="row ${c.id === st.selected && st.drawer ? "on" : ""}" data-act="open" data-id="${c.id}">
       <span class="tm">${esc(clock(c.createdAt))}</span>
-      <span class="rt"><span class="t1">${esc(title(c))}</span><span class="t2">${hint}<span>${esc(triggerLabel(c.trigger))}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(c.id)} · ${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</span></span>
+      <span class="rt"><span class="t1">${esc(title(c, triggerLabel(c.trigger)))}</span><span class="t2">${hint}<span>${esc(triggerLabel(c.trigger))}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(c.id)} · ${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</span></span>
       ${badge(c.verdict)}</button>`);
     const older = newestFirst[i + 1];
     // Only say "broke here" when two neighbouring checks prove it.
@@ -451,7 +449,7 @@ function drawer(): string {
       ${menuButton("sp", "More actions for this save point", more)}
       <button class="btn ghost" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
     <div class="sp-body">
-      <h2 class="sp-h">${esc(title(c))}</h2>
+      <h2 class="sp-h">${esc(title(c, triggerLabel(c.trigger)))}</h2>
       <div class="sp-v">${badge(c.verdict)}<span>${esc(verdictSentence(c))}</span></div>
       <div class="row-btns">${primary}<button class="btn big" data-act="try" data-id="${c.id}" ${busy}>Try it first</button><button class="btn big" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button></div>
       ${opened}
@@ -524,11 +522,11 @@ function rewind(): string {
   const triedRows = r.step === "find" && tried.length
     ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? clock(e.createdAt) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
     : "";
-  const body = c ? tvRead(r, c) : `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div><div class="tv-acts">${tvButton("find", "Find the last working version", "enter", "↵", true)}</div>`;
+  const pane = c ? tvRead(r, c) : { read: `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div>`, acts: tvButton("find", "Find the last working version", "enter", "↵", true) };
   return `<div class="scrim ${once("scrim:rewind")}"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
     <div class="sheet-head"><div><h2>Go back in ${esc(p.name)}</h2>${rewindSteps(r)}</div>
       <button class="btn ghost" data-act="tv-exit" ${r.recovering ? "disabled" : ""}>Close<kbd>Esc</kbd></button></div>
-    ${triedRows}${body}
+    ${triedRows}${pane.read}<div class="tv-acts">${pane.acts}</div>
   </div></div>`;
 }
 
@@ -639,7 +637,7 @@ function tvCard(c: TimelineEntry, k: number, prev: TimelineEntry | null, still: 
   const mark = checking ? '<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : badge(v, on ? `${stampOnce(`card:${c.id}:${v ?? ""}`)}` : "");
   return `<div class="${cls}" data-carry="card-${esc(c.id)}" style="--k:${Math.max(k, -1)}" ${go}>
     <div class="cd-top"><span class="cd-g">${glyph(v)}</span><span class="cd-when">${esc(clock(c.createdAt))}</span>${st.settings.showGitDetails ? `<span class="cd-id">${esc(c.id)}</span>` : ""}<span class="cd-who">${esc(triggerLabel(c.trigger))}</span><span class="cd-v">${mark}</span></div>
-    <div class="cd-title">${esc(title(c))}</div>
+    <div class="cd-title">${esc(title(c, triggerLabel(c.trigger)))}</div>
     ${on ? `<div class="cd-sum">${esc(triggerSentence(c.trigger))}</div>` : ""}
     ${on ? (checking ? `<div class="cd-run"><span class="spin"></span><span>Rebuilding this version in a safe copy and running your check. Your folder is not touched.</span></div>` : mosaic(c, prev)) : ""}
   </div>`;
@@ -664,35 +662,42 @@ function useWill(c: TimelineEntry): string {
     <p><b>Nothing is pushed, merged, deployed or deleted. Your folder and branch are not touched.</b> You can undo it.</p></div>`;
 }
 
-/** The reading pane of the Rewind, in the Time View and in the plain sheet: Find, Review, Done. */
-function tvRead(r: RewindState, c: TimelineEntry): string {
+/**
+ * The reading pane of the Rewind, in the Time View and in the plain sheet: Find, Review, Done.
+ * The actions come apart from the reading so the Time View can keep them in a bar below it.
+ */
+function tvRead(r: RewindState, c: TimelineEntry): { read: string; acts: string } {
   const newest = points().at(-1);
   const v = shownVerdict(c);
   const git = st.settings.showGitDetails;
   const cols = (a: string, b: string, yes: string[], no: string[]): string =>
     `<div class="tv-cols"><div class="kv"><span class="h">${esc(a)}</span>${li(yes, "Nothing listed")}</div><div class="kv no"><span class="h">${esc(b)}</span>${li(no, "Nothing listed")}</div></div>`;
-  const meta = `<div class="tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(title(c))} · ${esc(triggerLabel(c.trigger))}</div>`;
+  const meta = `<div class="tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(title(c, triggerLabel(c.trigger)))} · ${esc(triggerLabel(c.trigger))}</div>`;
   const error = r.error ? `<div class="note bad">${esc(r.error)}</div>` : "";
 
   if (r.step === "done" && r.result) {
     const res = r.result;
-    return `<div class="tv-verdict"><h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">The ${esc(pointName(res.id))} version is ready on a new branch.</h2>
+    return {
+      read: `<div class="tv-verdict"><h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">The ${esc(pointName(res.id))} version is ready on a new branch.</h2>
         <div class="tv-ev">${badge(res.lastVerdict, "lg")}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a safe copy on this Mac.` : "Not checked yet. Run Check it works before you rely on it."}</span></div></div>
       <div class="facts"><div>Your current version was saved first. It is in History.</div><div>A recovery copy of this version is next to your project folder.</div></div>
       ${git ? `<div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> ${esc(res.savedBefore)}</div><div><span class="k">report</span> ${esc(res.reportPath)}</div></div>` : ""}
       ${cols("Brought back", "Not brought back", res.restored, res.notRestored)}
       <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
       <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
-      ${undoNote(res)}
-      <div class="tv-acts">${tvButton("tv-done", "Done", "enter", "↵", true)}${undoButton("big")}<button class="btn big ghost" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big ghost" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div>`;
+      ${undoNote(res)}`,
+      acts: `${tvButton("tv-done", "Done", "enter", "↵", true)}${undoButton("big")}<button class="btn big ghost" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big ghost" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button>`,
+    };
   }
 
   if (r.finding) {
-    return `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">Finding the last version that works</h2>
+    return {
+      read: `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">Finding the last version that works</h2>
         <div class="tv-ev"><span class="vb lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>The ${esc(pointName(c.id))} version, ${r.progress.length + 1} of up to ${points().length}. Newest first, each in a safe copy.</span></div>
         ${meta}</div>
-      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
-      <div class="tv-acts"><span class="muted small">Esc leaves this view. The search keeps going and tells you when it is done.</span></div>`;
+      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
+      acts: `<span class="muted small">Esc leaves this view. The search keeps going and tells you when it is done.</span>`,
+    };
   }
 
   if (r.find && !r.find.found && !r.target) {
@@ -701,9 +706,11 @@ function tvRead(r: RewindState, c: TimelineEntry): string {
       r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
         : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
           : `We couldn't check every save point, so we won't call any of them working. ${last?.reason ?? ""}`;
-    return `<div class="tv-verdict"><h2 class="tv-head">No working version found.</h2><div class="note warn">${esc(why)}</div></div>
-      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
-      <div class="tv-acts">${tvButton("tv-exit", "Back to where I was", "enter", "↵", true)}</div>`;
+    return {
+      read: `<div class="tv-verdict"><h2 class="tv-head">No working version found.</h2><div class="note warn">${esc(why)}</div></div>
+      ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
+      acts: tvButton("tv-exit", "Back to where I was", "enter", "↵", true),
+    };
   }
 
   // Review: the version, what comes back, what Use will do. Use is the primary action only when it is proven.
@@ -720,16 +727,16 @@ function tvRead(r: RewindState, c: TimelineEntry): string {
     ? `<div class="note">A copy you can open is ready. Your folder was not touched.${git ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : "";
   const busy = r.trying || r.recovering || !!st.busy;
   const notNewest = newest && newest.id !== c.id;
-  return `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">${esc(head)}</h2>${meta}<div class="tv-ev">${ev}</div></div>
+  return {
+    read: `<div class="tv-verdict" aria-live="polite"><h2 class="tv-head">${esc(head)}</h2>${meta}<div class="tv-ev">${ev}</div></div>
     ${error}${warn}${opened}
     ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
-    ${useWill(c)}
-    <div class="tv-acts">
-      ${tvButton("tv-try", tr ? "Try it again" : "Try it first", "t", "T", !proven, busy)}
+    ${useWill(c)}`,
+    acts: `${tvButton("tv-try", tr ? "Try it again" : "Try it first", "t", "T", !proven, busy)}
       ${notNewest ? tvButton("tv-compare", "Compare with now", "c", "C", false, busy) : ""}
       ${tvButton("tv-use", r.recovering ? "Working…" : proven ? "Use this version" : "Use it anyway", proven ? "enter" : "use", proven ? "↵" : "", proven, busy)}
-      ${tr ? `<button class="btn big ghost" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>` : ""}
-    </div>`;
+      ${tr ? `<button class="btn big ghost" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>` : ""}`,
+  };
 }
 
 function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
@@ -824,6 +831,7 @@ function timeView(): string {
         <span class="nw-h ${done ? stampOnce("nw-saved") : ""}">${done ? "Saved first, so nothing was lost" : "Your folder is untouched"}</span>
       </button>`
     : "";
+  const pane = tvRead(r, c);
   return `<div class="tv ${once("tv")} step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}" tabindex="-1">
     <header class="tv-top">
       <div class="tv-name"><span class="tri" aria-hidden="true"></span><span>Go back</span><b>${esc(p.name)}</b></div>
@@ -833,8 +841,9 @@ function timeView(): string {
     <div class="tv-body">
       <div class="tv-depth" aria-hidden="true"><div class="tv-stack">${cards}</div></div>
       ${now}
-      <section class="tv-read" aria-label="Selected save point">${tvRead(r, c)}</section>
+      <section class="tv-read" aria-label="Selected save point">${pane.read}</section>
     </div>
+    <div class="tv-actbar"><div class="tv-acts">${pane.acts}</div></div>
     ${tvRuler(r, pts, cur)}
   </div>`;
 }
@@ -853,7 +862,8 @@ function compare(): string {
     const sub = side === "now" && c.now
       ? c.now.skipped ? "Nothing changed since the last save point." : "Saved just now, so we could compare."
       : e ? `${when(e.createdAt)} · ${triggerLabel(e.trigger)}` : "";
-    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : e ? when(e.createdAt) : id)}</span><span class="t1">${esc(e ? title(e) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
+    const author = side === "now" && c.now ? null : e ? triggerLabel(e.trigger) : null;
+    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : e ? when(e.createdAt) : id)}</span><span class="t1">${esc(e ? title(e, author) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
   };
   let body = "";
   if (c.loading) body = '<div class="steplist"><div class="r"><span class="spin"></span><span>Comparing…</span></div></div>';
@@ -1242,7 +1252,7 @@ function keysSheetView(): string {
   return `<div class="scrim ${once("scrim:keys")}"><div class="sheet ks" role="dialog" aria-modal="true" aria-label="Shortcuts">
     <div class="sheet-head"><h2>Shortcuts</h2><button class="btn ghost" data-act="close-keys">Close<kbd>Esc</kbd></button></div>
     <div class="ks-cols">
-      <div><div class="ks-h">Everywhere</div>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Go back to the last working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last rewind")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
+      <div><div class="ks-h">Everywhere</div>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Go back to a working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last rewind")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
       <div><div class="ks-h">History</div>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("Space", "Go back to it")}${row("C", "Compare with now")}${row("Esc", "Close the drawer")}
         <div class="ks-h">Going back</div>${row("J L", "Step one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Use this version, or try it if it is not proven")}${row("Esc", "Back to now, no change")}</div>
     </div></div></div>`;
@@ -1305,6 +1315,7 @@ function render(): void {
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
   placePlayhead();
+  fitSessions();
   applyCarry();
   applyFlash();
   const tv = root.querySelector<HTMLElement>(".tv");
@@ -1319,6 +1330,25 @@ function placePlayhead(): void {
   const tick = document.querySelector<HTMLElement>(`.ruler .tk[data-id="${st.selected}"]`);
   if (tick) ph.style.left = `${tick.offsetLeft + tick.offsetWidth / 2 - 0.75}px`;
   else ph.style.display = "none";
+}
+
+/** "These stay saved" sits on the session lane. A session it would cover ends before it, or hides when too little is left. */
+function fitSessions(): void {
+  const label = document.querySelector<HTMLElement>(".tv-veil span");
+  const clips = document.querySelectorAll<HTMLElement>(".tv-lane .clip");
+  clips.forEach((el) => {
+    el.style.maxWidth = "";
+    el.style.visibility = "";
+  });
+  if (!label) return;
+  const edge = label.getBoundingClientRect().left - 6;
+  clips.forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.right <= edge) return;
+    const room = edge - r.left;
+    if (room < 48) el.style.visibility = "hidden";
+    else el.style.maxWidth = `${room}px`;
+  });
 }
 
 function applyTheme(): void {
@@ -2320,7 +2350,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     void runDiff();
   });
   window.addEventListener("keydown", onKey);
-  window.addEventListener("resize", placePlayhead);
+  window.addEventListener("resize", () => {
+    placePlayhead();
+    fitSessions();
+  });
   b.onEvent(onEvent);
   await refreshStatuses();
   if (st.projectId) await loadTimeline();

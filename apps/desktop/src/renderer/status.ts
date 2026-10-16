@@ -29,6 +29,19 @@ export function shortTitle(c: StatusPoint): string {
   return prompt && c.trigger !== "claude-code:pre-bash" ? prompt : c.note;
 }
 
+/**
+ * A save point's title. Agent save points read like "Claude Code: add dark mode". When an author
+ * line beside the title already names the agent, the title leaves the name out ("Add dark mode"),
+ * so the agent shows once. Safety saves keep their command.
+ */
+export function pointTitle(c: Pick<StatusPoint, "note" | "trigger" | "agent">, author: string | null = null): string {
+  const a = c.agent;
+  if (!a?.prompt || c.trigger === "claude-code:pre-bash") return c.note;
+  const before = c.trigger === "claude-code:prompt";
+  if (author !== a.name) return before ? `Before ${a.name}: ${a.prompt}` : `${a.name}: ${a.prompt}`;
+  return before ? `Before the prompt: ${a.prompt}` : a.prompt.charAt(0).toUpperCase() + a.prompt.slice(1);
+}
+
 /** The newest save point that passed its check, other than the newest one. */
 export function lastWorking<T extends StatusPoint>(points: T[]): T | null {
   const newest = points.at(-1);
