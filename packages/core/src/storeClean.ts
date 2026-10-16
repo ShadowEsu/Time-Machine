@@ -15,7 +15,10 @@ export interface CleanStoreResult {
   applied: boolean;
 }
 
-export async function cleanStore(ctx: Ctx, opts: { apply: boolean }): Promise<CleanStoreResult> {
+/** A preview, or an apply that removes only files the preview showed and that are still removable. */
+export type CleanStoreOptions = { apply: false } | { apply: true; files: string[] };
+
+export async function cleanStore(ctx: Ctx, opts: CleanStoreOptions): Promise<CleanStoreResult> {
   const p = resolveProject(ctx);
   const records = validVerdicts(p);
   // The newest log per save point stays. A log no signed verdict points at (for example a
@@ -30,6 +33,7 @@ export async function cleanStore(ctx: Ctx, opts: { apply: boolean }): Promise<Cl
     const path = join(p.store, "logs", name);
     const rel = `logs/${name}`;
     if (keep.get(r.checkpoint) === name || files.includes(rel) || !existsSync(path)) continue;
+    if (opts.apply && !opts.files.includes(rel)) continue;
     files.push(rel);
     bytes += statSync(path).size;
   }

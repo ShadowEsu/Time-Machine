@@ -15,8 +15,10 @@ export async function setCheck(ctx: Ctx, command: string): Promise<SetCheckResul
   const p = resolveProject(ctx);
   const path = join(p.root, CONFIG_FILE);
   if (!existsSync(path)) throw new TmError("usage", `There is no ${CONFIG_FILE} yet. Run tm init first.`);
-  // Never write through a link: it could point at a file outside the project.
-  if (!lstatSync(path).isFile()) throw new TmError("usage", `${CONFIG_FILE} is a symbolic link or not a regular file, so it was left alone.`);
+  // Never write through a link: it could point at a file outside the project. A hard link shares its contents with another path.
+  const st = lstatSync(path);
+  if (!st.isFile()) throw new TmError("usage", `${CONFIG_FILE} is a symbolic link or not a regular file, so it was left alone.`);
+  if (st.nlink > 1) throw new TmError("usage", `${CONFIG_FILE} is a hard link shared with another file, so it was left alone.`);
   const cmd = command.trim();
   if (!cmd) throw new TmError("usage", "The check cannot be empty. For example: npm test.");
   if (/[\r\n\0]/.test(cmd)) throw new TmError("usage", "The check must be one line.");

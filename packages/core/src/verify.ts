@@ -26,8 +26,8 @@ function cleanEnv(base: NodeJS.ProcessEnv, plain: Record<string, string>): NodeJ
   return { ...env, ...plain, CI: "1", NO_COLOR: "1", TM_VERIFY: "1" };
 }
 
-/** Secret values in the working copy and the rebuilt copy, used only to scrub logs. Never stored. */
-function secretValues(roots: string[], cfg: ProjectConfig): string[] {
+/** Secret values in the given folders, used only to scrub logs and screen prompts. Never stored. */
+export function secretValues(roots: string[], cfg: ProjectConfig): string[] {
   const out: string[] = [];
   for (const file of roots.flatMap((r) => cfg.config.files.map((f) => join(r, f)))) {
     const full = file;

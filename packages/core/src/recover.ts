@@ -127,6 +127,8 @@ function changesInCopy(p: Project, copyDir: string, m: Manifest): string[] {
   }
   const fields = splitZ(git(copyDir, p.env, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]));
   const changed: string[] = [];
+  // Ignored files (an install, a build) are named by their top folder, first, not one by one.
+  const ignoredDirs: string[] = [];
   for (let i = 0; i < fields.length; i++) {
     const f = fields[i] ?? "";
     const xy = f.slice(0, 2);
@@ -140,9 +142,11 @@ function changesInCopy(p: Project, copyDir: string, m: Manifest): string[] {
         // unreadable: count it as a change
       }
     }
-    changed.push(path);
+    const dir = xy === "!!" && path.includes("/") ? `${path.split("/")[0] ?? path}/ (ignored by Git, like installed dependencies or build output)` : null;
+    if (!dir) changed.push(path);
+    else if (!ignoredDirs.includes(dir)) ignoredDirs.push(dir);
   }
-  return changed;
+  return [...ignoredDirs, ...changed];
 }
 
 /**

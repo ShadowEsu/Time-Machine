@@ -13,6 +13,8 @@ const PATTERNS: RegExp[] = [
   /\bnpm_[A-Za-z0-9]{36}\b/,
   /\b(rk|pk)_live_[A-Za-z0-9]{16,}/,
   /\bglpat-[A-Za-z0-9_-]{20,}/,
+  // A URL with a user and password, like postgres://app:pass@db.example.com/app.
+  /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/?#]+:[^\s@/?#]+@/i,
   // Env style lines with a secret sounding name, like DB_PASSWORD=... or export API_KEY=...
   /^\s*(?:export\s+)?[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD|CREDENTIALS?)[A-Z0-9_]*\s*[=:]\s*["']?[^\s"'$]{6,}/m,
 ];
@@ -40,7 +42,14 @@ export function looksSecret(text: string): boolean {
 export function clipSafe(text: string, n: number, hidden = "(text hidden: it looked like it contained a secret)"): string {
   const one = text.replace(/\s+/g, " ").trim();
   if (looksSecret(text) || looksSecret(one)) return hidden;
-  return one.length > n ? `${one.slice(0, n - 3)}...` : one;
+  // Count code points, so an emoji is never cut in half.
+  const chars = Array.from(one);
+  return chars.length > n ? `${chars.slice(0, n - 3).join("")}...` : one;
+}
+
+/** True when the text holds any of the given secret values. Short values are ignored, as in redact. */
+export function holdsSecretValue(text: string, values: string[]): boolean {
+  return values.some((v) => v.length >= 4 && text.includes(v));
 }
 
 export function isBinary(buf: Buffer): boolean {

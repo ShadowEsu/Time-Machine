@@ -32,9 +32,11 @@ export function summarize(m: Manifest): CheckpointSummary {
   };
 }
 
-/** The agent behind a trigger. The app, the CLI and Time Machine itself are a person, so they have none. */
+/**
+ * The agent behind a trigger. The app, the CLI and Time Machine itself are a person, so they have none.
+ * Claude Code is never derived from a trigger: only the hooks name it, by passing the agent.
+ */
 export function agentFromTrigger(trigger: string): AgentInfo | null {
-  if (trigger.startsWith("claude-code")) return { name: "Claude Code" };
   if (trigger === "mcp") return { name: "MCP agent" };
   return null;
 }
@@ -268,6 +270,10 @@ function finishCheckpoint(
   }
   if (environment.lockfiles.length) captured.push(`Dependencies: ${environment.lockfiles.map((l) => l.path).join(", ")}`);
   captured.push(`Environment: ${Object.entries(environment.runtimes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  // Folders like node_modules or build output that Git skips. They are not saved unless capture.include names them.
+  const skip = new Set([...cfg.config.files, ...files.map((f) => f.path)]);
+  const ignored = splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"])).filter((f) => !skip.has(f));
+  if (ignored.length) manual.push(`Files your .gitignore skips were not saved: ${ignored.slice(0, 3).join(", ")}${ignored.length > 3 ? ` and ${ignored.length - 3} more` : ""}`);
   manual.push(NOT_CAPTURED);
 
   // A bundle in the store keeps the commits alive even if the project folder is deleted.

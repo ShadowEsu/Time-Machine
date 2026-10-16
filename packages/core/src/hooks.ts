@@ -1,14 +1,17 @@
 // C15: Claude Code hooks. Save before agent turns and risky commands, check after.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { exec } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { promisify } from "node:util";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import { checkpoint } from "./checkpoint.js";
 import { TmError } from "./errors.js";
+import { loadConfig } from "./config.js";
 import { resolveProject, type Project } from "./project.js";
-import { clipSafe } from "./secrets.js";
+import { clipSafe, holdsSecretValue } from "./secrets.js";
 import type { Ctx, HookEvent, HookInstallResult, HookResult } from "./types.js";
-import { verify } from "./verify.js";
+import { secretValues, verify } from "./verify.js";
 import { latestVerdicts } from "./verdicts.js";
 import { listIds } from "./store.js";
 
@@ -68,6 +71,11 @@ function claude(prompt: string | undefined): { name: string; prompt?: string } {
 
 const none = (event: HookEvent, message = ""): HookResult => ({ event, exitCode: 0, checkpoint: null, verdict: null, message });
 
+/** Hides free text that holds a current secret value from the project's config files. */
+function screened(p: Project, text: string): string {
+  return holdsSecretValue(text, secretValues([p.root], loadConfig(p.root).config)) ? "(text hidden: it contained a secret value from this project)" : text;
+}
+
 /**
  * Runs one hook. Never throws and never blocks the agent because of its own errors.
  * Only "stop" can return exit 2, to tell the agent a working state just broke.
@@ -78,41 +86,53 @@ export async function runHook(ctx: Ctx, event: HookEvent, input: unknown): Promi
     const data = parsed.success ? parsed.data : {};
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
     const p = resolveProject(c);
+    const turnFile = join(p.store, TURN_FILE);
     if (event === "prompt") {
       // The app shows "agent is working" from this line until the matching "ended".
       audit(p, "agent-turn", null, "started");
-      const prompt = clipSafe(data.prompt ?? "", 120);
-      const r = await checkpoint(c, { note: `Before agent turn: ${clip(data.prompt ?? "")}`, trigger: "claude-code:prompt", agent: claude(prompt), skipIfUnchanged: true });
-      writeFileSync(join(p.store, TURN_FILE), JSON.stringify({ prompt }) + "\n");
+      // Record the new turn before saving, so a failed save point never leaves the previous prompt behind.
+      rmSync(turnFile, { force: true });
+      const text = screened(p, data.prompt ?? "");
+      const prompt = clipSafe(text, 120);
+      writeFileSync(turnFile, JSON.stringify({ prompt }) + "\n");
+      const r = await checkpoint(c, { note: `Before agent turn: ${clip(text)}`, trigger: "claude-code:prompt", agent: claude(prompt), skipIfUnchanged: true });
       return { event, exitCode: 0, checkpoint: r.skipped ? null : r.checkpoint.id, verdict: null, message: "" };
     }
     if (event === "pre-bash") {
       const command = data.tool_input?.command ?? "";
       if (!isRisky(command)) return none(event);
-      const r = await checkpoint(c, { note: `Before risky command: ${clip(command)}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
+      const r = await checkpoint(c, { note: `Before risky command: ${clip(screened(p, command))}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
       return { event, exitCode: 0, checkpoint: r.checkpoint.id, verdict: null, message: "" };
     }
-    // stop: save, check, and compare with the newest earlier verdict.
+    // stop: save, check, and compare with the newest earlier verdict. The turn is over either way.
     audit(p, "agent-turn", null, "ended");
-    const r = await checkpoint(c, { note: "After agent turn", trigger: "claude-code:stop", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
-    const id = r.checkpoint.id;
-    // Wake only on a fresh break: this checkpoint was never checked before, and the newest
-    // earlier checkpoint with a verdict passed. A known breakage is reported once.
-    const before = latestVerdicts(p);
-    const alreadyChecked = before.has(id);
-    const num = (x: string): number => Number(x.slice(3));
-    const prior = listIds(p).filter((x) => num(x) < num(id) && before.has(x)).at(-1);
-    const v = await verify(c, id);
-    if (v.verdict === "FAIL" && !alreadyChecked && prior && before.get(prior)?.verdict === "PASS") {
-      const message = `Time Machine: the check passed at ${prior} and fails now at ${id} (${v.reason}) The last working save point is ${prior}. See what changed with: tm diff ${prior} ${id}. Do not run destructive commands to fix it; tm recover ${prior} can prepare a recovery branch without touching this folder.`;
-      audit(p, "hook", id, "PASS turned into FAIL");
-      if (data.stop_hook_active) return { event, exitCode: 0, checkpoint: id, verdict: v.verdict, message };
-      return { event, exitCode: 2, checkpoint: id, verdict: v.verdict, message };
+    try {
+      return await stop(c, p, event, data.stop_hook_active === true);
+    } finally {
+      rmSync(turnFile, { force: true });
     }
-    return { event, exitCode: 0, checkpoint: id, verdict: v.verdict, message: "" };
   } catch (e) {
     return none(event, `Time Machine hook skipped: ${e instanceof Error ? e.message : String(e)}`);
   }
+}
+
+async function stop(c: Ctx, p: Project, event: HookEvent, stopHookActive: boolean): Promise<HookResult> {
+  const r = await checkpoint(c, { note: "After agent turn", trigger: "claude-code:stop", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
+  const id = r.checkpoint.id;
+  // Wake only on a fresh break: this checkpoint was never checked before, and the newest
+  // earlier checkpoint with a verdict passed. A known breakage is reported once.
+  const before = latestVerdicts(p);
+  const alreadyChecked = before.has(id);
+  const num = (x: string): number => Number(x.slice(3));
+  const prior = listIds(p).filter((x) => num(x) < num(id) && before.has(x)).at(-1);
+  const v = await verify(c, id);
+  if (v.verdict === "FAIL" && !alreadyChecked && prior && before.get(prior)?.verdict === "PASS") {
+    const message = `Time Machine: the check passed at ${prior} and fails now at ${id} (${v.reason}) The last working save point is ${prior}. See what changed with: tm diff ${prior} ${id}. Do not run destructive commands to fix it; tm recover ${prior} can prepare a recovery branch without touching this folder.`;
+    audit(p, "hook", id, "PASS turned into FAIL");
+    if (stopHookActive) return { event, exitCode: 0, checkpoint: id, verdict: v.verdict, message };
+    return { event, exitCode: 2, checkpoint: id, verdict: v.verdict, message };
+  }
+  return { event, exitCode: 0, checkpoint: id, verdict: v.verdict, message: "" };
 }
 
 type HookEntry = {
@@ -170,6 +190,12 @@ export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<
   return { settingsPath, added, alreadyPresent };
 }
 
+/**
+ * connected: every line is there and the command runs. partial: some lines, command runs.
+ * not-running: lines are there but the command does not run, so no hook can save anything.
+ */
+export type HookState = "connected" | "partial" | "not-running" | "not-connected" | "unreadable";
+
 export interface HookStatusResult {
   settingsPath: string;
   /** False when the file exists but is not plain JSON in the expected shape. Nothing was changed. */
@@ -177,10 +203,28 @@ export interface HookStatusResult {
   /** Hook events that already run this command. */
   present: string[];
   missing: string[];
+  /** Whether `<command> --version` printed the expected version. Null when no line is there, so nothing was run. */
+  runs: boolean | null;
+  state: HookState;
 }
 
-/** Reads .claude/settings.json and says which of our lines are there. Never writes. */
-export async function hookStatus(ctx: Ctx, opts: { command: string }): Promise<HookStatusResult> {
+/** The hook command when no installed tm is found: npx, pinned to one exact version. */
+export function npxHookCommand(version: string): string {
+  return `npx -y timetm@${version}`;
+}
+
+/** Runs `<command> --version` in a shell, the way Claude Code runs hooks. True only when it prints `version`. */
+export async function probeHookCommand(command: string, version: string, cwd: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  try {
+    const { stdout } = await promisify(exec)(`${command} --version`, { cwd, env, timeout: 15_000, encoding: "utf8" });
+    return stdout.trim() === version;
+  } catch {
+    return false;
+  }
+}
+
+/** Reads .claude/settings.json, says which of our lines are there, and checks that their command runs. Never writes. */
+export async function hookStatus(ctx: Ctx, opts: { command: string; version: string }): Promise<HookStatusResult> {
   const p = resolveProject(ctx);
   const settingsPath = join(p.root, ".claude", "settings.json");
   const wanted = wantedHooks(opts.command);
@@ -191,9 +235,13 @@ export async function hookStatus(ctx: Ctx, opts: { command: string }): Promise<H
       if (!r.success) throw new Error("shape");
       settings = r.data;
     } catch {
-      return { settingsPath, readable: false, present: [], missing: wanted.map((w) => w.event) };
+      return { settingsPath, readable: false, present: [], missing: wanted.map((w) => w.event), runs: null, state: "unreadable" };
     }
   }
   const present = wanted.filter((w) => (settings.hooks?.[w.event] ?? []).some((g) => g.hooks.some((h) => h.command === w.entry.command))).map((w) => w.event);
-  return { settingsPath, readable: true, present, missing: wanted.map((w) => w.event).filter((e) => !present.includes(e)) };
+  const missing = wanted.map((w) => w.event).filter((e) => !present.includes(e));
+  if (!present.length) return { settingsPath, readable: true, present, missing, runs: null, state: "not-connected" };
+  const runs = await probeHookCommand(opts.command, opts.version, p.root, p.env);
+  const state: HookState = !runs ? "not-running" : missing.length ? "partial" : "connected";
+  return { settingsPath, readable: true, present, missing, runs, state };
 }

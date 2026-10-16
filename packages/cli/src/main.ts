@@ -23,12 +23,12 @@ async function readAll(input: NodeJS.ReadableStream): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** The command hooks call: `tm` when it is on PATH, otherwise npx. */
+/** The command hooks call: `tm` when it is on PATH, otherwise npx pinned to this exact version. */
 function hookCommand(env: NodeJS.ProcessEnv): string {
   if (env.TM_HOOK_COMMAND) return env.TM_HOOK_COMMAND;
   // Only use a `tm` on PATH if it is really this tool, not some other program named tm.
   const r = spawnSync("tm", ["--version"], { env, encoding: "utf8", timeout: 5000 });
-  return r.status === 0 && r.stdout.trim() === VERSION ? "tm" : "npx -y timetm";
+  return r.status === 0 && r.stdout.trim() === VERSION ? "tm" : tm.npxHookCommand(VERSION);
 }
 
 const HELP = `tm: save points for your project, with proof of which ones still work.
@@ -123,6 +123,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "checkpoint": {
         const note = str(values.message);
         const trigger = str(values.trigger);
+        // Claude Code save points come only from `tm hook`, so a trigger cannot pose as one.
+        if (trigger?.startsWith("claude-code")) throw new UsageError(`--trigger ${trigger} is kept for the Claude Code hooks. They run through tm hook.`);
         const r = await tm.checkpoint(ctx, { ...(note !== undefined ? { note } : {}), ...(trigger !== undefined ? { trigger } : {}), skipIfUnchanged: values["if-changed"] === true });
         print(r, fmtCheckpoint(r));
         return 0;
