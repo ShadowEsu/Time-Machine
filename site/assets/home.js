@@ -474,7 +474,7 @@
       if (e.target === vs) vs.classList.add("in");
       if (e.target === testsN && !RM) {
         const t0 = performance.now();
-        const step = (now) => { const k = clamp((now - t0) / 1100); testsN.textContent = String(Math.round(100 * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); };
+        const step = (now) => { const k = clamp((now - t0) / 1100); testsN.textContent = String(Math.round(128 * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); };
         requestAnimationFrame(step);
       }
     }), { threshold: 0.35 });
