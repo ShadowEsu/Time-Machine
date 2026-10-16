@@ -5,7 +5,7 @@ import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, In
 import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
-import { lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
+import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, shortTitle, type StatusButton } from "./status.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -93,6 +93,10 @@ interface State {
   compare: { a: string | null; b: string | null; now: { id: string; skipped: boolean } | null; result: DiffResult | null; loading: boolean; error: string | null };
   onboarding: OnboardingState;
   inspector: boolean;
+  /** The save point drawer over History, showing `selected`. */
+  drawer: boolean;
+  /** The open ⋯ menu, if any. */
+  menu: string | null;
   records: Record[];
   storage: StorageRow[] | null;
   agents: AgentRow[] | null;
@@ -207,6 +211,7 @@ async function selectProject(id: string, screen: Screen = "history"): Promise<vo
     st.timeline = null;
     st.selected = null;
     st.changes = new Map();
+    st.drawer = false;
     changesFor = "";
   }
   st.screen = screen;
@@ -339,11 +344,13 @@ function history(): string {
   if (!pts.length) return header;
   const selIdx = pts.findIndex((c) => c.id === st.selected);
   const shown = pts.slice(-40);
-  const ruler = `<div class="ruler"><div class="ticks" role="slider" aria-label="Save points" aria-valuemin="1" aria-valuemax="${pts.length}" aria-valuenow="${selIdx + 1}" aria-valuetext="${esc(st.selected ? `${st.selected}, ${verdictWord(entry(st.selected)?.verdict ?? null)}` : "")}">
-      ${shown.map((c) => `<button class="tk ${pts.indexOf(c) > selIdx ? "after" : ""}" data-act="select" data-id="${c.id}" title="${esc(`${c.id} · ${when(c.createdAt)} · ${title(c)} · ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`).join("")}
+  const sel = entry(st.selected);
+  const ruler = `<div class="ruler"><div class="ticks" role="slider" aria-label="Save points" aria-valuemin="1" aria-valuemax="${pts.length}" aria-valuenow="${selIdx + 1}" aria-valuetext="${esc(sel ? `${when(sel.createdAt)}, ${title(sel)}, ${verdictWord(sel.verdict)}` : "")}">
+      ${shown.map((c) => `<button class="tk ${pts.indexOf(c) > selIdx ? "after" : ""}" data-act="open" data-id="${c.id}" title="${esc(`${when(c.createdAt)} · ${title(c)} · ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`).join("")}
       <span class="ph" id="playhead"></span></div>
-    <div class="tlab"><span>${esc(when(shown[0]?.createdAt ?? ""))}</span><span>${esc(shown.length > 1 ? `${shown.length} save points` : "")}</span><span>newest ${esc(when(shown.at(-1)?.createdAt ?? ""))}</span></div></div>`;
+    <div class="tlab"><span>${esc(when(shown[0]?.createdAt ?? ""))}</span><span>Now</span></div></div>`;
 
+  const lw = lastWorking();
   const rows: string[] = [];
   let lastDay = "";
   const newestFirst = [...pts].reverse();
@@ -353,20 +360,28 @@ function history(): string {
       rows.push(`<div class="day">${esc(day)}</div>`);
       lastDay = day;
     }
-    rows.push(`<button class="row ${c.id === st.selected ? "on" : ""}" data-act="select" data-id="${c.id}">
+    const hint = c.id === lw?.id && newest?.verdict !== "PASS" ? '<span class="wayback">Last version that works</span>' : "";
+    rows.push(`<button class="row ${c.id === st.selected && st.drawer ? "on" : ""}" data-act="open" data-id="${c.id}">
       <span class="tm">${esc(clock(c.createdAt))}</span>
-      <span style="min-width:0"><div class="t1">${esc(title(c))}</div><div class="t2"><span>${esc(c.id)}</span><span>${esc(triggerLabel(c.trigger))}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</div></span>
+      <span class="rt"><span class="t1">${esc(title(c))}</span><span class="t2">${hint}<span>${esc(triggerLabel(c.trigger))}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(c.id)} · ${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</span></span>
       ${badge(c.verdict)}</button>`);
     const older = newestFirst[i + 1];
     // Only say "broke here" when two neighbouring checks prove it.
-    if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule">Broke here: ${esc(older.id)} works, ${esc(c.id)} is broken</div>`);
+    if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule">Broke here: ${esc(when(older.createdAt))} works, ${esc(when(c.createdAt))} is broken</div>`);
   });
 
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
   const undoBar = u
-    ? `<div class="hintbar">${glyph(u.result.lastVerdict)}<span>You rewound to ${esc(u.result.id)}. It is on the new branch ${esc(u.result.branch)} and in a recovery copy. Your folder was not touched.</span>${undoButton("")}<button class="btn ghost" data-act="undo-dismiss">Keep it</button></div>`
+    ? `<div class="hintbar">${glyph(u.result.lastVerdict)}<span>You went back to the ${esc(pointName(u.result.id))} version. It is on a new branch${st.settings.showGitDetails ? `, ${esc(u.result.branch)},` : ""} and in a recovery copy. Your folder was not touched.</span>${undoButton("")}<button class="btn ghost" data-act="undo-dismiss">Keep it</button></div>`
     : "";
-  return `${header}${ruler}${undoBar}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
+  return `<div class="page proj">${header}${undoBar}<section class="hist" aria-label="History"><div class="hist-h"><h2>History</h2><span class="muted small">${esc(plural(pts.length, "save point"))}, newest first</span></div>${ruler}<div class="list" id="list">${rows.join("")}</div></section></div>${drawer()}`;
+}
+
+/** A save point named the way people say it: by its time. Git details add the id. */
+function pointName(id: string): string {
+  const c = entry(id);
+  if (!c) return id;
+  return st.settings.showGitDetails ? `${when(c.createdAt)} (${c.id})` : when(c.createdAt);
 }
 
 /** A project screen button from the status rule. Its shortcut sits inside it, so shortcuts are learned by seeing them. */
@@ -376,44 +391,65 @@ function statusButton(b: StatusButton, primary: boolean): string {
   return `<button class="btn big ${primary ? "dark" : ""}" data-act="${b.act}"${data} ${st.busy ? "disabled" : ""}>${b.act.startsWith("rewind") ? '<span class="tri"></span>' : ""}${esc(b.label)}${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
 }
 
-function detail(): string {
-  const c = entry(st.selected);
+/** One plain sentence on what a verdict means for this save point. Isolation names only with Git details. */
+function verdictSentence(c: TimelineEntry): string {
+  const how = st.settings.showGitDetails ? ` (basic isolation, ${c.isolation ?? "host"} mode)` : "";
+  switch (c.verdict) {
+    case "PASS":
+      return `It passed its check in a safe copy on this Mac${how}.`;
+    case "FAIL":
+      return `It failed its check in a safe copy on this Mac${how}.`;
+    case "INCOMPLETE":
+      return "We couldn't finish the check. We won't call it working until we can.";
+    case "BLOCKED":
+      return "The check needs something before it can run.";
+    case "ERROR":
+      return "The check itself crashed. This doesn't mean the project is broken.";
+    default:
+      return "Saved, but we don't know yet if it works.";
+  }
+}
+
+/** The save point drawer: slides over History, Esc closes it. One primary action by verdict. */
+function drawer(): string {
+  const c = st.drawer ? entry(st.selected) : null;
   const p = project();
-  if (!c || !p) return `<aside class="detail"><p class="muted">Pick a save point.</p></aside>`;
-  const evidence =
-    c.verdict === null
-      ? "Not checked yet. Saved, but we don't know if it works."
-      : c.verdict === "PASS"
-        ? "Passed its check in a safe copy (basic isolation, on this Mac)."
-        : c.verdict === "FAIL"
-          ? "Failed its check in a safe copy (basic isolation, on this Mac)."
-          : c.verdict === "INCOMPLETE"
-            ? "We couldn't check this version. We won't call it working until we can."
-            : c.verdict === "BLOCKED"
-              ? "The check needs something before it can run."
-              : "The check itself crashed. This doesn't mean the project is broken.";
+  if (!c || !p) return "";
+  const busy = st.busy ? "disabled" : "";
+  const works = c.verdict === "PASS";
+  const primary = works
+    ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}><span class="tri"></span>Use this version</button>`
+    : `<button class="btn big dark" data-act="verify-one" data-id="${c.id}" ${busy}>Check it works</button>`;
+  const more = [
+    works ? `<button data-act="verify-one" data-id="${c.id}" ${busy}>Check again</button>` : `<button data-act="use" data-id="${c.id}" ${busy}>Use this version</button>`,
+    `<button data-act="inspector">Open in Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`,
+  ];
+  const opened = st.openResult && st.openResult.id === c.id
+    ? `<div class="note">A safe copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">Show in Finder</button></div>${st.settings.showGitDetails ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>`
+    : "";
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
     : "";
-  // "Agent said" sits apart from the verdict, so a claim and a check are never confused.
-  const asked = c.agent
-    ? `<div class="asked"><span class="h">${esc(c.trigger === "claude-code:pre-bash" ? `${c.agent.name} was working on` : `${c.agent.name} was asked`)}</span><p class="sel-text">${esc(c.agent.prompt ?? "No prompt was recorded for this save point.")}</p><p class="small muted">The agent's words, not a check. Only the verdict above says if it works.</p></div>`
-    : "";
-  const busy = st.busy ? "disabled" : "";
-  return `<aside class="detail">
-    <div><h2>${esc(title(c))}</h2><div class="meta">${esc(c.id)} · ${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(triggerLabel(c.trigger))}</div></div>
-    <div class="vblock">${badge(c.verdict, "lg")}<p>${esc(evidence)}</p><div class="row-btns"><button class="btn" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check again" : "Check this one"}</button></div></div>
-    <div class="cols"><div class="kv"><span class="h">What's saved</span>${li(savedLines(c), "Nothing listed")}</div>
-      <div class="kv no"><span class="h">What's not saved</span>${li(notSavedLines(c), "Nothing listed")}</div></div>
-    ${asked}
-    <div class="row-btns">
-      <button class="btn dark" data-act="use" data-id="${c.id}" ${busy}>Use this version</button>
-      <button class="btn" data-act="try" data-id="${c.id}" ${busy}>Try it in a safe copy</button>
-      <button class="btn" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button>
+  return `<aside class="sp ${once("sp")}" role="dialog" aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
+    <header class="sp-top"><span class="eyebrow">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(triggerLabel(c.trigger))}</span>
+      ${menuButton("sp", "More actions for this save point", more)}
+      <button class="btn ghost" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
+    <div class="sp-body">
+      <h2 class="sp-h">${esc(title(c))}</h2>
+      <div class="sp-v">${badge(c.verdict)}<span>${esc(verdictSentence(c))}</span></div>
+      <div class="row-btns">${primary}<button class="btn big" data-act="try" data-id="${c.id}" ${busy}>Try it first</button><button class="btn big" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button></div>
+      ${opened}
+      <div class="cols"><div class="kv"><span class="h">What's saved</span>${li(savedLines(c), "Nothing listed")}</div>
+        <div class="kv no"><span class="h">What's not saved</span>${li(notSavedLines(c), "Nothing listed")}</div></div>
+      ${git}
     </div>
-    ${st.openResult && st.openResult.id === c.id ? `<div class="note">A safe copy of ${esc(c.id)} is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">Show in Finder</button></div>${st.settings.showGitDetails ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>` : ""}
-    ${git}
   </aside>`;
+}
+
+/** A ⋯ button with a small menu. One menu is open at a time. */
+function menuButton(key: string, label: string, items: string[]): string {
+  const open = st.menu === key;
+  return `<span class="mn"><button class="btn ghost mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" aria-expanded="${open}" aria-haspopup="menu">⋯</button>${open ? `<div class="mn-l" role="menu">${items.join("")}</div>` : ""}</span>`;
 }
 
 function checkSheet(): string {
@@ -421,7 +457,7 @@ function checkSheet(): string {
   const p = project();
   if (!c || !p) return "";
   const rows = [
-    { label: c.skipped ? `Nothing changed since ${c.cp ?? "the last save point"}, so we used it` : "Saved the current version", state: c.phase === "saving" ? "run" : "ok", t: c.cp ?? "" },
+    { label: c.skipped ? "Nothing changed since the last save point, so we used it" : "Saved the current version", state: c.phase === "saving" ? "run" : "ok", t: c.cp && st.settings.showGitDetails ? c.cp : "" },
     { label: "Made a safe copy and ran your check", state: c.phase === "checking" ? "run" : c.phase === "done" ? "ok" : "wait", t: c.result ? seconds(c.result.durationMs) : "" },
   ];
   const list = `<div class="steplist">${rows
@@ -436,22 +472,23 @@ function checkSheet(): string {
       PASS: "It works.", FAIL: "It's broken.", INCOMPLETE: "We couldn't finish the check.", BLOCKED: "The check needs something first.", ERROR: "The check itself crashed.",
     };
     const extra =
-      r.verdict === "FAIL" ? (lw ? ` The last version that worked is ${lw.id}, ${when(lw.createdAt)}, ${title(lw)}.` : " No earlier save point has passed yet.")
+      r.verdict === "FAIL" ? (lw ? ` The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}.` : " No earlier save point has passed yet.")
         : r.verdict === "ERROR" ? " This is a problem with the check, not necessarily your project."
-          : r.verdict === "PASS" ? ` Checked in a safe copy (basic isolation) in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
+          : r.verdict === "PASS" ? ` Checked in a safe copy on this Mac in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
     result = `<div class="big-verdict ${stampOnce(`check:${r.checkpoint}:${r.verdict}`)}">${glyph(r.verdict)}<span>${esc(head[r.verdict])}</span></div>
       <p>${esc(r.reason + extra)}</p>
       ${st.settings.showGitDetails ? `<div class="git"><div><span class="k">verdict</span> ${esc(r.verdict)} · exit ${esc(String(r.exitCode))} · ${esc(r.isolation)} mode</div><div><span class="k">command</span> ${esc(r.command)}</div>${r.log ? `<div><span class="k">log</span> ${esc(r.log)}</div>` : ""}</div>` : ""}`;
   }
   const done = c.phase === "done" || !!c.error;
   const lw = lastWorking();
+  const goBack = done && c.result?.verdict === "FAIL" && lw ? lw : null;
   return `<div class="scrim ${once("scrim:check")}"><div class="sheet" role="dialog" aria-modal="true" aria-label="Check it works">
     <h2>Checking ${esc(p.name)}</h2>${list}${result}
     <p class="small muted">Your project folder is not touched. The check runs in a separate copy.</p>
     <div class="row-btns" style="justify-content:flex-end">
-      ${done && c.result?.verdict === "FAIL" && lw ? `<button class="btn" data-act="rewind-to" data-id="${lw.id}">Rewind to ${esc(lw.id)}</button>` : ""}
       ${done && c.result?.log ? `<button class="btn ghost" data-act="reveal" data-path="${esc(c.result.log)}">Show log</button>` : ""}
-      <button class="btn dark" data-act="close-check" ${done ? "" : "disabled"}>Done</button></div>
+      <button class="btn ${goBack ? "" : "dark"}" data-act="close-check" ${done ? "" : "disabled"}>Done</button>
+      ${goBack ? `<button class="btn dark" data-act="rewind-to" data-id="${goBack.id}"><span class="tri"></span>${esc(goBackLabel(goBack))}</button>` : ""}</div>
   </div></div>`;
 }
 
@@ -843,15 +880,16 @@ function compare(): string {
   const pts = points();
   if (!p) return welcome();
   const c = st.compare;
+  const name = (id: string | null): string => (id === "now" ? "now" : id ? `the ${pointName(id)} version` : "");
   const opt = (sel: string | null): string =>
     `<option value="now" ${sel === "now" ? "selected" : ""}>Now: your folder as it is</option>` +
-    [...pts].reverse().map((x) => `<option value="${x.id}" ${x.id === sel ? "selected" : ""}>${esc(`${x.id} · ${when(x.createdAt)} · ${title(x)} · ${verdictWord(x.verdict)}`)}</option>`).join("");
+    [...pts].reverse().map((x) => `<option value="${x.id}" ${x.id === sel ? "selected" : ""}>${esc(`${pointName(x.id)} · ${title(x)} · ${verdictWord(x.verdict)}`)}</option>`).join("");
   const sideCard = (side: string | null, id: string): string => {
     const e = entry(id);
     const sub = side === "now" && c.now
-      ? c.now.skipped ? `Same as ${id}. Nothing changed since it was saved.` : `Saved just now as ${id}, so we could compare.`
+      ? c.now.skipped ? "Nothing changed since the last save point." : "Saved just now, so we could compare."
       : e ? `${when(e.createdAt)} · ${triggerLabel(e.trigger)}` : "";
-    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : id)}</span><span class="t1">${esc(e ? title(e) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
+    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : e ? when(e.createdAt) : id)}</span><span class="t1">${esc(e ? title(e) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
   };
   let body = "";
   if (c.loading) body = '<div class="steplist"><div class="r"><span class="spin"></span><span>Comparing…</span></div></div>';
@@ -874,8 +912,8 @@ function compare(): string {
     ];
     const ea = entry(d.a);
     const eb = entry(d.b);
-    const from = c.a === "now" ? "now" : d.a;
-    const to = c.b === "now" ? "now" : d.b;
+    const from = name(c.a);
+    const to = name(c.b);
     body = `<div class="cmp-sides">${sideCard(c.a, d.a)}<span class="muted" aria-hidden="true">→</span>${sideCard(c.b, d.b)}</div>
       <p class="lede">${esc(parts.length ? `From ${from} to ${to}: ${parts.join(", ")}.` : `No differences between ${from} and ${to}.`)}</p>
       <div class="panel">
@@ -885,11 +923,12 @@ function compare(): string {
         <div class="dsec"><span class="h">Packages</span>${list(d.dependencies.changed.map((t) => ({ s: "changed", t })), "No change")}</div>
         <div class="dsec"><span class="h">Environment</span>${list(d.environment.changed.map((t) => ({ s: "changed", t })), "No change")}</div>
       </div>
-      ${ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns"><button class="btn dark" data-act="rewind-to" data-id="${ea.id}"><span class="tri"></span>Rewind to ${esc(ea.id)}</button><span class="small muted">${esc(ea.id)} passed its check. ${esc(to === "now" ? "Now" : to)} has ${eb?.verdict ? `the verdict ${verdictWord(eb.verdict)}` : "not been checked"}.</span></div>` : ""}`;
+      ${ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns"><button class="btn big dark" data-act="rewind-to" data-id="${ea.id}"><span class="tri"></span>${esc(goBackLabel(ea))}</button><span class="small muted">${esc(`That version passed its check. ${c.b === "now" ? "Now" : `The ${pointName(d.b)} version`} ${eb?.verdict ? `is ${verdictWord(eb.verdict)}` : "has not been checked"}.`)}</span></div>` : ""}`;
   }
+  const heading = c.a && c.a !== "now" && c.b === "now" ? `What changed since ${pointName(c.a)}` : "Compare";
   return `<div class="page"><div class="col">
-    <div><h1>Compare</h1><p class="lede">What changed between a save point and now, or between any two save points.</p></div>
-    <div class="cmp-head"><select class="field" data-model="cmp-a" aria-label="From">${opt(c.a)}</select><span class="muted">→</span><select class="field" data-model="cmp-b" aria-label="To">${opt(c.b)}</select><button class="btn" data-act="cmp-swap">Swap</button><button class="btn ghost" data-act="history">Back to History</button></div>
+    <div><h1>${esc(heading)}</h1><p class="lede">What changed between a save point and now, or between any two save points.</p></div>
+    <div class="cmp-head"><select class="field" data-model="cmp-a" aria-label="From">${opt(c.a)}</select><span class="muted">→</span><select class="field" data-model="cmp-b" aria-label="To">${opt(c.b)}</select><button class="btn" data-act="cmp-swap">Swap</button></div>
     ${body}</div></div>`;
 }
 
@@ -982,7 +1021,7 @@ function onboarding(): string {
       `<label class="opt ${o.choice === key ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="${key}" ${o.choice === key ? "checked" : ""}><span><div class="t">${esc(title)}</div>${cmd ? `<div class="d mono">${esc(cmd)}</div>` : ""}</span><span class="small muted">${rec ? "recommended" : ""}</span></label>`;
     const fv = o.tryResult && o.first && o.tryResult.checkpoint === o.first.id ? o.tryResult.verdict : null;
     const firstNote = o.first
-      ? `<div class="first-sp">${glyph(fv)}<span><b>Your first save point is made: ${esc(o.first.id)}.</b> ${fv ? `Checked: ${esc(verdictWord(fv))}.` : "Saved, not checked. Try the check below to find out if it works."}</span></div>`
+      ? `<div class="first-sp">${glyph(fv)}<span><b>Your first save point is made.</b> ${fv ? `Checked: ${esc(verdictWord(fv))}.` : "Saved, not checked. Try the check below to find out if it works."}</span></div>`
       : "";
     body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works. ${!detected ? "We could not guess one from your project, so type yours." : o.init?.created ? "We picked one from your project. Change it if it is not right." : "Your timemachine.yml already has one. Change it if it is not right."}</p></div>
       ${firstNote}
@@ -1203,7 +1242,7 @@ async function saveNow(): Promise<void> {
     await loadTimeline();
     st.selected = r.checkpoint.id;
     st.busy = null;
-    toast(`Saved as ${r.checkpoint.id}. Not checked yet.`);
+    toast(`Saved at ${when(r.checkpoint.createdAt)}. Not checked yet.`);
   } catch (e) {
     st.busy = null;
     toast(msg(e));
@@ -1306,7 +1345,7 @@ async function findGood(): Promise<void> {
   await refreshStatuses();
   if (st.screen !== "rewind" && st.rewind) {
     const found = st.rewind.find?.found;
-    toast(found ? `Found it. ${found} is the last version that works. Press ${keys("Mod+Shift+R")} to see it.` : "We could not find a version that passes its check.");
+    toast(found ? `Found it. The ${pointName(found)} version is the last one that works. Press ${keys("Mod+Shift+R")} to see it.` : "We could not find a version that passes its check.");
     return;
   }
   render();
@@ -1327,7 +1366,7 @@ function exitRewind(): void {
   if (list) list.scrollTop = back.listScroll;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = back.pageScroll;
-  if (finished) toast(`${finished.branch} is ready. Your folder and branch were not touched. Nothing was pushed. ${keys("Mod+Z")} undoes it.`);
+  if (finished) toast(`The ${pointName(finished.id)} version is ready on a new branch. Your folder was not touched. Nothing was pushed. ${keys("Mod+Z")} undoes it.`);
 }
 
 /** Put the Time View playhead on another save point. Nothing runs until Try or Use. */
@@ -1460,7 +1499,7 @@ async function undoRewind(): Promise<void> {
       exitRewind();
     }
     await loadTimeline();
-    toast(`Rewind undone. Removed ${r.removedBranch}${r.removedCopy ? " and the recovery copy" : ""}. Every save point is still here, including ${u.result.savedBefore}.`);
+    toast(`Rewind undone. Removed the new branch${r.removedCopy ? " and the recovery copy" : ""}. Every save point is still here.`);
   } catch (e) {
     u.working = false;
     st.busy = null;
@@ -1529,7 +1568,7 @@ async function runDemo(): Promise<void> {
     st.demoBusy = false;
     await refreshStatuses();
     await selectProject(r.project.id);
-    toast(`Demo ready. ${r.result.findGood.found ?? "No save point"} was the last working version, and a recovery branch was made.`);
+    toast(r.result.findGood.found ? `Demo ready. The ${pointName(r.result.findGood.found)} version was the last one that works, and a recovery branch was made.` : "Demo ready.");
   } catch (e) {
     st.demoBusy = false;
     toast(msg(e));
@@ -1740,7 +1779,12 @@ function startAdd(): void {
 
 async function onClick(el: HTMLElement): Promise<void> {
   const d = el.dataset;
+  // Any action closes an open ⋯ menu. Opening one is the only exception.
+  if (d.act !== "menu") st.menu = null;
   switch (d.act) {
+    case "menu":
+      st.menu = st.menu === d.v ? null : (d.v ?? null);
+      return render();
     case "project":
       if (d.id) await selectProject(d.id);
       return;
@@ -1794,9 +1838,13 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "reload":
       await loadTimeline();
       return render();
-    case "select":
+    case "open":
+      if (st.selected !== d.id) st.openResult = null;
       st.selected = d.id ?? null;
-      st.openResult = null;
+      st.drawer = true;
+      return render();
+    case "close-drawer":
+      st.drawer = false;
       return render();
     case "save":
       return saveNow();
@@ -2020,6 +2068,11 @@ function onKey(e: KeyboardEvent): void {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   const k = e.key.toLowerCase();
   const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+  if (k === "escape" && st.menu) {
+    st.menu = null;
+    render();
+    return;
+  }
   if (k === "escape" && st.inspector) {
     st.inspector = false;
     render();
@@ -2048,6 +2101,7 @@ function onKey(e: KeyboardEvent): void {
   if (k === "escape") {
     if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
     else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
+    else if (st.drawer && st.screen === "history") st.drawer = false;
     render();
     return;
   }
@@ -2059,6 +2113,7 @@ function onKey(e: KeyboardEvent): void {
   else if (k === "arrowup" || k === "l" || k === "arrowright") st.selected = pts[Math.min(pts.length - 1, i + 1)]?.id ?? st.selected;
   else if (k === "c" && st.selected) return void openCompare(st.selected, "now");
   else if (k === " " && st.selected) return void (e.preventDefault(), startRewind(st.selected));
+  else if (k === "enter" && st.selected && !(e.target instanceof HTMLButtonElement)) st.drawer = true;
   else return;
   e.preventDefault();
   render();
@@ -2072,7 +2127,10 @@ function onEvent(ev: AppEvent): void {
         if (ev.screen === "rewind" && ev.target) await startRewind(ev.target);
         else if (ev.screen === "compare") await openCompare(ev.a, ev.b);
         else {
-          if (ev.target) st.selected = ev.target;
+          if (ev.target) {
+            st.selected = ev.target;
+            st.drawer = true;
+          }
           render();
         }
       })();
@@ -2115,7 +2173,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   st = {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "history" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
-    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, records: [], storage: null,
+    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false, menu: null, records: [], storage: null,
     agents: null, isolation: null, cleanup: null, hotkeyDraft: null, hotkeyActive: boot.data.hotkeyActive,
     hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
   };
@@ -2131,6 +2189,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     }
     const act = target.closest<HTMLElement>("[data-act]");
     if (act && !(act instanceof HTMLButtonElement && act.disabled)) void onClick(act);
+    else if (st.menu && !target.closest(".mn-l")) {
+      st.menu = null;
+      render();
+    }
   });
   root.addEventListener("input", (e) => {
     const t = e.target as HTMLInputElement;
