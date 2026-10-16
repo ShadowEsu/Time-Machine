@@ -5,6 +5,7 @@ import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, In
 import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
+import { lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -173,10 +174,8 @@ function entry(id: string | null): TimelineEntry | null {
   return points().find((c) => c.id === id) ?? null;
 }
 
-function lastWorking(excludeNewest = true): TimelineEntry | null {
-  const pts = points();
-  const newest = pts.at(-1);
-  return [...pts].reverse().find((c) => c.verdict === "PASS" && (!excludeNewest || c.id !== newest?.id)) ?? null;
+function lastWorking(): TimelineEntry | null {
+  return lastWorkingOf(points());
 }
 
 async function refreshStatuses(): Promise<void> {
@@ -284,26 +283,6 @@ function notSavedLines(c: TimelineEntry): string[] {
   });
 }
 
-function statusLine(): { v: Verdict | null; text: string } {
-  const pts = points();
-  const newest = pts.at(-1);
-  if (!newest) return { v: null, text: "No save points yet" };
-  const lw = lastWorking();
-  switch (newest.verdict) {
-    case "PASS":
-      return { v: "PASS", text: `Works. The newest save point, ${newest.id}, passed its check.` };
-    case "FAIL":
-      return { v: "FAIL", text: lw ? `Broken. Last working version: ${lw.id}, ${when(lw.createdAt)}, ${title(lw)}.` : "Broken. No earlier save point has passed yet." };
-    case "INCOMPLETE":
-      return { v: "INCOMPLETE", text: "Couldn't check the newest save point." };
-    case "BLOCKED":
-      return { v: "BLOCKED", text: "Needs something before it can be checked." };
-    case "ERROR":
-      return { v: "ERROR", text: "The last check crashed." };
-    default:
-      return { v: null, text: `Saved, not checked. Newest save point ${newest.id}, ${when(newest.createdAt)}. Press Check it works to find out.` };
-  }
-}
 
 // Views
 
@@ -347,21 +326,17 @@ function history(): string {
     return `<div class="empty"><h2>We can't read ${esc(p.name)}</h2><p>${esc(st.timelineError)}</p><div class="row-btns"><button class="btn" data-act="reload">Try again</button><button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button></div></div>`;
   }
   const pts = points();
-  const s = statusLine();
-  const broken = s.v === "FAIL";
-  const busy = st.busy;
-  const header = `<div class="tbar">
-    <div class="ttl"><h1>${esc(p.name)}</h1>
-      <div class="status">${badge(s.v)}<span>${esc(s.text)}</span></div>
-      <div class="path">${esc(p.path)}${st.settings.showGitDetails && pts.at(-1)?.branch ? ` · branch ${esc(pts.at(-1)?.branch ?? "")}` : ""}</div></div>
-    <div class="bigbtns">
-      <button class="btn big ${broken ? "" : "dark"}" data-act="save" ${busy ? "disabled" : ""}>Save now <kbd>${keys("Mod+S")}</kbd></button>
-      <button class="btn big" data-act="check" ${busy ? "disabled" : ""}>Check it works <kbd>${keys("Mod+Enter")}</kbd></button>
-      <button class="btn big ${broken ? "dark" : ""}" data-act="rewind" ${busy || !pts.length ? "disabled" : ""}><span class="tri"></span>Find the last working version <kbd>${keys("Mod+Shift+R")}</kbd></button>
-    </div></div>`;
-  if (!pts.length) {
-    return `${header}<div class="empty"><h2>No save points yet</h2><p>Press Save now to make the first one. Then Check it works to see if it passes.</p><button class="btn dark" data-act="save">Save now</button></div>`;
-  }
+  const newest = pts.at(-1);
+  const checked = newest ? st.verifyResults.get(newest.id) : undefined;
+  const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null);
+  const header = `<section class="hero">
+    <div class="hero-name"><span class="eyebrow" title="${esc(p.path)}">${esc(p.name)}</span>${st.settings.showGitDetails ? `<span class="path mono">${esc(p.path)}${newest?.branch ? ` · branch ${esc(newest.branch)}` : ""}</span>` : ""}</div>
+    <div class="hero-v">${badge(s.v)}</div>
+    <h1 class="hero-h">${esc(s.head)}</h1>
+    <p class="hero-p">${esc(s.body)}</p>
+    <div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>
+  </section>`;
+  if (!pts.length) return header;
   const selIdx = pts.findIndex((c) => c.id === st.selected);
   const shown = pts.slice(-40);
   const ruler = `<div class="ruler"><div class="ticks" role="slider" aria-label="Save points" aria-valuemin="1" aria-valuemax="${pts.length}" aria-valuenow="${selIdx + 1}" aria-valuetext="${esc(st.selected ? `${st.selected}, ${verdictWord(entry(st.selected)?.verdict ?? null)}` : "")}">
@@ -387,16 +362,18 @@ function history(): string {
     if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule">Broke here: ${esc(older.id)} works, ${esc(c.id)} is broken</div>`);
   });
 
-  const anyPass = pts.some((c) => c.verdict === "PASS");
-  const first = pts.length === 1 ? pts[0] : null;
-  const hint = first
-    ? `<div class="hintbar">${glyph(first.verdict)}<span>${first.verdict === "PASS" ? `Your first save point passed its check. It is your first way back. Press ${esc(keys("Mod+S"))} to save again.` : `This is your first save point. ${first.verdict ? esc(verdictWord(first.verdict)) : "Saved, not checked"}. Press ${esc(keys("Mod+S"))} to save again, or Check it works to find out if it passes.`}</span></div>`
-    : !anyPass ? `<div class="hintbar">${glyph(null)}<span>No version has passed a check yet. When one does, it becomes your way back.</span><button class="btn" data-act="check" ${busy ? "disabled" : ""}>Check it works</button></div>` : "";
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
   const undoBar = u
     ? `<div class="hintbar">${glyph(u.result.lastVerdict)}<span>You rewound to ${esc(u.result.id)}. It is on the new branch ${esc(u.result.branch)} and in a recovery copy. Your folder was not touched.</span>${undoButton("")}<button class="btn ghost" data-act="undo-dismiss">Keep it</button></div>`
     : "";
-  return `${header}${ruler}${undoBar || hint}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
+  return `${header}${ruler}${undoBar}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
+}
+
+/** A project screen button from the status rule. Its shortcut sits inside it, so shortcuts are learned by seeing them. */
+function statusButton(b: StatusButton, primary: boolean): string {
+  const data = `${b.id ? ` data-id="${esc(b.id)}"` : ""}${b.a ? ` data-a="${esc(b.a)}"` : ""}${b.b ? ` data-b="${esc(b.b)}"` : ""}`;
+  const key = { save: "Mod+S", check: "Mod+Enter", "rewind-to": "Mod+Shift+R", rewind: "Mod+Shift+R", compare: "" }[b.act];
+  return `<button class="btn big ${primary ? "dark" : ""}" data-act="${b.act}"${data} ${st.busy ? "disabled" : ""}>${b.act.startsWith("rewind") ? '<span class="tri"></span>' : ""}${esc(b.label)}${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
 }
 
 function detail(): string {
@@ -1299,8 +1276,10 @@ async function startRewind(target?: string): Promise<void> {
   st.check = null;
   st.screen = "rewind";
   enterScene();
-  if (target) {
-    st.rewind = newRewind(target, back);
+  // Known answer: a recorded Works save point after which the project broke. Go straight to it, no search.
+  const known = target ?? (points().at(-1)?.verdict !== "PASS" ? lastWorking()?.id : undefined);
+  if (known) {
+    st.rewind = newRewind(known, back);
     render();
     void loadChanges();
     return;

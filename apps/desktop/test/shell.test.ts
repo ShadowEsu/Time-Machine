@@ -10,6 +10,7 @@ import { AppState } from "../src/main/state.ts";
 import { CallSchema, HotkeySchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
 import { verdictCard } from "../src/shared/cards.ts";
 import { when } from "../src/shared/format.ts";
+import { projectStatus } from "../src/renderer/status.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
 
@@ -129,6 +130,49 @@ describe("corner card", () => {
     // It only opens Compare. "What broke?" is planned, so the button must not promise it.
     expect(card?.secondary?.label).toBe("See what changed");
     expect(card?.secondary?.action).toEqual({ kind: "compare", projectId: "p", a: "cp-0002", b: "cp-0003" });
+  });
+});
+
+describe("project status", () => {
+  type P = Parameters<typeof projectStatus>[0][number];
+  const at = (h: number, m: number): string => new Date(2026, 9, 14, h, m).toISOString();
+  const pt = (n: number, verdict: P["verdict"], time: string, note: string, prompt?: string): P => ({
+    id: `cp-000${n}`, verdict, createdAt: time, note, trigger: prompt ? "claude-code:stop" : "app", agent: prompt ? { name: "Claude Code", prompt } : null,
+  });
+  const story = [pt(1, "PASS", at(18, 12), "Initial"), pt(2, "PASS", at(19, 3), "Added dark mode", "add dark mode"), pt(3, null, at(19, 40), "Changed currency"), pt(4, "FAIL", at(20, 16), "Added a dependency")];
+
+  test("broken with a known working version: one sentence, go back by time, see what changed", () => {
+    const s = projectStatus(story);
+    expect(`${s.head} ${s.body}`).toBe(`Broken since ${when(at(20, 16))}. The last version that works is from ${when(at(19, 3))}: add dark mode.`);
+    expect(s.primary).toEqual({ label: `Go back to the ${when(at(19, 3))} version`, act: "rewind-to", id: "cp-0002" });
+    expect(s.secondary).toEqual({ label: "See what changed", act: "compare", a: "cp-0002", b: "now" });
+    expect(`${s.head} ${s.body} ${s.primary.label}`).not.toContain("cp-");
+  });
+
+  test("broken since names the first failure after the last pass, not the newest", () => {
+    const s = projectStatus([...story, pt(5, "FAIL", at(21, 0), "Later")]);
+    expect(s.head).toBe(`Broken since ${when(at(20, 16))}.`);
+  });
+
+  test("broken with nothing that works asks to find one", () => {
+    const s = projectStatus([pt(1, null, at(9, 0), "a"), pt(2, "FAIL", at(10, 0), "b")]);
+    expect(s.primary).toEqual({ label: "Find the last working version", act: "rewind" });
+    expect(s.secondary).toBeNull();
+  });
+
+  test("works says when it was checked only when a check time is known", () => {
+    const works = [pt(1, "PASS", at(20, 16), "a")];
+    expect(projectStatus(works, at(20, 20)).head).toBe(`Works. Checked at ${when(at(20, 20))}.`);
+    expect(projectStatus(works).head).toBe(`Works. The ${when(at(20, 16))} version passed its check.`);
+    expect(projectStatus(works).primary.act).toBe("save");
+    expect(projectStatus(works).secondary?.act).toBe("check");
+  });
+
+  test("not checked yet is never shown as working, and its one step is Check it works", () => {
+    const s = projectStatus([pt(1, null, at(9, 0), "a")]);
+    expect(s.v).toBeNull();
+    expect(s.head).toBe("Not checked yet.");
+    expect(s.primary.act).toBe("check");
   });
 });
 
