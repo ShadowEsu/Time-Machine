@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseDocument } from "yaml";
 import { audit } from "./audit.js";
@@ -15,6 +15,8 @@ export async function setCheck(ctx: Ctx, command: string): Promise<SetCheckResul
   const p = resolveProject(ctx);
   const path = join(p.root, CONFIG_FILE);
   if (!existsSync(path)) throw new TmError("usage", `There is no ${CONFIG_FILE} yet. Run tm init first.`);
+  // Never write through a link: it could point at a file outside the project.
+  if (!lstatSync(path).isFile()) throw new TmError("usage", `${CONFIG_FILE} is a symbolic link or not a regular file, so it was left alone.`);
   const cmd = command.trim();
   if (!cmd) throw new TmError("usage", "The check cannot be empty. For example: npm test.");
   if (/[\r\n\0]/.test(cmd)) throw new TmError("usage", "The check must be one line.");

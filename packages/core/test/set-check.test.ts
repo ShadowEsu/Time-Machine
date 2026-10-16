@@ -1,5 +1,5 @@
 // setCheck: the app's onboarding step 2 changes the check. The engine owns timemachine.yml.
-import { readFileSync } from "node:fs";
+import { readFileSync, renameSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -46,5 +46,16 @@ describe("setCheck", () => {
   test("asks for init first when there is no timemachine.yml", async () => {
     const { ctx } = repo();
     await expect(tm.setCheck(ctx, "npm test")).rejects.toThrow(/tm init/);
+  });
+
+  test("refuses a timemachine.yml that is a symbolic link, and leaves the target alone", async () => {
+    const { dir, ctx } = repo();
+    await tm.init(ctx);
+    const outside = join(dir, "..", "outside.yml");
+    renameSync(join(dir, "timemachine.yml"), outside);
+    symlinkSync(outside, join(dir, "timemachine.yml"));
+    const before = readFileSync(outside, "utf8");
+    await expect(tm.setCheck(ctx, "npm run build")).rejects.toThrow(/symbolic link/);
+    expect(readFileSync(outside, "utf8")).toBe(before);
   });
 });
