@@ -461,3 +461,19 @@ select.field { font-family: var(--font); font-size: 12.5px; width: auto; min-wid
   .tv-read { grid-column: 2; grid-row: 3; }
   .tv-top .steps { display: none; }
 }
+
+/* Agent words next to the verdict, kept apart so a claim and a check are never confused */
+.asked { display: grid; gap: 6px; padding: 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
+.asked .h { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.asked p:first-of-type { color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+.hintbar .btn + .btn { margin-left: 0; }
+
+/* Compare: the two sides */
+.cmp-sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.cmp-side { display: grid; gap: 4px; justify-items: start; padding: 12px 14px; border-radius: 12px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.cmp-side .t1 { font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Inspector command rows and the shortcut field */
+.cmdrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
+.cmdrow > .small { grid-column: 1 / -1; }
+.field.hotkey { width: 220px; }

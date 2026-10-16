@@ -1,8 +1,8 @@
 // The app window: projects, History, save point detail, Check it works, the Rewind (the Time
 // View, or the plain wizard sheet), Compare, Settings, onboarding and the Inspector.
 // Plain TypeScript, one render function.
-import type { CheckpointResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
-import type { AppEvent, Bootstrap, Call, CallOf, HookPreview, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
+import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
+import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
 
@@ -88,11 +88,19 @@ interface State {
   busy: string | null;
   check: CheckState | null;
   rewind: RewindState | null;
-  compare: { a: string | null; b: string | null; result: DiffResult | null; loading: boolean; error: string | null };
+  /** b is "now" to compare with the project folder as it is: we save it first (only if something changed). */
+  compare: { a: string | null; b: string | null; now: { id: string; skipped: boolean } | null; result: DiffResult | null; loading: boolean; error: string | null };
   onboarding: OnboardingState;
   inspector: boolean;
   records: Record[];
   storage: StorageRow[] | null;
+  agents: AgentRow[] | null;
+  isolation: IsolationInfo | null;
+  /** A store clean up: first a preview of what goes, then the real removal. One project at a time. */
+  cleanup: { projectId: string; result: CleanStoreResult | null; working: boolean } | null;
+  /** The shortcut being typed in Settings, before Save. */
+  hotkeyDraft: string | null;
+  hotkeyActive: boolean;
   hookSheet: { projectId: string; preview: HookPreview; done: string | null; error: string | null; working: boolean } | null;
   toast: string | null;
   demoBusy: boolean;
@@ -103,14 +111,17 @@ interface State {
   changes: Map<string, string[]>;
   /** A button that shows its pressed state because its shortcut just fired. */
   flash: { sel: string; until: number } | null;
+  /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
+  undo: { projectId: string; result: RecoverResult; working: boolean } | null;
 }
 
 class ApiFailure extends Error {}
 
-const RECORDED: Method[] = ["init", "setCheck", "checkpoint", "diff", "open", "verify", "findGood", "recover", "log", "hookInstall", "demo"];
+const RECORDED: Method[] = ["init", "setCheck", "checkpoint", "diff", "open", "verify", "findGood", "recover", "undoRecover", "log", "hookInstall", "demo", "cleanStore"];
 const TITLES: Partial<{ [M in Method]: string }> = {
   init: "Set up", setCheck: "Change the check", checkpoint: "Save now", diff: "Compare", open: "Try it in a safe copy", verify: "Check it works",
-  findGood: "Find the last working version", recover: "Use this version", log: "Audit log", hookInstall: "Connect Claude Code", demo: "Try the demo",
+  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this rewind", log: "Audit log", hookInstall: "Connect Claude Code", demo: "Try the demo",
+  cleanStore: "Clean up storage",
 };
 
 let bridge: TmBridge;
@@ -237,13 +248,29 @@ function short(sha: string): string {
   return sha.slice(0, 7);
 }
 
+/** A save point's title. Agent save points read like "Claude Code: add dark mode". Safety saves keep their command. */
+function title(c: TimelineEntry): string {
+  const a = c.agent;
+  if (!a?.prompt || c.trigger === "claude-code:pre-bash") return c.note;
+  return c.trigger === "claude-code:prompt" ? `Before ${a.name}: ${a.prompt}` : `${a.name}: ${a.prompt}`;
+}
+
 /** Coverage lines in plain words. Git details add the commit, never replace the words. */
 function savedLines(c: TimelineEntry): string[] {
   return c.coverage.captured.map((line) => {
-    if (line.startsWith("Code:")) return st.settings.showGitDetails ? `Code, ${line.slice(6)}` : "Code";
-    if (line.startsWith("Files:")) return `Files outside Git: ${line.slice(7)}`;
-    if (line.startsWith("Config:")) return `Settings: ${line.slice(8)}`;
-    if (line.startsWith("Dependencies:")) return `Packages: ${line.slice(14)}`;
+    if (line.startsWith("Code:")) {
+      const words = line.includes("uncommitted") ? "Your code, including work you had not committed yet" : "Your code";
+      return st.settings.showGitDetails ? `${words} (${line.slice(6)})` : words;
+    }
+    const files = /^Files: (.+) not in Git$/.exec(line);
+    if (files) return `${files[1]} that Git does not track`;
+    const cfg = /^Config: .+ in (.+) \((\d+) saved, (\d+) name only\)$/.exec(line);
+    if (cfg) return `Settings in ${cfg[1]}: ${plural(Number(cfg[2]), "value")} saved, ${plural(Number(cfg[3]), "secret")} by name only`;
+    if (line.startsWith("Dependencies:")) return `Package lock files: ${line.slice(14)}`;
+    if (line.startsWith("Environment:")) {
+      const tools = line.slice(13).split(", ").filter((x) => !x.startsWith("platform "));
+      return st.settings.showGitDetails ? `Tool versions: ${line.slice(13)}` : `Tool versions: ${tools.join(", ")}`;
+    }
     return line;
   });
 }
@@ -263,7 +290,7 @@ function statusLine(): { v: Verdict | null; text: string } {
     case "PASS":
       return { v: "PASS", text: `Works. The newest save point, ${newest.id}, passed its check.` };
     case "FAIL":
-      return { v: "FAIL", text: lw ? `Broken. Last working version: ${lw.id}, ${when(lw.createdAt)}, ${lw.note}.` : "Broken. No earlier save point has passed yet." };
+      return { v: "FAIL", text: lw ? `Broken. Last working version: ${lw.id}, ${when(lw.createdAt)}, ${title(lw)}.` : "Broken. No earlier save point has passed yet." };
     case "INCOMPLETE":
       return { v: "INCOMPLETE", text: "Couldn't check the newest save point." };
     case "BLOCKED":
@@ -335,7 +362,7 @@ function history(): string {
   const selIdx = pts.findIndex((c) => c.id === st.selected);
   const shown = pts.slice(-40);
   const ruler = `<div class="ruler"><div class="ticks" role="slider" aria-label="Save points" aria-valuemin="1" aria-valuemax="${pts.length}" aria-valuenow="${selIdx + 1}" aria-valuetext="${esc(st.selected ? `${st.selected}, ${verdictWord(entry(st.selected)?.verdict ?? null)}` : "")}">
-      ${shown.map((c) => `<button class="tk ${pts.indexOf(c) > selIdx ? "after" : ""}" data-act="select" data-id="${c.id}" title="${esc(`${c.id} · ${when(c.createdAt)} · ${c.note} · ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`).join("")}
+      ${shown.map((c) => `<button class="tk ${pts.indexOf(c) > selIdx ? "after" : ""}" data-act="select" data-id="${c.id}" title="${esc(`${c.id} · ${when(c.createdAt)} · ${title(c)} · ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`).join("")}
       <span class="ph" id="playhead"></span></div>
     <div class="tlab"><span>${esc(when(shown[0]?.createdAt ?? ""))}</span><span>${esc(shown.length > 1 ? `${shown.length} save points` : "")}</span><span>newest ${esc(when(shown.at(-1)?.createdAt ?? ""))}</span></div></div>`;
 
@@ -350,7 +377,7 @@ function history(): string {
     }
     rows.push(`<button class="row ${c.id === st.selected ? "on" : ""}" data-act="select" data-id="${c.id}">
       <span class="tm">${esc(clock(c.createdAt))}</span>
-      <span style="min-width:0"><div class="t1">${esc(c.note)}</div><div class="t2"><span>${esc(c.id)}</span><span>${esc(triggerLabel(c.trigger))}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</div></span>
+      <span style="min-width:0"><div class="t1">${esc(title(c))}</div><div class="t2"><span>${esc(c.id)}</span><span>${esc(triggerLabel(c.trigger))}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</div></span>
       ${badge(c.verdict)}</button>`);
     const older = newestFirst[i + 1];
     // Only say "broke here" when two neighbouring checks prove it.
@@ -362,14 +389,17 @@ function history(): string {
   const hint = first
     ? `<div class="hintbar">${glyph(first.verdict)}<span>${first.verdict === "PASS" ? `Your first save point passed its check. It is your first way back. Press ${esc(keys("Mod+S"))} to save again.` : `This is your first save point. ${first.verdict ? esc(verdictWord(first.verdict)) : "Saved, not checked"}. Press ${esc(keys("Mod+S"))} to save again, or Check it works to find out if it passes.`}</span></div>`
     : !anyPass ? `<div class="hintbar">${glyph(null)}<span>No version has passed a check yet. When one does, it becomes your way back.</span><button class="btn" data-act="check" ${busy ? "disabled" : ""}>Check it works</button></div>` : "";
-  return `${header}${ruler}${hint}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
+  const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
+  const undoBar = u
+    ? `<div class="hintbar">${glyph(u.result.lastVerdict)}<span>You rewound to ${esc(u.result.id)}. It is on the new branch ${esc(u.result.branch)} and in a recovery copy. Your folder was not touched.</span>${undoButton("")}<button class="btn ghost" data-act="undo-dismiss">Keep it</button></div>`
+    : "";
+  return `${header}${ruler}${undoBar || hint}<div class="split"><div class="list" id="list">${rows.join("")}</div>${detail()}</div>`;
 }
 
 function detail(): string {
   const c = entry(st.selected);
   const p = project();
   if (!c || !p) return `<aside class="detail"><p class="muted">Pick a save point.</p></aside>`;
-  const newest = points().at(-1);
   const evidence =
     c.verdict === null
       ? "Not checked yet. Saved, but we don't know if it works."
@@ -385,16 +415,21 @@ function detail(): string {
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
     : "";
+  // "Agent said" sits apart from the verdict, so a claim and a check are never confused.
+  const asked = c.agent
+    ? `<div class="asked"><span class="h">${esc(c.trigger === "claude-code:pre-bash" ? `${c.agent.name} was working on` : `${c.agent.name} was asked`)}</span><p class="sel-text">${esc(c.agent.prompt ?? "No prompt was recorded for this save point.")}</p><p class="small muted">The agent's words, not a check. Only the verdict above says if it works.</p></div>`
+    : "";
   const busy = st.busy ? "disabled" : "";
   return `<aside class="detail">
-    <div><h2>${esc(c.note)}</h2><div class="meta">${esc(c.id)} · ${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(triggerLabel(c.trigger))}</div></div>
+    <div><h2>${esc(title(c))}</h2><div class="meta">${esc(c.id)} · ${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(triggerLabel(c.trigger))}</div></div>
     <div class="vblock">${badge(c.verdict, "lg")}<p>${esc(evidence)}</p><div class="row-btns"><button class="btn" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check again" : "Check this one"}</button></div></div>
     <div class="cols"><div class="kv"><span class="h">What's saved</span>${li(savedLines(c), "Nothing listed")}</div>
       <div class="kv no"><span class="h">What's not saved</span>${li(notSavedLines(c), "Nothing listed")}</div></div>
+    ${asked}
     <div class="row-btns">
       <button class="btn dark" data-act="use" data-id="${c.id}" ${busy}>Use this version</button>
       <button class="btn" data-act="try" data-id="${c.id}" ${busy}>Try it in a safe copy</button>
-      ${newest && newest.id !== c.id ? `<button class="btn" data-act="compare" data-a="${c.id}" data-b="${newest.id}">Compare with newest</button>` : ""}
+      <button class="btn" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button>
     </div>
     ${st.openResult && st.openResult.id === c.id ? `<div class="note">A safe copy of ${esc(c.id)} is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">Show in Finder</button></div>${st.settings.showGitDetails ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>` : ""}
     ${git}
@@ -421,7 +456,7 @@ function checkSheet(): string {
       PASS: "It works.", FAIL: "It's broken.", INCOMPLETE: "We couldn't finish the check.", BLOCKED: "The check needs something first.", ERROR: "The check itself crashed.",
     };
     const extra =
-      r.verdict === "FAIL" ? (lw ? ` The last version that worked is ${lw.id}, ${when(lw.createdAt)}, ${lw.note}.` : " No earlier save point has passed yet.")
+      r.verdict === "FAIL" ? (lw ? ` The last version that worked is ${lw.id}, ${when(lw.createdAt)}, ${title(lw)}.` : " No earlier save point has passed yet.")
         : r.verdict === "ERROR" ? " This is a problem with the check, not necessarily your project."
           : r.verdict === "PASS" ? ` Checked in a safe copy (basic isolation) in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
     result = `<div class="big-verdict ${stampOnce(`check:${r.checkpoint}:${r.verdict}`)}">${glyph(r.verdict)}<span>${esc(head[r.verdict])}</span></div>
@@ -452,7 +487,7 @@ function rewind(): string {
     const triedRows = tried
       .map((t) => {
         const c = entry(t.id);
-        return `<div class="r"><span class="mono">${esc(t.id)}</span><span>${esc(c?.note ?? "")}${t.reason && st.settings.showGitDetails ? ` <span class="muted small">${esc(t.reason)}</span>` : ""}</span>${badge(t.verdict)}</div>`;
+        return `<div class="r"><span class="mono">${esc(t.id)}</span><span>${esc(c ? title(c) : "")}${t.reason && st.settings.showGitDetails ? ` <span class="muted small">${esc(t.reason)}</span>` : ""}</span>${badge(t.verdict)}</div>`;
       })
       .join("");
     if (r.finding) {
@@ -470,7 +505,7 @@ function rewind(): string {
       const known = !r.find;
       body = `<div class="panel">${r.find ? `<div class="tried">${triedRows}</div>` : ""}
         <div class="big-verdict ${stampOnce(`rw:${target.id}:${target.verdict ?? ""}`)}">${glyph(target.verdict)}<span>${esc(target.id)} ${target.verdict === "PASS" ? "works." : `is ${verdictWord(target.verdict).toLowerCase()}.`}</span></div>
-        <p>${esc(target.note)} · ${esc(when(target.createdAt))}${known && target.verdict === "PASS" ? " · checked before, in a safe copy" : ""}</p>
+        <p>${esc(title(target))} · ${esc(when(target.createdAt))}${known && target.verdict === "PASS" ? " · checked before, in a safe copy" : ""}</p>
         ${target.verdict !== "PASS" ? `<div class="note warn">This save point has not passed a check. The next step checks it in a safe copy.</div>` : ""}
         <div class="cols"><div class="kv"><span class="h">Comes back</span>${li(comesBackLines(target), "Nothing listed")}</div><div class="kv no"><span class="h">Does not come back</span>${li(notSavedLines(target), "Nothing listed")}</div></div>
         <div class="row-btns"><button class="btn dark" data-act="rw-next-try">Next: Try it <kbd>↵</kbd></button>${known ? '<button class="btn" data-act="rw-find">Search again</button>' : ""}<button class="btn ghost" data-act="history">Pick a different one</button></div></div>`;
@@ -505,7 +540,8 @@ function rewind(): string {
       <div class="cols"><div class="kv"><span class="h">Brought back</span>${li(res.restored, "Nothing")}</div><div class="kv no"><span class="h">Not brought back</span>${li(res.notRestored, "Nothing listed")}</div></div>
       <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
       <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
-      <div class="row-btns"><button class="btn dark" data-act="history">Done</button><button class="btn" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div></div>`;
+      ${undoNote(res)}
+      <div class="row-btns"><button class="btn dark" data-act="history">Done</button>${undoButton("")}<button class="btn" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div></div>`;
   }
   return `<div class="scrim ${once("scrim:rewind")}"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
     <div class="sheet-head"><div><h2>Rewind ${esc(p.name)}</h2><p class="muted">Find the last working version, try it in a safe copy, then use it on a new branch.</p></div>
@@ -514,6 +550,15 @@ function rewind(): string {
     ${r.error ? `<div class="note bad">${esc(r.error)}</div>` : ""}
     ${body}
   </div></div>`;
+}
+
+/** What Undo does, said plainly before anyone presses it. */
+function undoNote(res: RecoverResult): string {
+  return `<p class="small muted">Undo removes the new branch ${esc(res.branch)} and the recovery copy. Every save point stays, including ${esc(res.savedBefore)}, your version from just before. Undo stops if you changed anything in the recovery copy or added commits to the branch.</p>`;
+}
+function undoButton(size: string): string {
+  const u = st.undo;
+  return `<button class="btn ${size}" data-act="undo-rewind" data-key="undo" ${!u || u.working || st.busy ? "disabled" : ""}>${u?.working ? "Undoing…" : "Undo this rewind"}<kbd>${esc(keys("Mod+Z"))}</kbd></button>`;
 }
 
 // The Time View: the Rewind as a full window scene (design spec 3.1). It draws the same
@@ -614,7 +659,7 @@ function tvCard(c: TimelineEntry, k: number, prev: TimelineEntry | null, still: 
   const mark = checking ? '<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : badge(v, on ? `${stampOnce(`card:${c.id}:${v ?? ""}`)}` : "");
   return `<div class="${cls}" data-carry="card-${esc(c.id)}" style="--k:${Math.max(k, -1)}" ${go}>
     <div class="cd-top"><span class="cd-g">${glyph(v)}</span><span class="cd-when">${esc(clock(c.createdAt))}</span><span class="cd-id">${esc(c.id)}</span><span class="cd-who">${esc(triggerLabel(c.trigger))}</span><span class="cd-v">${mark}</span></div>
-    <div class="cd-title">${esc(c.note)}</div>
+    <div class="cd-title">${esc(title(c))}</div>
     ${on ? `<div class="cd-sum">${esc(triggerSentence(c.trigger))}</div>` : ""}
     ${on ? (checking ? `<div class="cd-run"><span class="spin"></span><span>Rebuilding ${esc(c.id)} in a safe copy and running your check. Your folder is not touched.</span></div>` : mosaic(c, prev)) : ""}
   </div>`;
@@ -629,7 +674,7 @@ function tvRead(r: RewindState, c: TimelineEntry): string {
   const v = shownVerdict(c);
   const cols = (a: string, b: string, yes: string[], no: string[]): string =>
     `<div class="tv-cols"><div class="kv"><span class="h">${esc(a)}</span>${li(yes, "Nothing listed")}</div><div class="kv no"><span class="h">${esc(b)}</span>${li(no, "Nothing listed")}</div></div>`;
-  const meta = `<div class="tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(c.note)} · ${esc(triggerLabel(c.trigger))}</div>`;
+  const meta = `<div class="tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(title(c))} · ${esc(triggerLabel(c.trigger))}</div>`;
   const error = r.error ? `<div class="note bad">${esc(r.error)}</div>` : "";
 
   if (r.step === "done" && r.result) {
@@ -640,7 +685,8 @@ function tvRead(r: RewindState, c: TimelineEntry): string {
       ${cols("Brought back", "Not brought back", res.restored, res.notRestored)}
       <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
       <div class="note"><b>Your folder and branch were not touched.</b> Nothing was pushed, merged, deployed or deleted.</div>
-      <div class="tv-acts">${tvButton("tv-done", "Done", "enter", "↵", true)}<button class="btn big" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div>`;
+      ${undoNote(res)}
+      <div class="tv-acts">${tvButton("tv-done", "Done", "enter", "↵", true)}${undoButton("big")}<button class="btn big" data-act="reveal" data-path="${esc(res.copyDir)}">Show recovery copy</button><button class="btn big" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy report</button></div>`;
   }
 
   if (r.finding) {
@@ -708,14 +754,16 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
   const n = pts.length;
   const x = (i: number): number => ((i + 0.5) / n) * 100;
   const checking = checkingId();
-  // Agent sessions as clips: runs of save points made by Claude Code.
+  // Agent sessions as clips: runs of save points made by the same agent. Older save points name it by trigger.
+  const agentOf = (c: TimelineEntry | undefined): string | null => c?.agent?.name ?? (c?.trigger.startsWith("claude-code") ? "Claude Code" : null);
   const clips: string[] = [];
   for (let i = 0; i < n; i++) {
-    if (!pts[i]?.trigger.startsWith("claude-code")) continue;
+    const name = agentOf(pts[i]);
+    if (!name) continue;
     let j = i;
-    while (j + 1 < n && pts[j + 1]?.trigger.startsWith("claude-code")) j++;
+    while (j + 1 < n && agentOf(pts[j + 1]) === name) j++;
     const half = (0.5 / n) * 100 * 0.7;
-    clips.push(`<span class="clip" style="left:${x(i) - half}%;width:${x(j) - x(i) + half * 2}%"><span>Claude Code session</span></span>`);
+    clips.push(`<span class="clip" style="left:${x(i) - half}%;width:${x(j) - x(i) + half * 2}%"><span>${esc(name)} session</span></span>`);
     i = j;
   }
   const bars = pts
@@ -731,7 +779,7 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
     .map((c, i) => {
       const v = shownVerdict(c);
       const cls = ["tvt", i === cur ? "on" : "", c.id === checking ? "checking" : ""].filter(Boolean).join(" ");
-      return `<button class="${cls}" style="left:${x(i)}%" tabindex="-1" ${still ? "" : `data-act="tv-go" data-id="${esc(c.id)}"`} title="${esc(`${clock(c.createdAt)} · ${c.note} · ${verdictWord(v)}`)}">${c.id === checking ? '<i class="g v-checking-tick" aria-hidden="true"></i>' : glyph(v)}</button>`;
+      return `<button class="${cls}" style="left:${x(i)}%" tabindex="-1" ${still ? "" : `data-act="tv-go" data-id="${esc(c.id)}"`} title="${esc(`${clock(c.createdAt)} · ${title(c)} · ${verdictWord(v)}`)}">${c.id === checking ? '<i class="g v-checking-tick" aria-hidden="true"></i>' : glyph(v)}</button>`;
     })
     .join("");
   const near = (i: number): boolean => Math.abs(i - cur) < Math.max(1, n * 0.09);
@@ -754,7 +802,7 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
       ${fork}
       <div class="tv-lane">${clips.join("")}</div>
       <div class="tv-band" aria-hidden="true">${bars}</div>
-      <div class="tv-ticks" role="slider" tabindex="0" aria-label="Save points. J and L step, Shift J and Shift L jump to the next verdict change." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(curEntry ? `Save point ${cur + 1} of ${n}. ${clock(curEntry.createdAt)}, ${curEntry.note}. ${verdictWord(shownVerdict(curEntry))}.` : "")}">${ticks}</div>
+      <div class="tv-ticks" role="slider" tabindex="0" aria-label="Save points. J and L step, Shift J and Shift L jump to the next verdict change." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(curEntry ? `Save point ${cur + 1} of ${n}. ${clock(curEntry.createdAt)}, ${title(curEntry)}. ${verdictWord(shownVerdict(curEntry))}.` : "")}">${ticks}</div>
       <div class="tv-labels" aria-hidden="true">${labels}</div>
       ${veil}
       <div class="tv-ph" data-carry="ph" style="left:${x(cur)}%" aria-hidden="true"></div>
@@ -787,7 +835,7 @@ function timeView(): string {
   const now = newest
     ? `<button class="tv-now" data-act="tv-exit" aria-label="Back to now">
         <span class="eyebrow">Now</span>
-        <span class="nw-t">${esc(newest.note)}</span>
+        <span class="nw-t">${esc(title(newest))}</span>
         <span class="nw-m">${esc(newest.id)} · ${esc(clock(newest.createdAt))}</span>
         ${badge(shownVerdict(newest))}
         <span class="nw-h ${done ? stampOnce("nw-saved") : ""}">${done ? `Saved first as ${esc(r.result?.savedBefore ?? "")}` : "Your folder is untouched"}</span>
@@ -815,7 +863,15 @@ function compare(): string {
   if (!p) return welcome();
   const c = st.compare;
   const opt = (sel: string | null): string =>
-    [...pts].reverse().map((x) => `<option value="${x.id}" ${x.id === sel ? "selected" : ""}>${esc(`${x.id} · ${when(x.createdAt)} · ${x.note} · ${verdictWord(x.verdict)}`)}</option>`).join("");
+    `<option value="now" ${sel === "now" ? "selected" : ""}>Now: your folder as it is</option>` +
+    [...pts].reverse().map((x) => `<option value="${x.id}" ${x.id === sel ? "selected" : ""}>${esc(`${x.id} · ${when(x.createdAt)} · ${title(x)} · ${verdictWord(x.verdict)}`)}</option>`).join("");
+  const sideCard = (side: string | null, id: string): string => {
+    const e = entry(id);
+    const sub = side === "now" && c.now
+      ? c.now.skipped ? `Same as ${id}. Nothing changed since it was saved.` : `Saved just now as ${id}, so we could compare.`
+      : e ? `${when(e.createdAt)} · ${triggerLabel(e.trigger)}` : "";
+    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : id)}</span><span class="t1">${esc(e ? title(e) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
+  };
   let body = "";
   if (c.loading) body = '<div class="steplist"><div class="r"><span class="spin"></span><span>Comparing…</span></div></div>';
   else if (c.error) body = `<div class="note bad">${esc(c.error)}</div>`;
@@ -837,7 +893,10 @@ function compare(): string {
     ];
     const ea = entry(d.a);
     const eb = entry(d.b);
-    body = `<p class="lede">${esc(parts.length ? `Between ${d.a} and ${d.b}: ${parts.join(", ")}.` : `No differences between ${d.a} and ${d.b}.`)}</p>
+    const from = c.a === "now" ? "now" : d.a;
+    const to = c.b === "now" ? "now" : d.b;
+    body = `<div class="cmp-sides">${sideCard(c.a, d.a)}<span class="muted" aria-hidden="true">→</span>${sideCard(c.b, d.b)}</div>
+      <p class="lede">${esc(parts.length ? `From ${from} to ${to}: ${parts.join(", ")}.` : `No differences between ${from} and ${to}.`)}</p>
       <div class="panel">
         <div class="dsec"><span class="h">Code</span>${list(d.code.map((x) => ({ s: st.settings.showGitDetails ? x.status : statusWord(x.status), t: x.path })), "No change")}</div>
         <div class="dsec"><span class="h">Files outside Git</span>${list(trio(d.files), "No change")}</div>
@@ -845,22 +904,52 @@ function compare(): string {
         <div class="dsec"><span class="h">Packages</span>${list(d.dependencies.changed.map((t) => ({ s: "changed", t })), "No change")}</div>
         <div class="dsec"><span class="h">Environment</span>${list(d.environment.changed.map((t) => ({ s: "changed", t })), "No change")}</div>
       </div>
-      ${ea?.verdict === "PASS" && eb?.verdict === "FAIL" ? `<div class="row-btns"><button class="btn dark" data-act="rewind-to" data-id="${ea.id}"><span class="tri"></span>Rewind to ${esc(ea.id)}</button></div>` : ""}`;
+      ${ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns"><button class="btn dark" data-act="rewind-to" data-id="${ea.id}"><span class="tri"></span>Rewind to ${esc(ea.id)}</button><span class="small muted">${esc(ea.id)} passed its check. ${esc(to === "now" ? "Now" : to)} has ${eb?.verdict ? `the verdict ${verdictWord(eb.verdict)}` : "not been checked"}.</span></div>` : ""}`;
   }
   return `<div class="page"><div class="col">
-    <div><h1>Compare</h1><p class="lede">What changed between two save points.</p></div>
-    <div class="cmp-head"><select class="field" data-model="cmp-a" aria-label="Older save point">${opt(c.a)}</select><span class="muted">→</span><select class="field" data-model="cmp-b" aria-label="Newer save point">${opt(c.b)}</select><button class="btn" data-act="cmp-swap">Swap</button><button class="btn ghost" data-act="history">Back to History</button></div>
+    <div><h1>Compare</h1><p class="lede">What changed between a save point and now, or between any two save points.</p></div>
+    <div class="cmp-head"><select class="field" data-model="cmp-a" aria-label="From">${opt(c.a)}</select><span class="muted">→</span><select class="field" data-model="cmp-b" aria-label="To">${opt(c.b)}</select><button class="btn" data-act="cmp-swap">Swap</button><button class="btn ghost" data-act="history">Back to History</button></div>
     ${body}</div></div>`;
 }
 
 function settings(): string {
   const s = st.settings;
   const seg = (v: Settings["theme"], label: string): string => `<button class="${s.theme === v ? "on" : ""}" data-act="theme" data-v="${v}">${label}</button>`;
-  const sw = (key: "showGitDetails" | "overlayCards", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
+  const sw = (key: "showGitDetails" | "overlayCards" | "agentPill", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
+  const loading = '<span class="spin"></span>';
+  const cleanRow = (projectId: string): string => {
+    const c = st.cleanup?.projectId === projectId ? st.cleanup : null;
+    if (!c) return `<button class="btn ghost" data-act="clean-preview" data-id="${projectId}" ${st.cleanup?.working ? "disabled" : ""}>Clean up</button>`;
+    if (c.working) return loading;
+    if (!c.result) return "";
+    if (c.result.applied) return `<span class="small muted">Removed ${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}.</span>`;
+    if (!c.result.files.length) return '<span class="small muted">Nothing to clean up.</span>';
+    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
+  };
   const storage = st.storage
-    ? st.storage.map((r) => `<div class="tr"><div><div>${esc(r.name)}</div>${s.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="mono">${esc(bytes(r.bytes))}</span><button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></div>`).join("") || '<span class="muted">No projects yet.</span>'
-    : '<span class="spin"></span>';
-  const agents = st.projects.map((p) => `<div class="tr"><div>${esc(p.name)}</div><span></span><button class="btn" data-act="hook" data-id="${p.id}">Connect Claude Code</button></div>`).join("") || '<span class="muted">Add a project first.</span>';
+    ? st.storage.map((r) => `<div class="tr"><div><div>${esc(r.name)}</div>${s.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="mono">${esc(bytes(r.bytes))}</span><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || '<span class="muted">No projects yet.</span>'
+    : loading;
+  const agentWords: { [K in AgentRow["claudeCode"]]: string } = {
+    connected: "Claude Code is connected",
+    partial: "Partly connected",
+    "not-connected": "Not connected",
+    unreadable: "Its .claude/settings.json is not plain JSON, so we left it alone",
+    unavailable: "We can't read this project right now",
+  };
+  const agents = st.agents
+    ? st.agents.map((a) => {
+        const words = a.claudeCode === "partial" ? `Partly connected. Missing: ${a.missing.join(", ")}` : agentWords[a.claudeCode];
+        const working = a.working ? `<div class="small">Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</div>` : "";
+        const btn = a.claudeCode === "not-connected" || a.claudeCode === "partial" ? `<button class="btn" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect Claude Code"}</button>` : "<span></span>";
+        return `<div class="tr"><div><div>${esc(a.name)}</div><div class="small muted">${esc(words)}</div>${working}${s.showGitDetails && a.settingsPath ? `<div class="mono muted">${esc(a.settingsPath)}</div>` : ""}</div><span></span>${btn}</div>`;
+      }).join("") || '<span class="muted">Add a project first.</span>'
+    : loading;
+  const iso = st.isolation;
+  const network = !iso ? loading
+    : iso.networkSandbox ? `When a project turns the network off for checks, ${esc(iso.networkSandbox)} blocks it.`
+      : "Nothing on this Mac can block the network during a check. A project that asks for no network gets Needs something, never Works.";
+  const hk = s.hotkey;
+  const hotkeyState = st.boot.preview ? "The browser preview has no shortcut." : !hk ? "Off." : st.hotkeyActive ? "On." : "Not active. Another app may already use it.";
   return `<div class="page"><div class="col">
     <div><h1>Settings</h1></div>
     <div class="panel"><h3>General</h3>
@@ -868,17 +957,26 @@ function settings(): string {
       <div class="setrow"><span class="l">Rewind style</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Time View</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same four steps as a plain sheet. It is used on its own when Reduce motion is on.</span></div></div>
       <div class="setrow"><span class="l">Show Git details</span><div class="toggle">${sw("showGitDetails", s.showGitDetails, "Show Git details")}<span class="muted">Adds commit IDs, commands and logs next to the plain words. It never replaces them and never changes a verdict.</span></div></div>
     </div>
+    <div class="panel"><h3>Shortcut</h3>
+      <div class="setrow"><span class="l">Open Time Machine</span><div style="display:grid;gap:6px">
+        <div class="row-btns"><input class="field hotkey" data-model="hotkey" aria-label="Shortcut" placeholder="for example: Control+Alt+T" value="${esc(st.hotkeyDraft ?? hk ?? "")}"><button class="btn" data-act="hotkey-save">Save</button>${hk ? '<button class="btn ghost" data-act="hotkey-off">Turn off</button>' : ""}</div>
+        <span class="muted">Works from any app. ${esc(hotkeyState)} Use a modifier such as Control, Option or Command, plus a key.</span></div></div>
+      <div class="setrow"><span class="l">Timeline strip</span><div class="muted">Open it from the menu bar.</div></div>
+    </div>
     <div class="panel"><h3>Overlays</h3>
-      <div class="setrow"><span class="l">Corner cards</span><div class="toggle">${sw("overlayCards", s.overlayCards, "Corner cards")}<span class="muted">A small card in the top right when a check on the newest save point gives a new result. It never takes focus and hides on its own.</span></div></div>
-      <div class="setrow"><span class="l">Timeline strip</span><div><span class="chip">${esc(keys("Mod+Shift+T"))}</span> <span class="muted">from any app</span></div></div>
+      <div class="setrow"><span class="l">Corner cards</span><div class="toggle">${sw("overlayCards", s.overlayCards, "Corner cards")}<span class="muted">A small card when a check on the newest save point gives a new result. It never takes focus and hides on its own.</span></div></div>
+      <div class="setrow"><span class="l">Agent pill</span><div class="toggle">${sw("agentPill", s.agentPill, "Agent pill")}<span class="muted">A small pill while a connected agent is working. It goes away when the turn ends.</span></div></div>
     </div>
     <div class="panel"><h3>Checks</h3>
-      <div class="setrow"><span class="l">Safe copy method</span><div>Basic isolation (host mode). Checks run in a separate Git worktree on this Mac, never in your folder. <span class="planned">planned</span> <span class="muted">Stronger isolation with Docker or Apple container.</span></div></div>
+      <div class="setrow"><span class="l">Safe copy method</span><div>Basic isolation (host mode). Checks run in a separate Git worktree on this Mac, never in your folder. They use the tools installed on this Mac.</div></div>
+      <div class="setrow"><span class="l">Network during checks</span><div>${network}</div></div>
+      <div><span class="planned">planned</span> <span class="muted">Stronger isolation with Docker or Apple container.</span></div>
     </div>
     <div class="panel"><h3>Storage</h3>
       <p class="muted">Save points are stored on this Mac, outside your project folders, so deleting a project does not delete its history. This is not a full Mac backup.</p>
       <div class="table">${storage}</div>
-      <div><span class="planned">planned</span> <span class="muted">Clean up older save points. Pinned and working save points will always stay.</span></div>
+      <p class="small muted">Clean up removes old check logs that a newer check replaced. Save points are never removed. We show what goes before anything is removed.</p>
+      <div><span class="planned">planned</span> <span class="muted">Thinning old save points. Pinned and working save points will always stay.</span></div>
     </div>
     <div class="panel"><h3>Agent connections</h3>
       <p class="muted">Claude Code can save before each prompt and before risky commands, and check after each turn. We show the exact lines before we add them.</p>
@@ -904,7 +1002,7 @@ function onboarding(): string {
     const firstNote = o.first
       ? `<div class="first-sp">${glyph(fv)}<span><b>Your first save point is made: ${esc(o.first.id)}.</b> ${fv ? `Checked: ${esc(verdictWord(fv))}.` : "Saved, not checked. Try the check below to find out if it works."}</span></div>`
       : "";
-    body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works.</p></div>
+    body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works. ${!detected ? "We could not guess one from your project, so type yours." : o.init?.created ? "We picked one from your project. Change it if it is not right." : "Your timemachine.yml already has one. Change it if it is not right."}</p></div>
       ${firstNote}
       <div class="panel">
         ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true) : ""}
@@ -921,7 +1019,7 @@ function onboarding(): string {
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
         <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or from the menu bar.</div></span><span></span></label>
-        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Adds hooks to ${esc(h?.settingsPath ?? ".claude/settings.json")}. We show the exact lines first.</div>
+        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Claude Code's own rewind does not cover files changed by shell commands like rm, mv or sed -i. A save point made just before them does. Adds hooks to ${esc(h?.settingsPath ?? ".claude/settings.json")}. We show the exact lines first.</div>
           ${h ? `<pre class="code" style="margin-top:8px">${esc(h.lines.map((l) => `${l.event}: ${l.command}`).join("\n"))}</pre>` : ""}
           ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : `<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="ob-hook" ${o.working ? "disabled" : ""}>Add these lines</button></div>`}</span><span class="small muted">recommended</span></div>
         <div class="opt"><span></span><span><div class="t">Every hour while files are changing</div><div class="d">Not built yet.</div></span><span class="planned">planned</span></div>
@@ -929,7 +1027,7 @@ function onboarding(): string {
       <div class="row-btns"><button class="btn dark" data-act="ob-finish" ${o.working ? "disabled" : ""}>${o.working ? "Saving…" : "Finish"}</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
   }
   return `<div class="page"><div class="col narrow">
-    <div class="dots3" aria-label="Step ${o.step} of 3"><i class="${o.step >= 1 ? "on" : ""}"></i><i class="${o.step >= 2 ? "on" : ""}"></i><i class="${o.step >= 3 ? "on" : ""}"></i></div>
+    ${steps(o.step, ["Pick a folder", "Choose the check", "Choose when to save"])}
     ${o.error ? `<div class="note bad">${esc(o.error)}</div>` : ""}
     ${body}</div></div>`;
 }
@@ -960,9 +1058,35 @@ function inspector(): string {
     <div class="body">
       <p class="small muted">The raw engine result and the same action as a tm command. The app and the CLI call the same engine.</p>
       ${rec ? block(`Last action: ${rec.title} · ${when(rec.at)}`, rec.command, rec.json) : '<p class="muted">No actions yet. Press Save now or Check it works.</p>'}
-      ${c && p ? block(`Selected save point: ${c.id}`, tmCommand({ method: "timeline", projectId: p.id }, p.path), c) : ""}
+      ${c && p ? savePointBlock(c, p) : ""}
       ${st.records.length > 1 ? `<div class="kv"><span class="h">Earlier</span>${st.records.slice(1, 8).map((r) => `<div class="mono small muted">${esc(when(r.at))} · ${esc(r.title)}</div>`).join("")}</div>` : ""}
     </div></aside>`;
+}
+
+/** The Inspector's view of one save point: the exact commit, its last check, and the same actions as tm commands. */
+function savePointBlock(c: TimelineEntry, p: ProjectEntry): string {
+  const vr = st.verifyResults.get(c.id);
+  const newest = points().at(-1);
+  const cmds: { label: string; call: Call }[] = [
+    { label: "Check it", call: { method: "verify", projectId: p.id, id: c.id } },
+    { label: "Open a safe copy", call: { method: "open", projectId: p.id, id: c.id } },
+    { label: "Use this version", call: { method: "recover", projectId: p.id, id: c.id } },
+    ...(newest && newest.id !== c.id ? [{ label: `Compare with ${newest.id}`, call: { method: "diff" as const, projectId: p.id, a: c.id, b: newest.id } }] : []),
+  ];
+  const rows = cmds
+    .map(({ label, call }) => {
+      const cmd = tmCommand(call, p.path) ?? "";
+      return `<div class="cmdrow"><span class="small muted">${esc(label)}</span><pre class="code cmd">${esc(cmd)}</pre><button class="btn ghost" data-act="copy" data-text="${esc(cmd)}">Copy as command</button></div>`;
+    })
+    .join("");
+  const check = vr
+    ? `<div><span class="k">last check</span> ${esc(vr.verdict)} · exit ${esc(String(vr.exitCode))} · ${esc(seconds(vr.durationMs))} · ${esc(vr.isolation)} mode</div><div><span class="k">command</span> ${esc(vr.command)}</div>${vr.log ? `<div><span class="k">log</span> ${esc(vr.log)}</div>` : ""}`
+    : `<div><span class="k">last check</span> ${c.verdict ? `${esc(c.verdict)} (run before this session; check again to see its command and log here)` : "not checked yet"}</div>`;
+  return `<div style="display:grid;gap:8px"><div class="kv"><span class="h">Selected save point: ${esc(c.id)}</span></div>
+    <div class="git"><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}${c.agent ? ` · agent ${esc(c.agent.name)}` : ""}</div>${check}</div>
+    ${vr?.log ? `<div class="row-btns"><button class="btn" data-act="reveal" data-path="${esc(vr.log)}">Show log</button><button class="btn ghost" data-act="copy" data-text="${esc(vr.log)}">Copy log path</button></div>` : ""}
+    ${rows}
+    <pre class="code">${esc(JSON.stringify(c, null, 2))}</pre></div>`;
 }
 
 function busyScrim(): string {
@@ -1219,7 +1343,7 @@ function exitRewind(): void {
   if (list) list.scrollTop = back.listScroll;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = back.pageScroll;
-  if (finished) toast(`${finished.branch} is ready. Your folder and branch were not touched. Nothing was pushed.`);
+  if (finished) toast(`${finished.branch} is ready. Your folder and branch were not touched. Nothing was pushed. ${keys("Mod+Z")} undoes it.`);
 }
 
 /** Put the Time View playhead on another save point. Nothing runs until Try or Use. */
@@ -1324,6 +1448,7 @@ async function rewindDo(): Promise<void> {
   render();
   try {
     r.result = await api({ method: "recover", projectId: p.id, id: r.target });
+    st.undo = { projectId: p.id, result: r.result, working: false };
     r.step = "done";
   } catch (e) {
     r.error = msg(e);
@@ -1335,11 +1460,36 @@ async function rewindDo(): Promise<void> {
   render();
 }
 
+/** Undo the last rewind: the engine removes its branch and recovery copy, only if both are untouched. */
+async function undoRewind(): Promise<void> {
+  const u = st.undo;
+  if (!u || u.working || st.busy) return;
+  u.working = true;
+  st.busy = "Undoing the rewind";
+  render();
+  try {
+    const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.result.id, branch: u.result.branch, copyDir: u.result.copyDir });
+    st.undo = null;
+    st.busy = null;
+    if (st.screen === "rewind" && st.rewind?.step === "done") {
+      st.rewind = { ...st.rewind, result: null, step: "find" };
+      exitRewind();
+    }
+    await loadTimeline();
+    toast(`Rewind undone. Removed ${r.removedBranch}${r.removedCopy ? " and the recovery copy" : ""}. Every save point is still here, including ${u.result.savedBefore}.`);
+  } catch (e) {
+    u.working = false;
+    st.busy = null;
+    toast(msg(e));
+  }
+  void refreshStatuses().then(render);
+}
+
 async function openCompare(a?: string, b?: string): Promise<void> {
   const pts = points();
   const newest = pts.at(-1);
   const older = lastWorking()?.id ?? pts.at(-2)?.id ?? newest?.id ?? null;
-  st.compare = { a: a ?? older, b: b ?? newest?.id ?? null, result: null, loading: false, error: null };
+  st.compare = { a: a ?? older, b: b ?? "now", now: null, result: null, loading: false, error: null };
   st.screen = "compare";
   await runDiff();
 }
@@ -1354,7 +1504,15 @@ async function runDiff(): Promise<void> {
   st.compare.loading = true;
   render();
   try {
-    st.compare.result = await api({ method: "diff", projectId: p.id, a, b });
+    // "Now" is the folder as it is. Save it first, only if something changed, so the engine compares two save points.
+    let nowId: string | null = null;
+    if (a === "now" || b === "now") {
+      const saved = await api({ method: "checkpoint", projectId: p.id, note: "Saved to compare with now", ifChanged: true });
+      nowId = saved.checkpoint.id;
+      st.compare.now = { id: nowId, skipped: saved.skipped };
+      if (!saved.skipped) await loadTimeline();
+    }
+    st.compare.result = await api({ method: "diff", projectId: p.id, a: a === "now" ? (nowId ?? a) : a, b: b === "now" ? (nowId ?? b) : b });
     st.compare.error = null;
   } catch (e) {
     st.compare.error = msg(e);
@@ -1546,20 +1704,43 @@ async function doHook(): Promise<void> {
 async function openSettings(): Promise<void> {
   st.screen = "settings";
   st.storage = null;
+  st.agents = null;
+  st.cleanup = null;
   render();
-  try {
-    st.storage = await api({ method: "storage" });
-  } catch {
-    st.storage = [];
-  }
+  // Each part shows as soon as it arrives. A failure leaves that part empty, never the whole screen.
+  await Promise.all([
+    api({ method: "storage" }).then((r) => (st.storage = r), () => (st.storage = [])),
+    api({ method: "agents" }).then((r) => (st.agents = r), () => (st.agents = [])),
+    api({ method: "isolation" }).then((r) => (st.isolation = r), () => undefined),
+  ]);
   render();
 }
 
 async function setSetting(patch: Partial<Settings>): Promise<void> {
   try {
     st.settings = await api({ method: "setSettings", patch });
+    if ("hotkey" in patch) {
+      st.hotkeyActive = patch.hotkey != null;
+      st.hotkeyDraft = null;
+    }
     applyTheme();
   } catch (e) {
+    toast(msg(e));
+  }
+  render();
+}
+
+/** Store clean up: a preview first, then the real removal of exactly what the engine finds then. */
+async function cleanStore(projectId: string, apply: boolean): Promise<void> {
+  if (st.cleanup?.working) return;
+  st.cleanup = { projectId, result: st.cleanup?.projectId === projectId ? st.cleanup.result : null, working: true };
+  render();
+  try {
+    const result = await api({ method: "cleanStore", projectId, apply });
+    st.cleanup = { projectId, result, working: false };
+    if (apply) st.storage = await api({ method: "storage" });
+  } catch (e) {
+    st.cleanup = null;
     toast(msg(e));
   }
   render();
@@ -1596,6 +1777,11 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "tv-done":
       if (!st.rewind?.recovering) exitRewind();
       return;
+    case "undo-rewind":
+      return undoRewind();
+    case "undo-dismiss":
+      st.undo = null;
+      return render();
     case "tv-go":
       return tvGo(d.id);
     case "tv-try":
@@ -1615,7 +1801,7 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "tv-do":
       return rewindDo();
     case "tv-compare":
-      if (st.rewind?.target) return openCompare(st.rewind.target, points().at(-1)?.id);
+      if (st.rewind?.target) return openCompare(st.rewind.target, "now");
       return;
     case "rewind-style":
       return setSetting({ simpleRewind: d.v === "sheet" });
@@ -1698,6 +1884,19 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "toggle":
       if (d.key === "showGitDetails") return setSetting({ showGitDetails: !st.settings.showGitDetails });
       if (d.key === "overlayCards") return setSetting({ overlayCards: !st.settings.overlayCards });
+      if (d.key === "agentPill") return setSetting({ agentPill: !st.settings.agentPill });
+      return;
+    case "hotkey-save": {
+      const v = (st.hotkeyDraft ?? st.settings.hotkey ?? "").trim();
+      return setSetting({ hotkey: v || null });
+    }
+    case "hotkey-off":
+      return setSetting({ hotkey: null });
+    case "clean-preview":
+      if (d.id) await cleanStore(d.id, false);
+      return;
+    case "clean-apply":
+      if (d.id) await cleanStore(d.id, true);
       return;
     case "remove":
       if (d.id) {
@@ -1723,6 +1922,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       return doHook();
     case "hook-close":
       st.hookSheet = null;
+      if (st.screen === "settings") st.agents = await api({ method: "agents" }).catch(() => st.agents);
       return render();
     case "ob-choose":
       return obChoose();
@@ -1825,7 +2025,7 @@ function rewindKey(e: KeyboardEvent): boolean {
     void tvTry();
   } else if (lower === "c" && !e.shiftKey && r.step !== "use" && r.target && points().at(-1)?.id !== r.target) {
     flash('.tv [data-key="c"]');
-    void openCompare(r.target, points().at(-1)?.id);
+    void openCompare(r.target, "now");
   } else return false;
   return true;
 }
@@ -1856,6 +2056,7 @@ function onKey(e: KeyboardEvent): void {
   if (mod && k === "i") return void (e.preventDefault(), shortcut("inspector"), flash('.side [data-act="inspector"]'));
   if (mod && k === ",") return void (e.preventDefault(), flash('.side [data-act="settings"]'), shortcut("settings"));
   if (mod && k === "n") return void (e.preventDefault(), shortcut("add"));
+  if (mod && k === "z" && !e.shiftKey && !typing && st.undo && !st.undo.working) return void (e.preventDefault(), flash('[data-act="undo-rewind"]'), undoRewind());
   if (k === "escape") {
     if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
     else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
@@ -1868,7 +2069,7 @@ function onKey(e: KeyboardEvent): void {
   // History list is newest first, so Down goes back in time.
   if (k === "arrowdown" || k === "j" || k === "arrowleft") st.selected = pts[Math.max(0, i - 1)]?.id ?? st.selected;
   else if (k === "arrowup" || k === "l" || k === "arrowright") st.selected = pts[Math.min(pts.length - 1, i + 1)]?.id ?? st.selected;
-  else if (k === "c" && st.selected && pts.at(-1)?.id !== st.selected) return void openCompare(st.selected, pts.at(-1)?.id);
+  else if (k === "c" && st.selected) return void openCompare(st.selected, "now");
   else if (k === " " && st.selected) return void (e.preventDefault(), startRewind(st.selected));
   else return;
   e.preventDefault();
@@ -1926,8 +2127,9 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   st = {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "history" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
-    compare: { a: null, b: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, records: [], storage: null,
-    hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null,
+    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, records: [], storage: null,
+    agents: null, isolation: null, cleanup: null, hotkeyDraft: null, hotkeyActive: boot.data.hotkeyActive,
+    hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
   };
   if (isMac()) document.documentElement.classList.add("mac");
   if (!o.preview) document.documentElement.classList.add("native");
@@ -1944,6 +2146,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   });
   root.addEventListener("input", (e) => {
     const t = e.target as HTMLInputElement;
+    if (t.dataset.model === "hotkey") {
+      st.hotkeyDraft = t.value;
+      return;
+    }
     if (t.dataset.model === "ob-custom") {
       st.onboarding.custom = t.value;
       st.onboarding.choice = "custom";

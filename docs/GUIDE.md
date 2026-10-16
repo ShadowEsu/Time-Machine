@@ -177,6 +177,8 @@ Every command takes `--json`. The JSON and the human output come from the same r
 
 `checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`.
 
+Each save point also records which agent made it, when one did: `agent: { name, prompt }` in `tm timeline --json`. The Claude Code hooks record "Claude Code" and the prompt of the current turn, clipped to one line. A prompt that looks like it holds a secret is stored as "(text hidden...)" instead, the same rule as notes. `--trigger mcp` records "MCP agent". Save points made by you, the app, or older versions of Time Machine have `agent: null`.
+
 `timeline` rows look like this:
 
 ```
