@@ -1,12 +1,28 @@
 # YC W27 application (draft)
 
-Deadline: **2 November 2026, 8pm PT.** Status: draft, 15 October 2026. Not submitted.
+Deadline: **2 November 2026, 8pm PT.** Decisions by 11 December. Batch January to March 2027 in San Francisco. Status: draft, 15 October 2026. Not submitted. Nothing here is sent by any agent or tool.
 
-Lines marked **[CONFIRM]** need the founder to check or fill in. This repo is public, so personal details (age, city, school, phone) go only into the form, never into this file.
+Sources for the questions and dates (checked 15 October 2026):
 
-Before you start: **[CONFIRM]** read YC's current rules for founder age and for who can sign the investment documents. `docs/legal/README.md` says an adult must sign for money.
+- YC apply page, W27 deadline and decision date: https://www.ycombinator.com/apply
+- YC's own guide to the questions: https://www.ycombinator.com/howtoapply
+- Dropbox's original application, for the older form of the questions: https://www.ycombinator.com/apply/dropbox
+- Question list as reported by a third party (not a YC page; check the live form): https://ycinsight.com/apply
 
-YC asks short questions and reads fast. Keep every answer plain. Cut anything that does not help a partner decide in a minute.
+Evidence cited in the answers:
+
+- Claude Code docs, "Checkpointing does not track files modified by Bash commands.": https://code.claude.com/docs/en/checkpointing
+- Replit agent deleted a production database, July 2025: https://incidentdatabase.ai/cite/1152
+- Gemini CLI deleted a user's files, July 2025: https://incidentdatabase.ai/cite/1178 and https://arstechnica.com/information-technology/2025/07/ai-coding-assistants-chase-phantoms-destroy-real-user-data
+- Cursor agent deleted PocketOS's production database, April 2026: https://builtin.com/articles/agent-technical-debt
+- Stack Overflow 2026 survey, trust in AI: https://survey.stackoverflow.co/2026/ai/data/ai-trust
+- Entire's seed and Checkpoints launch: https://entire.io/news/former-github-ceo-thomas-dohmke-raises-60-million-seed-round
+
+Lines marked **[FOUNDER]** need facts only the founder knows. This repo is public, so personal details (age, city, school, phone) go only into the form, never into this file.
+
+Before you start, **[FOUNDER]**: check YC's rules for founder age and who can sign the investment documents. `docs/legal/README.md` says an adult must sign for money. If you are a student, YC's Early Decision page lets you apply now for a later batch: https://www.ycombinator.com/early-decision
+
+YC reads fast. Keep every answer plain.
 
 ---
 
@@ -24,55 +40,56 @@ Proves which version of your code still works
 
 **Company URL**
 
-**[CONFIRM]** No domain yet. The site is private behind Vercel login. Buy the domain and open the site, or link the GitHub repo.
+**[FOUNDER]** No domain yet. The site is private behind Vercel login. Buy the domain and open the site, or link the GitHub repo.
 
 **Demo video**
 
-**[CONFIRM]** Link after recording. Script: `docs/DEMO_SCRIPT.md`.
+**[FOUNDER]** Link after recording. Script: `docs/DEMO_SCRIPT.md`.
 
-**Product link and login**
+**Product link and how to try it**
 
-**[CONFIRM]** https://github.com/ShadowEsu/Time-Machine (check it is public). No login needed. `pnpm install && pnpm build && node packages/cli/dist/tm.js demo` runs the whole story in a few seconds. Once on npm: `npx timetm demo`.
+https://github.com/ShadowEsu/Time-Machine (**[FOUNDER]** check it is public). No login. `pnpm install && pnpm build && node packages/cli/dist/tm.js demo` breaks and rescues a synthetic project in a few seconds. Once on npm: `npx timetm demo`.
 
 **What is your company going to make?**
 
-Coding agents now run many steps on their own, and sometimes they break your project. Undo goes back one step. Git has only what you committed. The agent's own rewind skips shell commands. You are left guessing which version last worked.
+Your agent can break things. Time Machine proves which version still works and gets you back to it.
 
-Time Machine saves a point before each agent prompt and before risky shell commands. When something breaks, it rebuilds each save point in a separate copy, runs your tests there, and finds the newest one that passes. Then it makes a new branch with that version. It never touches your folder or your current branch, and it never pushes, merges or deploys. Every result says what it could not bring back, like database rows and secret values.
+It saves a point before each agent prompt and before risky shell commands. When something breaks, it rebuilds each save point in a separate copy, runs your tests there, and finds the newest one that passes. Then it makes a new branch with that version. It saves where you are first, never touches your folder or current branch, and never pushes, merges or deploys. Every result lists what it could not bring back, like database rows and secret values.
 
-Today: a free command line tool (`tm`), Claude Code hooks, and an MCP server so any agent can use the same engine. In development: a Mac app with big buttons for people who do not use a terminal. Planned after that: the same idea for actions in other apps, like holding an email so it can be recalled.
+Today: a free command line tool (`tm`), Claude Code hooks, and an MCP server so any agent that speaks MCP can use the same engine. Built but not yet signed: a Mac app for people who do not use a terminal. Planned, not built: the same record and way back for agent actions in other apps, like email (ADR 0007).
 
 **Where do you live now, and where would the company be based after YC?**
 
-**[CONFIRM]** Fill in on the form.
+**[FOUNDER]** Fill in on the form.
 
 ## Progress
 
 **How far along are you?**
 
-The engine and command line tool are built and tested, not yet published. What works today:
+The engine and command line tool are built and tested, not yet published.
 
 - `tm init`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `demo`, `hook install` and `mcp`, all with `--json` and fixed exit codes.
-- Claude Code hooks that save before each prompt and before risky commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar), and check at the end of each turn.
-- An MCP server with 7 tools.
+- Claude Code hooks that save before each prompt and before risky commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar), and check at the end of each turn. Each save point records the agent and its prompt, with secrets stripped.
+- An MCP server for any agent that speaks MCP.
 - Save points stored outside the project with a git bundle, so they survive the folder being deleted.
-- Checks run in a separate worktree, with the network off when a sandbox is available.
-- 54 automated tests for the engine and command line tool, passing on macOS and Linux CI.
-- Tested on a real open source project, `sindresorhus/slugify`.
+- Checks run in a separate worktree, with the network off when a sandbox is available. If that rule cannot be met, the verdict is BLOCKED, not a guess.
+- A recovery can be undone while its branch and copy are untouched. Undo never removes a save point.
+- Tried on a real open source project, `sindresorhus/slugify`.
+- Test count: **[FOUNDER]** paste the current number from `pnpm test` on submit day.
 
-In development: the Mac app (a browser preview with demo data runs), the public site and its waitlist.
+Mac app: the screens are built (onboarding, History ruler, Rewind wizard with undo, Compare with now, Settings, Inspector, a corner card when a working project breaks, agent labels on save points). It has not yet run as a signed Mac app. Signing (D08) is next.
 
 **How long have each of you been working on this? How much of that has been full time?**
 
-The repo started on 13 October 2026. **[CONFIRM]** add earlier research time, and say how many hours a week you work on it next to school.
+The repo started on 13 October 2026. **[FOUNDER]** add earlier research time and your weekly hours next to school.
 
 **What tech stack are you using? Include AI models and AI coding tools you use.**
 
-TypeScript in strict mode on Node 22 and newer, pnpm, Zod for every outside input, Vitest, and Git through its command line. The Mac app is Electron on the same engine. The site is static on Vercel, with one Vercel function and one Supabase table for the waitlist. Code is written with Claude Code, test first. **[CONFIRM]** the models and tools you use.
+TypeScript in strict mode on Node 22 and newer, pnpm, Zod for every outside input, Vitest, and Git through its command line. The Mac app is Electron on the same engine. The site is static on Vercel. Code is written with Claude Code, test first. **[FOUNDER]** list the models and tools you actually use.
 
 **Are people using your product?**
 
-No. It is not published yet. **[CONFIRM]** update on the day you submit.
+No. It is not published yet. **[FOUNDER]** update on the day you submit.
 
 **Do you have revenue?**
 
@@ -82,60 +99,62 @@ No.
 
 **Why did you pick this idea to work on? Do you have domain expertise? How do you know people need it?**
 
-I build with coding agents every day, and I kept losing versions that worked. I built Unvibe to help people understand the code their AI wrote. Time Machine is the other half: when that code breaks, get back to a version that is proven to work. **[CONFIRM]** wording.
+I build with coding agents every day, and I kept losing versions that worked. I built Unvibe to help people understand the code their AI wrote. Time Machine is the other half: when that code breaks, get back to a version that is proven to work. **[FOUNDER]** rewrite in your own words.
 
 How we know people need it:
 
-- Public breaks. Replit's agent deleted a production database in July 2025. Gemini CLI deleted a user's project and wrote "I have failed you completely and catastrophically" (AI Incident Database). Cursor's forum has threads about agents wiping folders, and about "restore checkpoint" deleting files the agent made later.
-- Trust. In the Stack Overflow 2026 survey, about 7% of developers trust AI with important decisions, rising to 48% when the output is easy to check (InfoWorld).
-- Our own run on `sindresorhus/slugify` found a real bug in our tool (proxy settings dropped, so `npm install` failed). We fixed it test first. That is the loop we sell: prove it works, or say why it could not be checked.
+- The gap is documented. Claude Code's docs say: "Checkpointing does not track files modified by Bash commands." The agent's own rewind cannot undo an `rm` or `git reset --hard` it ran.
+- Public breaks. Replit's agent deleted a production database in July 2025. Gemini CLI deleted a user's files the same month and wrote "I have failed you completely and catastrophically." In April 2026 an agent in Cursor deleted PocketOS's production database.
+- Trust. In the Stack Overflow 2026 survey, 48% of developers trust AI when they can easily verify it, and only 7% trust it with important decisions. We make the result easy to verify.
 
-What we have not done yet: talk to users. The next step is think aloud tests with 5 builders (`docs/OUTREACH.md`). **[CONFIRM]** add what you learn before submitting.
+What we have not done yet: talk to users. Next is think aloud tests with 5 builders (`docs/OUTREACH.md`). **[FOUNDER]** add what you learn before submitting.
+
+**What's new about what you're making? What substitutes do people use?**
+
+Today people use Git commits, the agent's own rewind, or nothing. Git has only what you committed. Rewind skips the shell. Neither tells you if an old version works.
+
+We give a verdict, proved in a separate copy, plus a recovery that never touches your folder. Git remembers your code. We remember whether it worked.
 
 **Who are your competitors? What do you understand that they don't?**
 
-- **Claude Code `/rewind` and Cursor checkpoints** cover only their own edits, in their own tool. They skip the shell, so `rm -rf` and `git reset --hard` are not covered. They do not tell you if the old version works.
-- **Entire** raised a $60M seed in February 2026 for agent checkpoints, aimed at provenance and review. **[CONFIRM]** recheck their product before submitting.
+- **Claude Code `/rewind` and Cursor checkpoints** cover their own file edits in their own tool. They do not check whether the old version works.
+- **Entire** launched in February 2026 with a $60M seed. Its Checkpoints product captures agent sessions next to commits, for context and review. **[FOUNDER]** recheck before submitting.
 - **Rubrik Agent Rewind** is for large enterprises.
 - **git-ai** records which lines an agent wrote. That is attribution, not recovery.
 
-What we understand: a list of snapshots is not the answer people want. They want to know which one works. So we sell a verdict, proved in a separate copy, plus a recovery that never touches your folder. Git remembers your code. We remember whether it worked.
+What we understand: people do not want a list of snapshots. They want to know which one works, and they want to be told plainly what could not come back.
 
 **How do or will you make money? How much could you make?**
 
 The command line tool is free. Restores are never paywalled.
 
-Planned, not built: Pro for the Mac app at $9 a month, stepping down to $8 from month 7, $7 from month 13, and a $6 floor while you stay. A team plan for agencies comes after that.
+Planned, not built: Pro for the Mac app at $9 a month, stepping down to $8 from month 7, $7 from month 13, and a $6 floor while you stay (ADR 0002). A team plan for agencies comes after that.
 
-The math, not a forecast: one Pro user pays $72 to $108 a year. 10,000 paying users is about $0.7M to $1.1M a year. The bigger market is the planned action connector: a record and a way back for what agents do in email, Slack, Notion, calendars and payments, where the reversal is honest for each app (`docs/adr/0007-action-connector.md`).
+The math, not a forecast: one Pro user pays $72 to $108 a year. 10,000 paying users is about $0.7M to $1.1M a year. The larger market is the planned action connector for agent actions in other apps (ADR 0007). Nothing of it is built.
 
 **Which category best applies?**
 
-Developer tools. **[CONFIRM]**
-
-**Other ideas you considered**
-
-**[CONFIRM]** Optional. Leave blank or add your own.
+Developer tools. **[FOUNDER]** confirm.
 
 ## Equity
 
 **Have you formed any legal entity yet?**
 
-**[CONFIRM]** No, as far as this repo shows.
+**[FOUNDER]** No, as far as this repo shows.
 
 **Have you taken any investment yet?**
 
-**[CONFIRM]** No.
+**[FOUNDER]**
 
 **Are you currently fundraising?**
 
-**[CONFIRM]** Also applying to a16z speedrun (deadline 1 November 2026).
+Also applying to a16z speedrun (deadline 1 November 2026). **[FOUNDER]** add anything else.
 
 ## Curious
 
 **What convinced you to apply? How did you hear about YC?**
 
-**[CONFIRM]** Your own words.
+**[FOUNDER]** Your own words.
 
 ## Founders
 
@@ -145,27 +164,27 @@ Preston Susanto, solo founder. preston@unvibe.site
 
 **Are you looking for a cofounder?**
 
-**[CONFIRM]**
+**[FOUNDER]**
 
 **Who writes code, or does other technical work on your product? Was any of it done by a non-founder?**
 
-I do, with coding agents. I set the scope, write the rules, review each change and run the tests. Claude Code writes much of the code. Every bug fix starts with a failing test. Two independent code reviews found 17 bugs, and each was fixed with a failing test first. No one outside the company has worked on it. **[CONFIRM]** wording.
+I do, with coding agents. I set the scope, write the rules, review each change and run the tests. Claude Code writes much of the code. Every bug fix starts with a failing test. Two independent code reviews found 17 bugs, and each was fixed with a failing test first. No one outside the company has worked on it. **[FOUNDER]** confirm wording.
 
 **Something impressive you have built or achieved**
 
-**[CONFIRM]** each line. Source: the founder's own about page.
+Each line **[FOUNDER]** to confirm:
 
 - Built Unvibe, with 24+ releases. Member of Claude for Startups.
 - SF Hacks 2026: three awards. Mega Hackathon 2026: Gaming Award, solo.
-- Taught himself machine learning from Berkeley CS285 and Stanford CS234 lectures, on a MacBook with no GPU and no cloud budget.
+- Taught himself machine learning from Berkeley CS285 and Stanford CS234 lectures, on a MacBook with no GPU.
 - Leads Code The Change, a student group with 20+ members.
 
 Do not reuse Unvibe numbers as Time Machine traction.
 
 **Tell us about a time you most successfully hacked some non-computer system to your advantage**
 
-**[CONFIRM]** Only you can write this one. A true, specific story beats a polished one.
+**[FOUNDER]** Only you can write this. A true, specific story beats a polished one.
 
 ## Founder video (1 minute)
 
-Say who you are, what Time Machine does in one sentence, why you are building it, and what you have built. Do not read this file. **[CONFIRM]** record after the demo video.
+**[FOUNDER]** Record after the demo video. Say who you are, the pitch line, why you are building it, and what is built. Speak to the camera yourself. Do not read this file.

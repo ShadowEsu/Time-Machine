@@ -21,7 +21,7 @@ Start with people you already know. Then go to places where people have already 
 1. **People you know.** Friends from SF Hacks, Mega Hackathon and Code The Change. Ask them to point you to one friend who uses agents.
 2. **People who wrote about a break.** Cursor forum threads about agents deleting files. Claude Code GitHub issues about `git reset --hard` or lost work. Posts on X or Bluesky about an agent wiping a project. Reply to their public post, or message them if their profile invites it.
 3. **Communities, with permission.** r/ClaudeCode and r/vibecoding: read the rules, and ask a moderator before posting. Lovable and Cursor Discord servers: only in channels meant for feedback or show and tell.
-4. **Unvibe users.** Only people who agreed to hear from you. **[CONFIRM]** whether any did.
+4. **Unvibe users.** Only people who agreed to hear from you. **[FOUNDER]** confirm whether any did.
 
 ## Rules
 
@@ -33,21 +33,51 @@ Start with people you already know. Then go to places where people have already 
 - No real customer data in notes you keep or share. Write "user 3", not a name, in anything that goes in this repo.
 - Say thank you, and send them what changed because of them.
 
-## Message template
+## Message drafts
 
-Change the first line for each person. Keep it short.
+Three drafts. All are drafts only. The founder edits and sends each one by hand. Change the first line for each person and keep it short.
+
+### 1. Think aloud invite (to a builder you know, or who posted about losing work)
 
 > Hi [name], I saw your post about [the agent deleting your folder / losing a working version]. That sounds rough.
 >
-> I'm Preston, a student building Time Machine. It saves a point before each agent step, finds the newest one that still passes your tests, and makes a recovery branch without touching your folder. It's a free command line tool. It's early and not on npm yet.
+> I'm Preston, a student building Time Machine. Your agent can break things. Time Machine proves which version still works and gets you back to it. It's a free command line tool, early, and not on npm yet.
 >
-> Would you try it for 30 minutes on a call and think out loud while you do? I'm looking for what's confusing, not compliments. If it's not for you, no worries at all.
+> Would you try it for 30 minutes on a call and think out loud? I want to find what's confusing, not hear compliments. You can use our demo project. I never need access to your code. If it's not for you, no worries.
 >
 > Preston, preston@unvibe.site
 
 **Follow up (once, 5 to 7 days later):**
 
-> Hi [name], just bumping this once in case it got buried. If now's not a good time, no reply needed. Thanks either way.
+> Hi [name], bumping this once in case it got buried. If now's not a good time, no reply needed. Thanks either way.
+
+### 2. Post for X or LinkedIn
+
+Post only after the demo video is recorded. Attach the video. Link the docs page so readers can check the quote.
+
+> Claude Code's own docs say it: "Checkpointing does not track files modified by Bash commands."
+>
+> So if your agent runs rm or git reset, rewind can't bring it back.
+>
+> I'm building Time Machine. It saves a point before each prompt and before risky shell commands. When something breaks, it runs your tests on each save point in a separate copy and finds the newest one that works. Then it makes a recovery branch. Your folder is not touched. It also tells you what it could not bring back.
+>
+> 60 second demo below. Free command line tool, early, not on npm yet.
+>
+> Looking for 5 people who build with agents to try it and tell me what's confusing.
+>
+> code.claude.com/docs/en/checkpointing
+
+### 3. Cold DM to a developer who runs agents a lot
+
+Only if their profile invites messages. Mention something specific they posted.
+
+> Hi [name], your post on [running Claude Code overnight / agents on auto approve] stuck with me.
+>
+> Quick question: when an agent breaks something mid run, how do you find the last version that worked?
+>
+> I'm building a small tool for exactly that. It tests each save point in a separate copy and makes a recovery branch without touching your folder. Happy to send the 60 second demo if useful. No pitch beyond that.
+>
+> Preston
 
 ## Think aloud session (30 minutes)
 
