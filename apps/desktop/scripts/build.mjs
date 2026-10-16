@@ -1,5 +1,5 @@
 // Builds the Electron app into out/, or with --preview the browser preview into preview/dist/.
-import { copyFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -27,6 +27,8 @@ if (preview) {
   mkdirSync(out, { recursive: true });
   await build({ ...web, entryPoints: [join(here, "preview/entry.ts")], outfile: join(out, "app.js"), sourcemap: false });
   copyFileSync(join(here, "src/renderer/styles.css"), join(out, "styles.css"));
+  // Fonts ship with the app (SIL OFL 1.1, licences alongside). No network fonts.
+  cpSync(join(here, "src/renderer/fonts"), join(out, "fonts"), { recursive: true });
   copyFileSync(join(here, "preview/index.html"), join(out, "index.html"));
   console.log(`Preview built in ${out}. Open index.html in a browser.`);
 } else {
@@ -54,5 +56,6 @@ if (preview) {
     build({ ...web, entryPoints: [join(here, "src/renderer/overlay.ts")], outfile: join(out, "overlay.js") }),
   ]);
   for (const f of ["index.html", "overlay.html", "styles.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
+  cpSync(join(here, "src/renderer/fonts"), join(out, "fonts"), { recursive: true });
   console.log(`App built in ${out}.`);
 }
