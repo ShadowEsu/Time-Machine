@@ -71,11 +71,16 @@ kbd { font-family: var(--mono); font-size: 10.5px; opacity: .62; font-variant-nu
 .it.on { background: var(--sel); color: var(--ink); font-weight: 500; }
 .it .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .it .plus { width: 16px; text-align: center; color: var(--ink-3); }
-.side .grow { flex: 1; }
-.store-mini { overflow-wrap: anywhere; margin-top: 10px; padding: 10px; border-radius: 10px; background: var(--paper); box-shadow: var(--shadow-md); display: grid; gap: 4px; font-size: 11.5px; color: var(--ink-3); }
+.side-rule { height: 1px; margin: 12px 8px; background: var(--line); }
 
 .main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--paper); }
-.dragbar { position: absolute; inset: 0 0 auto 0; height: 14px; -webkit-app-region: drag; }
+.toolbar { flex: none; position: relative; z-index: 16; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 24px; border-bottom: 1px solid var(--line); -webkit-app-region: drag; }
+.toolbar > * { -webkit-app-region: no-drag; }
+.tb-where { font-weight: 600; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-app-region: drag; }
+.tb-sp { flex: 1; -webkit-app-region: drag; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.pill kbd { opacity: .7; }
+.pill:active, .pill.kf { transform: scale(.97); }
 
 /* Buttons */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; border: 0; cursor: pointer; background: var(--paper); color: var(--ink); box-shadow: var(--shadow-md); transition: transform .12s var(--ease), opacity .2s; white-space: nowrap; }
@@ -152,7 +157,7 @@ kbd { font-family: var(--mono); font-size: 10.5px; opacity: .62; font-variant-nu
 .broke-rule::before { content: ""; height: 1px; flex: 1; background: var(--fail-dot); opacity: .5; }
 
 /* The save point drawer: slides over History from the right. Esc closes it. */
-.sp { position: absolute; top: 0; right: 0; bottom: 0; z-index: 15; width: min(440px, 100%); display: flex; flex-direction: column; background: var(--surface); box-shadow: var(--shadow-lg); }
+.sp { position: absolute; top: 52px; right: 0; bottom: 0; z-index: 15; width: min(440px, 100%); display: flex; flex-direction: column; background: var(--surface); box-shadow: var(--shadow-lg); }
 .sp.enter { animation: slide .22s var(--ease); }
 .sp-top { display: flex; align-items: center; gap: 6px; padding: 14px 12px 10px 22px; border-bottom: 1px solid var(--line); }
 .sp-top .eyebrow { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -244,7 +249,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: auto; min-wid
 :root[data-theme="dark"] .switch.on::after { background: #18181b; }
 .toggle { display: flex; gap: 12px; align-items: flex-start; }
 .table { display: grid; gap: 0; }
-.table .tr { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.table .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.table .t1 { font-weight: 600; }
 .table .tr:first-child { border-top: 0; }
 .planned { font-size: 11px; font-family: var(--mono); padding: 1px 6px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
 

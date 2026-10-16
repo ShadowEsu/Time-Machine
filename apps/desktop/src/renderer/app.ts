@@ -15,7 +15,10 @@ export interface StartOptions {
   previewActions?: { label: string; run: () => void }[];
 }
 
-type Screen = "welcome" | "onboarding" | "history" | "rewind" | "compare" | "settings";
+type Screen = "welcome" | "onboarding" | "history" | "rewind" | "compare" | "agents" | "storage" | "settings";
+
+/** Screens that belong to the selected project. The others are app wide. */
+const PROJECT_SCREENS: readonly Screen[] = ["history", "rewind", "compare"];
 
 interface CheckState {
   phase: "saving" | "checking" | "done";
@@ -292,25 +295,27 @@ function notSavedLines(c: TimelineEntry): string[] {
 // Views
 
 function sidebar(): string {
+  const inProject = PROJECT_SCREENS.includes(st.screen);
   const items = st.projects
     .map((p) => {
       const s = st.statuses.get(p.id);
       const v = s?.newest?.verdict ?? null;
       const label = s?.problem ? "Can't find it" : s?.newest ? verdictWord(v) : "No save points yet";
-      return `<button class="it ${p.id === st.projectId && st.screen !== "settings" && st.screen !== "onboarding" ? "on" : ""}" data-act="project" data-id="${p.id}" title="${esc(`${p.name}: ${label}`)}">
+      return `<button class="it ${p.id === st.projectId && inProject ? "on" : ""}" data-act="project" data-id="${p.id}" title="${esc(`${p.name}: ${label}`)}">
         ${glyph(s?.problem ? "ERROR" : v)}<span class="nm">${esc(p.name)}</span><span class="sr-only">${esc(label)}</span></button>`;
     })
     .join("");
+  const nav = (screen: Screen, icon: string, label: string, key: string): string =>
+    `<button class="it ${st.screen === screen ? "on" : ""}" data-act="${screen}"><span class="plus" aria-hidden="true">${icon}</span><span class="nm">${label}</span>${key ? `<kbd>${keys(key)}</kbd>` : ""}</button>`;
   return `<aside class="side">
     <div class="brand"><span class="mark" aria-hidden="true"></span>Time Machine</div>
     <div class="sec">Projects</div>
     ${items || '<div class="muted small" style="padding:4px 8px">No projects yet</div>'}
-    <button class="it" data-act="add"><span class="plus">+</span><span class="nm">Add project</span><kbd>${keys("Mod+N")}</kbd></button>
-    <button class="it" data-act="demo"><span class="plus">▸</span><span class="nm">Try the demo</span></button>
-    <div class="grow"></div>
-    <button class="it ${st.screen === "settings" ? "on" : ""}" data-act="settings"><span class="plus">⚙</span><span class="nm">Settings</span><kbd>${keys("Mod+,")}</kbd></button>
-    <button class="it ${st.inspector ? "on" : ""}" data-act="inspector"><span class="plus">{}</span><span class="nm">Inspector</span><kbd>${keys("Mod+I")}</kbd></button>
-    <div class="store-mini"><span>Save points are kept outside your project folders.</span>${st.settings.showGitDetails ? `<span class="mono">${esc(st.boot.storeDir)}</span>` : ""}</div>
+    <button class="it ${st.screen === "onboarding" ? "on" : ""}" data-act="add"><span class="plus" aria-hidden="true">+</span><span class="nm">Add project</span><kbd>${keys("Mod+N")}</kbd></button>
+    <div class="side-rule" role="separator"></div>
+    ${nav("agents", "⌁", "Agents", "")}
+    ${nav("storage", "▢", "Storage", "")}
+    ${nav("settings", "⚙", "Settings", "Mod+,")}
   </aside>`;
 }
 
@@ -335,7 +340,7 @@ function history(): string {
   const checked = newest ? st.verifyResults.get(newest.id) : undefined;
   const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null);
   const header = `<section class="hero">
-    <div class="hero-name"><span class="eyebrow" title="${esc(p.path)}">${esc(p.name)}</span>${st.settings.showGitDetails ? `<span class="path mono">${esc(p.path)}${newest?.branch ? ` · branch ${esc(newest.branch)}` : ""}</span>` : ""}</div>
+    ${st.settings.showGitDetails ? `<div class="hero-name"><span class="path mono">${esc(p.path)}${newest?.branch ? ` · branch ${esc(newest.branch)}` : ""}</span></div>` : ""}
     <div class="hero-v">${badge(s.v)}</div>
     <h1 class="hero-h">${esc(s.head)}</h1>
     <p class="hero-p">${esc(s.body)}</p>
@@ -932,51 +937,71 @@ function compare(): string {
     ${body}</div></div>`;
 }
 
+const LOADING = '<span class="spin" role="status" aria-label="Loading"></span>';
+
+function agentsScreen(): string {
+  const agentWords: { [K in AgentRow["claudeCode"]]: string } = {
+    connected: "Connected. It saves before each prompt and checks after each turn.",
+    "not-running": "Connected, but the command does not run yet. Nothing is saved until it does.",
+    partial: "Partly connected.",
+    "not-connected": "Not connected.",
+    unreadable: "Its .claude/settings.json is not plain JSON, so we left it alone.",
+    unavailable: "We can't read this project right now.",
+  };
+  const rows = st.agents
+    ? st.agents.map((a) => {
+        const words = a.claudeCode === "partial" ? `Partly connected. Missing: ${a.missing.join(", ")}.` : agentWords[a.claudeCode];
+        const working = a.working ? `<div class="small">Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</div>` : "";
+        const btn = a.claudeCode === "not-connected" || a.claudeCode === "partial" ? `<button class="btn dark" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect"}</button>` : "<span></span>";
+        return `<div class="tr"><div><div class="t1">${esc(a.name)}</div><div class="small muted">Claude Code: ${esc(words)}</div>${working}${st.settings.showGitDetails && a.settingsPath ? `<div class="mono muted">${esc(a.settingsPath)}</div>` : ""}</div>${btn}</div>`;
+      }).join("") || '<span class="muted">Add a project first.</span>'
+    : LOADING;
+  return `<div class="page"><div class="col">
+    <div><h1>Agents</h1><p class="lede">Claude Code can save before each prompt and before risky commands, and check after each turn. We show the exact lines before we add them.</p></div>
+    <div class="panel"><div class="table agents">${rows}</div></div>
+    <div><span class="planned">planned</span> <span class="muted">Cursor, Codex and Gemini CLI.</span></div>
+  </div></div>`;
+}
+
+function storageScreen(): string {
+  const cleanRow = (projectId: string): string => {
+    const c = st.cleanup?.projectId === projectId ? st.cleanup : null;
+    if (!c) return `<button class="btn" data-act="clean-preview" data-id="${projectId}" ${st.cleanup?.working ? "disabled" : ""}>Clean up</button>`;
+    if (c.working) return LOADING;
+    if (!c.result) return "";
+    if (c.result.applied) return `<span class="small muted">Removed ${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}.</span>`;
+    if (!c.result.files.length) return '<span class="small muted">Nothing to clean up.</span>';
+    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
+  };
+  const rows = st.storage
+    ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on this Mac</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || '<span class="muted">No projects yet.</span>'
+    : LOADING;
+  return `<div class="page"><div class="col">
+    <div><h1>Storage</h1><p class="lede">Save points are stored on this Mac, outside your project folders, so deleting a project does not delete its history. This is not a full Mac backup.</p></div>
+    <div class="panel"><div class="table">${rows}</div></div>
+    <p class="small muted">Clean up removes old check logs that a newer check replaced. Save points are never removed. We show what goes before anything is removed.${st.settings.showGitDetails ? ` Store: <span class="mono">${esc(st.boot.storeDir)}</span>` : ""}</p>
+    <div><span class="planned">planned</span> <span class="muted">Thinning old save points. Pinned and working save points will always stay.</span></div>
+  </div></div>`;
+}
+
 function settings(): string {
   const s = st.settings;
   const seg = (v: Settings["theme"], label: string): string => `<button class="${s.theme === v ? "on" : ""}" data-act="theme" data-v="${v}">${label}</button>`;
   const sw = (key: "showGitDetails" | "overlayCards" | "agentPill", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
-  const loading = '<span class="spin"></span>';
-  const cleanRow = (projectId: string): string => {
-    const c = st.cleanup?.projectId === projectId ? st.cleanup : null;
-    if (!c) return `<button class="btn ghost" data-act="clean-preview" data-id="${projectId}" ${st.cleanup?.working ? "disabled" : ""}>Clean up</button>`;
-    if (c.working) return loading;
-    if (!c.result) return "";
-    if (c.result.applied) return `<span class="small muted">Removed ${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}.</span>`;
-    if (!c.result.files.length) return '<span class="small muted">Nothing to clean up.</span>';
-    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
-  };
-  const storage = st.storage
-    ? st.storage.map((r) => `<div class="tr"><div><div>${esc(r.name)}</div>${s.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="mono">${esc(bytes(r.bytes))}</span><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || '<span class="muted">No projects yet.</span>'
-    : loading;
-  const agentWords: { [K in AgentRow["claudeCode"]]: string } = {
-    connected: "Claude Code is connected",
-    "not-running": "Connected, but the command does not run yet. Nothing is saved until it does",
-    partial: "Partly connected",
-    "not-connected": "Not connected",
-    unreadable: "Its .claude/settings.json is not plain JSON, so we left it alone",
-    unavailable: "We can't read this project right now",
-  };
-  const agents = st.agents
-    ? st.agents.map((a) => {
-        const words = a.claudeCode === "partial" ? `Partly connected. Missing: ${a.missing.join(", ")}` : agentWords[a.claudeCode];
-        const working = a.working ? `<div class="small">Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</div>` : "";
-        const btn = a.claudeCode === "not-connected" || a.claudeCode === "partial" ? `<button class="btn" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect Claude Code"}</button>` : "<span></span>";
-        return `<div class="tr"><div><div>${esc(a.name)}</div><div class="small muted">${esc(words)}</div>${working}${s.showGitDetails && a.settingsPath ? `<div class="mono muted">${esc(a.settingsPath)}</div>` : ""}</div><span></span>${btn}</div>`;
-      }).join("") || '<span class="muted">Add a project first.</span>'
-    : loading;
   const iso = st.isolation;
-  const network = !iso ? loading
+  const network = !iso ? LOADING
     : iso.networkSandbox ? `When a project turns the network off for checks, ${esc(iso.networkSandbox)} blocks it.`
       : "Nothing on this Mac can block the network during a check. A project that asks for no network gets Needs something, never Works.";
   const hk = s.hotkey;
   const hotkeyState = st.boot.preview ? "The browser preview has no shortcut." : !hk ? "Off." : st.hotkeyActive ? "On." : "Not active. Another app may already use it.";
   return `<div class="page"><div class="col">
     <div><h1>Settings</h1></div>
-    <div class="panel"><h3>General</h3>
-      <div class="setrow"><span class="l">Appearance</span><div class="seg">${seg("system", "System")}${seg("light", "Light")}${seg("dark", "Dark")}</div></div>
-      <div class="setrow"><span class="l">Rewind style</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Time View</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same four steps as a plain sheet. It is used on its own when Reduce motion is on.</span></div></div>
-      <div class="setrow"><span class="l">Show Git details</span><div class="toggle">${sw("showGitDetails", s.showGitDetails, "Show Git details")}<span class="muted">Adds commit IDs, commands and logs next to the plain words. It never replaces them and never changes a verdict.</span></div></div>
+    <div class="panel"><h3>Appearance</h3>
+      <div class="setrow"><span class="l">Theme</span><div class="seg">${seg("system", "System")}${seg("light", "Light")}${seg("dark", "Dark")}</div></div>
+      <div class="setrow"><span class="l">Show Git details</span><div class="toggle">${sw("showGitDetails", s.showGitDetails, "Show Git details")}<span class="muted">Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.</span></div></div>
+    </div>
+    <div class="panel"><h3>Rewind style</h3>
+      <div class="setrow"><span class="l">Going back</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Time View</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same steps as a plain sheet. It is used on its own when Reduce motion is on.</span></div></div>
     </div>
     <div class="panel"><h3>Shortcut</h3>
       <div class="setrow"><span class="l">Open Time Machine</span><div style="display:grid;gap:6px">
@@ -989,20 +1014,9 @@ function settings(): string {
       <div class="setrow"><span class="l">Agent pill</span><div class="toggle">${sw("agentPill", s.agentPill, "Agent pill")}<span class="muted">A small pill while a connected agent is working. It goes away when the turn ends.</span></div></div>
     </div>
     <div class="panel"><h3>Checks</h3>
-      <div class="setrow"><span class="l">Safe copy method</span><div>Basic isolation (host mode). Checks run in a separate Git worktree on this Mac, never in your folder. They use the tools installed on this Mac.</div></div>
+      <div class="setrow"><span class="l">Where checks run</span><div>In a safe copy on this Mac, never in your folder. Checks use the tools installed on this Mac.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}</div></div>
       <div class="setrow"><span class="l">Network during checks</span><div>${network}</div></div>
       <div><span class="planned">planned</span> <span class="muted">Stronger isolation with Docker or Apple container.</span></div>
-    </div>
-    <div class="panel"><h3>Storage</h3>
-      <p class="muted">Save points are stored on this Mac, outside your project folders, so deleting a project does not delete its history. This is not a full Mac backup.</p>
-      <div class="table">${storage}</div>
-      <p class="small muted">Clean up removes old check logs that a newer check replaced. Save points are never removed. We show what goes before anything is removed.</p>
-      <div><span class="planned">planned</span> <span class="muted">Thinning old save points. Pinned and working save points will always stay.</span></div>
-    </div>
-    <div class="panel"><h3>Agent connections</h3>
-      <p class="muted">Claude Code can save before each prompt and before risky commands, and check after each turn. We show the exact lines before we add them.</p>
-      <div class="table">${agents}</div>
-      <div><span class="planned">planned</span> <span class="muted">Cursor, Codex and Gemini CLI.</span></div>
     </div>
   </div></div>`;
 }
@@ -1185,6 +1199,28 @@ function focusKey(): string | null {
   return null;
 }
 
+/** The bar above every screen: where you are, Back to now when you are looking at the past, and ⋯ for the rest. */
+function toolbar(): string {
+  const p = project();
+  const inProject = !!p && PROJECT_SCREENS.includes(st.screen);
+  const where = inProject ? p.name : "";
+  const newest = points().at(-1);
+  const past = inProject && (st.screen === "compare" || (st.drawer && !!st.selected && st.selected !== newest?.id));
+  const busy = st.busy ? "disabled" : "";
+  const more = inProject && newest
+    ? menuButton("tools", "More actions", [
+        `<button data-act="save" ${busy}>Save now<kbd>${esc(keys("Mod+S"))}</kbd></button>`,
+        `<button data-act="check" ${busy}>Check it works<kbd>${esc(keys("Mod+Enter"))}</kbd></button>`,
+        `<button data-act="find" ${busy}>Find the last working version</button>`,
+        `<button data-act="compare">Compare with now<kbd>${esc(keys("Mod+Shift+C"))}</kbd></button>`,
+        `<button data-act="inspector">Open Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`,
+      ])
+    : "";
+  return `<div class="toolbar"><span class="tb-where">${esc(where)}</span>
+    ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
+    <span class="tb-sp"></span>${more}</div>`;
+}
+
 function render(): void {
   const scroll = document.getElementById("list")?.scrollTop ?? 0;
   const pageScroll = document.querySelector(".page")?.scrollTop ?? 0;
@@ -1197,11 +1233,13 @@ function render(): void {
       : st.screen === "onboarding" ? onboarding()
         : st.screen === "rewind" ? (scene ? history() : `${history()}${rewind()}`)
           : st.screen === "compare" ? compare()
-            : st.screen === "settings" ? settings()
-              : history();
+            : st.screen === "agents" ? agentsScreen()
+              : st.screen === "storage" ? storageScreen()
+                : st.screen === "settings" ? settings()
+                  : history();
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    <div class="app">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}><div class="dragbar"></div>${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${scene ? timeView() : ""}${inspector()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
+    <div class="app">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${scene ? timeView() : ""}${inspector()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
   seenOnce = drawOnce;
   const list = document.getElementById("list");
   if (list) list.scrollTop = scroll;
@@ -1301,7 +1339,17 @@ function newRewind(target: string | null, returnTo: ReturnPoint = here()): Rewin
   };
 }
 
-async function startRewind(target?: string): Promise<void> {
+/** Back to now: close the drawer and leave Compare, so the project screen shows the present again. */
+function backToNow(): void {
+  st.drawer = false;
+  st.menu = null;
+  if (st.screen === "compare") st.screen = "history";
+  st.selected = points().at(-1)?.id ?? null;
+  render();
+}
+
+/** `search` runs find-good even when a working version is already known. */
+async function startRewind(target?: string, search = false): Promise<void> {
   const p = project();
   if (!p) return;
   // A search that is still running in the background: step back into it.
@@ -1316,7 +1364,7 @@ async function startRewind(target?: string): Promise<void> {
   st.screen = "rewind";
   enterScene();
   // Known answer: a recorded Works save point after which the project broke. Go straight to it, no search.
-  const known = target ?? (points().at(-1)?.verdict !== "PASS" ? lastWorking()?.id : undefined);
+  const known = target ?? (!search && points().at(-1)?.verdict !== "PASS" ? lastWorking()?.id : undefined);
   if (known) {
     st.rewind = newRewind(known, back);
     render();
@@ -1724,19 +1772,20 @@ async function doHook(): Promise<void> {
   render();
 }
 
-async function openSettings(): Promise<void> {
-  st.screen = "settings";
-  st.storage = null;
-  st.agents = null;
-  st.cleanup = null;
+/** Agents, Storage or Settings. Each reads its own data; a failure leaves that part empty, never the screen. */
+async function openPage(screen: "agents" | "storage" | "settings"): Promise<void> {
+  st.screen = screen;
+  st.drawer = false;
+  if (screen === "storage") {
+    st.storage = null;
+    st.cleanup = null;
+  }
+  if (screen === "agents") st.agents = null;
   render();
-  // Each part shows as soon as it arrives. A failure leaves that part empty, never the whole screen.
-  await Promise.all([
-    api({ method: "storage" }).then((r) => (st.storage = r), () => (st.storage = [])),
-    api({ method: "agents" }).then((r) => (st.agents = r), () => (st.agents = [])),
-    api({ method: "isolation" }).then((r) => (st.isolation = r), () => undefined),
-  ]);
-  render();
+  if (screen === "storage") await api({ method: "storage" }).then((r) => (st.storage = r), () => (st.storage = []));
+  else if (screen === "agents") await api({ method: "agents" }).then((r) => (st.agents = r), () => (st.agents = []));
+  else await api({ method: "isolation" }).then((r) => (st.isolation = r), () => undefined);
+  if (st.screen === screen) render();
 }
 
 async function setSetting(patch: Partial<Settings>): Promise<void> {
@@ -1792,8 +1841,14 @@ async function onClick(el: HTMLElement): Promise<void> {
       return startAdd();
     case "demo":
       return runDemo();
+    case "agents":
+    case "storage":
     case "settings":
-      return openSettings();
+      return openPage(d.act);
+    case "now":
+      return backToNow();
+    case "find":
+      return startRewind(undefined, true);
     case "inspector":
       st.inspector = !st.inspector;
       return render();
@@ -1938,7 +1993,7 @@ async function onClick(el: HTMLElement): Promise<void> {
           st.projects = await api({ method: "removeProject", projectId: d.id });
           if (st.projectId === d.id) st.projectId = st.projects[0]?.id ?? null;
           toast("Removed from the app. Its save points stay in the store.");
-          if (st.screen === "settings") await openSettings();
+          if (st.screen === "storage") await openPage("storage");
           else if (st.projectId) await selectProject(st.projectId);
           else {
             st.screen = "welcome";
@@ -1956,7 +2011,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       return doHook();
     case "hook-close":
       st.hookSheet = null;
-      if (st.screen === "settings") st.agents = await api({ method: "agents" }).catch(() => st.agents);
+      if (st.screen === "agents") st.agents = await api({ method: "agents" }).catch(() => st.agents);
       return render();
     case "ob-choose":
       return obChoose();
@@ -2003,7 +2058,7 @@ function shortcut(action: ShortcutAction): void {
       st.inspector = !st.inspector;
       return render();
     case "settings":
-      void openSettings();
+      void openPage("settings");
       return;
     case "add":
       return startAdd();
@@ -2092,7 +2147,8 @@ function onKey(e: KeyboardEvent): void {
   }
   if (mod && k === "s") return void (e.preventDefault(), flash('[data-act="save"]'), shortcut("save"));
   if (mod && k === "enter") return void (e.preventDefault(), flash('[data-act="check"]'), shortcut("check"));
-  if (mod && k === "i") return void (e.preventDefault(), shortcut("inspector"), flash('.side [data-act="inspector"]'));
+  if (mod && k === "i") return void (e.preventDefault(), shortcut("inspector"));
+  if (mod && k === "arrowup" && !typing && PROJECT_SCREENS.includes(st.screen) && st.screen !== "rewind") return void (e.preventDefault(), flash('[data-act="now"]'), backToNow());
   if (mod && k === ",") return void (e.preventDefault(), flash('.side [data-act="settings"]'), shortcut("settings"));
   if (mod && k === "n") return void (e.preventDefault(), shortcut("add"));
   // Undo a rewind only where its button is: the Done step and History.
