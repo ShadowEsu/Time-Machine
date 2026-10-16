@@ -41,7 +41,7 @@ Three drafts. All are drafts only. The founder edits and sends each one by hand.
 
 > Hi [name], I saw your post about [the agent deleting your folder / losing a working version]. That sounds rough.
 >
-> I'm Preston, a student building Time Machine. Your agent can break things. Time Machine proves which version still works and gets you back to it. It's a free command line tool, early, and not on npm yet.
+> I'm Preston, a student building Time Machine. Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it. It's a free command line tool, early, and not on npm yet.
 >
 > Would you try it for 30 minutes on a call and think out loud? I want to find what's confusing, not hear compliments. You can use our demo project. I never need access to your code. If it's not for you, no worries.
 >

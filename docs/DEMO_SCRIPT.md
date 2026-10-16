@@ -2,7 +2,7 @@
 
 Status: script ready, not recorded yet. For the a16z speedrun (closes 1 November 2026, 11:59pm PT) and YC W27 (closes 2 November 2026, 8pm PT). Target shoot date: 30 October.
 
-Pitch: Your agent can break things. Time Machine proves which version still works and gets you back to it.
+Pitch: Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.
 
 Everything on screen is a real run of `tm demo`. The output lines below were copied from a run on 15 October 2026 and match `packages/cli/src/format.ts` and `packages/core/src/demo.ts`. Marigold Tips is a synthetic project. Its `.env` holds a fake key that works nowhere.
 
@@ -27,7 +27,7 @@ Seven shots. The video ends on the verdict and the "Not restored" list, because 
 | 4 | 0:19 to 0:31 | Pan down the `tm find-good` block, one line at a time | `cp-0006 FAIL` `cp-0005 FAIL` `cp-0004 FAIL` `cp-0003 PASS` | "Find good rebuilds each save point in a separate copy and runs the tests there. Broken. Broken. Broken. This one works." |
 | 5 | 0:31 to 0:42 | Pan to the `tm recover cp-0003` block | `Recovery ready for cp-0003. Nothing was pushed, merged or deployed. Your folder and branch were not touched.` then `Saved first  cp-0007` | "Recover saves where you are first. Then it makes a new branch and a separate copy. Your folder is not touched. Nothing is pushed." |
 | 6 | 0:42 to 0:50 | Split frame. Top: the verdict line. Bottom: the Not restored block | `PASS  cp-0003 is the newest version that works.` and `Not restored` `Secret values in .env: PORT, STRIPE_SECRET_KEY` `Databases, deployed versions and external services are not captured` | "That is the verdict. Proof, not a guess. And here is what it could not bring back. It stores key names, never secret values." |
-| 7 | 0:50 to 1:00 | Hold shot 6. Fade the end card in over it | **Time Machine.** Proves which version still works and gets you back to it. Small: Free command line tool. Not on npm yet. Mac app in development. | "Time Machine. Back to what worked." |
+| 7 | 0:50 to 1:00 | Hold shot 6. Fade the end card in over it | **Time Machine.** Proves which version still passes your tests and gets you back to it. Small: Free command line tool. Not on npm yet. Mac app in development. | "Time Machine. Back to what worked." |
 
 Shot 6 is the last real frame. Do not cut away to anything else after it.
 
@@ -93,4 +93,4 @@ On Linux the sandbox name is `bwrap` or `unshare`. Use the line exactly as print
 
 ## Description for the upload
 
-Your agent can break things. Time Machine proves which version still works and gets you back to it. It saves a point after each change, runs your tests on each save point in a separate copy, and makes a recovery branch without touching your folder. Every recovery lists what it could not bring back. This is a real run on a synthetic project. The command line tool is free and not on npm yet. The Mac app is in development.
+Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it. It saves before each prompt, before risky shell commands, and after each agent turn, runs your tests on each save point in a separate copy, and makes a recovery branch without touching your folder. Every recovery lists what it could not bring back. This is a real run on a synthetic project. The command line tool is free and not on npm yet. The Mac app is in development.

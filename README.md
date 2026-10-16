@@ -75,7 +75,7 @@ npx timetm init
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 54 engine and CLI tests, passing on macOS and Linux CI with Node 22 and 24. Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 100 automated tests (98 run on macOS, 2 are Linux only), passing on macOS and Linux CI with Node 22 and 24. Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Mac app | History, save point detail, Rewind, Compare, menu bar dot and corner card on the same engine. A browser preview with demo data runs | In development |
 | Website | Static site in `site/` with a waitlist | In development, private |

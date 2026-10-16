@@ -1,6 +1,6 @@
 # Time Machine build brief
 
-Status: Phase A engine and CLI partly implemented (15 October 2026). **Implemented and tested:** C01 to C15 in host mode (C15 for Claude Code), `tm demo`, `tm mcp`, and acceptance tests V01 to V14. **Still planned:** Git hooks, the container isolation adapter, the dependency cache, store thinning, npm publishing, and all of Phase B. Everything else in this file is planned unless marked implemented here.
+Status: Phase A engine and CLI partly implemented (15 October 2026). **Implemented and tested:** C01 to C15 in host mode (C15 for Claude Code), `tm demo`, `tm mcp`, and acceptance tests V01 to V14. **Still planned:** Git hooks, the container isolation adapter, the dependency cache, store thinning, npm publishing, and signing and shipping Phase B. **Built but not signed or shipped:** the Phase B app screens and the overlay. Everything else in this file is planned unless marked implemented here.
 
 Name: **Time Machine** (founder decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
 
@@ -57,11 +57,11 @@ Both call the same engine, so they can never disagree.
 | recover | Use this version |
 | PASS / FAIL / INCOMPLETE / BLOCKED / ERROR | Works / Broken / Couldn't check / Needs something / Check crashed |
 
-**The overlay** (planned for the app):
+**The overlay** (built in the app, not signed or shipped yet):
 
 - **Menu bar dot:** green means the last check passed, red means it failed, and grey means not checked yet. It is never green without a real PASS.
 - **Event cards** in the corner that never steal focus. Example: "Something broke after Claude's last change. Last working version: 10:42, Added dark mode." Buttons: Rewind to 10:42, Show what changed.
-- **Hotkey timeline strip** across the bottom of the screen, with each save point as a dot colored by its verdict.
+- **Hotkey:** opens the main window. The timeline strip, with each save point as a dot colored by its verdict, lives in the menu bar menu.
 
 **One-click rewind:** rebuild the old version in a safe copy, check it, and show "10:42 works." Then **Use this version** makes a local branch, saves the broken state first so the rewind can be undone, and never pushes or deletes anything.
 

@@ -52,7 +52,7 @@ https://github.com/ShadowEsu/Time-Machine (**[FOUNDER]** check it is public). No
 
 **What is your company going to make?**
 
-Your agent can break things. Time Machine proves which version still works and gets you back to it.
+Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.
 
 It saves a point before each agent prompt and before risky shell commands. When something breaks, it rebuilds each save point in a separate copy, runs your tests there, and finds the newest one that passes. Then it makes a new branch with that version. It saves where you are first, never touches your folder or current branch, and never pushes, merges or deploys. Every result lists what it could not bring back, like database rows and secret values.
 
@@ -99,7 +99,7 @@ No.
 
 **Why did you pick this idea to work on? Do you have domain expertise? How do you know people need it?**
 
-I build with coding agents every day, and I kept losing versions that worked. I built Unvibe to help people understand the code their AI wrote. Time Machine is the other half: when that code breaks, get back to a version that is proven to work. **[FOUNDER]** rewrite in your own words.
+I build with coding agents every day, and I kept losing versions that worked. I built Unvibe to help people understand the code their AI wrote. Time Machine is the other half: when that code breaks, get back to a version that passed your check. **[FOUNDER]** rewrite in your own words.
 
 How we know people need it:
 

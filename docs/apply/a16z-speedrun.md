@@ -34,7 +34,7 @@ Time Machine
 
 ## One line
 
-Your agent can break things. Time Machine proves which version still works and gets you back to it.
+Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.
 
 ## Website
 
@@ -75,7 +75,7 @@ Later: people who build with agents but do not use Git or a terminal. They have 
 
 **[FOUNDER]** Rewrite in your own voice. The FAQ says they spend most of their time on the team and bio section. Suggested shape:
 
-I build with coding agents every day, and I kept losing versions that worked. I built Unvibe to help people understand the code their AI wrote. Time Machine is the other half: when that code breaks, get back to a version that is proven to work. I built the engine, the command line tool, the hooks, the MCP server and the Mac app screens myself with coding agents, test first.
+I build with coding agents every day, and I kept losing versions that worked. I built Unvibe to help people understand the code their AI wrote. Time Machine is the other half: when that code breaks, get back to a version that passed your check. I built the engine, the command line tool, the hooks, the MCP server and the Mac app screens myself with coding agents, test first.
 
 Bio lines to confirm, each **[FOUNDER]**:
 
