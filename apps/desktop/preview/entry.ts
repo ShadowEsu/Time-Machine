@@ -4,9 +4,12 @@ import type { OverlayAction, OverlayContent } from "../src/shared/api.js";
 import { verdictCard } from "../src/shared/cards.js";
 import { start } from "../src/renderer/app.js";
 import { mountOverlay } from "../src/renderer/overlay-view.js";
-import { FakeEngine } from "./fake.js";
+import { FakeEngine, type Scenario } from "./fake.js";
 
-const fake = new FakeEngine();
+// ?state=works, ?state=unchecked or ?state=new tell a different story. The default is the broken demo.
+const SCENARIOS: readonly Scenario[] = ["broken", "works", "unchecked", "new"];
+const asked = new URLSearchParams(location.search).get("state");
+const fake = new FakeEngine(SCENARIOS.find((s) => s === asked) ?? "broken");
 const projectId = fake.project.id;
 let closeCurrent: (() => void) | null = null;
 

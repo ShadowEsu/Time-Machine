@@ -268,6 +268,9 @@ function short(sha: string): string {
 
 /** A save point's title. Agent save points read like "Claude Code: add dark mode". Safety saves keep their command. */
 function title(c: TimelineEntry): string {
+  // The engine names the save it makes before a rewind by save point id. Say it by time instead.
+  const before = c.trigger === "recover" ? /^Before recovering (\S+)$/.exec(c.note) : null;
+  if (before?.[1]) return `Before going back to the ${pointName(before[1])} version`;
   const a = c.agent;
   if (!a?.prompt || c.trigger === "claude-code:pre-bash") return c.note;
   return c.trigger === "claude-code:prompt" ? `Before ${a.name}: ${a.prompt}` : `${a.name}: ${a.prompt}`;
@@ -1272,9 +1275,14 @@ function paletteKey(e: KeyboardEvent): boolean {
   return true;
 }
 
+/** The page being drawn. A new page, or a new onboarding step, starts scrolled to the top. */
+let drawnPage = "";
+
 function render(): void {
   const scroll = document.getElementById("list")?.scrollTop ?? 0;
-  const pageScroll = document.querySelector(".page")?.scrollTop ?? 0;
+  const pageKey = `${st.screen}:${st.screen === "onboarding" ? st.onboarding.step : ""}`;
+  const pageScroll = pageKey === drawnPage ? (document.querySelector(".page")?.scrollTop ?? 0) : 0;
+  drawnPage = pageKey;
   const focus = focusKey();
   captureCarry();
   drawOnce = new Set();

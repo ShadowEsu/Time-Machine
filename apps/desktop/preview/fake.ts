@@ -52,15 +52,21 @@ function makePoint(n: number, note: string, time: string, trigger: string, track
 
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/** Which story the preview tells. "broken" is the demo story. The others are for walkthroughs and screenshots. */
+export type Scenario = "broken" | "works" | "unchecked" | "new";
+
 export class FakeEngine implements TmBridge {
   private listeners = new Set<(e: AppEvent) => void>();
   private points: Point[] = [];
   private audit: { at: string; action: string; target: string | null; result: string }[] = [];
   private branches = new Set<string>();
+  /** "new" starts with no project. Adding the sample folder makes this true. */
+  private added = true;
+  private seed: Point | null = null;
   settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false, hotkey: "Control+Alt+T", agentPill: true };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true };
 
-  constructor() {
+  constructor(readonly scenario: Scenario = "broken") {
     this.reset();
   }
 
@@ -84,6 +90,15 @@ export class FakeEngine implements TmBridge {
     // Checked when they were saved: the first three worked. The check after the last agent turn failed.
     for (const id of ["cp-0001", "cp-0002", "cp-0003"]) this.setVerdict(id, "PASS");
     this.setVerdict("cp-0006", "FAIL");
+    // Shorter stories: it still works (three passing save points), or the newest one is not checked yet.
+    if (this.scenario === "works") this.points = this.points.slice(0, 3);
+    if (this.scenario === "unchecked") this.points = this.points.slice(0, 4);
+    if (this.scenario === "new") {
+      this.seed = this.points[0] ?? null;
+      this.points = [];
+      this.added = false;
+      this.settings = { ...this.settings, onboarded: false };
+    }
     this.audit = this.points.map((p) => ({ at: p.entry.createdAt, action: "checkpoint", target: p.entry.id, result: "saved" }));
     this.branches.clear();
   }
@@ -186,22 +201,27 @@ export class FakeEngine implements TmBridge {
     switch (call.method) {
       case "bootstrap":
         // A browser page can't own a global shortcut, so it is never active here.
-        return { platform: "darwin", settings: this.settings, projects: [this.project], hotkey: this.settings.hotkey ?? "", hotkeyActive: false, storeDir: "~/.timemachine", preview: true };
+        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project] : [], hotkey: this.settings.hotkey ?? "", hotkeyActive: false, storeDir: "~/.timemachine", preview: true };
       case "chooseFolder":
-      case "addProject":
+        // The new-user walkthrough picks the sample folder. Real folders need the app.
+        if (this.scenario === "new") return ROOT;
         throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
+      case "addProject":
+        if (this.scenario !== "new") throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
+        this.added = true;
+        return this.project;
       case "removeProject":
         throw new Error("The preview keeps the demo project. Reload the page to start over.");
       case "statuses":
-        return [this.status()];
+        return this.added ? [this.status()] : [];
       case "init":
-        return { configPath: `${ROOT}/timemachine.yml`, created: false, verifyCommand: "npm test", network: "allow", sandbox: null };
+        return { configPath: `${ROOT}/timemachine.yml`, created: this.scenario === "new", verifyCommand: "npm test", network: "allow", sandbox: null };
       case "setCheck":
         return { configPath: `${ROOT}/timemachine.yml`, verifyCommand: call.command };
       case "checkpoint": {
-        const last = this.points.at(-1);
+        const last = this.points.at(-1) ?? this.seed;
         if (!last) throw new Error("No project");
-        if (call.ifChanged) return { checkpoint: last.entry, skipped: true };
+        if (call.ifChanged && this.points.length) return { checkpoint: last.entry, skipped: true };
         await wait(400);
         const n = this.points.length + 1;
         const p = makePoint(n, call.note ?? "Saved by you", new Date().toISOString(), "app", last.tracked, last.untracked, last.lockfiles);
@@ -277,12 +297,12 @@ export class FakeEngine implements TmBridge {
       case "demo":
         throw new Error("This preview is the demo. Reload the page to start the story over.");
       case "storage":
-        return [{ projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" }];
+        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" }] : [];
       case "cleanStore":
         await wait(200);
         return { files: [], bytes: 0, applied: call.apply };
       case "agents":
-        return [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }];
+        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }] : [];
       case "isolation":
         return { mode: "host", networkSandbox: "sandbox-exec" };
       case "setSettings":
