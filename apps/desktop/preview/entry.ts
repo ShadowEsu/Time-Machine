@@ -58,4 +58,4 @@ void start(fake, {
     { label: "Show the overlay card", run: showCard },
     { label: "Show the timeline strip (⌘⇧T)", run: showStrip },
   ],
-}).then(() => setTimeout(showCard, 1800));
+});

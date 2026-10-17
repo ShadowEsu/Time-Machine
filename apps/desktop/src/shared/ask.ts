@@ -14,14 +14,13 @@ export const ASK_CONSENT = {
   ],
   neverSent: [
     "The contents of your files",
-    "Secret values, including anything in your .env files. Text that looks like a key, or holds a value from your .env file, is left out",
     "Check output and logs",
     "Anything from your other projects",
   ],
   where: "It goes from this Mac straight to Google's Gemini API, using your own Gemini API key. Time Machine runs no server in between and keeps no copy of the answers.",
   freeTier: "With a free Gemini API key, Google may use what is sent to improve its products, and people at Google may read it. Google says it does not do this for paid keys. Read Google's terms before you turn this on.",
   termsUrl: "https://ai.google.dev/gemini-api/terms",
-  accuracy: "Answers come only from this history and can be wrong. Check a save point before you rely on it.",
+  accuracy: "Text matching known secret values or credential patterns is filtered, but this cannot recognize every secret. Do not include secrets in your question or save point notes. Answers can be wrong. Check a save point before you rely on it.",
   off: "It stays off until you turn it on for this project. Turn it off any time and nothing more is sent.",
 } as const;
 

@@ -123,7 +123,7 @@ export function askPanelHtml(v: AskView): string {
   return `${bar}
     <div class="ft-thread" aria-live="polite">${intro}${v.turns.map((t, k) => turnHtml(t, k, v.points)).join("")}${problem}${noKey}${suggestions(v)}</div>
     <form class="ft-ask-in"><textarea data-keep="ask-q" maxlength="500" rows="2" placeholder="Ask about this project's history…" aria-label="Ask about this project's history"${disabled}></textarea><button type="submit" class="btn dark"${disabled}>Ask</button></form>
-    <p class="ft-ask-foot">Sent to Google Gemini with your own key. File contents and secret values are never sent.</p>`;
+    <p class="ft-ask-foot">Sent to Google Gemini with your own key. File contents and check logs are not read for Ask. Known secrets are filtered; do not include secrets in your question.</p>`;
 }
 
 /** Mounts the Ask panel for one project in host. Returns a function that removes it. */

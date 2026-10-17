@@ -53,6 +53,8 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 
 `pnpm --filter @timetm/desktop preview:build` writes a static site to `preview/dist/` (`index.html`, `app.js`, `styles.css`, `features.css`, `fonts/`). It is the same window code with the engine swapped for an in-memory demo of the Marigold Tips story: six save points, the fourth one broke it, the project screen says so and offers to go back to the third, which worked. A banner says it is a preview with demo data, and the overlay card (bottom right, so it never covers the page's buttons) and timeline strip are simulated inside the page. `?state=works`, `?state=unchecked` and `?state=new` (no project yet, onboarding with the sample folder) tell shorter stories. The preview starts with Ask on and a Vercel project linked, with canned answers and sample deploys. `?state=ask-off`, `?state=no-key`, `?state=ask-error` and `?state=no-vercel` show those features off, without a Gemini key, failing to reach Gemini, and without a Vercel token. Open `index.html` in any browser. Nothing in it touches your files. Screenshots of every screen, light and dark at 1280 by 800 and 960 by 640, are in `preview-shots/v3/`.
 
+The preview never opens a simulated overlay by itself. Use the banner's Show overlay button when you want to try it, so it cannot cover consent or navigation.
+
 ## V3 exercised checks
 
 Local browser preview, 16 October 2026. These checks use synthetic demo data, not a real project or a live Gemini or Vercel connection.

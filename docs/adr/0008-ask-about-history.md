@@ -26,7 +26,7 @@ Built from the engine only (`main/ask.ts`), for the newest 50 save points:
 
 Every string goes through `secretScreen` from core first: text that looks like a key, or holds a value from the project's `.env` files, is left out. A question that holds one is refused before anything is sent.
 
-**Never sent:** file contents, check output and logs, secret values, other projects. `ASK_CONSENT` in `shared/ask.ts` says the same to the person, and links Google's terms. With a free Gemini key, Google may use what is sent to improve its products and people may read it. The consent text says so.
+**Not read or included automatically:** file contents, check output and logs, other projects. Filtering removes recognized credential patterns and known project secret values. It cannot recognize every possible secret in a note, prompt or question, so the consent screen also warns people not to include secrets. `ASK_CONSENT` in `shared/ask.ts` links Google's terms. With a free Gemini key, Google may use what is sent to improve its products and people may read it. The consent text says so.
 
 ## Keys
 
