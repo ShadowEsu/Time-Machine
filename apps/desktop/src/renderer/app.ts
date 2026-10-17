@@ -683,7 +683,7 @@ function checkSheet(): string {
     <div class="row-btns" style="justify-content:flex-end">
       ${done && c.result?.log ? `<button class="btn ghost" data-act="reveal" data-path="${esc(c.result.log)}">Show log</button>` : ""}
       <button class="btn ${goBack ? "" : "dark"}" data-act="close-check" ${done ? "" : "disabled"}>Done</button>
-      ${goBack ? `<button class="btn dark" data-act="rewind-to" data-id="${goBack.id}"><span class="tri"></span>${esc(goBackLabel(goBack))}</button>` : ""}</div>
+      ${goBack ? `<button class="btn dark" data-act="rewind-to" data-id="${goBack.id}">${esc(goBackLabel(goBack))}</button>` : ""}</div>
   </div></div>`;
 }
 
@@ -1047,7 +1047,8 @@ function compare(): string {
   const name = (id: string | null): string => (id === "now" ? "now" : id ? `the ${pointName(id)} version` : "");
   const opt = (sel: string | null): string =>
     `<option value="now" ${sel === "now" ? "selected" : ""}>Now: your folder as it is</option>` +
-    [...pts].reverse().map((x) => `<option value="${x.id}" ${x.id === sel ? "selected" : ""}>${esc(`${pointName(x.id)} · ${title(x)} · ${verdictWord(x.verdict)}`)}</option>`).join("");
+    // The verdict comes before the title, so a long title is what gets cut off, never the verdict.
+    [...pts].reverse().map((x) => `<option value="${x.id}" ${x.id === sel ? "selected" : ""}>${esc(`${pointName(x.id)} · ${verdictWord(x.verdict)} · ${title(x, authorOf(x))}`)}</option>`).join("");
   const sideCard = (side: string | null, id: string): string => {
     const e = entry(id);
     const sub = side === "now" && c.now

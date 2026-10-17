@@ -262,8 +262,6 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 .mn-l button { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; border: 0; border-radius: 7px; background: none; text-align: left; cursor: pointer; font-size: 13px; color: var(--ink); white-space: nowrap; }
 .mn-l button:hover:not([disabled]) { background: var(--sel); }
 .mn-l button[disabled] { opacity: .4; }
-.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.cols.stack { grid-template-columns: 1fr; }
 .kv { display: grid; gap: 6px; font-size: 12.5px; align-content: start; }
 .kv .h { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
 .kv .li { display: flex; gap: 8px; color: var(--ink-2); }
@@ -458,9 +456,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .sim-overlay .sim-label { font-family: var(--mono); font-size: 10px; color: var(--ink-3); text-align: right; padding: 0 12px 2px; }
 .sim-strip { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(980px, calc(100% - 32px)); z-index: 60; }
 
-@media (max-width: 1100px) {
-  .cols { grid-template-columns: 1fr; }
-}
 @media (max-width: 860px) {
   .app, .app.has-ask, .app.has-detail { grid-template-columns: 1fr; }
   .side { display: none; }
