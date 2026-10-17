@@ -154,30 +154,31 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - `docs/DEMO_SCRIPT.md` (60 second, 7 shots on `tm demo`), `docs/apply/a16z-speedrun.md` (SR008), `docs/apply/yc-w27.md`, `docs/OUTREACH.md` (3 drafts). All drafts only, with `[FOUNDER]` placeholders for facts only the founder knows (bio, traction, entity, video link, deck, age and signer rules).
 - ADR 0008 (Ask), ADR 0009 (Vercel), research on agent hooks.
 
-### CI
-- GitHub Actions `ci` on macOS and Linux, Node 22 and 24. Last green run: commit 96ddf25 (run 38991505339). Commits after that (ad14a35, 447922d and the website work) need a CI run after the next push. ad14a35 was pushed; 447922d not yet.
+### Website cinematic pass (17 Oct, done)
+- Commits c3efc30, 9231e29, 69f09bb, 1a1d322 (worker SiteFinish2, after two earlier workers died on quota).
+- First-visit opening: giant Newsreader "Time *Machine*" on ink, orange playhead, device rising. 2.9 s (1.2 s on touch and low tier). Skip button, Enter and Escape skip it; repeat visits skip via a localStorage flag; reduced motion skips; page works without JavaScript.
+- Second big-type band after the hero: "It worked *at 10:42.*"
+- Orange: dial pointer `#FF791F`, warm buttons with dark text (contrast 6.90), fader track `#D14E0B`, focus rings `#B83E08`. Ink blue stays for links and some primary buttons. Green and red only mean a recorded verdict.
+- Home 16% shorter at 1440 and 12% at 390; story page 23 to 24% shorter. Native scrolling only. The home spec-sheet section was cut (story page keeps it); easy to restore.
+- Sound off by default, Sound button on phones too; procedural WebAudio only (`site/assets/sound.js`): dial detents, failure, rewind, success cues, quiet drone. No music file.
+- "Play break + rewind" button: screen dims once, BROKEN on cp-0006, dial steps back to cp-0003, WORKS. Reduced motion jumps straight there. "Synthetic demo" label kept.
+- Verified: `/tmp/tm-pw/behaviors-v4.mjs` and `final-v4.mjs` (156 page loads, 13 pages x 1440/390/360 x light, dark, reduced motion, low tier: no errors, no horizontal scroll). Parent re-checked opening, settled hero, phone 390 and break/rewind in a real browser. Screenshots: `/tmp/tm-site-shots-v3/final/`.
+- Perf (Chromium, CPU throttle, software renderer): story dropped frames 22/27/22 -> 10/11/4, long tasks 1 -> 0; home stays about 60 fps; weak tier peaks at 17 render surfaces vs 34.
+- Not tested: Safari, Firefox, physical phones, real hidden-tab audio stop (simulated only). Story headline at 1440 overlaps the device's bounding box but not its visible pixels.
+
+### CI and release (17 Oct, done)
+- CI green on macOS and Linux, Node 22 and 24: run 39070976942 on commit 1a1d322.
+- Private Vercel preview redeployed from `git archive HEAD`: https://time-machine-site-5ku15uzil-shadowesus-projects.vercel.app (anonymous 302; deployed `index.html` contains opening.js, sound.js, "Play break + rewind", "passes your tests", "228"). Older preview: https://time-machine-site-8ka8ecc0l-shadowesus-projects.vercel.app.
 
 ---
 
 ## 6. Open work, in order (small items included)
 
-### Now, in progress
-1. **Website cinematic pass** (founder's 17 Oct request). Partial, unverified edits from a worker that died on quota: `site/assets/opening.js`, `site/assets/sound.js`, edits to `site/index.html`, `home.css`, `site.css` (`.btn-warm`), `device.js`. A new worker (SiteFinish2) was started to finish and verify. Requirements:
-   - Giant serif "Time Machine" wordmark (like the footer) at the opening and one more upper section.
-   - About 3 s first-visit opening with the device, visible Skip, Enter/Esc skip, repeat visits skip, reduced motion skips, never blocks content if JS fails, no fake loading bar.
-   - Orange dial/slider accent and a few warm buttons; keep ink blue where intentional; never decorative verdict green; AA contrast; 44 px targets.
-   - Shorter instructions and scroll runways; native scrolling only; "Watch the story" anchor below the sticky header; fix reduced-motion phone overlap of device and timeline.
-   - Sound off by default, clear Sound toggle (also on phones), procedural WebAudio only (dial detents, failure cue, rewind sweep, success cue, optional quiet ambient loop), start only after a gesture, stop on mute and hidden tab, never autoplay.
-   - Break and rewind animation: brief LED/screen glitch, dial scrubs back to the recorded working demo save, under 3 flashes per second, no forced shake, static under reduced motion, "synthetic demo" label kept.
-   - Adaptive tiers for weak devices; hover only on pointer:fine; pause offscreen work.
-   - Verify at 1440, 390, 360; light, dark, reduced motion, low tier; every page; screenshots to `/tmp/tm-site-shots-v3/final/`; perf numbers vs `/tmp/tm-perf/before.md`; CSP hash in `site/vercel.json` if inline scripts change; no em dashes or banned claims; update `design/WEBSITE_SPEC.md`.
-2. **Site performance and phone pass** (part of the above).
-
-### Release (authorized)
-3. Run `pnpm typecheck && pnpm test && pnpm build` on the final tree.
-4. Push the branch; confirm CI green on macOS and Linux (`gh run list --branch claude/awesome-mendel-5sk1w0`). Gotcha: CI once broke because a commit included a preview line that depended on an uncommitted core change. Always typecheck the committed HEAD in a clean worktree before pushing (`git worktree add /tmp/x HEAD`, `pnpm install --frozen-lockfile`, `pnpm typecheck`).
-5. Redeploy the private Vercel preview from a clean `git archive HEAD` export with `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` set (ids are in `.vercel` metadata from the Vercel API; the project is `time-machine-site` under `shadowesus-projects`). Do not use `vercel curl` or any protection bypass: it weakens protection. Smoke: anonymous request must return 302; check the deployed `index.html` content through the Vercel API files endpoint.
-6. Update counts and status in `README.md`, `docs/PLAN.md`, site company page if they change.
+### Release (authorized, repeat when things change)
+1. Run `pnpm typecheck && pnpm test && pnpm build` on the final tree.
+2. Push the branch; confirm CI green on macOS and Linux (`gh run list --branch claude/awesome-mendel-5sk1w0`). Gotcha: CI once broke because a commit included a preview line that depended on an uncommitted core change. Always typecheck the committed HEAD in a clean worktree before pushing (`git worktree add /tmp/x HEAD`, `pnpm install --frozen-lockfile`, `pnpm typecheck`).
+3. Redeploy the private Vercel preview from a clean `git archive HEAD` export with `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` set (look them up through the Vercel API for project `time-machine-site` under team `shadowesus-projects`). Do not use `vercel curl` or any protection bypass: it weakens protection. Smoke: anonymous request must return 302; check the deployed `index.html` through the Vercel API files endpoint.
+4. Keep test counts and status in `README.md`, `docs/PLAN.md`, `site/index.html`, `site/story.html`, `site/company.html` in sync.
 
 ### Blocked on the founder
 7. **npm publish of `timetm` 0.1.0.** Package is ready (`npm pack --dry-run`: 3 files, 151 kB; installs from tarball; `tm --help` works). The name was unclaimed as of 16 Oct. Needs: founder npm account with 2FA, `npm login`, a license choice recorded as an ADR and a LICENSE file. Until published, the app uses its bundled CLI and the pinned npx fallback.
@@ -199,7 +200,7 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 
 ### Small leftovers worth remembering
 - `apps/desktop/preview-shots/` is gitignored; screenshots exist only on the Mac.
-- The site still says "128" in a few places from 16 Oct unless the website worker updated them; the true total is 228 (226 macOS + 2 Linux-only). Prefer "automated tests" without a hardcoded number, or update every place.
+- Test counts were updated everywhere on 17 Oct to 228 (226 on macOS, 2 Linux-only, all green in CI). Update every place listed in Release step 4 when the number changes.
 - Ask uses Flash-Lite because the 3.8 Flash free tier hit its daily limit.
 - The Gemini key in use is temporary; when it changes, update `apps/desktop/.env` (gitignored) only.
 - `docs/HANDOFF.md` (this file) should be updated at the end of every session.
