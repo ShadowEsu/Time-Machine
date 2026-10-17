@@ -21,6 +21,54 @@
   var endpoint = new URL("../api/waitlist", script ? script.src : location.href).href;
   var isFile = location.protocol === "file:";
 
+  // A friend's link ends in ?via=share. Remember it for this visit so a signup on any page
+  // records it in the source path. Nothing else about the visitor is kept.
+  var VIA_KEY = "tm-via";
+  var via = "";
+  try {
+    if (new URLSearchParams(location.search).get("via") === "share") sessionStorage.setItem(VIA_KEY, "share");
+    via = sessionStorage.getItem(VIA_KEY) === "share" ? "?via=share" : "";
+  } catch (e) { via = /[?&]via=share(&|$)/.test(location.search) ? "?via=share" : ""; }
+
+  var SHARE_URL = location.origin + "/?via=share";
+  var SHARE_TEXT = "Time Machine saves your project before an AI agent acts and finds the last version that passes your tests.";
+
+  // After a real signup only: one plain way to pass the link on. No rewards, no queue position.
+  function showShare(form, status) {
+    if (isFile || form.querySelector(".wl-share")) return;
+    var box = document.createElement("div");
+    box.className = "wl-share";
+    var text = document.createElement("p");
+    text.textContent = "Know someone who lets an AI agent change their code? Send them the link.";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-warm btn-sm";
+    var canShare = typeof navigator.share === "function";
+    btn.textContent = canShare ? "Share the link" : "Copy link";
+    btn.addEventListener("click", function () {
+      if (canShare) {
+        navigator.share({ title: "Time Machine", text: SHARE_TEXT, url: SHARE_URL }).catch(function () {});
+        return;
+      }
+      var done = function () { btn.textContent = "Link copied"; };
+      var manual = function () {
+        if (box.querySelector("input")) return;
+        var field = document.createElement("input");
+        field.type = "text";
+        field.readOnly = true;
+        field.value = SHARE_URL;
+        field.setAttribute("aria-label", "Link to share");
+        box.appendChild(field);
+        field.select();
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(SHARE_URL).then(done, manual);
+      else manual();
+    });
+    box.appendChild(text);
+    box.appendChild(btn);
+    status.parentNode.insertBefore(box, status.nextSibling);
+  }
+
   function say(status, form, state, text, withMail) {
     status.textContent = "";
     if (withMail) {
@@ -94,7 +142,7 @@
         body: JSON.stringify({
           email: value,
           consent: true,
-          source: location.pathname,
+          source: location.pathname + via,
           company: honeypot ? honeypot.value : ""
         }),
         signal: controller ? controller.signal : undefined
@@ -109,6 +157,7 @@
           if (r.status === 200 && r.data.ok === true) {
             say(status, form, "ok", MSG.ok);
             form.reset();
+            showShare(form, status);
           } else if (r.status === 503 && r.data.error === "not_configured") {
             say(status, form, "info", "The waitlist isn't open yet. Email " + FOUNDER + " and we'll add you by hand.", true);
           } else {

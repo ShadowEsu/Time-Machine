@@ -170,6 +170,13 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - CI green on macOS and Linux, Node 22 and 24: run 39070976942 on commit 1a1d322.
 - Private Vercel preview redeployed from `git archive HEAD`: https://time-machine-site-5ku15uzil-shadowesus-projects.vercel.app (anonymous 302; deployed `index.html` contains opening.js, sound.js, "Play break + rewind", "passes your tests", "228"). Older preview: https://time-machine-site-8ka8ecc0l-shadowesus-projects.vercel.app.
 
+### Waitlist share step (17 Oct evening, private only)
+- After a real signup (server said ok), the form shows one line and one button: "Know someone who lets an AI agent change their code? Send them the link." Uses the Web Share API, else copies `/?via=share`, else shows the link in a read-only field. No rewards, no queue position, no counters (EXPERIENCE §8).
+- A visit that starts at `?via=share` is kept in `sessionStorage` (`tm-via`), so a signup on any page stores `source` like `/how-it-works.html?via=share`. Server unchanged (`cleanSource` already accepts it). Privacy draft says so and says we do not record who shared.
+- Measure once the backend is live: share-driven signups = rows whose `source` ends in `?via=share`, divided by all rows.
+- Verified: `/tmp/tm-pw/share-smoke.mjs` (1440 and 390, mocked `/api/waitlist`): source carries `?via=share` across pages, plain source without it, Copy link and manual-field fallback work, one block after two signups, no page errors. Shots `/tmp/tm-pw/share-1440.png`, `share-390.png`. Site waitlist tests 14/14.
+- Needs Preston's OK on the copy before any public launch (human gate).
+
 ---
 
 ## 6. Open work, in order (small items included)
