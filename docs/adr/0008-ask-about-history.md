@@ -1,6 +1,6 @@
 # ADR 0008: Ask about your history
 
-Date: 16 October 2026. Status: accepted by the founder. The engine side, the window contract, the preview answers and the tests are built. The screens that use it come with the new app design, so a person can't use it in the app yet.
+Date: 16 October 2026. Status: accepted by the founder. The engine side, the window contract, the preview answers and the tests are built. The window views are built too: the Ask panel (`renderer/ask-panel.ts`) and the per project controls in Settings > Features (`renderer/feature-settings.ts`). They show in the app once the new app design mounts them.
 
 ## Decision
 
@@ -9,7 +9,8 @@ A person can ask a plain question about one project's history, such as "When did
 - **Off by default, per project.** Each project in `projects.json` has `features.ask`, false until the person turns it on. The `ask` call refuses while it is off and sends nothing. Projects saved before this change load with it off.
 - **Google's Gemini API, with the person's own key.** One `POST https://generativelanguage.googleapis.com/v1beta/interactions` request per question, model `gemini-3.5-flash-lite`, thinking level low, `store: false`. The request goes from the app's main process straight to Google. Time Machine runs no server in between.
 - **Answers only from the history.** The system instruction says to answer only from the history sent, to name save points by time and title, to say "I can't tell from the history" when it can't, and to write short plain sentences with no em dashes. The history is marked as data, not instructions, because agent prompts and notes are inside it.
-- **A checked reply.** The request asks for JSON (`response_format` with a JSON Schema). The reply is checked with Zod: `{ answer, cites }`. Cites keep only ids that were in the history sent. Anything else becomes one plain sentence ("Gemini sent an answer this app could not read, so nothing is shown"), never the raw reply.
+- **A checked reply.** The request asks for JSON (`response_format` with a JSON Schema). The reply is checked with Zod: `{ answer, cites }`. Cites keep only ids that were in the history sent. The result also says how many save points were sent (`basis`), so the panel can say "Based on N save points". Anything else becomes one plain sentence ("Gemini sent an answer this app could not read, so nothing is shown"), never the raw reply.
+- **Escaped in the window.** The panel escapes every character of the answer before it is drawn, and shows cites as time chips built from the save points, never from model text.
 - **Every failure is one plain sentence.** Wrong key, rate limit, Google errors, no connection, a 30 second timeout, an unfinished answer.
 
 ## What is sent
@@ -44,7 +45,7 @@ Nothing for Time Machine: each person uses their own key. A question sends rough
 
 ## How to turn it off
 
-Turn Ask off for the project (`setFeature` with `change: { feature: "ask", enabled: false }`). Nothing more is sent. Remove the key with `setCredential` and `value: null` to delete it from this Mac. A key set in the environment stays until it is removed there. Answers are not stored by the app. The Settings controls for this contract are not built yet.
+Turn Ask off for the project from the Ask panel menu or Settings > Features (both call `setFeature` with `change: { feature: "ask", enabled: false }`). Nothing more is sent. Remove the key in Settings > Features (`setCredential` with `value: null`) to delete it from this Mac. A key set in the environment stays until it is removed there. Answers are not stored by the app.
 
 ## Migration path
 

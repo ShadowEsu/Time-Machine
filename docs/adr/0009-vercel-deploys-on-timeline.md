@@ -1,6 +1,6 @@
 # ADR 0009: Vercel deploys on the timeline
 
-Date: 16 October 2026. Status: accepted. Engine side built in the Mac app. The final window design is not built yet.
+Date: 16 October 2026. Status: accepted. Engine side built in the Mac app. The window views are built (`renderer/deploys.ts` for the chips and the list of deploys from a computer, `renderer/feature-settings.ts` for the token and the link). They show in the app once the new app design mounts them.
 
 ## Context
 
@@ -16,6 +16,7 @@ People who ship with Vercel want to see which save point is live. The brief list
 - **Token.** The person pastes a Vercel token in Settings. It is stored encrypted with Electron `safeStorage` in its own file in the app's userData folder, never in `projects.json` or `settings.json`. `VERCEL_TOKEN` in the environment wins when set. The token goes only into the `Authorization` header, never into a result, an error message, a log or the window. The window only learns whether a token is set. The app never reads another app's credentials, such as the Vercel CLI login file.
 - **Every answer is checked with Zod.** An answer that does not match is rejected with a plain sentence and nothing is shown. Errors are fixed sentences, so no text from Vercel or the network stack reaches the window.
 - **Cache.** Answers are kept in memory for 60 seconds per Vercel project, and the project list for 60 seconds. Changing the token or the link clears them. Matching against save points runs fresh every time, so a new save point shows its deploy at once.
+- **Links open only on Vercel.** A deploy chip opens the deploy in the browser through the `openExternal` call. The main process accepts only plain `https` links to `*.vercel.app` and `vercel.com` (plus Google's Gemini terms page for ADR 0008), with no login or port in the URL. Anything else is refused before the browser is asked.
 - **Network code lives in the Mac app's main process.** `packages/core` gains no network calls. Core only exposes the recorded HEAD (`head`) on each save point.
 
 ## What it never does

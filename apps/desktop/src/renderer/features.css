@@ -78,7 +78,7 @@ button.ft-deploy:hover { color: var(--ink); border-color: var(--ink-3); }
 .ft-dot.on { background: var(--ink-2); box-shadow: none; }
 .ft-details { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
 .ft-details summary { cursor: pointer; color: var(--ink); font-weight: 500; }
-.ft-details[open] { display: grid; gap: 8px; }
+.ft-details[open] > * + * { margin-top: 8px; }
 
 @keyframes ft-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ft-a { animation: none; } }
