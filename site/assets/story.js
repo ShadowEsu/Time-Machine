@@ -344,8 +344,9 @@
       let s = state(n, p);
       if (!mob && h > 0 && n < 5) s = mixState(s, state(n + 1, RM ? 1 : 0), RM ? h : ease(h));
       if (slot) {
+        // 360 covers the 300 px face plus its depth and perspective; the sine term covers a rotated device.
         s.pose = { ...s.pose, y: (slot.top + slot.bottom) / (2 * vh),
-          s: Math.min(s.pose.s, (slot.bottom - slot.top) / (base * (320 + 460 * Math.abs(Math.sin(s.pose.rz * Math.PI / 180))))) };
+          s: Math.min(s.pose.s, (slot.bottom - slot.top) / (base * (360 + 460 * Math.abs(Math.sin(s.pose.rz * Math.PI / 180))))) };
       }
       if (!show) s.live = 0;
       paint(s);

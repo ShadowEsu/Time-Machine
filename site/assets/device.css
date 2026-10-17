@@ -116,6 +116,8 @@
 @media (prefers-reduced-motion: reduce) {
   .led i, .key .cap, .scr-top, .scr-id, .scr-note, .scr-stat { transition: none; }
 }
+/* Touch: each key's tap area reaches past its cap, so the scaled keys still clear 44 px on a 360 px phone. */
+@media (pointer: coarse) { .rig .key::after { content: ""; position: absolute; inset: -14px -6px; } }
 /* Weak devices (data-tier="low"): fewer 3D layers and no glow. The device still powers on and turns. */
 :root[data-tier="low"] .kl:not(:first-child):not(:nth-child(4)):not(:nth-child(8)) { display: none; }
 :root[data-tier="low"] .keys, :root[data-tier="low"] .key { transform-style: flat; }

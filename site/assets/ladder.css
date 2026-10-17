@@ -32,7 +32,7 @@
 .ld-thumb:active { cursor: grabbing; }
 .ld-thumb:focus-visible { outline: 2px solid #1d3bb8; outline-offset: 4px; }
 /* The month readout keeps one width, so the fader never shifts layout. */
-.ld-month { display: flex; flex-direction: column; align-items: flex-end; min-width: 54px; }
+.ld-month { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 54px; }
 .ld-mn { min-width: 2ch; text-align: right; font: 500 34px/1 var(--font-mono); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .ld-free { display: grid; grid-template-columns: 56px 1fr; gap: 18px; align-items: center; padding-top: 22px; border-top: 1px solid rgba(20, 20, 18, .14); }
 .ld-free p { max-width: 62ch; margin: 0; font-size: 15.5px; color: var(--ink-2); }

@@ -202,7 +202,7 @@ em { font-style: italic; }
 .top-in { display: flex; align-items: center; gap: 8px 20px; min-height: var(--top-h); }
 .top .brand { margin-right: auto; }
 .nav { display: flex; gap: 2px; font-size: 14.5px; color: var(--ink-2); }
-.nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 999px; text-decoration: none; transition: background .2s, color .2s; }
+.nav a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 999px; text-decoration: none; transition: background .2s, color .2s; }
 @media (hover: hover) and (pointer: fine) {
   .nav a:hover { background: var(--mist); color: var(--ink); }
 }

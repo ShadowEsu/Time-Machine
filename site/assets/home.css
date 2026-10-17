@@ -10,6 +10,7 @@
 .label b { font-weight: 600; color: var(--accent); }
 .fine-m { margin: 0; max-width: 60ch; font: 400 11.5px/1.55 var(--font-mono); color: var(--ink-3); }
 .fine-m a { color: inherit; }
+.fine-m code { font-size: 1em; }
 .arr { display: inline-block; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(-45deg); }
 .rw { display: inline-flex; }
 .rw i { width: .6em; height: .7em; background: currentColor; clip-path: polygon(100% 0, 100% 100%, 0 50%); }
