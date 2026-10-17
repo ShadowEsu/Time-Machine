@@ -455,6 +455,13 @@ function weRan(c: TimelineEntry): string {
   return c.verdict ? `${what}. ${result[c.verdict]}${same ? `, ${seconds(same.durationMs)}` : ""}.` : "Nothing yet. This save point is not checked.";
 }
 
+/** An agent's own claim is never evidence. The hook does not record the reply yet, and the box says so. */
+function provenance(c: TimelineEntry): string {
+  return c.agent
+    ? `<div class="said two"><div><b>Agent said</b><span class="nr">Not recorded. Recording replies is planned.</span></div><div><b>We ran</b><span>${esc(weRan(c))}</span></div></div>`
+    : `<div class="said"><b>We ran</b><span>${esc(weRan(c))}</span></div>`;
+}
+
 /** A journal entry: time in the margin, the verdict glyph on the line, then the title, author, verdict and evidence. */
 function journalEntry(c: TimelineEntry, first: boolean, lastGood: boolean): string {
   const author = authorOf(c);
@@ -466,7 +473,7 @@ function journalEntry(c: TimelineEntry, first: boolean, lastGood: boolean): stri
     <div class="body">
       <h3><button class="e-t" data-act="open" data-id="${esc(c.id)}">${esc(title(c, author))}</button>${lastGood ? '<span class="wayback">Last version that works</span>' : ""}</h3>
       <div class="meta">${authorChip(author)}${badge(c.verdict)}${facts ? `<span>${esc(facts)}</span>` : ""}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(c.id)} · ${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</div>
-      ${c.verdict ? `<div class="said"><b>We ran</b><span>${esc(weRan(c))}</span></div>` : ""}
+      ${c.verdict ? provenance(c) : ""}
     </div></article>`;
 }
 
@@ -616,10 +623,6 @@ function detail(): string {
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
     : "";
-  // An agent's own claim is never evidence. The hook does not record the reply yet, and the box says so.
-  const said = c.agent
-    ? `<div class="said two"><div><b>Agent said</b><span class="nr">Not recorded yet. The hook saves what ${esc(c.agent.name)} was asked, not its reply. Planned.</span></div><div><b>We ran</b><span>${esc(weRan(c))}</span></div></div>`
-    : `<div class="said"><b>We ran</b><span>${esc(weRan(c))}</span></div>`;
   return `<aside class="rcol detail ${once("detail")}" role="region" aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
     <header class="rc-top"><span class="eyebrow">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))}</span>
       <button class="btn ghost" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
@@ -627,7 +630,7 @@ function detail(): string {
       <h2 class="sp-h">${esc(title(c, author))}</h2>
       <div class="meta">${authorChip(author)}${badge(c.verdict)}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span></div>
       <p class="sp-v">${esc(verdictSentence(c))}</p>
-      ${said}
+      ${provenance(c)}
       <div class="sp-acts">${primary}
         <button class="btn link" data-act="try" data-id="${c.id}" ${busy}>Open a safe copy</button>
         ${isNewest ? "" : `<button class="btn link" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button>`}</div>
@@ -1558,6 +1561,8 @@ function cite(id: string): void {
   }
   st.selected = id;
   st.lit = id;
+  st.drawer = false;
+  if (window.innerWidth < 1100) st.askOpen = false;
   render();
   document.getElementById(`e-${id}`)?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
   setTimeout(() => {
