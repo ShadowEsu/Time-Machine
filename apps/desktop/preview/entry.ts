@@ -2,6 +2,7 @@
 // The overlay card and the timeline strip are simulated inside the page.
 import type { OverlayAction, OverlayContent } from "../src/shared/api.js";
 import { verdictCard } from "../src/shared/cards.js";
+import { pointTitle, shortTitle } from "../src/shared/format.js";
 import { start } from "../src/renderer/app.js";
 import { mountOverlay } from "../src/renderer/overlay-view.js";
 import { FakeEngine, type Scenario } from "./fake.js";
@@ -40,13 +41,13 @@ function show(content: OverlayContent, cls: string): void {
 }
 
 function showCard(): void {
-  const points = fake.timelineEntries().map((c) => ({ id: c.id, verdict: c.verdict, note: c.note, createdAt: c.createdAt }));
+  const points = fake.timelineEntries().map((c) => ({ id: c.id, verdict: c.verdict, note: shortTitle(c), createdAt: c.createdAt }));
   const card = verdictCard(projectId, fake.project.name, points, null);
   if (card) show({ ...card, hideAfterMs: 30000 }, "sim-overlay");
 }
 
 function showStrip(): void {
-  const points = fake.timelineEntries().map((c) => ({ id: c.id, verdict: c.verdict, note: c.note, createdAt: c.createdAt }));
+  const points = fake.timelineEntries().map((c) => ({ id: c.id, verdict: c.verdict, note: pointTitle(c), createdAt: c.createdAt }));
   show({ kind: "strip", projectId, projectName: fake.project.name, points, hideAfterMs: 15000 }, "sim-strip");
 }
 

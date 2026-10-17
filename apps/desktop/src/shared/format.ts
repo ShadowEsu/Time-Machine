@@ -51,6 +51,32 @@ export function triggerLabel(trigger: string): string {
   return "You";
 }
 
+/** The parts of a save point its title comes from. */
+export interface Titled {
+  note: string;
+  trigger: string;
+  agent?: { name: string; prompt?: string } | null;
+}
+
+/** What a save point is about, in the user's words: the agent prompt when there is one, else its note. */
+export function shortTitle(c: Titled): string {
+  const prompt = c.agent?.prompt;
+  return prompt && c.trigger !== "claude-code:pre-bash" ? prompt : c.note;
+}
+
+/**
+ * A save point's title. Agent save points read like "Claude Code: add dark mode". When an author
+ * line beside the title already names the agent, the title leaves the name out ("Add dark mode"),
+ * so the agent shows once. Safety saves keep their command.
+ */
+export function pointTitle(c: Titled, author: string | null = null): string {
+  const a = c.agent;
+  if (!a?.prompt || c.trigger === "claude-code:pre-bash") return c.note;
+  const before = c.trigger === "claude-code:prompt";
+  if (author !== a.name) return before ? `Before ${a.name}: ${a.prompt}` : `${a.name}: ${a.prompt}`;
+  return before ? `Before the prompt: ${a.prompt}` : a.prompt.charAt(0).toUpperCase() + a.prompt.slice(1);
+}
+
 /** One plain sentence on how a save point was made, from the engine's trigger field. */
 export function triggerSentence(trigger: string): string {
   if (trigger === "claude-code:prompt") return "Saved by Claude Code before a prompt.";

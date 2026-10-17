@@ -55,7 +55,9 @@ button, input, select { font: inherit; color: inherit; }
 .sel-text { user-select: text; }
 h1, h2, h3, h4 { margin: 0; letter-spacing: -.015em; }
 p { margin: 0; }
-kbd { font-family: var(--mono); font-size: 10.5px; opacity: .62; font-variant-numeric: tabular-nums; }
+/* Shortcut hints are quiet but readable: ink-3 meets AA on every paper; on ink they keep the button's own color. */
+kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.btn.dark kbd, .pill kbd { color: inherit; opacity: .78; }
 .btn kbd { margin-left: 1px; }
 /* Headlines speak in the serif, like the website. Body stays Inter, technical facts Geist Mono. */
 .hero-h, .page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--serif); font-weight: 400; letter-spacing: -.01em; }
@@ -87,7 +89,6 @@ kbd { font-family: var(--mono); font-size: 10.5px; opacity: .62; font-variant-nu
 .tb-where { font-weight: 600; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-app-region: drag; }
 .tb-sp { flex: 1; -webkit-app-region: drag; }
 .pill { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
-.pill kbd { opacity: .7; }
 .pill:active, .pill.kf { transform: scale(.97); }
 
 /* Buttons */

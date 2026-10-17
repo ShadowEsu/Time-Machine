@@ -4,8 +4,8 @@
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
 import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, clock, dayLabel, esc, plural, seconds, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
-import { goBackLabel, lastWorking as lastWorkingOf, pointTitle, projectStatus, shortTitle, type StatusButton } from "./status.js";
+import { bytes, clock, dayLabel, esc, plural, pointTitle, seconds, shortTitle, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
+import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
 import { filterPalette, type PaletteItem } from "./palette.js";
 
 export interface StartOptions {

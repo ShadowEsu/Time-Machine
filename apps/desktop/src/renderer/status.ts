@@ -2,7 +2,7 @@
 // from the save points alone, so the app, the tests and the palette always agree.
 import type { TimelineEntry } from "@timetm/core";
 import type { Verdict } from "../shared/api.js";
-import { when } from "../shared/format.js";
+import { shortTitle, when } from "../shared/format.js";
 
 export type StatusPoint = Pick<TimelineEntry, "id" | "verdict" | "createdAt" | "note" | "trigger" | "agent">;
 
@@ -21,25 +21,6 @@ export interface ProjectStatusView {
   body: string;
   primary: StatusButton;
   secondary: StatusButton | null;
-}
-
-/** What a save point is about, in the user's words: the agent prompt when there is one, else its note. */
-export function shortTitle(c: StatusPoint): string {
-  const prompt = c.agent?.prompt;
-  return prompt && c.trigger !== "claude-code:pre-bash" ? prompt : c.note;
-}
-
-/**
- * A save point's title. Agent save points read like "Claude Code: add dark mode". When an author
- * line beside the title already names the agent, the title leaves the name out ("Add dark mode"),
- * so the agent shows once. Safety saves keep their command.
- */
-export function pointTitle(c: Pick<StatusPoint, "note" | "trigger" | "agent">, author: string | null = null): string {
-  const a = c.agent;
-  if (!a?.prompt || c.trigger === "claude-code:pre-bash") return c.note;
-  const before = c.trigger === "claude-code:prompt";
-  if (author !== a.name) return before ? `Before ${a.name}: ${a.prompt}` : `${a.name}: ${a.prompt}`;
-  return before ? `Before the prompt: ${a.prompt}` : a.prompt.charAt(0).toUpperCase() + a.prompt.slice(1);
 }
 
 /** The newest save point that passed its check, other than the newest one. */

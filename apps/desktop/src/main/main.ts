@@ -5,7 +5,7 @@ import * as tm from "@timetm/core";
 import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, screen, session, shell, Tray, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from "electron";
 import { CallSchema, OverlayActionSchema, type AppEvent, type Bootstrap, type OverlayAction, type OverlayContent, type ProjectEntry, type Res, type ShortcutAction, type Verdict } from "../shared/api.js";
 import { verdictCard } from "../shared/cards.js";
-import { verdictWord } from "../shared/format.js";
+import { pointTitle, shortTitle, verdictWord } from "../shared/format.js";
 import { Engine } from "./engine.js";
 import { trayIcon } from "./icon.js";
 import { agentTurnStart, dotState, hookCandidates, placeOn, projectVerdict, shouldShowBreakCard, trayVerdicts } from "./rules.js";
@@ -216,7 +216,7 @@ async function showStrip(): Promise<void> {
   }
   try {
     const t = await tm.timeline(engine.ctx(p));
-    const points = t.checkpoints.slice(-24).map((c) => ({ id: c.id, verdict: c.verdict, note: c.note, createdAt: c.createdAt }));
+    const points = t.checkpoints.slice(-24).map((c) => ({ id: c.id, verdict: c.verdict, note: pointTitle(c), createdAt: c.createdAt }));
     await showOverlay({ kind: "strip", projectId: p.id, projectName: p.name, points, hideAfterMs: 10000 });
   } catch {
     showMain(cursorDisplay());
@@ -248,7 +248,8 @@ async function onStoreChange(p: ProjectEntry): Promise<void> {
   for (const e of fresh) if (e.action === "verify" && e.target) send({ type: "progress", projectId: p.id, checkpoint: e.target, verdict: e.result });
   setTurn(p.id, entries);
 
-  const points = t.checkpoints.map((c) => ({ id: c.id, verdict: c.verdict, note: c.note, createdAt: c.createdAt }));
+  // The card says a save point's name the way the status sentence does: "add dark mode".
+  const points = t.checkpoints.map((c) => ({ id: c.id, verdict: c.verdict, note: shortTitle(c), createdAt: c.createdAt }));
   const before = lastVerdict.get(p.id) ?? null;
   const after = projectVerdict(points);
   lastVerdict.set(p.id, after);

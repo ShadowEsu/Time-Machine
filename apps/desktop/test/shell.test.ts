@@ -9,8 +9,8 @@ import { Engine } from "../src/main/engine.ts";
 import { AppState } from "../src/main/state.ts";
 import { CallSchema, HotkeySchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
 import { verdictCard } from "../src/shared/cards.ts";
-import { when } from "../src/shared/format.ts";
-import { pointTitle, projectStatus } from "../src/renderer/status.ts";
+import { pointTitle, when } from "../src/shared/format.ts";
+import { projectStatus } from "../src/renderer/status.ts";
 import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
