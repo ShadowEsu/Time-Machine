@@ -3,14 +3,14 @@
   "use strict";
   const buttons = [...document.querySelectorAll("[data-sound]")];
   const ambience = [...document.querySelectorAll("[data-ambient]")];
-  let context = null, enabled = false, ambient = false, last = 0;
+  let context = null, enabled = false, ambient = false, last = 0, pending = false, activation = 0;
   const voices = new Set(), drones = new Set();
   function update() {
     buttons.forEach(b => { b.setAttribute("aria-pressed", String(enabled)); (b.querySelector(".snd-l") || b).textContent = enabled ? "Sound on" : "Sound off"; });
-    ambience.forEach(b => { b.setAttribute("aria-pressed", String(ambient)); b.textContent = ambient ? "Ambience on" : "Ambience off"; b.disabled = !enabled; });
+    ambience.forEach(b => { b.setAttribute("aria-pressed", String(ambient)); b.textContent = ambient ? "Ambience on" : "Ambience off"; b.hidden = !enabled; });
   }
   function stop(set) { for (const voice of set) { try { voice.stop(); } catch (_) {} voice.disconnect(); } set.clear(); }
-  function mute() { enabled = false; ambient = false; stop(voices); stop(drones); if (context && context.state === "running") context.suspend(); update(); }
+  function mute() { activation++; pending = false; enabled = false; ambient = false; stop(voices); stop(drones); if (context && context.state === "running") context.suspend(); update(); }
   function tone(from, to, length, volume, type = "sine", delay = 0, group = voices) {
     if (!enabled || !context || context.state !== "running" || document.hidden) return;
     const osc = context.createOscillator(), gain = context.createGain(), now = context.currentTime + delay;
@@ -29,10 +29,13 @@
     else tone(1600, 400, .025, .025, "triangle");
   }
   buttons.forEach(b => b.addEventListener("click", async () => {
-    if (enabled) { mute(); return; }
+    if (enabled || pending) { mute(); return; }
+    pending = true; const token = ++activation;
     try {
       if (!context) context = new (window.AudioContext || window.webkitAudioContext)();
       await context.resume();
+      if (token !== activation) return;
+      pending = false;
       if (document.hidden) { mute(); return; }
       enabled = context.state === "running"; update(); cue("detent");
     } catch (_) { mute(); b.textContent = "Sound unavailable"; }

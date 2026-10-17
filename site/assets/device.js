@@ -35,21 +35,24 @@
   let filmTimers = [];
   function stopFilm() { filmTimers.forEach(clearTimeout); filmTimers = []; dev.classList.remove("glitch"); dev.dataset.scene = "idle"; }
   function film() {
-    finishIntro(); stopFilm(); flash = null; checking = -1; sel = 5;
-    checked[CPS[5].id] = "broken"; render(); cue("failure");
-    dev.dataset.scene = "break";
-    if (!RM) dev.classList.add("glitch");
+    finishIntro(); stopFilm(); clearTimeout(flashT); flash = null; checking = -1; sel = 5;
+    checked[CPS[5].id] = "broken"; dev.dataset.scene = "break"; render(); cue("failure");
+    if (RM) {
+      sel = 2; checked[CPS[2].id] = "works"; dev.dataset.scene = "working"; render(); return;
+    }
+    dev.classList.add("glitch");
     const later = (ms, fn) => filmTimers.push(setTimeout(fn, ms));
-    later(RM ? 0 : 400, () => dev.classList.remove("glitch"));
-    later(RM ? 0 : 900, () => { dev.dataset.scene = "rewind"; cue("rewind"); });
-    [4, 3, 2].forEach((i, step) => later(RM ? 0 : 1100 + step * 400, () => { sel = i; checked[CPS[i].id] = CPS[i].v; render(); }));
-    later(RM ? 0 : 2300, () => { dev.dataset.scene = "working"; cue("success"); });
+    later(600, () => dev.classList.remove("glitch"));
+    later(900, () => { dev.dataset.scene = "rewind"; render(); cue("rewind"); });
+    [4, 3, 2].forEach((i, step) => later(1100 + step * 400, () => { sel = i; checked[CPS[i].id] = CPS[i].v; render(); cue("detent"); }));
+    later(2300, () => { dev.dataset.scene = "working"; render(); cue("success"); });
   }
 
   /* ---------- the screen ---------- */
   function render() {
     const c = CPS[sel], v = checked[c.id];
     let s = { mode: "saved", clock: c.t, id: c.id, note: c.note, stat: v || "not checked yet", sc: v || "" };
+    if (dev.dataset.scene === "rewind") s.mode = "rewinding";
     if (checking === sel) s = Object.assign(s, { mode: "checking", stat: "checking · network off", sc: "" });
     if (flash) s = Object.assign(s, flash);
     D.mode.textContent = s.mode; D.clock.textContent = s.clock; D.id.textContent = s.id; D.note.textContent = s.note; D.stat.textContent = s.stat;
@@ -211,12 +214,10 @@
     root.dataset.intro = "done"; rig.classList.remove("off"); on = true;
     Object.values(keys).forEach(k => k.classList.remove("lamp-on")); render();
   }
-  $("#introEnter")?.addEventListener("click", finishIntro);
-  addEventListener("keydown", e => { if (e.key === "Escape") finishIntro(); });
-  addEventListener("scroll", () => { if (root.dataset.intro === "playing" && scrollY > 100) finishIntro(); }, { passive: true });
+  addEventListener("tm:intro-end", finishIntro);
   if (RM || root.dataset.intro !== "playing" || scrollY > 100) { finishIntro(); return; }
   rig.classList.add("off"); render();
-  const b = base(), light = LITE || !FINE;
+  const b = base(), light = root.dataset.introLight === "true";
   const later = (ms, fn) => introTimers.push(setTimeout(fn, ms));
   introAnimations.push(dev.animate([{ opacity: 0, transform: pose({ rx: b.rx + (light ? 0 : 24), ry: b.ry, rz: b.rz }, light ? 12 : 45) }, { opacity: 1, transform: pose(b) }],
     { duration: light ? 700 : 2200, easing: "cubic-bezier(.2,.8,.2,1)" }));
@@ -226,5 +227,5 @@
     later(500 + i * 150, () => keys[k].classList.remove("lamp-on"));
   });
   later(light ? 450 : 1100, () => { rig.classList.remove("off"); on = true; render(); });
-  later(light ? 1000 : 2850, finishIntro);
+  later(light ? 1200 : 2900, finishIntro);
 })();

@@ -1,6 +1,6 @@
 # Time Machine: marketing website spec (round 3)
 
-Prepared 14 October 2026. Design and copy spec only. Nothing here is built.
+Prepared 14 October 2026. Historical round 3 proposal below. The built Editorial site and the October cinematic update in section 9.0 supersede conflicting layout, type, color and motion proposals.
 
 Sources: `docs/BUILD_BRIEF.md` (sections 1 to 7), `.private/research/03-website-design.md` (Monolith brand, type, budgets), `.private/research/04-repos-skills-kit.md` section 1 (scroll-beat-kit v1.1.0), `.private/research/13-pricing-launch-naming.md` (pricing, positioning, launch scripts).
 
@@ -845,6 +845,18 @@ Every visual is built as live HTML, CSS and inline SVG (no screenshots, videos o
 Rules: color never appears without a glyph and a word. Verdict text is dark on tint, never colored text on white.
 
 **Decision, 16 October 2026 (site v3, founder's choice of concept A "Editorial"):** the site may use **one ink-blue accent** beyond the verdict colors. Tokens in `site/assets/site.css`: `--accent: #1D3BB8` on warm paper `#F3EFE5` (`--accent-ink: #142A86`, `--accent-tint: #E3E7F6`; dark theme `--accent: #9FB0FF`, button `#3651D6`). Blue is used rarely: the primary button, the italic half of a headline, section numbers, the Time Machine bar in the comparison, the Built tag and the focus ring (2 px). Blue never sits next to green or red in a way that reads as a verdict, and green still appears only after a real PASS. Display type is Newsreader (self hosted, SIL OFL 1.1) instead of Inter Display. See `design/SITE_V3_DIRECTION.md`. This replaces the earlier rule that links, focus rings and buttons are ink only.
+
+**Decision, 17 October 2026 (Editorial + cinematic + orange, built in `site/`):**
+
+- Home opens on ink `#100F0D` with the oversized Newsreader regular/italic Time Machine wordmark. The physical product device emerges below it. There is no car, video download, loading bar, overlay or scroll lock.
+- The first-visit opening lasts 2.9 seconds. Skip, Enter and Escape end it immediately. The optional localStorage flag `tm-intro-seen` skips repeat visits. Reduced motion starts awake. Touch and low-tier devices get a 1.2 second version with no dial sweep. If JavaScript fails, the page stays visible and usable.
+- A second upper-page ink transition uses the same oversized serif: "It worked at 10:42." It leads into the problem rather than repeating instructions.
+- Orange `#FF791F` marks the dial pointer and selected warm buttons, with dark `#211307` button text. The Ladder track is `#D14E0B`; hardware focus rings are `#B83E08` on aluminium. Editorial blue remains for information, other primary buttons and links. Green and red remain recorded verdicts only.
+- Home section padding and repeated instructions are shorter. The optional nine-act story has shorter native-scroll runways. No wheel or touch scroll interception is introduced. Watch the story targets `#story-start` with a header offset.
+- Sound is off on every load. A labelled, keyboard-accessible Sound button is available on phones too. Shared `sound.js` makes original detent, failure, rewind and success cues with WebAudio oscillators. Optional quiet ambience is exposed only after sound is enabled. There are no music files. Mute and a hidden tab stop all voices and suspend the context. Returning to a tab does not resume sound.
+- Home's Play break + rewind replays the synthetic demo: cp-0006 fails, the screen dims once, then the orange dial scrubs to recorded working cp-0003. No camera shake or repeated flashes. Reduced motion jumps directly to the working still. The synthetic label remains beside the controls.
+- Keep reduced motion, core/memory/Save-Data detection and the short frame probe. Fine-pointer tilt stops offscreen or hidden. The low tier removes soft shadows and extra 3D surfaces. Real low-end GPU and physical phone performance still require device testing.
+
 
 ### 9.1 Components
 

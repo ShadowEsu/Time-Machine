@@ -193,9 +193,7 @@
     } else if (n === 2) {
       const t = kf(p, BREAK_T), h = headAt(t), k = cpAt(t);
       s.knob = 360 + lerp(DET(2), DET(5), clamp((h - 2) / 3));
-      const shake = RM || low ? 0 : seg(p, 0.7, 0.72) * (1 - seg(p, 0.76, 0.8));
-      const bp = POSE.brk();
-      s.pose = Object.assign({}, bp, { rz: bp.rz + Math.sin(p * 900) * 1.6 * shake, x: bp.x + Math.sin(p * 1300) * 0.004 * shake });
+      s.pose = POSE.brk();
       if ([0.36, 0.42, 0.5].some((e) => p >= e && p < e + 0.03)) { s.lit.save = 1; s.down.save = 1; }
       s.led = p >= 0.7 ? "broken" : "";
       s.scr = scr({ mode: p < 0.3 ? "saved" : "agent", clock: fmt(t), id: CPS[k].id, note: CPS[k].note, stat: p >= 0.7 ? "your test failed" : "not checked yet",
@@ -384,31 +382,11 @@
     if (a !== curAct) { curAct = a; actN.textContent = pad(a + 1); actT.textContent = acts[a].dataset.title; bar.forEach((b, i) => setCls(b, "on", i <= a)); }
   }
   let raf = 0;
-  const req = () => { if (!raf) raf = requestAnimationFrame(frame); };
+  const req = () => { if (!raf && !document.hidden) raf = requestAnimationFrame(frame); };
 
-  /* ---------- sound: off by default, made on the fly, nothing downloaded ---------- */
-  let ac = null, soundOn = false, lastTick = 0, lastStoryMin = -1;
-  const sndBtn = $("#snd");
-  sndBtn.addEventListener("click", () => {
-    soundOn = !soundOn;
-    sndBtn.setAttribute("aria-pressed", String(soundOn));
-    $(".snd-l", sndBtn).textContent = soundOn ? "Sound on" : "Sound off";
-    if (soundOn && !ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
-    if (soundOn && ac && ac.state === "suspended") ac.resume();
-    if (soundOn) tick(1);
-  });
-  function tick(kind) {
-    if (!soundOn || !ac) return;
-    const pt = performance.now();
-    if (pt - lastTick < 30) return; lastTick = pt;
-    const len = kind === 2 ? 0.06 : 0.018;
-    const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * len), ac.sampleRate), ch = buf.getChannelData(0);
-    for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / ch.length, kind === 2 ? 3 : 6);
-    const src = ac.createBufferSource(); src.buffer = buf;
-    const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = kind === 2 ? 900 : 3200; f.Q.value = kind === 2 ? 1.2 : 4;
-    const g = ac.createGain(); g.gain.value = kind === 2 ? 0.45 : 0.3;
-    src.connect(f).connect(g).connect(ac.destination); src.start(ac.currentTime);
-  }
+  /* Shared procedural sound stays off until a gesture. Mute and hidden stop every voice. */
+  let lastStoryMin = -1;
+  function tick() { window.TMSound?.cue("detent"); }
   function tickOnStory(t) { const k = Math.floor(t / 60); if (k !== lastStoryMin) { if (lastStoryMin !== -1) tick(1); lastStoryMin = k; } }
 
   /* ---------- the dial: grab, turn, keys ---------- */
@@ -456,7 +434,7 @@
   function runCheck() {
     if (!live) return;
     const i = userSel == null ? 2 : userSel; checking = i; pressKey("check"); req();
-    setTimeout(() => { if (checking !== i) return; checked[CPS[i].id] = CPS[i].v; checking = null; tick(2); req(); }, RM ? 0 : 650);
+    setTimeout(() => { if (checking !== i) return; checked[CPS[i].id] = CPS[i].v; checking = null; window.TMSound?.cue(CPS[i].v === "works" ? "success" : "failure"); req(); }, RM ? 0 : 650);
   }
   keys.rewind.addEventListener("click", rewindOne);
   keys.check.addEventListener("click", runCheck);
@@ -509,7 +487,7 @@
     let countRaf = 0;
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (!e.isIntersecting) {
-        if (e.target === testsN && countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = "128"; io.unobserve(testsN); }
+        if (e.target === testsN && countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = "228"; io.unobserve(testsN); }
         return;
       }
       if (e.target === vs) { vs.classList.add("in"); io.unobserve(vs); }
@@ -518,9 +496,9 @@
         const t0 = performance.now();
         const step = (now) => {
           const k = clamp((now - t0) / 1100);
-          testsN.textContent = String(Math.round(128 * (1 - Math.pow(1 - k, 3))));
+          testsN.textContent = String(Math.round(228 * (1 - Math.pow(1 - k, 3))));
           if (k < 1 && !document.hidden) countRaf = requestAnimationFrame(step);
-          else { countRaf = 0; testsN.textContent = "128"; io.unobserve(testsN); }
+          else { countRaf = 0; testsN.textContent = "228"; io.unobserve(testsN); }
         };
         countRaf = requestAnimationFrame(step);
       }
@@ -530,6 +508,13 @@
 
   /* ---------- boot ---------- */
   addEventListener("scroll", req, { passive: true });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      if (countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = "228"; }
+    } else req();
+  });
   addEventListener("resize", () => { measure(); lastProof = -1; ladderP = -1; req(); });
   measure(); frame();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measure(); req(); });

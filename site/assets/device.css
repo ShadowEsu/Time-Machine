@@ -69,13 +69,13 @@
 .kl { position: absolute; inset: 0; border-radius: 50%; transform: translateZ(calc(var(--z) * 2.2px)); background: repeating-conic-gradient(#1d1d1b 0 3deg, #3b3b38 3deg 6deg); }
 .kcap { position: absolute; inset: 9px; border-radius: 50%; transform: translateZ(18px); background: radial-gradient(circle at 50% 60%, #2c2c2a 0%, #3a3a37 55%, #4a4a46 80%, #262624 100%); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .18), inset 0 -6px 12px rgba(0, 0, 0, .5); }
 .kcap::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 200deg, transparent, rgba(255, 255, 255, .08), transparent 30%, rgba(255, 255, 255, .05) 55%, transparent 70%); }
-.kmark { position: absolute; left: 50%; top: 7px; width: 4px; height: 30px; margin-left: -2px; border-radius: 3px; background: #f2f0ea; box-shadow: 0 0 6px rgba(255, 255, 255, .25); }
+.kmark { position: absolute; left: 50%; top: 7px; width: 4px; height: 30px; margin-left: -2px; border-radius: 3px; background: #ff791f; }
 .knob-hint { position: absolute; inset: -16px; border-radius: 50%; border: 1.5px dashed rgba(20, 20, 18, .45); opacity: 0; transform: translateZ(1px); transition: opacity .2s; }
 @keyframes spin { to { transform: translateZ(1px) rotate(360deg); } }
 .rig.live .knob { cursor: grab; pointer-events: auto; }
 .rig.live .knob:active { cursor: grabbing; }
 .rig.live .key { pointer-events: auto; cursor: pointer; }
-.knob:focus-visible .knob-hint { opacity: 1 !important; border-style: solid; border-color: #141412; border-width: 2px; }
+.knob:focus-visible .knob-hint { opacity: 1 !important; border-style: solid; border-color: #b83e08; border-width: 3px; }
 
 .keys { position: absolute; left: 22px; top: 232px; display: flex; gap: 12px; transform-style: preserve-3d; }
 .key { position: relative; width: 54px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: #1c1c1a; color: #141412; transform-style: preserve-3d; box-shadow: inset 0 2px 3px rgba(0, 0, 0, .7), 0 1px 0 #fff; pointer-events: none; }

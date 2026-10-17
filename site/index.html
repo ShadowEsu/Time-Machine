@@ -48,9 +48,10 @@
   <div class="wrap">
     <div class="opening-bar">
       <p class="label">A way back, with proof.</p>
-      <div class="opening-controls"><button class="btn btn-warm intro-enter" id="introEnter" type="button">Skip intro / Enter</button><button class="btn btn-ghost" data-sound type="button" aria-pressed="false">Sound off</button><button class="btn btn-ghost" data-ambient type="button" aria-pressed="false" disabled>Ambience off</button></div>
+      <div class="opening-controls"><button class="btn btn-warm intro-enter" id="introEnter" type="button" aria-keyshortcuts="Enter Escape">Skip intro <span aria-hidden="true">↵</span></button><button class="btn btn-ghost" data-sound type="button" aria-pressed="false">Sound off</button><button class="btn btn-ghost" data-ambient type="button" aria-pressed="false" hidden>Ambience off</button></div>
     </div>
-    <p class="opening-wordmark" aria-label="Time Machine"><span>Time</span> <em>Machine</em></p>
+    <p class="opening-wordmark" aria-hidden="true"><span class="word-mask"><span>Time</span></span> <span class="word-mask"><em>Machine</em></span></p>
+    <div class="opening-line" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
     <div class="mast">
       <p class="label"><span class="dot" aria-hidden="true"></span>Early. The tm command line tool works today.</p>
       <p class="label">Not on npm yet · Mac app in development</p>
@@ -130,7 +131,7 @@
 </section>
 
 <section class="upper-transition" aria-labelledby="return-h">
-  <div class="wrap"><p class="label">Not a guess. A recorded check.</p><h2 id="return-h">Back to<br><em>what worked.</em></h2><a class="btn btn-warm" href="#proof">See the proof <span class="arr" aria-hidden="true"></span></a></div>
+  <div class="wrap rv"><p class="label">A normal morning with an agent</p><h2 id="return-h">It worked<br><em>at 10:42.</em></h2><p class="transition-end">Then the agent kept going.</p><a class="btn btn-warm" href="#proof">See the proof <span class="arr" aria-hidden="true"></span></a></div>
 </section>
 
 <section class="sec" id="problem" aria-labelledby="problem-h">
@@ -138,7 +139,7 @@
     <div class="sec-head rv">
       <p class="label"><b>01</b> &nbsp;The problem</p>
       <h2 class="h2" id="problem-h">Undo goes back one edit. <em>Then what?</em></h2>
-      <p class="lead">It worked at 10:42. Then the agent kept going. By the time you run your tests, the version that worked is several steps back, and some of those steps were shell commands.</p>
+      <p class="lead">By the time you run your tests, the working version is several steps back. Some of those steps were shell commands.</p>
     </div>
     <div class="gap-grid">
       <blockquote class="quote rv">
@@ -209,17 +210,17 @@ Manual steps
     <div class="sec-head rv">
       <p class="label"><b>03</b> &nbsp;How it works</p>
       <h2 class="h2" id="how-h">Save. Check. <em>Bring back.</em></h2>
-      <p class="lead">Three steps, one engine. The CLI, the hooks and the MCP server all call the same functions, so they never disagree.</p>
+      <p class="lead">Three steps. The CLI, hooks and Mac app share one engine.</p>
     </div>
     <ol class="steps">
-      <li class="step rv"><span class="step-n" aria-hidden="true">i.</span><h3>Save</h3><p>Before each prompt, and before risky commands like <code>rm -rf</code> or <code>git reset --hard</code>. Save points live outside your project folder.</p>
+      <li class="step rv"><span class="step-n" aria-hidden="true">i.</span><h3>Save</h3><p>Claude Code hooks save before prompts and risky commands. Save points live outside your project folder.</p>
         <pre class="term"><span class="p">$ </span>tm checkpoint -m "Added dark mode"
 Saved cp-0003  "Added dark mode"
 <span class="d">Not checked yet.</span></pre></li>
       <li class="step rv"><span class="step-n" aria-hidden="true">ii.</span><h3>Check</h3><p>Your own test runs in a separate copy, with the network off. One verdict per save point.</p>
         <pre class="term" tabindex="0"><span class="p">$ </span>tm verify cp-0004
 <span class="fail">FAIL</span>       cp-0004 is broken (host mode, network off via sandbox-exec, 0.3 s)</pre></li>
-      <li class="step rv"><span class="step-n" aria-hidden="true">iii.</span><h3>Bring back</h3><p>The newest save point that works, on a new branch. Your folder is never touched. Nothing is pushed, merged or deployed.</p>
+      <li class="step rv"><span class="step-n" aria-hidden="true">iii.</span><h3>Bring back</h3><p>A recovery copy on a new branch. Your folder stays untouched. Nothing is pushed or deployed.</p>
         <pre class="term"><span class="p">$ </span>tm recover cp-0003
   Branch       tm/recover/cp-0003
   Saved first  cp-0007</pre></li>

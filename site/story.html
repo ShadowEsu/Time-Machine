@@ -43,7 +43,7 @@
 <!-- Fixed chrome: story progress and the sound switch -->
 <div class="hud" id="hud">
   <p class="hud-acts" aria-hidden="true"><span class="hud-n" id="actN">01</span><span class="hud-of">/ 09</span><span class="hud-t" id="actT">Power on</span><span class="hud-bar" id="actBar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></p>
-  <button class="snd" id="snd" type="button" aria-pressed="false"><span class="snd-sw" aria-hidden="true"><i></i></span><span class="snd-l">Sound off</span></button>
+  <button class="snd" id="snd" data-sound type="button" aria-pressed="false"><span class="snd-sw" aria-hidden="true"><i></i></span><span class="snd-l">Sound off</span></button>
 </div>
 
 <div class="night" id="night" aria-hidden="true"></div>
@@ -126,20 +126,20 @@
 <main id="main" tabindex="-1">
 
 <!-- ACT 1. Power on -->
-<section class="act a-hero" id="story-start" data-act="0" data-title="Power on" style="--h:190" aria-labelledby="hero-h">
+<section class="act a-hero" id="story-start" data-act="0" data-title="Power on" style="--h:150" aria-labelledby="hero-h">
   <div class="stage">
     <p class="chip r" data-r="0 0 .5 .8"><span class="ring" aria-hidden="true"></span>The story, in nine acts.</p>
     <h1 class="hero-h" id="hero-h"><span class="r" data-r="0 0 .45 .8">Rewind to</span> <em class="r" data-r="0 0 .5 .85">what worked.</em></h1>
     <div class="hero-sub r" data-r="0 0 .4 .75">
       <p>Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.</p>
-      <p class="gap"><b>The gap.</b> Claude Code's rewind "does not track files modified by Bash commands", like <code>rm</code>, <code>mv</code> or <code>sed -i</code>. With its Claude Code hooks, Time Machine saves your project before each prompt and before risky shell commands, outside the project folder. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Source: Claude Code docs</a></p>
+      <p class="gap">Claude Code's rewind skips files changed by Bash commands. Time Machine's Claude Code hooks save before prompts and risky commands. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Source: Claude Code docs</a></p>
       <div class="ctas"><a class="btn btn-primary" href="#waitlist">Join the waitlist</a><a class="btn btn-ghost" href="#act-rewind">Turn the dial <span class="arr" aria-hidden="true"></span></a></div>
     </div>
   </div>
 </section>
 
 <!-- ACT 2. The promise -->
-<section class="act a-promise" data-act="1" data-title="The promise" style="--h:230" aria-labelledby="promise-h">
+<section class="act a-promise" data-act="1" data-title="The promise" style="--h:180" aria-labelledby="promise-h">
   <div class="stage">
     <div class="copy">
       <p class="kick r" data-r=".02 .12">What it does</p>
@@ -155,7 +155,7 @@
 </section>
 
 <!-- ACT 3. The break -->
-<section class="act a-break" data-act="2" data-title="The break" style="--h:340" aria-labelledby="break-h">
+<section class="act a-break" data-act="2" data-title="The break" style="--h:240" aria-labelledby="break-h">
   <div class="stage">
     <div class="copy">
       <h2 class="sr-only" id="break-h">It worked at 10:42. Then the agent kept going. Now it's broken.</h2>
@@ -180,7 +180,7 @@
 </section>
 
 <!-- ACT 4. The rewind -->
-<section class="act a-rewind" id="act-rewind" data-act="3" data-title="The rewind" style="--h:440" aria-labelledby="rewind-h">
+<section class="act a-rewind" id="act-rewind" data-act="3" data-title="The rewind" style="--h:280" aria-labelledby="rewind-h">
   <div class="stage">
     <div class="rw-top">
       <div class="rw-clock-wrap r" data-r=".02 .1 .66 .72">
@@ -192,7 +192,7 @@
     <div class="rw-bot">
       <p class="sub r" data-r=".1 .18 .62 .68">Keep scrolling. Time runs backwards, save point by save point.</p>
       <div class="rw-you r" data-r=".74 .8">
-        <p class="sub">Grab the dial and turn it, or press <b>Rewind</b>. Arrow keys work too. Press <b>Check</b> to run the check.</p>
+        <p class="sub">Turn the dial or press <b>Rewind</b>. Then <b>Check</b>. Arrow keys work too.</p>
         <div class="rw-ctl"><button class="btn btn-primary" type="button" id="rwBtn"><span class="rw-glyph" aria-hidden="true"><i></i><i></i></span>Rewind</button><button class="btn btn-ghost" type="button" id="rwCheck">Check</button><button class="btn btn-ghost" type="button" id="rwFocus">Use the keyboard</button></div>
         <p class="next">Every dot says "not checked yet". So which one works?</p>
       </div>
@@ -202,7 +202,7 @@
 </section>
 
 <!-- ACT 5. The proof -->
-<section class="act a-proof" data-act="4" data-title="The proof" style="--h:380" aria-labelledby="proof-h">
+<section class="act a-proof" data-act="4" data-title="The proof" style="--h:270" aria-labelledby="proof-h">
   <div class="stage">
     <div class="pf">
       <p class="kick r" data-r=".01 .08">The proof · <code>tm find-good</code></p>
@@ -231,7 +231,7 @@
 </section>
 
 <!-- ACT 6. The receipt -->
-<section class="act a-report" data-act="5" data-title="The receipt" style="--h:300" aria-labelledby="report-h">
+<section class="act a-report" data-act="5" data-title="The receipt" style="--h:220" aria-labelledby="report-h">
   <div class="stage">
     <div class="copy">
       <p class="kick r" data-r=".02 .1"><code>tm recover cp-0003</code></p>
@@ -282,8 +282,8 @@
         <p class="spec-k"><span class="tag tag-plan">Planned</span></p>
         <dl class="spec-list"><dt>The Ladder</dt><dd>Pricing. Nothing is for sale yet.</dd></dl>
         <div class="tests alu">
-          <p class="tests-n" id="testsN">128</p>
-          <p class="tests-l">automated tests pass today. 126 run on macOS, 2 are Linux only. Real proof instead of social proof.</p>
+          <p class="tests-n" id="testsN">228</p>
+          <p class="tests-l">automated tests. 226 passed locally on macOS. 2 Linux-only skips. Final CI pending.</p>
         </div>
       </div>
     </div>
@@ -314,7 +314,7 @@
 </section>
 
 <!-- ACT 8. The Ladder -->
-<section class="act a-ladder" id="pricing" data-act="7" data-title="The Ladder" style="--h:300" aria-labelledby="ladder-h">
+<section class="act a-ladder" id="pricing" data-act="7" data-title="The Ladder" style="--h:220" aria-labelledby="ladder-h">
   <div class="stage">
     <div class="ld-copy">
       <p class="kick">Pricing <span class="tag tag-plan">Planned. Nothing is for sale yet.</span></p>
@@ -401,6 +401,7 @@
   </div>
 </footer>
 
+<script src="assets/sound.js" defer></script>
 <script src="assets/story.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
 </body>
