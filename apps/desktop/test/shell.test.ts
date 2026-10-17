@@ -145,7 +145,8 @@ describe("project status", () => {
 
   test("broken with a known working version: one sentence, go back by time, see what changed", () => {
     const s = projectStatus(story);
-    expect(`${s.head} ${s.body}`).toBe(`Broken since ${when(at(20, 16))}. The last version that works is from ${when(at(19, 3))}: add dark mode.`);
+    expect(`${s.head} ${s.body}`).toBe(`Broken since ${when(at(20, 16))}. The last version that works is from ${when(at(19, 3))}: add dark mode. Going back takes two clicks and saves this version first.`);
+    expect(s.head.endsWith(s.em)).toBe(true);
     expect(s.primary).toEqual({ label: `Go back to the ${when(at(19, 3))} version`, act: "rewind-to", id: "cp-0002" });
     expect(s.secondary).toEqual({ label: "See what changed", act: "compare", a: "cp-0002", b: "now" });
     expect(`${s.head} ${s.body} ${s.primary.label}`).not.toContain("cp-");
@@ -164,8 +165,9 @@ describe("project status", () => {
 
   test("works says when it was checked only when a check time is known", () => {
     const works = [pt(1, "PASS", at(20, 16), "a")];
-    expect(projectStatus(works, at(20, 20)).head).toBe(`Works. Checked at ${when(at(20, 20))}.`);
-    expect(projectStatus(works).head).toBe(`Works. The ${when(at(20, 16))} version passed its check.`);
+    expect(projectStatus(works, at(20, 20)).head).toBe(`Works, checked at ${when(at(20, 20))}.`);
+    expect(projectStatus(works).head).toBe(`Works, as of ${when(at(20, 16))}.`);
+    expect(projectStatus(works).body).toBe(`Your newest save point, ${when(at(20, 16))} a, passed its check in a safe copy. Save again after your next change.`);
     expect(projectStatus(works).primary.act).toBe("save");
     expect(projectStatus(works).secondary?.act).toBe("check");
   });

@@ -18,6 +18,8 @@ export interface StatusButton {
 export interface ProjectStatusView {
   v: Verdict | null;
   head: string;
+  /** The end of `head` set in italic, as an accent. Empty for none. */
+  em: string;
   body: string;
   primary: StatusButton;
   secondary: StatusButton | null;
@@ -45,39 +47,45 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
   const newest = points.at(-1);
   const save: StatusButton = { label: "Save now", act: "save" };
   const check: StatusButton = { label: "Check it works", act: "check" };
-  if (!newest) return { v: null, head: "No save points yet.", body: "Save now to make the first one. Then check that it works.", primary: save, secondary: null };
+  if (!newest) return { v: null, head: "No save points yet.", em: "", body: "Save now to make the first one. Then check that it works.", primary: save, secondary: null };
   const lw = lastWorking(points);
   const goBack: StatusButton | null = lw ? { label: goBackLabel(lw), act: "rewind-to", id: lw.id } : null;
   switch (newest.verdict) {
     case "FAIL": {
-      const head = `Broken since ${when((brokenSince(points) ?? newest).createdAt)}.`;
-      if (!lw) return { v: "FAIL", head, body: "No earlier version has passed a check yet. We can check older ones for you.", primary: { label: "Find the last working version", act: "rewind" }, secondary: null };
+      const em = `since ${when((brokenSince(points) ?? newest).createdAt)}.`;
+      const head = `Broken ${em}`;
+      if (!lw) return { v: "FAIL", head, em, body: "No earlier version has passed a check yet. We can check older ones for you.", primary: { label: "Find the last working version", act: "rewind" }, secondary: null };
       return {
         v: "FAIL",
         head,
-        body: `The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}.`,
+        em,
+        body: `The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}. Going back takes two clicks and saves this version first.`,
         primary: { label: goBackLabel(lw), act: "rewind-to", id: lw.id },
         secondary: { label: "See what changed", act: "compare", a: lw.id, b: "now" },
       };
     }
-    case "PASS":
+    case "PASS": {
+      const em = checkedAt ? `checked at ${when(checkedAt)}.` : `as of ${when(newest.createdAt)}.`;
       return {
         v: "PASS",
-        head: checkedAt ? `Works. Checked at ${when(checkedAt)}.` : `Works. The ${when(newest.createdAt)} version passed its check.`,
-        body: "Your newest save point is a way back. Save again after your next change.",
+        head: `Works, ${em}`,
+        em,
+        body: `Your newest save point, ${when(newest.createdAt)} ${shortTitle(newest)}, passed its check in a safe copy. Save again after your next change.`,
         primary: save,
         secondary: check,
       };
+    }
     case "INCOMPLETE":
-      return { v: "INCOMPLETE", head: "Couldn't check the newest save point.", body: "We won't call it working until a check finishes.", primary: check, secondary: goBack };
+      return { v: "INCOMPLETE", head: "Couldn't check the newest save point.", em: "", body: "We won't call it working until a check finishes.", primary: check, secondary: goBack };
     case "BLOCKED":
-      return { v: "BLOCKED", head: "Needs something before it can be checked.", body: "The check could not start. Check again after you add what it needs.", primary: check, secondary: goBack };
+      return { v: "BLOCKED", head: "Needs something before it can be checked.", em: "", body: "The check could not start. Check again after you add what it needs.", primary: check, secondary: goBack };
     case "ERROR":
-      return { v: "ERROR", head: "The last check crashed.", body: "This is a problem with the check, not necessarily your project.", primary: check, secondary: goBack };
+      return { v: "ERROR", head: "The last check crashed.", em: "", body: "This is a problem with the check, not necessarily your project.", primary: check, secondary: goBack };
     default:
       return {
         v: null,
         head: "Not checked yet.",
+        em: "checked yet.",
         body: `Saved at ${when(newest.createdAt)}. We don't know yet if this version works.`,
         primary: check,
         secondary: goBack,
