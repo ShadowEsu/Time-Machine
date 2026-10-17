@@ -807,7 +807,7 @@ Each item has a "done when" test. The site does not launch until every item in g
 - [ ] WCAG 2.2 AA: contrast, focus order, keyboard timeline, reduced motion stills, "Skip the story".
 - [ ] Open Graph image per page generated from one template (component A29).
 - [ ] Technical-paper framing in reduced motion and on `/how-it-works` (Fig 1.1, Fig 2.3).
-- [ ] One typeface system, one accent rule (verdicts only), no stock imagery, no illustrations of people, no gradients.
+- [ ] One typeface system, one accent rule (verdict colors plus one ink blue, see 9.0), no stock imagery, no illustrations of people, no gradients.
 - [ ] Founder-written story with a real way to reach them.
 - [ ] Legal: privacy, terms, open source licenses (including scroll-beat-kit's MIT notice and font licenses).
 - [ ] No dark patterns: no countdowns, no fake scarcity, no pre-checked boxes, waitlist asks one question only.
@@ -842,7 +842,9 @@ Every visual is built as live HTML, CSS and inline SVG (no screenshots, videos o
 }
 ```
 
-Rules: color never appears without a glyph and a word. Verdict text is dark on tint, never colored text on white. The site has no other accent: links, focus rings and buttons are ink (focus ring 2 px ink with 2 px paper offset).
+Rules: color never appears without a glyph and a word. Verdict text is dark on tint, never colored text on white.
+
+**Decision, 16 October 2026 (site v3, founder's choice of concept A "Editorial"):** the site may use **one ink-blue accent** beyond the verdict colors. Tokens in `site/assets/site.css`: `--accent: #1D3BB8` on warm paper `#F3EFE5` (`--accent-ink: #142A86`, `--accent-tint: #E3E7F6`; dark theme `--accent: #9FB0FF`, button `#3651D6`). Blue is used rarely: the primary button, the italic half of a headline, section numbers, the Time Machine bar in the comparison, the Built tag and the focus ring (2 px). Blue never sits next to green or red in a way that reads as a verdict, and green still appears only after a real PASS. Display type is Newsreader (self hosted, SIL OFL 1.1) instead of Inter Display. See `design/SITE_V3_DIRECTION.md`. This replaces the earlier rule that links, focus rings and buttons are ink only.
 
 ### 9.1 Components
 

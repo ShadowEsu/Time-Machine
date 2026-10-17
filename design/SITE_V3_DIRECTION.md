@@ -1,6 +1,6 @@
 # Site v3 direction
 
-Status: design direction and two concepts. Nothing here is built on the live site. October 2026.
+Status: the founder chose concept A, "Editorial", which settles open decisions 1 and 3 below (concept A, ink blue). It is built in `site/` (October 2026). The home page is the editorial page with the hero device (`site/assets/device.js`, `device.css`). For decision 2, the 9 act scroll story moved to its own page, `site/story.html` (`story.js`, `story.css`), linked as "Watch the story", as section 4 suggests. The founder can still move it back. Decision 4, the FAQ wording, is still open, so the FAQ is labelled Draft.
 
 Concepts: `design/concepts/site-v3-a.html` (editorial) and `design/concepts/site-v3-b.html` (instrument). Shared parts are in `design/concepts/site-v3-assets/`. Screenshots at 1440x900 and 390x844 are in `design/concepts/shots/site-v3-*`.
 
