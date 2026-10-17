@@ -6,8 +6,11 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import * as tm from "@timetm/core";
 import type { AgentRow, Call, HookPreview, IsolationInfo, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
+import { askHistory } from "./ask.js";
+import type { Credentials } from "./credentials.js";
 import { agentTurnStart, firstRunning } from "./rules.js";
 import type { AppState } from "./state.js";
+import { matchDeployments, Vercel } from "./vercel.js";
 
 type EngineCall = Exclude<Call, { method: "bootstrap" | "chooseFolder" | "setSettings" | "reveal" | "copy" | "setActive" }>;
 
@@ -17,16 +20,25 @@ export interface HookSetup {
   version: string;
 }
 
+/** What the opt-in features reach outside this Mac with. Tests pass a fake fetch. */
+export interface Services {
+  credentials: Credentials;
+  fetch: typeof fetch;
+}
+
 export class Engine {
   /** Paths the engine handed back in this session. Only these can be revealed or read. */
   readonly allowedPaths = new Set<string>();
   /** Projects with an engine action running right now. */
   readonly busy = new Map<string, string>();
   private readonly queues = new Map<string, Promise<unknown>>();
+  /** Vercel deploys, read only (ADR 0009). */
+  private readonly vercel = new Vercel({ token: () => this.services.credentials.get("vercel"), fetch: (url, init) => this.services.fetch(url, init) });
 
   constructor(
     private readonly state: AppState,
     private readonly hook: HookSetup,
+    private readonly services: Services,
   ) {
     for (const p of state.projects) this.allowedPaths.add(p.path);
   }
@@ -79,7 +91,7 @@ export class Engine {
     const root = (await tm.timeline({ cwd: path, env: process.env })).project;
     const existing = this.state.projects.find((p) => p.path === root);
     if (existing) return existing;
-    const entry: ProjectEntry = { id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo };
+    const entry: ProjectEntry = { id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo, features: { ask: false, vercel: null } };
     this.state.projects.push(entry);
     this.state.saveProjects();
     this.allowedPaths.add(root);
@@ -187,6 +199,24 @@ export class Engine {
         if (!this.allowedPaths.has(call.path) || !call.path.endsWith(".md")) throw new tm.TmError("usage", "That report is not one this app made.");
         return readFileSync(call.path, "utf8");
       }
+      case "setFeature": {
+        // Works for a moved project too, so a feature can always be turned off.
+        const p = this.state.find(call.projectId);
+        if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
+        const c = call.change;
+        p.features = c.feature === "ask" ? { ...p.features, ask: c.enabled } : { ...p.features, vercel: c.link };
+        if (c.feature === "vercel") this.vercel.forget();
+        this.state.saveProjects();
+        return p;
+      }
+      case "credentials":
+        return this.services.credentials.status();
+      case "setCredential":
+        this.services.credentials.set(call.name, call.value);
+        if (call.name === "vercel") this.vercel.forget();
+        return { configured: this.services.credentials.status()[call.name] };
+      case "vercelProjects":
+        return this.vercel.projects();
       default:
         break;
     }
@@ -195,6 +225,14 @@ export class Engine {
     switch (call.method) {
       case "timeline":
         return tm.timeline(ctx);
+      case "deployments": {
+        const link = p.features.vercel;
+        if (!link) return null;
+        const [read, t] = await Promise.all([this.vercel.deployments(link), tm.timeline(ctx)]);
+        return matchDeployments(link, t.checkpoints, read.value, new Date(read.at).toISOString());
+      }
+      case "ask":
+        return askHistory(p, ctx, call.question, { key: this.services.credentials.get("gemini"), fetch: this.services.fetch });
       case "diff":
         return tm.diff(ctx, call.a, call.b);
       case "log":

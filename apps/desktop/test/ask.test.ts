@@ -1,0 +1,322 @@
+// Ask about your history (ADR 0008): what is sent to Gemini, opt-in, keys, and every way the
+// reply can fail. No network: fetch is always a stand-in.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, test } from "vitest";
+import * as tm from "@timetm/core";
+import { FAKE_SECRET } from "../../../packages/core/src/demo-project.ts";
+import { setupDemo, tempDir } from "../../../fixtures/demo/setup.ts";
+import { askHistory, buildContext, gatherFacts, GEMINI_MODEL, GEMINI_URL, MAX_POINTS, parseAnswer, type AskDeps } from "../src/main/ask.ts";
+import { Credentials, readDevEnv, type Cipher } from "../src/main/credentials.ts";
+import { Engine } from "../src/main/engine.ts";
+import { AppState } from "../src/main/state.ts";
+import { CallSchema, type ProjectEntry } from "../src/shared/api.ts";
+import { ASK_EXAMPLES } from "../src/shared/ask.ts";
+import { FakeEngine } from "../preview/fake.ts";
+
+const KEY = "test-gemini-key-not-real";
+/** A value that does not look like a key. Only the project's .env says it is secret. */
+const ENV_VALUE = "marigold-river-otter";
+const CONTENT = "CONTENT-MARKER-42";
+
+interface Seeded {
+  dir: string;
+  ctx: tm.Ctx;
+  entry: ProjectEntry;
+}
+let shared: Promise<Seeded> | null = null;
+
+/**
+ * A demo project with a secret value in .env, a note and a file that would leak it, and a
+ * checked save point. Built once: every test only reads it.
+ */
+function seeded(): Promise<Seeded> {
+  shared ??= (async () => {
+    const { dir, ctx } = await setupDemo();
+    writeFileSync(join(dir, ".env"), `PORT=3000\nDB_HINT=${ENV_VALUE}\nSTRIPE_SECRET_KEY=${FAKE_SECRET}\n`);
+    mkdirSync(join(dir, "docs"), { recursive: true });
+    writeFileSync(join(dir, "docs", "notes.txt"), `${CONTENT}\n`);
+    await tm.checkpoint(ctx, { note: `Pointed the app at ${ENV_VALUE}` });
+    await tm.verify(ctx, "cp-0003");
+    const entry: ProjectEntry = { id: "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f", path: dir, name: "marigold", addedAt: "2026-10-16T00:00:00Z", demo: true, features: { ask: true, vercel: null } };
+    return { dir, ctx, entry };
+  })();
+  return shared;
+}
+
+interface Sent {
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+function fakeFetch(respond: (init: RequestInit) => Response | Promise<Response>): { fetch: typeof fetch; sent: Sent[] } {
+  const sent: Sent[] = [];
+  const f = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
+    sent.push({ url: String(input), headers: Object.fromEntries(new Headers(init.headers).entries()), body: typeof init.body === "string" ? init.body : "" });
+    return respond(init);
+  };
+  return { fetch: f as typeof fetch, sent };
+}
+
+function interaction(text: string, status = "completed"): Response {
+  const body = { id: "v1_x", status, steps: [{ type: "thought" }, { type: "model_output", content: [{ type: "text", text }] }] };
+  return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+}
+
+const answer = (a: string, cites: string[]): Response => interaction(JSON.stringify({ answer: a, cites }));
+
+describe("the history sent to Gemini", () => {
+  test("has times, titles, agents, checks and changed paths, and never secrets, file contents or check output", async () => {
+    const { ctx, entry } = await seeded();
+    const { text, ids } = buildContext(await gatherFacts(ctx, entry.name));
+    expect(ids).toEqual(["cp-0001", "cp-0002", "cp-0003", "cp-0004", "cp-0005", "cp-0006", "cp-0007"]);
+    expect(text).toContain("id cp-0003");
+    expect(text).toContain("title: Added dark mode");
+    expect(text).toContain("result: PASS | check: node --test, exit code 0");
+    expect(text).toContain("result: not checked");
+    expect(text).toMatch(/changed since cp-0006: \d+ files? \([^)]*added docs\/notes\.txt/);
+    expect(text).toContain("not saved:");
+    // The note held a secret value from .env, so it is left out. The save point itself stays.
+    expect(text).toContain("id cp-0007");
+    expect(text).not.toContain(ENV_VALUE);
+    expect(text).not.toContain(FAKE_SECRET);
+    expect(text).not.toContain(CONTENT);
+    expect(text).not.toMatch(/# pass|# fail|# tests/);
+  });
+
+  test("drops agent prompts, notes, commands and paths that look like secrets, even if they got past the engine", async () => {
+    const { ctx, entry } = await seeded();
+    const facts = await gatherFacts(ctx, entry.name);
+    const [first, ...rest] = facts.checkpoints;
+    if (!first) throw new Error("no save points");
+    const leaky = { ...first, note: `deploy with ${FAKE_SECRET}`, agent: { name: "Claude Code", prompt: `use ${ENV_VALUE} for the db` } };
+    const checks = new Map(facts.checks).set(first.id, { command: `API_TOKEN=${FAKE_SECRET} npm test`, exitCode: 0 });
+    const diffs = new Map(facts.diffs);
+    const second = rest[0];
+    if (second) diffs.set(second.id, { a: first.id, b: second.id, code: [{ status: "A", path: `keys/${FAKE_SECRET}.txt` }, { status: "M", path: "src/tips.js" }], files: { added: [], removed: [], changed: [] }, config: { added: [], removed: [], changed: [] }, dependencies: { changed: [] }, environment: { changed: [] } });
+    const { text } = buildContext({ ...facts, checkpoints: [leaky, ...rest], checks, diffs });
+    expect(text).not.toContain(FAKE_SECRET);
+    expect(text).not.toContain(ENV_VALUE);
+    expect(text).toContain("check: (command hidden), exit code 0");
+    expect(text).toContain("changed since cp-0001: 2 files (changed src/tips.js, and 1 more)");
+  });
+
+  test(`sends only the newest ${MAX_POINTS} save points`, async () => {
+    const { ctx, entry } = await seeded();
+    const facts = await gatherFacts(ctx, entry.name);
+    const base = facts.checkpoints[0];
+    if (!base) throw new Error("no save points");
+    const many = Array.from({ length: 60 }, (_, i) => ({ ...base, id: `cp-${String(i + 1).padStart(4, "0")}` }));
+    const { text, ids } = buildContext({ ...facts, total: 60, checkpoints: many });
+    expect(ids).toHaveLength(MAX_POINTS);
+    expect(text).toContain(`the newest ${MAX_POINTS} of 60`);
+  });
+});
+
+describe("asking", () => {
+  test("refuses unless Ask is on for the project, and sends nothing", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch, sent } = fakeFetch(() => answer("x", []));
+    await expect(askHistory({ ...entry, features: { ask: false, vercel: null } }, ctx, "When did it last work?", { key: KEY, fetch })).rejects.toThrow(/off for marigold/);
+    await expect(askHistory(entry, ctx, "When did it last work?", { key: null, fetch })).rejects.toThrow(/Add a Gemini API key/);
+    expect(sent).toHaveLength(0);
+  });
+
+  test("refuses a question that holds a secret value, and sends nothing", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch, sent } = fakeFetch(() => answer("x", []));
+    await expect(askHistory(entry, ctx, `Did ${ENV_VALUE} change?`, { key: KEY, fetch })).rejects.toThrow(/holds a secret/);
+    expect(sent).toHaveLength(0);
+  });
+
+  test("sends one request to the documented endpoint and returns the answer with known cites", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch, sent } = fakeFetch(() => answer("It last worked at the save at 10:42, Added dark mode \u2014 its check passed.", ["cp-0003", "cp-9999", "cp-0001", "cp-0003"]));
+    const r = await askHistory(entry, ctx, "When did it last work?", { key: KEY, fetch });
+    expect(r).toEqual({ answer: "It last worked at the save at 10:42, Added dark mode, its check passed.", cites: ["cp-0001", "cp-0003"] });
+    expect(sent).toHaveLength(1);
+    const req = sent[0];
+    if (!req) throw new Error("no request");
+    expect(req.url).toBe(GEMINI_URL);
+    expect(req.headers["x-goog-api-key"]).toBe(KEY);
+    const body: unknown = JSON.parse(req.body);
+    expect(body).toMatchObject({ model: GEMINI_MODEL, store: false, input: expect.stringMatching(/Question: When did it last work\?$/), response_format: { type: "text", mime_type: "application/json" } });
+    expect(req.body).not.toContain(KEY);
+    expect(req.body).not.toContain(ENV_VALUE);
+    expect(req.body).not.toContain(FAKE_SECRET);
+    expect(req.body).not.toContain(CONTENT);
+  });
+
+  test.each([
+    [401, /did not accept the API key/],
+    [403, /did not accept the API key/],
+    [429, /reached its limit/],
+    [503, /having trouble/],
+    [418, /HTTP 418/],
+  ])("HTTP %i becomes a plain sentence", async (status, message) => {
+    const { ctx, entry } = await seeded();
+    const { fetch } = fakeFetch(() => new Response(JSON.stringify({ error: { message: `raw details for ${KEY}` } }), { status }));
+    const err = await askHistory(entry, ctx, "What changed?", { key: KEY, fetch }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(tm.TmError);
+    const text = err instanceof Error ? err.message : "";
+    expect(text).toMatch(message);
+    expect(text).not.toContain(KEY);
+  });
+
+  test("a request that takes too long is stopped", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch } = fakeFetch(
+      (init) => new Promise<Response>((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal?.reason))),
+    );
+    const deps: AskDeps = { key: KEY, fetch, timeoutMs: 50 };
+    await expect(askHistory(entry, ctx, "What changed?", deps)).rejects.toThrow(/did not answer within/);
+  });
+
+  test("no connection becomes a plain sentence", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch } = fakeFetch(() => Promise.reject(new TypeError("fetch failed")));
+    await expect(askHistory(entry, ctx, "What changed?", { key: KEY, fetch })).rejects.toThrow(/Could not reach Gemini/);
+  });
+
+  test.each([
+    ["a reply that is not JSON", () => interaction("Sure! It worked at 10:42.")],
+    ["JSON without cites", () => interaction(JSON.stringify({ answer: "It worked." }))],
+    ["an empty answer", () => answer("  ", [])],
+    ["a body that is not an interaction", () => new Response(JSON.stringify({ hello: "world" }), { status: 200 })],
+    ["a body that is not JSON", () => new Response("<html>oops</html>", { status: 200 })],
+  ])("%s is never shown raw", async (_name, respond) => {
+    const { ctx, entry } = await seeded();
+    const { fetch } = fakeFetch(respond);
+    await expect(askHistory(entry, ctx, "What changed?", { key: KEY, fetch })).rejects.toThrow(/could not read, so nothing is shown/);
+  });
+
+  test("an unfinished answer says so", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch } = fakeFetch(() => interaction('{"answer": "It', "incomplete"));
+    await expect(askHistory(entry, ctx, "What changed?", { key: KEY, fetch })).rejects.toThrow(/stopped before the answer was finished/);
+  });
+
+  test("parseAnswer keeps cites in history order and drops ids that were not sent", () => {
+    expect(parseAnswer(JSON.stringify({ answer: "I can't tell from the history.", cites: [] }), ["cp-0001"])).toEqual({ answer: "I can't tell from the history.", cites: [] });
+    expect(parseAnswer(JSON.stringify({ answer: "a", cites: ["cp-0002", "cp-0001", "nope"] }), ["cp-0001", "cp-0002"]).cites).toEqual(["cp-0001", "cp-0002"]);
+  });
+});
+
+describe("the engine", () => {
+  const noCipher: Cipher = { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => "" };
+
+  test("ask goes through opt-in, uses the stored key and never returns it", async () => {
+    const { dir, ctx, entry } = await seeded();
+    const appDir = join(tempDir("app"), "data");
+    const state = new AppState(appDir);
+    state.projects.push({ ...entry, features: { ask: false, vercel: null } });
+    const { fetch, sent } = fakeFetch(() => answer("It last worked at the save at 10:42, Added dark mode.", ["cp-0003"]));
+    const engine = new Engine(state, { candidates: ["false"], version: "9.9.9" }, { credentials: new Credentials(join(dir, "..", "credentials.json"), noCipher, { GEMINI_API_KEY: KEY }), fetch });
+    const before = process.env.TM_HOME;
+    process.env.TM_HOME = ctx.tmHome;
+    try {
+      const off = await engine.run({ method: "ask", projectId: entry.id, question: "When did it last work?" });
+      expect(off).toMatchObject({ ok: false, error: { kind: "usage" } });
+      expect(sent).toHaveLength(0);
+      const on = await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "ask", enabled: true } });
+      expect(on.ok && on.data).toMatchObject({ features: { ask: true, vercel: null } });
+      expect(new AppState(appDir).find(entry.id)?.features.ask).toBe(true);
+      const r = await engine.run({ method: "ask", projectId: entry.id, question: "When did it last work?" });
+      expect(r).toEqual({ ok: true, data: { answer: "It last worked at the save at 10:42, Added dark mode.", cites: ["cp-0003"] } });
+      expect(await engine.run({ method: "credentials" })).toEqual({ ok: true, data: { gemini: true, vercel: false } });
+    } finally {
+      if (before === undefined) delete process.env.TM_HOME;
+      else process.env.TM_HOME = before;
+    }
+  });
+});
+
+describe("keys", () => {
+  /** Reversible but not plain text, enough to prove the file never holds the key as written. */
+  const cipher: Cipher = {
+    isEncryptionAvailable: () => true,
+    encryptString: (s) => Buffer.from(s, "utf8").reverse(),
+    decryptString: (b) => Buffer.from(b).reverse().toString("utf8"),
+  };
+
+  test("are stored encrypted, read back, removed, and the environment wins", () => {
+    const file = join(tempDir("keys"), "credentials.json");
+    const c = new Credentials(file, cipher, {});
+    expect(c.status()).toEqual({ gemini: false, vercel: false });
+    c.set("gemini", KEY);
+    expect(readFileSync(file, "utf8")).not.toContain(KEY);
+    expect(c.get("gemini")).toBe(KEY);
+    expect(c.status()).toEqual({ gemini: true, vercel: false });
+    expect(new Credentials(file, cipher, { GEMINI_API_KEY: "from-env" }).get("gemini")).toBe("from-env");
+    c.set("gemini", null);
+    expect(c.get("gemini")).toBeNull();
+  });
+
+  test("are not saved when this Mac can't encrypt them", () => {
+    const file = join(tempDir("keys"), "credentials.json");
+    const c = new Credentials(file, { ...cipher, isEncryptionAvailable: () => false }, {});
+    expect(() => c.set("vercel", "tok_123456")).toThrow(/can't encrypt the Vercel token/);
+    expect(c.get("vercel")).toBeNull();
+  });
+
+  test("a broken key file is set aside", () => {
+    const file = join(tempDir("keys"), "credentials.json");
+    writeFileSync(file, "{ not json");
+    expect(new Credentials(file, cipher, {}).get("gemini")).toBeNull();
+  });
+
+  test("the development .env is read without touching process.env", () => {
+    const file = join(tempDir("env"), ".env");
+    writeFileSync(file, `# comment\nexport GEMINI_API_KEY="quoted-value"\nVERCEL_TOKEN=plain # note\nEMPTY=\n`);
+    expect(readDevEnv(file)).toEqual({ GEMINI_API_KEY: "quoted-value", VERCEL_TOKEN: "plain", EMPTY: "" });
+    expect(readDevEnv(join(tempDir("env"), "missing"))).toEqual({});
+    expect(process.env.VERCEL_TOKEN === "plain").toBe(false);
+  });
+});
+
+describe("the browser preview", () => {
+  test("requires opt-in and answers each sample question with real demo cites, then turns off", async () => {
+    const fake = new FakeEngine();
+    const projectId = fake.project.id;
+    const first = ASK_EXAMPLES[0];
+    expect(await fake.call({ method: "ask", projectId, question: first })).toMatchObject({ ok: false });
+    await fake.call({ method: "setFeature", projectId, change: { feature: "ask", enabled: true } });
+    for (const question of ASK_EXAMPLES) {
+      const r = await fake.call({ method: "ask", projectId, question });
+      if (!r.ok) throw new Error(r.error.message);
+      expect(r.data.answer.length).toBeGreaterThan(20);
+      expect(r.data.cites.length).toBeGreaterThan(0);
+      for (const id of r.data.cites) expect(fake.timelineEntries().some((c) => c.id === id)).toBe(true);
+    }
+    await fake.call({ method: "setFeature", projectId, change: { feature: "ask", enabled: false } });
+    expect(await fake.call({ method: "ask", projectId, question: first })).toMatchObject({ ok: false });
+  });
+});
+
+describe("contract", () => {
+  test("projects saved before features existed load with everything off", () => {
+    const dir = tempDir("old-projects");
+    const old = { version: 1, projects: [{ id: "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f", path: "/Users/you/code/acme", name: "acme", addedAt: "2026-10-01T00:00:00Z", demo: false }] };
+    writeFileSync(join(dir, "projects.json"), JSON.stringify(old));
+    const state = new AppState(dir);
+    expect(state.projects).toHaveLength(1);
+    expect(state.projects[0]?.features).toEqual({ ask: false, vercel: null });
+  });
+
+  test("calls are validated before they reach the engine", () => {
+    const projectId = "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f";
+    const ok = (x: unknown): boolean => CallSchema.safeParse(x).success;
+    expect(ok({ method: "ask", projectId, question: "When did it last work?" })).toBe(true);
+    expect(ok({ method: "ask", projectId, question: " " })).toBe(false);
+    expect(ok({ method: "ask", projectId, question: "x".repeat(501) })).toBe(false);
+    expect(ok({ method: "setFeature", projectId, change: { feature: "ask", enabled: true } })).toBe(true);
+    expect(ok({ method: "setFeature", projectId, change: { feature: "ask", enabled: "yes" } })).toBe(false);
+    expect(ok({ method: "setFeature", projectId, change: { feature: "vercel", link: { teamId: null, projectId: "prj_abc", name: "web" } } })).toBe(true);
+    expect(ok({ method: "setFeature", projectId, change: { feature: "vercel", link: { teamId: null, projectId: "../x", name: "web" } } })).toBe(false);
+    expect(ok({ method: "setCredential", name: "gemini", value: "abc123" })).toBe(true);
+    expect(ok({ method: "setCredential", name: "gemini", value: "abc 123" })).toBe(false);
+    expect(ok({ method: "setCredential", name: "openai", value: "abc123" })).toBe(false);
+    expect(ok({ method: "setCredential", name: "vercel", value: null })).toBe(true);
+  });
+});

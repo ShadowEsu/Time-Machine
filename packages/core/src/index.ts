@@ -18,3 +18,5 @@ export { isSafeRelPath } from "./paths.js";
 export { runInterruptCleanups } from "./cleanup.js";
 export { cleanStore, type CleanStoreOptions, type CleanStoreResult } from "./storeClean.js";
 export { detectSandbox } from "./sandbox.js";
+export { checkRuns, secretScreen } from "./history.js";
+export { clipSafe } from "./secrets.js";

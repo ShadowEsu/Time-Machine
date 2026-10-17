@@ -2,7 +2,7 @@
 
 **DRAFT. Not in effect. Needs lawyer review.** Last updated: [date].
 
-Short version: your code never leaves your computer. We collect as little as we can, we never sell it, and secret values are never stored anywhere, even on your own machine.
+Short version: your code stays on your computer. Features you turn on may send a summary of your history to Google, or read your deploys from Vercel, as described below. We collect as little as we can and we never sell it. Save points never store secret values. Keys for features you connect are kept encrypted on your Mac.
 
 ## 1. What stays on your computer
 
@@ -24,13 +24,18 @@ The `tm` tool and the Mac app keep everything locally: save points, Git bundles,
 ## 3. What we never do
 
 - Upload your code or project files.
-- Store secret values.
+- Store secret values in save points. Keys you add for connected features are the exception: they are stored encrypted on your Mac.
 - Sell or share your personal information for advertising.
 - Use your data to train AI models.
 
 ## 4. Who we share with
 
 Only service providers that help us run Time Machine, under contract: payment (Stripe), email delivery, and website hosting. We may share information if the law requires it.
+
+**Features you turn on that talk to other services.** These are off until you turn them on, and they talk to the other service directly from your Mac with your own key. We do not receive this data.
+
+- **Ask about your history** (per project): sends your question and a summary of that project's history to Google's Gemini API. The summary has save point times, titles and notes, agent prompts, check results, check commands and exit codes, and the names of changed files. It never has file contents, check output or secret values. With a free Gemini key, Google may use this to improve its products and people at Google may read it ([Gemini API terms](https://ai.google.dev/gemini-api/terms)). Your key is stored encrypted on your Mac.
+- **Vercel deploys** (per project): reads your teams, projects and recent deploy metadata directly from Vercel. Only the token and Vercel project identifiers are sent to Vercel. Your local save points, source files and file contents are not sent. Matching happens on your Mac by commit hash. The token is stored encrypted on your Mac, or read from `VERCEL_TOKEN` in the environment. No deploy is changed, promoted or rolled back.
 
 ## 5. How long we keep it
 

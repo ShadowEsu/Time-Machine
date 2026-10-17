@@ -84,14 +84,44 @@ export const SettingsPatchSchema = z.strictObject({
   agentPill: z.boolean().optional(),
 });
 
+/** A Vercel project linked to a Time Machine project. The ids go into API URLs, so only safe characters. */
+export const VercelLinkSchema = z.strictObject({
+  teamId: z.string().regex(/^[A-Za-z0-9_-]{1,100}$/).nullable(),
+  projectId: z.string().regex(/^[A-Za-z0-9_-]{1,100}$/),
+  name: z.string().min(1).max(200),
+});
+export type VercelLink = z.infer<typeof VercelLinkSchema>;
+
+/** Opt-in features per project. Everything is off until the person turns it on. */
+export const FeaturesSchema = z.strictObject({
+  /** Ask about your history: sends a summary of the history to Google's Gemini API. */
+  ask: z.boolean().default(false),
+  /** The Vercel project whose deploys show on the timeline. Null when none is linked. */
+  vercel: VercelLinkSchema.nullable().default(null),
+});
+export type Features = z.infer<typeof FeaturesSchema>;
+
 export const ProjectEntrySchema = z.strictObject({
   id: ProjectId,
   path: AbsPath,
   name: z.string().min(1).max(200),
   addedAt: z.string(),
   demo: z.boolean().default(false),
+  /** Missing in files from before these features existed. They load with everything off. */
+  features: FeaturesSchema.prefault({}),
 });
 export type ProjectEntry = z.infer<typeof ProjectEntrySchema>;
+
+/** Keys the opt-in features use. The window only ever learns whether each one is set. */
+export const CredentialNameSchema = z.enum(["gemini", "vercel"]);
+export type CredentialName = z.infer<typeof CredentialNameSchema>;
+/** An API key or token: printable characters, no spaces. */
+export const CredentialValueSchema = z.string().trim().min(1).max(4096).regex(/^[\x21-\x7E]+$/, "A key has no spaces or line breaks.");
+
+const FeatureChange = z.discriminatedUnion("feature", [
+  z.strictObject({ feature: z.literal("ask"), enabled: z.boolean() }),
+  z.strictObject({ feature: z.literal("vercel"), link: VercelLinkSchema.nullable() }),
+]);
 
 /** Every call the window can make. One schema per method. */
 export const CallSchema = z.discriminatedUnion("method", [
@@ -131,6 +161,12 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("readReport"), path: AbsPath }),
   z.strictObject({ method: z.literal("copy"), text: z.string().max(200_000) }),
   z.strictObject({ method: z.literal("setActive"), projectId: ProjectId }),
+  z.strictObject({ method: z.literal("setFeature"), projectId: ProjectId, change: FeatureChange }),
+  z.strictObject({ method: z.literal("credentials") }),
+  z.strictObject({ method: z.literal("setCredential"), name: CredentialNameSchema, value: CredentialValueSchema.nullable() }),
+  z.strictObject({ method: z.literal("ask"), projectId: ProjectId, question: z.string().trim().min(1).max(500) }),
+  z.strictObject({ method: z.literal("vercelProjects") }),
+  z.strictObject({ method: z.literal("deployments"), projectId: ProjectId }),
 ]);
 export type Call = z.infer<typeof CallSchema>;
 export type Method = Call["method"];
@@ -192,6 +228,58 @@ export interface IsolationInfo {
   networkSandbox: string | null;
 }
 
+/** An answer from Ask about your history. */
+export interface AskResult {
+  /** Plain sentences, based only on the history that was sent. */
+  answer: string;
+  /** Save points the answer relies on, oldest first. Only ids that were in the history sent. */
+  cites: string[];
+}
+
+/** A Vercel project the token can see, for linking one. */
+export interface VercelProjectOption {
+  /** Null for a personal project outside any team. */
+  teamId: string | null;
+  teamName: string | null;
+  projectId: string;
+  name: string;
+  /** The connected Git repository, such as acme/marigold-tips, when Vercel reports one. */
+  repo: string | null;
+}
+
+/** One Vercel deploy, read only. */
+export interface VercelDeployment {
+  id: string;
+  /** Null while the upload is not finished. */
+  url: string | null;
+  /** "other" is a custom environment, such as staging. */
+  target: "production" | "preview" | "other";
+  state: "BLOCKED" | "BUILDING" | "CANCELED" | "DELETED" | "ERROR" | "INITIALIZING" | "QUEUED" | "READY";
+  createdAt: string;
+  /** The Vercel username that made it. */
+  creator: string | null;
+  /** How it was made, as Vercel reports it, such as "git" or "cli". */
+  source: string | null;
+  /** The Git commit it was built from. Null when Vercel has none, as for most deploys from a computer. */
+  commit: string | null;
+  branch: string | null;
+  /** True when Vercel reports the folder had uncommitted changes. */
+  dirty: boolean;
+  inspectorUrl: string | null;
+}
+
+/** A project's recent deploys, placed by commit. Never matched by time. */
+export interface DeploymentsResult {
+  link: VercelLink;
+  /** Deploys whose commit is the recorded Git HEAD of one or more save points. Exact means the save point held nothing beyond that commit. */
+  matched: { deployment: VercelDeployment; savePoints: { id: string; exact: boolean }[] }[];
+  /** Deploys of a commit no save point recorded. */
+  otherCommits: VercelDeployment[];
+  /** Deploys with no Git commit, for example from the Vercel CLI: not linked to a save point. */
+  noCommit: VercelDeployment[];
+  fetchedAt: string;
+}
+
 /** What each method returns. */
 export interface Results {
   bootstrap: Bootstrap;
@@ -222,6 +310,13 @@ export interface Results {
   readReport: string;
   copy: true;
   setActive: true;
+  setFeature: ProjectEntry;
+  credentials: Record<CredentialName, boolean>;
+  setCredential: { configured: boolean };
+  ask: AskResult;
+  vercelProjects: VercelProjectOption[];
+  /** Null when the project is not linked to a Vercel project. */
+  deployments: DeploymentsResult | null;
 }
 
 export interface ApiError {

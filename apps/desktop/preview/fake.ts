@@ -2,7 +2,9 @@
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
 import type { DiffResult, FindGoodResult, RecoverResult, TimelineEntry, VerifyResult } from "@timetm/core";
-import type { AppEvent, Call, CallOf, Method, ProjectEntry, ProjectStatus, Res, Results, Settings, TmBridge, Verdict } from "../src/shared/api.js";
+import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, Method, ProjectEntry, ProjectStatus, Res, Results, Settings, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
+import { ASK_EXAMPLES } from "../src/shared/ask.js";
+import { clock } from "../src/shared/format.js";
 
 type FileMap = Record<string, string>;
 
@@ -64,7 +66,9 @@ export class FakeEngine implements TmBridge {
   private added = true;
   private seed: Point | null = null;
   settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false, hotkey: "Control+Alt+T", agentPill: true };
-  readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true };
+  readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null } };
+  /** Whether each key is set. The preview never holds a real key. */
+  private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
 
   constructor(readonly scenario: Scenario = "broken") {
     this.reset();
@@ -197,6 +201,33 @@ export class FakeEngine implements TmBridge {
 
   private lastRecover: RecoverResult | null = null;
 
+  /** Canned answers to the sample questions, from the demo story. The app asks Gemini instead. */
+  private askAnswer(question: string): AskResult {
+    const time = (id: string): string => clock(this.find(id).entry.createdAt);
+    const at = (id: string): string => `${time(id)}, ${this.find(id).entry.note}`;
+    const q = question.trim().toLowerCase();
+    const [lastWorked, changedAfter] = ASK_EXAMPLES.map((x) => x.toLowerCase());
+    if (this.scenario !== "broken" || !ASK_EXAMPLES.some((x) => x.toLowerCase() === q)) {
+      return { answer: `The preview has sample answers for the demo story only. Try one of these: ${ASK_EXAMPLES.join(" ")}`, cites: [] };
+    }
+    if (q === lastWorked) {
+      return {
+        answer: `It last worked at the save at ${at("cp-0003")}. Its check passed. The newest save, at ${at("cp-0006")}, failed its check.`,
+        cites: ["cp-0003", "cp-0006"],
+      };
+    }
+    if (q === changedAfter) {
+      return {
+        answer: `After the save at ${at("cp-0003")}, Claude Code changed src/tips.js at ${at("cp-0004")}. Then config/app.json changed at ${at("cp-0005")}. Then package.json and package-lock.json changed at ${at("cp-0006")}, and that check failed. The two saves in between were not checked, so I can't tell which change broke it.`,
+        cites: ["cp-0004", "cp-0005", "cp-0006"],
+      };
+    }
+    return {
+      answer: `Claude Code made four saves. It added split bill at ${time("cp-0002")} and dark mode at ${time("cp-0003")}, and both passed their checks. It fixed lint warnings at ${time("cp-0004")}, which was not checked. It added a currency package at ${time("cp-0006")}, and that check failed.`,
+      cites: ["cp-0002", "cp-0003", "cp-0004", "cp-0006"],
+    };
+  }
+
   private async dispatch(call: Call): Promise<unknown> {
     switch (call.method) {
       case "bootstrap":
@@ -322,6 +353,46 @@ export class FakeEngine implements TmBridge {
         return true;
       case "setActive":
         return true;
+      case "setFeature": {
+        const c = call.change;
+        this.project.features = c.feature === "ask" ? { ...this.project.features, ask: c.enabled } : { ...this.project.features, vercel: c.link };
+        return this.project;
+      }
+      case "credentials":
+        return this.credentials;
+      case "setCredential":
+        this.credentials = { ...this.credentials, [call.name]: call.value !== null };
+        return { configured: this.credentials[call.name] };
+      case "ask":
+        if (!this.project.features.ask) throw new Error(`Ask about your history is off for ${this.project.name}. Turn it on for this project first.`);
+        if (!this.credentials.gemini) throw new Error("Add a Gemini API key in Settings first.");
+        await wait(900);
+        return this.askAnswer(call.question);
+      case "vercelProjects":
+        if (!this.credentials.vercel) throw new Error("Add a Vercel token in Settings to see deploys. Time Machine only reads from Vercel.");
+        return [{ teamId: "team_preview", teamName: "Your team", projectId: "prj_marigold", name: "marigold-tips", repo: "you/marigold-tips" }];
+      case "deployments": {
+        const link = this.project.features.vercel;
+        if (!link) return null;
+        if (!this.credentials.vercel) throw new Error("Add a Vercel token in Settings to see deploys. Time Machine only reads from Vercel.");
+        const result: DeploymentsResult = { link, matched: [], otherCommits: [], noCommit: [], fetchedAt: new Date().toISOString() };
+        for (const [id, target] of [["cp-0002", "preview"], ["cp-0003", "production"]] as const) {
+          const point = this.points.find((p) => p.entry.id === id)?.entry;
+          if (!point) continue;
+          const deployment: VercelDeployment = {
+            id: `dpl_${id}`, url: `https://marigold-${target}.vercel.app`, target, state: "READY",
+            createdAt: point.createdAt, creator: "you", source: "git", commit: point.head,
+            branch: "main", dirty: false, inspectorUrl: `https://vercel.com/your-team/marigold-tips/dpl_${id}`,
+          };
+          result.matched.push({ deployment, savePoints: [{ id, exact: !point.dirty }] });
+        }
+        result.noCommit.push({
+          id: "dpl_computer", url: "https://marigold-computer.vercel.app", target: "preview", state: "READY",
+          createdAt: ago(25), creator: "you", source: "cli", commit: null, branch: null, dirty: false,
+          inspectorUrl: "https://vercel.com/your-team/marigold-tips/dpl_computer",
+        });
+        return result;
+      }
     }
   }
 }

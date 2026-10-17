@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { AGENT_TURN_STALE_MS, agentTurnStart, dotState, firstRunning, hookCandidates, placeOn, projectVerdict, shouldShowBreakCard, trayVerdicts } from "../src/main/rules.ts";
+import { Credentials } from "../src/main/credentials.ts";
 import { Engine } from "../src/main/engine.ts";
 import { AppState } from "../src/main/state.ts";
 import { CallSchema, HotkeySchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
@@ -268,8 +269,10 @@ describe("engine guards", () => {
     const dir = tmp();
     const state = new AppState(join(dir, "app"));
     const projectId = "0b8f2f5e-3f7c-4a59-9a43-1d2f6c1b2a10";
-    state.projects.push({ id: projectId, path: dir, name: "acme", addedAt: "2026-10-15T00:00:00Z", demo: false });
-    return { engine: new Engine(state, { candidates, version: "9.9.9" }), projectId, dir };
+    state.projects.push({ id: projectId, path: dir, name: "acme", addedAt: "2026-10-15T00:00:00Z", demo: false, features: { ask: false, vercel: null } });
+    const noCipher = { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => "" };
+    const offline = (): Promise<Response> => Promise.reject(new Error("no network in tests"));
+    return { engine: new Engine(state, { candidates, version: "9.9.9" }, { credentials: new Credentials(join(dir, "credentials.json"), noCipher, {}), fetch: offline }), projectId, dir };
   };
 
   test("undo of a rewind only touches a recovery copy this app made", async () => {

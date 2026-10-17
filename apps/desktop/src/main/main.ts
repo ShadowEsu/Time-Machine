@@ -2,10 +2,11 @@
 // global hotkey. Every engine call goes through Engine, which calls @timetm/core.
 import { join } from "node:path";
 import * as tm from "@timetm/core";
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, screen, session, shell, Tray, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, safeStorage, screen, session, shell, Tray, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from "electron";
 import { CallSchema, OverlayActionSchema, type AppEvent, type Bootstrap, type OverlayAction, type OverlayContent, type ProjectEntry, type Res, type ShortcutAction, type Verdict } from "../shared/api.js";
 import { verdictCard } from "../shared/cards.js";
 import { pointTitle, shortTitle, verdictWord } from "../shared/format.js";
+import { Credentials, readDevEnv } from "./credentials.js";
 import { Engine } from "./engine.js";
 import { trayIcon } from "./icon.js";
 import { agentTurnStart, dotState, hookCandidates, placeOn, projectVerdict, shouldShowBreakCard, trayVerdicts } from "./rules.js";
@@ -485,10 +486,18 @@ let watcher: StoreWatcher | null = null;
 
 void app.whenReady().then(async () => {
   state = new AppState(app.getPath("userData"));
-  engine = new Engine(state, {
-    candidates: hookCandidates({ override: process.env.TM_HOOK_COMMAND, nodePath: process.execPath, cliScript: join(OUT, "tm.mjs"), version: __TM_CLI_VERSION__ }),
-    version: __TM_CLI_VERSION__,
-  });
+  // Keys for the opt-in features. From a source checkout, apps/desktop/.env may hold them.
+  // Its values go only to Credentials, never into process.env.
+  const keyEnv = app.isPackaged ? process.env : { ...readDevEnv(join(OUT, "..", ".env")), ...process.env };
+  const credentials = new Credentials(join(app.getPath("userData"), "credentials.json"), safeStorage, keyEnv);
+  engine = new Engine(
+    state,
+    {
+      candidates: hookCandidates({ override: process.env.TM_HOOK_COMMAND, nodePath: process.execPath, cliScript: join(OUT, "tm.mjs"), version: __TM_CLI_VERSION__ }),
+      version: __TM_CLI_VERSION__,
+    },
+    { credentials, fetch: globalThis.fetch },
+  );
   // No window of this app needs the camera, microphone, notifications or anything else.
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, done) => done(false));
   session.defaultSession.setPermissionCheckHandler(() => false);

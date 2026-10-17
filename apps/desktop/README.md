@@ -47,6 +47,7 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 - Thinning old save points (cleanup removes old check logs only), stronger isolation with Docker or Apple container, Cursor, Codex and Gemini hooks, automatic hourly saves.
 - From the Time View design: screenshots per save point (the stage shows the changed files instead), sounds and haptics, hover skimming, zoom levels, the reverse fork animation on Undo, and stopping a running search (Esc leaves the view, the search keeps going).
 - AI summaries, "What broke?", asking in plain words in Jump to…, pinning, and from the overlay design: Focus mode handling, a Recent cards list, card frequency limits, and a draggable pill.
+- Ask about your history (ADR 0008): the screens. The main process side is built and tested: the `ask`, `setFeature`, `credentials` and `setCredential` calls, the per project opt-in (off by default), the Gemini request with your own key stored encrypted, and canned answers in the browser preview. No screen calls them yet.
 
 ## Browser preview
 
