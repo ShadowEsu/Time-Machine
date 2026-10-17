@@ -1,6 +1,6 @@
 /* Time Machine home page: concept A, "Editorial". design/SITE_V3_DIRECTION.md.
    Links after site.css, device.css and ladder.css. Mobile first: desktop rules sit in min-width queries.
-   One idea per section. Blue is the one accent. Green and red only mean Works and Broken from a real run.
+   Editorial blue for information. Warm orange for the physical controls. Green and red only mean recorded verdicts.
    Motion: transform and opacity only, reveals play once, no scroll handler. */
 
 .home { --max-page: 1320px; overflow-x: clip; font-size: 16.5px; }
@@ -53,7 +53,7 @@
 .ledger span { display: block; margin-top: 8px; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
 
 /* ---------- sections ---------- */
-.sec { padding: 72px 0 80px; border-top: 1px solid var(--line); }
+.sec { padding: 48px 0 52px; border-top: 1px solid var(--line); }
 .sec-head { display: grid; gap: 14px; margin-bottom: 36px; }
 .home .h2 { margin: 0; max-width: 18ch; font: 340 clamp(38px, 10vw, 92px)/.98 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.03em; }
 .home .lead { max-width: 52ch; margin: 0; font-size: 17.5px; line-height: 1.5; color: var(--ink-2); }
@@ -93,10 +93,10 @@
 .pf-grid { display: grid; gap: 22px; }
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .pc { display: flex; flex-direction: column; min-width: 0; padding: 14px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
-.pc-k { margin: 0; font: 500 9.5px/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.pc-k { margin: 0; font: 500 11.5px/1.3 var(--font-mono); letter-spacing: .02em; text-transform: uppercase; color: var(--ink-3); }
 .pc h3 { margin: 10px 0 4px; font: 400 21px/1.08 var(--font-display); font-variation-settings: "opsz" 24; letter-spacing: -.01em; }
 .pc-m { margin: 0 0 14px; font: 400 11.5px/1.3 var(--font-mono); color: var(--ink-3); }
-.pc-s { margin: 0; font: 400 11px/1.3 var(--font-mono); color: var(--ink-2); }
+.pc-s { margin: 0; font: 400 11.5px/1.3 var(--font-mono); color: var(--ink-2); }
 .stamp { align-self: flex-end; display: inline-flex; align-items: center; gap: 6px; margin: auto 0 10px; padding: 4px 9px; border: 2px solid currentColor; border-radius: 6px; font: 650 12px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; transform: rotate(-7deg); }
 .st-b { color: var(--broken-fg); background: var(--broken-bg); }
 .st-g { color: var(--works-fg); background: var(--works-bg); }
@@ -208,8 +208,8 @@
   .dev-cap .fine-m { grid-column: 1 / -1; }
   .dev-ctl .btn { flex: none; }
   .ledger { margin-top: 28px; }
-  .sec { padding: 120px 0 128px; }
-  .sec-head { grid-template-columns: 220px 1fr; gap: 28px; margin-bottom: 64px; }
+  .sec { padding: 68px 0 72px; }
+  .sec-head { grid-template-columns: 220px 1fr; gap: 22px; margin-bottom: 36px; }
   .sec-head > :not(.label) { grid-column: 2; }
   .gap-grid { grid-template-columns: 1fr 1.1fr; gap: 6vw; align-items: start; }
   .pf-grid { grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: start; }
@@ -230,3 +230,39 @@
 }
 /* Weak devices: no large soft shadows. */
 :root[data-tier="low"] .win { box-shadow: 0 0 0 1px var(--line-2); }
+
+/* The opener is a stage, never an overlay or a scroll lock. */
+.hero { --ink: #f3f0e8; --ink-2: #d0cbc0; --ink-3: #b2aca0; --line: #393630; --line-2: #514b42; --mist: #28251f; --accent: #b3c0ff; color: var(--ink); background: #100f0d; padding-top: 16px; }
+.opening-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.opening-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.opening-controls .btn { min-height: 44px; padding: 0 14px; font-size: 12px; }
+.opening-wordmark { margin: 30px 0 26px; font: 300 clamp(60px, 15.4vw, 236px)/.9 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.04em; white-space: nowrap; text-align: center; }
+.opening-wordmark em { color: inherit; }
+.intro-enter { display: none; }
+:root[data-intro="playing"] .intro-enter { display: inline-flex; }
+:root[data-intro="playing"] .opening-wordmark { animation: wordmark-wake 2.8s var(--ease-out) both; }
+.hero .mast { padding-top: 10px; border-top: 1px solid var(--line-2); border-bottom: 0; }
+.hero .ledger { margin-top: 22px; }
+.hero .gap-note { margin-bottom: 20px; }
+.hero .dev-ctl { flex-wrap: wrap; }
+.hero .dev-ctl .btn { flex: 1 1 auto; }
+.hero .dev-ctl [data-dev="film"] { flex-basis: 100%; }
+.home .hero .h1 { font-size: clamp(48px, 7vw, 96px); }
+.upper-transition { background: #100f0d; color: #f3f0e8; border-top: 1px solid #514b42; padding: 48px 0 52px; }
+.upper-transition .label { color: #b2aca0; }
+.upper-transition h2 { margin: 22px 0; font: 300 clamp(62px, 11vw, 172px)/.9 var(--font-display); letter-spacing: -.035em; }
+.upper-transition h2 em { color: #f3f0e8; }
+.hero .dev.glitch .screen { animation: device-glitch .36s steps(1) 1; }
+.hero .dev.glitch .led { opacity: .4; }
+@keyframes wordmark-wake { from { opacity: .15; transform: translateY(18px); } 65%, to { opacity: 1; transform: none; } }
+@keyframes device-glitch { 0%, 100% { opacity: 1; transform: none; } 45% { opacity: .45; transform: translateX(3px); } 75% { opacity: .8; transform: translateX(-2px); } }
+@media (max-width: 640px) {
+  .opening-wordmark { font-size: 25vw; white-space: normal; text-align: left; margin: 26px 0 20px; line-height: .84; }
+  .opening-wordmark span, .opening-wordmark em { display: block; }
+  .opening-controls { gap: 6px; }
+  .home .hero .h1 { font-size: 13vw; margin-top: 14px; }
+  .hero .mast .label { font-size: 11.5px; }
+  .hero .dek { font-size: 20px; margin-bottom: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { :root[data-intro="playing"] .opening-wordmark, .hero .dev.glitch .screen { animation: none; } }
+:root[data-tier="low"] .opening-wordmark { animation-duration: .7s; }

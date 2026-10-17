@@ -190,6 +190,10 @@ em { font-style: italic; }
 }
 .btn[disabled] { opacity: .5; cursor: default; transform: none; }
 .btn-sm { min-height: 44px; padding: 0 18px; font-size: 14.5px; }
+.btn-warm { background: #ff791f; color: #211307; border-color: transparent; }
+@media (hover: hover) and (pointer: fine) { .btn-warm:hover { background: #ff963f; color: #211307; } }
+section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
+:root:not(.js) [data-sound], :root:not(.js) [data-ambient], :root:not(.js) [data-dev] { display: none; }
 
 /* Header. Markup:
    header.top > .wrap.top-in > a.brand, nav.nav (4 links), a.btn.btn-primary.btn-sm.top-cta
@@ -339,3 +343,5 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 
 /* Weak devices (data-tier="low", set in each page's head and by a short frame-time probe): no looping animation. */
 :root[data-tier="low"] .wl-status[data-state="pending"]::before { animation: none; }
+:root[data-tier="low"] .top { background: var(--paper); }
+:root[data-tier="low"] body { background-image: none; }

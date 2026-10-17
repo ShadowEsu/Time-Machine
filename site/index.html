@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="assets/ladder.css">
 <link rel="stylesheet" href="assets/home.css">
 <script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+<script src="assets/opening.js"></script>
 </head>
 <body class="home">
 <a class="skip" href="#main">Skip to content</a>
@@ -45,6 +46,11 @@
 
 <section class="hero" aria-labelledby="hero-h">
   <div class="wrap">
+    <div class="opening-bar">
+      <p class="label">A way back, with proof.</p>
+      <div class="opening-controls"><button class="btn btn-warm intro-enter" id="introEnter" type="button">Skip intro / Enter</button><button class="btn btn-ghost" data-sound type="button" aria-pressed="false">Sound off</button><button class="btn btn-ghost" data-ambient type="button" aria-pressed="false" disabled>Ambience off</button></div>
+    </div>
+    <p class="opening-wordmark" aria-label="Time Machine"><span>Time</span> <em>Machine</em></p>
     <div class="mast">
       <p class="label"><span class="dot" aria-hidden="true"></span>Early. The tm command line tool works today.</p>
       <p class="label">Not on npm yet · Mac app in development</p>
@@ -53,8 +59,8 @@
       <div class="hero-copy">
         <h1 class="h1" id="hero-h">Rewind to <em>what worked.</em></h1>
         <p class="dek">Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.</p>
-        <div class="ctas"><a class="btn btn-primary" href="#waitlist">Join the waitlist</a><a class="btn btn-ghost" href="story.html">Watch the story <span class="arr" aria-hidden="true"></span></a></div>
-        <p class="gap-note"><b>The gap.</b> Claude Code's rewind "does not track files modified by Bash commands", like <code>rm</code>, <code>mv</code> or <code>sed -i</code>. With its Claude Code hooks, Time Machine saves your project before each prompt and before risky shell commands, outside the project folder.</p>
+        <div class="ctas"><a class="btn btn-warm" href="#waitlist">Join the waitlist</a><a class="btn btn-ghost" href="story.html#story-start">Watch the story <span class="arr" aria-hidden="true"></span></a></div>
+        <p class="gap-note">Save before the change. Check in a separate copy. Bring back the version that passed.</p>
       </div>
       <div class="devbox">
         <div class="rig" id="rig" data-rx="16" data-ry="-20" data-rz="2" data-mrx="14" data-mry="-8" data-mrz="0" data-fill="0.86">
@@ -109,18 +115,22 @@
         </div>
         <div class="dev-cap">
           <p class="dev-read" data-dev-out aria-live="polite">cp-0006 · Added a dependency · not checked yet</p>
-          <div class="dev-ctl"><button class="btn btn-ghost" type="button" data-dev="rewind"><span class="rw" aria-hidden="true"><i></i><i></i></span>Rewind</button><button class="btn btn-ghost" type="button" data-dev="check">Check</button></div>
-          <p class="fine-m">Turn the dial or press Rewind, then Check. Verdicts are recorded from a real <code>tm demo</code> run on a synthetic project. Nothing runs in your browser.</p>
+          <div class="dev-ctl"><button class="btn btn-warm" type="button" data-dev="film">Play break + rewind</button><button class="btn btn-ghost" type="button" data-dev="rewind"><span class="rw" aria-hidden="true"><i></i><i></i></span>Rewind</button><button class="btn btn-ghost" type="button" data-dev="check">Check</button></div>
+          <p class="fine-m">Synthetic demo. Turn the dial, then Check. Verdicts replay a recorded <code>tm demo</code> run.</p>
         </div>
       </div>
     </div>
     <div class="ledger">
-      <div><b>128</b><span>automated tests pass today. 126 run on macOS, 2 are Linux only.</span></div>
+      <div><b>228</b><span>automated tests. 226 passed locally on macOS. 2 Linux-only skips. Final CI pending.</span></div>
       <div><b>7</b><span>MCP tools. Agents that speak MCP can save, check and find the good one.</span></div>
       <div><b>Off</b><span>The network, while your own check runs in a separate copy.</span></div>
-      <div><b>Names</b><span>Only key names are kept. Secret values are never stored.</span></div>
+      <div><b>Local</b><span>Save points stay on your machine. Optional Ask sends metadata only after project consent.</span></div>
     </div>
   </div>
+</section>
+
+<section class="upper-transition" aria-labelledby="return-h">
+  <div class="wrap"><p class="label">Not a guess. A recorded check.</p><h2 id="return-h">Back to<br><em>what worked.</em></h2><a class="btn btn-warm" href="#proof">See the proof <span class="arr" aria-hidden="true"></span></a></div>
 </section>
 
 <section class="sec" id="problem" aria-labelledby="problem-h">
@@ -151,7 +161,7 @@
       <div class="vs-row"><p class="vs-k">Claude Code rewind<span>Built in checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Edits made by its file editing tools. Not Bash commands</span></div></div>
       <div class="vs-row tm"><p class="vs-k">Time Machine<span>tm, today</span></p><div class="vs-bar"><i style="--w:1"></i><span>Your code, uncommitted work and the files Git sees at each save point, plus a check that proves it runs</span></div></div>
     </div>
-    <p class="fine-m" style="margin-top:16px">Time Machine does not save secret values, databases, deployed versions, files your .gitignore skips or files over the size limit.</p>
+    <p class="fine-m" style="margin-top:16px">Recognized secrets are filtered. Screening cannot recognize every arbitrary secret. Databases and deployed versions are not captured.</p>
   </div>
 </section>
 
@@ -302,7 +312,7 @@ Saved cp-0003  "Added dark mode"
         <dl class="spec-list"><dt>The <code>tm</code> CLI</dt><dd>Join the waitlist for one email when it is published.</dd></dl>
         <p class="spec-k" style="margin-top:22px"><span class="tag tag-plan">Planned</span></p>
         <dl class="spec-list"><dt>Hook kits for Cursor, Codex CLI and Gemini CLI</dt><dd>Not built yet.</dd><dt>The Ladder</dt><dd>Pricing. Nothing is for sale yet.</dd></dl>
-        <div class="tests"><b>128</b><span>automated tests pass today. 126 run on macOS, 2 are Linux only. Real proof instead of social proof.</span></div>
+        <div class="tests"><b>228</b><span>automated tests. 226 passed locally on macOS. 2 Linux-only skips. Final CI pending.</span></div>
       </div>
     </div>
   </div>
@@ -358,7 +368,7 @@ Saved cp-0003  "Added dark mode"
     <div class="faq rv">
       <details><summary>Does it replace Git?</summary><p>No. It works next to Git. Save points live outside your project folder, and a recovery is a new branch you can inspect before you merge it yourself.</p></details>
       <details><summary>Does it undo database changes?</summary><p>No. Databases, deployed versions and external services are not captured. Every recovery report says so.</p></details>
-      <details><summary>Does it store my secrets?</summary><p>No. Only key names, like <code>STRIPE_SECRET_KEY</code>. Never the values. The report tells you which ones to set by hand.</p></details>
+      <details><summary>Does it store my secrets?</summary><p>Config records key names and fingerprints, not secret values. Known secret patterns are filtered from captured files and logs. Screening cannot recognize every arbitrary secret. Review what you capture.</p></details>
       <details><summary>Does it push or deploy?</summary><p>No. Nothing is pushed, merged or deployed. Your folder and your branch are not touched.</p></details>
       <details><summary>Does it work without Claude Code?</summary><p>Yes, through the MCP server or by hand with the <code>tm</code> commands. Automatic hooks exist for Claude Code today. Kits for Cursor, Codex CLI and Gemini CLI are planned.</p></details>
       <details><summary>Is it on npm?</summary><p>Not yet. Join the waitlist for one email when it is published.</p></details>
@@ -420,6 +430,7 @@ Saved cp-0003  "Added dark mode"
   </div>
 </footer>
 
+<script src="assets/sound.js" defer></script>
 <script src="assets/device.js" defer></script>
 <script src="assets/home.js" defer></script>
 <script src="assets/waitlist.js" defer></script>

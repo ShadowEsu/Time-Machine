@@ -31,6 +31,20 @@
   ];
   const DET = (i) => -135 + i * 54;
   let sel = 5, checked = {}, checking = -1, flash = null, flashT = 0, angle = null, on = RM;
+  const cue = kind => window.TMSound?.cue(kind);
+  let filmTimers = [];
+  function stopFilm() { filmTimers.forEach(clearTimeout); filmTimers = []; dev.classList.remove("glitch"); dev.dataset.scene = "idle"; }
+  function film() {
+    finishIntro(); stopFilm(); flash = null; checking = -1; sel = 5;
+    checked[CPS[5].id] = "broken"; render(); cue("failure");
+    dev.dataset.scene = "break";
+    if (!RM) dev.classList.add("glitch");
+    const later = (ms, fn) => filmTimers.push(setTimeout(fn, ms));
+    later(RM ? 0 : 400, () => dev.classList.remove("glitch"));
+    later(RM ? 0 : 900, () => { dev.dataset.scene = "rewind"; cue("rewind"); });
+    [4, 3, 2].forEach((i, step) => later(RM ? 0 : 1100 + step * 400, () => { sel = i; checked[CPS[i].id] = CPS[i].v; render(); }));
+    later(RM ? 0 : 2300, () => { dev.dataset.scene = "working"; cue("success"); });
+  }
 
   /* ---------- the screen ---------- */
   function render() {
@@ -60,11 +74,11 @@
 
   /* ---------- actions ---------- */
   function press(k) { const el = keys[k]; el.classList.add("down"); setTimeout(() => el.classList.remove("down"), 140); }
-  function choose(i) { i = clamp(Math.round(i), 0, 5); if (i !== sel) { sel = i; checking = -1; flash = null; } render(); }
+  function choose(i) { i = clamp(Math.round(i), 0, 5); if (i !== sel) { cue("detent"); sel = i; checking = -1; flash = null; } render(); }
   function rewind() { press("rewind"); choose(sel - 1); }
   function check() {
     const i = sel; checking = i; flash = null; press("check"); render();
-    setTimeout(() => { if (checking !== i) return; checked[CPS[i].id] = CPS[i].v; checking = -1; render(); }, RM ? 0 : 650);
+    setTimeout(() => { if (checking !== i) return; checked[CPS[i].id] = CPS[i].v; checking = -1; render(); cue(CPS[i].v === "works" ? "success" : "failure"); }, RM ? 0 : 650);
   }
   function save() { press("save"); say({ mode: "save", id: "auto", note: "Before each prompt and rm -rf", stat: "outside your folder", sc: "" }); }
   function recover() {
@@ -73,13 +87,15 @@
     if (checked[c.id] === "works") say({ mode: "recover", id: "tm/recover", note: c.id + " · new branch", stat: "nothing pushed", sc: "" }, 2400);
     else say({ mode: "recover", id: "check first", note: "Press Check to test " + c.id, stat: checked[c.id] || "not checked yet", sc: checked[c.id] || "" });
   }
-  const ACT = { save, check, recover, rewind };
-  Object.keys(ACT).forEach((k) => keys[k].addEventListener("click", ACT[k]));
-  $$("[data-dev]").forEach((b) => b.addEventListener("click", () => ACT[b.dataset.dev]()));
+  const ACT = { save, check, recover, rewind, film };
+  const act = k => { finishIntro(); stopFilm(); ACT[k](); };
+  Object.keys(keys).forEach((k) => keys[k].addEventListener("click", () => act(k)));
+  $$("[data-dev]").forEach((b) => b.addEventListener("click", () => act(b.dataset.dev)));
 
   /* ---------- the dial: grab, turn, keys ---------- */
   let drag = null;
   knob.addEventListener("pointerdown", (e) => {
+    finishIntro(); stopFilm();
     const r = knob.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     drag = { cx, cy, a0: Math.atan2(e.clientY - cy, e.clientX - cx), ang: DET(sel) };
     knob.setPointerCapture(e.pointerId); e.preventDefault();
@@ -100,6 +116,7 @@
   };
   knob.addEventListener("pointerup", endDrag); knob.addEventListener("pointercancel", endDrag);
   knob.addEventListener("keydown", (e) => {
+    finishIntro(); stopFilm();
     const m = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
     if (m) choose(sel + m);
     else if (e.key === "Home") choose(0);
@@ -135,7 +152,7 @@
   glint.style.transform = `translate3d(${gx * 50}%,${gy * 50}%,0)`;
   function step() {
     raf = 0;
-    if (!visible) return;
+    if (!visible || document.hidden) return;
     const k = 0.14;
     let moving = false;
     for (const a of ["rx", "ry", "rz"]) { cur[a] += (tgt[a] - cur[a]) * k; if (Math.abs(tgt[a] - cur[a]) > 0.02) moving = true; else cur[a] = tgt[a]; }
@@ -148,7 +165,7 @@
   if ("IntersectionObserver" in window) {
     new IntersectionObserver((es) => {
       visible = es[es.length - 1].isIntersecting;
-      if (!visible && raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (!visible) { if (raf) { cancelAnimationFrame(raf); raf = 0; } stopFilm(); }
     }).observe(rig);
   }
   if (FINE && !RM) {
@@ -167,6 +184,9 @@
     });
     zone.addEventListener("pointerleave", () => { if (LITE) return; tgt = base(); tgx = -0.2; tgy = -0.35; if (!raf) raf = requestAnimationFrame(step); });
   }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { if (raf) cancelAnimationFrame(raf); raf = 0; stopFilm(); finishIntro(); }
+  });
 
   /* A short frame-time probe after load. Slow pacing can only downgrade the tier, never upgrade it. */
   function probe() {
@@ -183,23 +203,28 @@
   }
   addEventListener("load", probe);
 
-  /* ---------- power on: the device rises, the lamps test, the screen wakes, the dial settles ---------- */
-  if (RM) { render(); return; }
-  rig.classList.add("off");
-  render();
-  const b = base();
-  dev.animate([{ opacity: 0, transform: pose({ rx: b.rx + 34, ry: b.ry - 10, rz: b.rz - 8 }, 70) }, { opacity: 1, transform: pose(b) }],
-    { duration: LITE ? 700 : 1200, easing: "cubic-bezier(.2,.8,.2,1)" });
-  knobRot.animate([{ transform: `rotate(${DET(5) - 200}deg)` }, { transform: `rotate(${DET(5)}deg)` }], { duration: LITE ? 900 : 1600, easing: "cubic-bezier(.2,.9,.2,1)" });
-  const order = ["save", "check", "recover", "rewind"];
-  order.forEach((k, i) => {
-    setTimeout(() => keys[k].classList.add("lamp-on"), 380 + i * 110);
-    setTimeout(() => keys[k].classList.remove("lamp-on"), 620 + i * 110);
+  /* The first-visit entrance is immediately skippable. It never locks the page. */
+  let introTimers = [], introAnimations = [];
+  function finishIntro() {
+    introTimers.forEach(clearTimeout); introTimers = [];
+    introAnimations.forEach(a => a.cancel()); introAnimations = [];
+    root.dataset.intro = "done"; rig.classList.remove("off"); on = true;
+    Object.values(keys).forEach(k => k.classList.remove("lamp-on")); render();
+  }
+  $("#introEnter")?.addEventListener("click", finishIntro);
+  addEventListener("keydown", e => { if (e.key === "Escape") finishIntro(); });
+  addEventListener("scroll", () => { if (root.dataset.intro === "playing" && scrollY > 100) finishIntro(); }, { passive: true });
+  if (RM || root.dataset.intro !== "playing" || scrollY > 100) { finishIntro(); return; }
+  rig.classList.add("off"); render();
+  const b = base(), light = LITE || !FINE;
+  const later = (ms, fn) => introTimers.push(setTimeout(fn, ms));
+  introAnimations.push(dev.animate([{ opacity: 0, transform: pose({ rx: b.rx + (light ? 0 : 24), ry: b.ry, rz: b.rz }, light ? 12 : 45) }, { opacity: 1, transform: pose(b) }],
+    { duration: light ? 700 : 2200, easing: "cubic-bezier(.2,.8,.2,1)" }));
+  if (!light) introAnimations.push(knobRot.animate([{ transform: `rotate(${DET(5) - 150}deg)` }, { transform: `rotate(${DET(5)}deg)` }], { duration: 2400, easing: "cubic-bezier(.2,.9,.2,1)" }));
+  ["save", "check", "recover", "rewind"].forEach((k, i) => {
+    later(250 + i * 150, () => keys[k].classList.add("lamp-on"));
+    later(500 + i * 150, () => keys[k].classList.remove("lamp-on"));
   });
-  setTimeout(() => {
-    rig.classList.remove("off");
-    say({ mode: "power", clock: CPS[5].t, id: "tm · v0", note: "6 save points found", stat: "not checked yet", sc: "" }, 1100);
-    dots.forEach((el, i) => setTimeout(() => el.classList.add("on"), i * 90));
-    setTimeout(() => { on = true; }, 6 * 90);
-  }, LITE ? 500 : 820);
+  later(light ? 450 : 1100, () => { rig.classList.remove("off"); on = true; render(); });
+  later(light ? 1000 : 2850, finishIntro);
 })();
