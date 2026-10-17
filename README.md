@@ -75,9 +75,9 @@ npx timetm init
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 128 automated tests (126 run on macOS, 2 are Linux only). All pass locally on macOS. The last CI run on macOS and Linux with Node 22 and 24 covered an earlier set. Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 228 automated tests (226 passed locally on macOS; 2 are Linux only). The latest published CI run covers an earlier set; the final cutover still needs its CI run | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
-| Mac app | History, save point detail, Rewind, Compare, menu bar dot and corner card on the same engine. A browser preview with demo data runs | In development |
+| Mac app | Notebook history, Rewind dial with undo, Compare, agent channels, overlays, opt-in Ask and read-only Vercel deploy links. Native macOS smoke exercised real-engine recovery and the non-focusing corner card | Built from source; not signed or shipped |
 | Website | Static site in `site/` with a waitlist | In development, private |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
 | Pro pricing | "The Ladder": $9 a month, $8 from month 7, $7 from month 13, $6 floor. The CLI is free. Restores are never paywalled | Planned, see ADR 0002 |

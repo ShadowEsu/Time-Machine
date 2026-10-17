@@ -58,7 +58,7 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 Local browser preview, 16 October 2026. These checks use synthetic demo data, not a real project or a live Gemini or Vercel connection.
 
 - `pnpm typecheck`: passed.
-- `pnpm vitest run apps/desktop/test`: 5 files, 120 tests passed. No full repository test run.
+- `pnpm vitest run apps/desktop/test`: 5 files, 120 tests passed. Final workspace `pnpm typecheck && pnpm test && pnpm build` also passed: 226 tests passed, 2 Linux-only tests skipped.
 - `pnpm --filter @timetm/desktop preview:build`: passed.
 - Playwright, adapted from `/tmp/tm-pw/m7.mjs` and `overlap.mjs` for the v3 selectors: `/tmp/tm-pw/m7v3.mjs`.
 - Rescue: **2 clicks**, project page primary action → Review key → Done. Undo is visible and returns to the project page when used.
@@ -68,7 +68,9 @@ Local browser preview, 16 October 2026. These checks use synthetic demo data, no
 - Overlap checks: home, entry detail, Rewind Review and Done at **1280×800, 960×640 and 1440×900** passed. No horizontal overflow at 960 on the captured screens. No page errors or console errors.
 - **108 screenshots**, 27 views in light and dark at 1280×800 and 960×640, in `preview-shots/v3/`. They include the three home states, entry detail, Review, Try it first, Done, the inline Undo message, Compare, checks, Agents, Storage, Settings and Features, an Ask answer and consent, palette, shortcuts, onboarding, welcome, corner card, Inspector, timeline strip and Simple rewind.
 
-Not exercised here: a native Electron window, macOS global shortcuts or Finder, a real project's hooks, or live provider requests. Browser layout checks are not a claim of accessibility conformance.
+Native macOS smoke also passed in an isolated userData directory and Time Machine store. The actual Electron window loaded bundled Newsreader fonts and the real engine created the synthetic demo, verified a working save point as PASS, recovered it and undid that recovery through IPC. The bundled CLI answered its version probe through the Electron executable. Showing the corner panel kept a separate native window focused; the panel was visible, non-focusable and not focused. A real Gemini request through Electron refused before consent and returned an answer with a save point citation after consent. No renderer page errors were observed. The smoke used synthetic data, not a customer's project.
+
+Still not exercised: macOS global shortcuts, Finder actions, a whole real agent session, a live Vercel connection, notarization and auto-update. Browser layout checks are not a claim of accessibility conformance.
 
 ## Layout
 
