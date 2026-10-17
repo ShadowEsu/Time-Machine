@@ -5,6 +5,7 @@ import type { DiffResult, FindGoodResult, RecoverResult, TimelineEntry, VerifyRe
 import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, Method, ProjectEntry, ProjectStatus, Res, Results, Settings, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
 import { ASK_EXAMPLES } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
+import { EXTERNAL_REFUSED, isAllowedExternal } from "../src/shared/links.js";
 
 type FileMap = Record<string, string>;
 
@@ -57,6 +58,30 @@ const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms)
 /** Which story the preview tells. "broken" is the demo story. The others are for walkthroughs and screenshots. */
 export type Scenario = "broken" | "works" | "unchecked" | "new";
 
+/**
+ * The opt-in features in the preview. "off" is a fresh install. "on" has Ask turned on and a Vercel
+ * project linked. "ask-off" has a Gemini key but Ask off. "no-key" has no Gemini key. "ask-error"
+ * has Ask on but Gemini unreachable. "no-vercel" has no Vercel token and nothing linked.
+ */
+export type FeatureStory = "off" | "on" | "ask-off" | "no-key" | "ask-error" | "no-vercel";
+
+const SCENARIOS: readonly Scenario[] = ["broken", "works", "unchecked", "new"];
+const FEATURE_STORIES: readonly FeatureStory[] = ["ask-off", "no-key", "ask-error", "no-vercel"];
+
+/**
+ * The preview story for a ?state= value. ?state=works, unchecked or new tell a different story with
+ * the features on. ?state=ask-off, no-key, ask-error or no-vercel tell the demo story with the
+ * features in that state. With no value it is the demo story with the features on.
+ */
+export function previewStory(state: string | null): { scenario: Scenario; features: FeatureStory } {
+  return {
+    scenario: SCENARIOS.find((s) => s === state) ?? "broken",
+    features: FEATURE_STORIES.find((s) => s === state) ?? "on",
+  };
+}
+
+const PREVIEW_LINK = { teamId: "team_preview", projectId: "prj_marigold", name: "marigold-tips" } as const;
+
 export class FakeEngine implements TmBridge {
   private listeners = new Set<(e: AppEvent) => void>();
   private points: Point[] = [];
@@ -70,8 +95,18 @@ export class FakeEngine implements TmBridge {
   /** Whether each key is set. The preview never holds a real key. */
   private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
 
-  constructor(readonly scenario: Scenario = "broken") {
+  constructor(readonly scenario: Scenario = "broken", readonly features: FeatureStory = "off") {
     this.reset();
+    if (features === "on" || features === "ask-error") this.project.features = { ask: true, vercel: { ...PREVIEW_LINK } };
+    if (features === "ask-off") this.project.features = { ask: false, vercel: { ...PREVIEW_LINK } };
+    if (features === "no-key") {
+      this.project.features = { ask: false, vercel: { ...PREVIEW_LINK } };
+      this.credentials = { ...this.credentials, gemini: false };
+    }
+    if (features === "no-vercel") {
+      this.project.features = { ask: true, vercel: null };
+      this.credentials = { ...this.credentials, vercel: false };
+    }
   }
 
   reset(): void {
@@ -131,7 +166,10 @@ export class FakeEngine implements TmBridge {
 
   async call<M extends Method>(call: CallOf<M>): Promise<Res<Results[M]>> {
     try {
-      const data = (await this.dispatch(call as Call)) as Results[M];
+      const c = call as Call;
+      // Same check as the app, so the preview never opens a page the app would refuse.
+      if (c.method === "openExternal" && !isAllowedExternal(c.url)) throw new Error(EXTERNAL_REFUSED);
+      const data = (await this.dispatch(c)) as Results[M];
       return { ok: true, data };
     } catch (e) {
       return { ok: false, error: { kind: "usage", message: e instanceof Error ? e.message : String(e) } };
@@ -149,7 +187,7 @@ export class FakeEngine implements TmBridge {
     const working = [...this.points].reverse().find((p) => p.entry.verdict === "PASS" && p.entry.id !== newest?.id)?.entry;
     return {
       projectId: PROJECT_ID,
-      newest: newest ? { id: newest.id, verdict: newest.verdict } : null,
+      newest: newest ? { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt } : null,
       lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
       problem: null,
     };
@@ -207,24 +245,32 @@ export class FakeEngine implements TmBridge {
     const at = (id: string): string => `${time(id)}, ${this.find(id).entry.note}`;
     const q = question.trim().toLowerCase();
     const [lastWorked, changedAfter] = ASK_EXAMPLES.map((x) => x.toLowerCase());
-    if (this.scenario !== "broken" || !ASK_EXAMPLES.some((x) => x.toLowerCase() === q)) {
-      return { answer: `The preview has sample answers for the demo story only. Try one of these: ${ASK_EXAMPLES.join(" ")}`, cites: [] };
+    // The app sends the newest 50 save points.
+    const basis = Math.min(50, this.points.length);
+    if (this.scenario !== "broken") {
+      return { answer: `The preview has sample answers for the demo story only. Try one of these: ${ASK_EXAMPLES.join(" ")}`, cites: [], basis };
+    }
+    if (!ASK_EXAMPLES.some((x) => x.toLowerCase() === q)) {
+      return { answer: "I can't tell from the history. The preview only has answers for the suggested questions.", cites: [], basis };
     }
     if (q === lastWorked) {
       return {
         answer: `It last worked at the save at ${at("cp-0003")}. Its check passed. The newest save, at ${at("cp-0006")}, failed its check.`,
         cites: ["cp-0003", "cp-0006"],
+        basis,
       };
     }
     if (q === changedAfter) {
       return {
         answer: `After the save at ${at("cp-0003")}, Claude Code changed src/tips.js at ${at("cp-0004")}. Then config/app.json changed at ${at("cp-0005")}. Then package.json and package-lock.json changed at ${at("cp-0006")}, and that check failed. The two saves in between were not checked, so I can't tell which change broke it.`,
         cites: ["cp-0004", "cp-0005", "cp-0006"],
+        basis,
       };
     }
     return {
       answer: `Claude Code made four saves. It added split bill at ${time("cp-0002")} and dark mode at ${time("cp-0003")}, and both passed their checks. It fixed lint warnings at ${time("cp-0004")}, which was not checked. It added a currency package at ${time("cp-0006")}, and that check failed.`,
       cites: ["cp-0002", "cp-0003", "cp-0004", "cp-0006"],
+      basis,
     };
   }
 
@@ -353,6 +399,9 @@ export class FakeEngine implements TmBridge {
         return true;
       case "setActive":
         return true;
+      case "openExternal":
+        window.open(call.url, "_blank", "noopener,noreferrer");
+        return true;
       case "setFeature": {
         const c = call.change;
         this.project.features = c.feature === "ask" ? { ...this.project.features, ask: c.enabled } : { ...this.project.features, vercel: c.link };
@@ -367,6 +416,7 @@ export class FakeEngine implements TmBridge {
         if (!this.project.features.ask) throw new Error(`Ask about your history is off for ${this.project.name}. Turn it on for this project first.`);
         if (!this.credentials.gemini) throw new Error("Add a Gemini API key in Settings first.");
         await wait(900);
+        if (this.features === "ask-error") throw new Error("Could not reach Gemini. Check the internet connection and try again.");
         return this.askAnswer(call.question);
       case "vercelProjects":
         if (!this.credentials.vercel) throw new Error("Add a Vercel token in Settings to see deploys. Time Machine only reads from Vercel.");

@@ -467,6 +467,10 @@ async function handleCall(e: IpcMainInvokeEvent, raw: unknown): Promise<Res<unkn
       state.activeId = call.projectId;
       void refreshTray();
       return { ok: true, data: true };
+    case "openExternal":
+      // The schema allows only https Vercel pages and the Gemini terms page.
+      await shell.openExternal(new URL(call.url).href);
+      return { ok: true, data: true };
     default: {
       const pending = engine.run(call);
       // The dot shows "working" while the app runs an action.

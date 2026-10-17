@@ -12,7 +12,7 @@ import { agentTurnStart, firstRunning } from "./rules.js";
 import type { AppState } from "./state.js";
 import { matchDeployments, Vercel } from "./vercel.js";
 
-type EngineCall = Exclude<Call, { method: "bootstrap" | "chooseFolder" | "setSettings" | "reveal" | "copy" | "setActive" }>;
+type EngineCall = Exclude<Call, { method: "bootstrap" | "chooseFolder" | "setSettings" | "reveal" | "copy" | "setActive" | "openExternal" }>;
 
 /** The commands the Claude Code hooks may call, best first, and the version they must answer with. */
 export interface HookSetup {
@@ -76,7 +76,7 @@ export class Engine {
       const working = [...t.checkpoints].reverse().find((c) => c.verdict === "PASS" && c.id !== last?.id) ?? null;
       return {
         projectId: p.id,
-        newest: last ? { id: last.id, verdict: last.verdict } : null,
+        newest: last ? { id: last.id, verdict: last.verdict, createdAt: last.createdAt } : null,
         lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
         problem: null,
       };

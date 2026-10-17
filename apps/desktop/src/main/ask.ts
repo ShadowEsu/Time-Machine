@@ -141,7 +141,7 @@ export async function gatherFacts(ctx: tm.Ctx, projectName: string): Promise<His
   return { projectName, total: all.length, checkpoints: all.slice(start), checks: tm.checkRuns(ctx), diffs, flagged: tm.secretScreen(ctx) };
 }
 
-/** The model's reply text checked against the required JSON. Cites keep only ids that were sent, oldest first. */
+/** The model's reply text checked against the required JSON. Cites keep only ids that were sent, oldest first. Basis counts the ids sent. */
 export function parseAnswer(text: string, ids: string[]): AskResult {
   let raw: unknown = null;
   try {
@@ -151,7 +151,7 @@ export function parseAnswer(text: string, ids: string[]): AskResult {
   }
   const r = AnswerSchema.safeParse(raw);
   if (!r.success) throw new tm.TmError("internal", UNREADABLE);
-  return { answer: r.data.answer.replace(/\s*\u2014\s*/g, ", "), cites: ids.filter((id) => r.data.cites.includes(id)) };
+  return { answer: r.data.answer.replace(/\s*\u2014\s*/g, ", "), cites: ids.filter((id) => r.data.cites.includes(id)), basis: ids.length };
 }
 
 function httpProblem(status: number): string {

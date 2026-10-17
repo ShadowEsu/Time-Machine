@@ -1,6 +1,7 @@
 // The narrow bridge between the window and the engine. The main process validates every
 // call with these schemas before it touches the engine. The preview build fakes this API.
 import { z } from "zod";
+import { EXTERNAL_REFUSED, isAllowedExternal } from "./links.js";
 import type {
   CheckpointResult,
   CleanStoreResult,
@@ -118,6 +119,8 @@ export type CredentialName = z.infer<typeof CredentialNameSchema>;
 /** An API key or token: printable characters, no spaces. */
 export const CredentialValueSchema = z.string().trim().min(1).max(4096).regex(/^[\x21-\x7E]+$/, "A key has no spaces or line breaks.");
 
+export const ExternalUrlSchema = z.string().max(2048).refine(isAllowedExternal, EXTERNAL_REFUSED);
+
 const FeatureChange = z.discriminatedUnion("feature", [
   z.strictObject({ feature: z.literal("ask"), enabled: z.boolean() }),
   z.strictObject({ feature: z.literal("vercel"), link: VercelLinkSchema.nullable() }),
@@ -161,6 +164,7 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("readReport"), path: AbsPath }),
   z.strictObject({ method: z.literal("copy"), text: z.string().max(200_000) }),
   z.strictObject({ method: z.literal("setActive"), projectId: ProjectId }),
+  z.strictObject({ method: z.literal("openExternal"), url: ExternalUrlSchema }),
   z.strictObject({ method: z.literal("setFeature"), projectId: ProjectId, change: FeatureChange }),
   z.strictObject({ method: z.literal("credentials") }),
   z.strictObject({ method: z.literal("setCredential"), name: CredentialNameSchema, value: CredentialValueSchema.nullable() }),
@@ -174,7 +178,7 @@ export type Method = Call["method"];
 export interface ProjectStatus {
   projectId: string;
   /** Null when the project has no save points yet. */
-  newest: { id: string; verdict: Verdict | null } | null;
+  newest: { id: string; verdict: Verdict | null; createdAt: string } | null;
   lastWorking: { id: string; createdAt: string; note: string } | null;
   /** Set when the engine could not read the project (moved, not Git, and so on). */
   problem: string | null;
@@ -234,6 +238,8 @@ export interface AskResult {
   answer: string;
   /** Save points the answer relies on, oldest first. Only ids that were in the history sent. */
   cites: string[];
+  /** How many save points were sent with the question. */
+  basis: number;
 }
 
 /** A Vercel project the token can see, for linking one. */
@@ -310,6 +316,7 @@ export interface Results {
   readReport: string;
   copy: true;
   setActive: true;
+  openExternal: true;
   setFeature: ProjectEntry;
   credentials: Record<CredentialName, boolean>;
   setCredential: { configured: boolean };

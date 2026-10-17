@@ -238,7 +238,7 @@ describe("menu bar dot", () => {
   });
 
   test("a project that moved or has no save points keeps the dot from going green", () => {
-    const ok = { projectId: "a", newest: { id: "cp-0002", verdict: "PASS" as const }, lastWorking: null, problem: null };
+    const ok = { projectId: "a", newest: { id: "cp-0002", verdict: "PASS" as const, createdAt: "2026-10-16T10:00:00.000Z" }, lastWorking: null, problem: null };
     const moved = { projectId: "b", newest: null, lastWorking: null, problem: "That folder does not exist." };
     const empty = { projectId: "c", newest: null, lastWorking: null, problem: null };
     expect(dotState(trayVerdicts([ok]), false)).toBe("pass");

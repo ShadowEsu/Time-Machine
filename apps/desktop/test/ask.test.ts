@@ -134,7 +134,7 @@ describe("asking", () => {
     const { ctx, entry } = await seeded();
     const { fetch, sent } = fakeFetch(() => answer("It last worked at the save at 10:42, Added dark mode \u2014 its check passed.", ["cp-0003", "cp-9999", "cp-0001", "cp-0003"]));
     const r = await askHistory(entry, ctx, "When did it last work?", { key: KEY, fetch });
-    expect(r).toEqual({ answer: "It last worked at the save at 10:42, Added dark mode, its check passed.", cites: ["cp-0001", "cp-0003"] });
+    expect(r).toEqual({ answer: "It last worked at the save at 10:42, Added dark mode, its check passed.", cites: ["cp-0001", "cp-0003"], basis: 7 });
     expect(sent).toHaveLength(1);
     const req = sent[0];
     if (!req) throw new Error("no request");
@@ -198,7 +198,7 @@ describe("asking", () => {
   });
 
   test("parseAnswer keeps cites in history order and drops ids that were not sent", () => {
-    expect(parseAnswer(JSON.stringify({ answer: "I can't tell from the history.", cites: [] }), ["cp-0001"])).toEqual({ answer: "I can't tell from the history.", cites: [] });
+    expect(parseAnswer(JSON.stringify({ answer: "I can't tell from the history.", cites: [] }), ["cp-0001"])).toEqual({ answer: "I can't tell from the history.", cites: [], basis: 1 });
     expect(parseAnswer(JSON.stringify({ answer: "a", cites: ["cp-0002", "cp-0001", "nope"] }), ["cp-0001", "cp-0002"]).cites).toEqual(["cp-0001", "cp-0002"]);
   });
 });
@@ -223,7 +223,7 @@ describe("the engine", () => {
       expect(on.ok && on.data).toMatchObject({ features: { ask: true, vercel: null } });
       expect(new AppState(appDir).find(entry.id)?.features.ask).toBe(true);
       const r = await engine.run({ method: "ask", projectId: entry.id, question: "When did it last work?" });
-      expect(r).toEqual({ ok: true, data: { answer: "It last worked at the save at 10:42, Added dark mode.", cites: ["cp-0003"] } });
+      expect(r).toEqual({ ok: true, data: { answer: "It last worked at the save at 10:42, Added dark mode.", cites: ["cp-0003"], basis: 7 } });
       expect(await engine.run({ method: "credentials" })).toEqual({ ok: true, data: { gemini: true, vercel: false } });
     } finally {
       if (before === undefined) delete process.env.TM_HOME;
