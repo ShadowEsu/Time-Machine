@@ -144,10 +144,11 @@
     graphH = inkOuter.parentElement.clientHeight;
     // Reserve real text height, including wrapping and the reduced-motion still.
     // No device pose can intrude into this phone-sized reading area.
-    slots = mob ? acts.slice(0, 3).map((el, i) => {
+    slots = mob ? acts.slice(0, 4).map((el, i) => {
       const stageTop = $(".stage", el).getBoundingClientRect().top;
-      const copyTop = $(i === 0 ? ".hero-sub" : ".copy", el).getBoundingClientRect().top - stageTop;
-      const top = i === 0 ? $(".hero-h", el).getBoundingClientRect().bottom - stageTop + 16 : 70;
+      const copyTop = $(i === 0 ? ".hero-sub" : i === 3 ? ".rw-bot" : ".copy", el).getBoundingClientRect().top - stageTop;
+      const top = i === 0 ? $(".hero-h", el).getBoundingClientRect().bottom - stageTop + 16
+        : i === 3 ? $(".rw-top", el).getBoundingClientRect().bottom - stageTop + 16 : 70;
       return { top, bottom: copyTop - 20 };
     }) : [];
   }
@@ -337,7 +338,7 @@
     // device
     if (n <= 5) {
       const slot = slots[n];
-      const show = !mob || (n < 4 && y <= m.top + m.h - vh && (!slot || slot.bottom - slot.top >= 100));
+      const show = mob ? n < 4 && h === 0 && (!slot || slot.bottom - slot.top >= 100) : n < 5 || h === 0;
       setStyle(rig, "visibility", show ? "visible" : "hidden");
       let s = state(n, p);
       if (!mob && h > 0 && n < 5) s = mixState(s, state(n + 1, RM ? 1 : 0), RM ? h : ease(h));
@@ -377,7 +378,7 @@
 
     // progress
     let a = 0; for (let i = 0; i < M.length; i++) if (y + vh * 0.5 >= M[i].top) a = i;
-    setCls(body, "is-end", a === 6 || a === 8);
+    setCls(body, "is-end", n === 6 || n >= 8 || h > 0);
     setCls(body, "hud-on", y > 90);
     if (a !== curAct) { curAct = a; actN.textContent = pad(a + 1); actT.textContent = acts[a].dataset.title; bar.forEach((b, i) => setCls(b, "on", i <= a)); }
   }
