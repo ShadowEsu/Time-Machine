@@ -53,6 +53,23 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 
 `pnpm --filter @timetm/desktop preview:build` writes a static site to `preview/dist/` (`index.html`, `app.js`, `styles.css`, `features.css`, `fonts/`). It is the same window code with the engine swapped for an in-memory demo of the Marigold Tips story: six save points, the fourth one broke it, the project screen says so and offers to go back to the third, which worked. A banner says it is a preview with demo data, and the overlay card (bottom right, so it never covers the page's buttons) and timeline strip are simulated inside the page. `?state=works`, `?state=unchecked` and `?state=new` (no project yet, onboarding with the sample folder) tell shorter stories. The preview starts with Ask on and a Vercel project linked, with canned answers and sample deploys. `?state=ask-off`, `?state=no-key`, `?state=ask-error` and `?state=no-vercel` show those features off, without a Gemini key, failing to reach Gemini, and without a Vercel token. Open `index.html` in any browser. Nothing in it touches your files. Screenshots of every screen, light and dark at 1280 by 800 and 960 by 640, are in `preview-shots/v3/`.
 
+## V3 exercised checks
+
+Local browser preview, 16 October 2026. These checks use synthetic demo data, not a real project or a live Gemini or Vercel connection.
+
+- `pnpm typecheck`: passed.
+- `pnpm vitest run apps/desktop/test`: 5 files, 120 tests passed. No full repository test run.
+- `pnpm --filter @timetm/desktop preview:build`: passed.
+- Playwright, adapted from `/tmp/tm-pw/m7.mjs` and `overlap.mjs` for the v3 selectors: `/tmp/tm-pw/m7v3.mjs`.
+- Rescue: **2 clicks**, project page primary action → Review key → Done. Undo is visible and returns to the project page when used.
+- What changed: **1 click**, See what changed → Compare.
+- Agents: **1 click** from the project page, entry detail, Compare, Storage and Settings, using Agents in the rail.
+- Keyboard paths: Esc closes the entry; `⌘K`, type "dark mode", Enter opens that save point; `⌘J` hides and shows Ask; `⌘⇧R`, J, L and → scrub the dial; dragging selects the first detent; Esc returns to the project page. Reduce motion keeps the dial, with an effectively instant transition.
+- Overlap checks: home, entry detail, Rewind Review and Done at **1280×800, 960×640 and 1440×900** passed. No horizontal overflow at 960 on the captured screens. No page errors or console errors.
+- **108 screenshots**, 27 views in light and dark at 1280×800 and 960×640, in `preview-shots/v3/`. They include the three home states, entry detail, Review, Try it first, Done, the inline Undo message, Compare, checks, Agents, Storage, Settings and Features, an Ask answer and consent, palette, shortcuts, onboarding, welcome, corner card, Inspector, timeline strip and Simple rewind.
+
+Not exercised here: a native Electron window, macOS global shortcuts or Finder, a real project's hooks, or live provider requests. Browser layout checks are not a claim of accessibility conformance.
+
 ## Layout
 
 ```
