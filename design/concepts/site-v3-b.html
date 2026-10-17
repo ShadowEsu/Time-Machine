@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concept B, instrument. Time Machine. Rewind to what worked.</title>
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0b0b0a">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="site-v3-assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site-v3-assets/device.css">
+<script>document.documentElement.classList.add("js");</script>
+<style>
+/* Concept B: instrument and industrial. Archivo (variable width, condensed for display) and Geist Mono.
+   The dial's signal orange is the one accent. Dark panels, one light proof section. Mobile first.
+   Fonts are self hosted under site-v3-assets/fonts with their SIL OFL 1.1 licences. */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url("site-v3-assets/fonts/archivo-latin-wdth-normal.woff2") format("woff2-variations"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("site-v3-assets/fonts/geist-mono-latin-wght-normal.woff2") format("woff2-variations"); }
+
+:root {
+  --sans: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --night: #0b0b0a; --night-2: #141412; --night-3: #1c1c19;
+  --bone: #eeece5; --bone-2: rgba(238, 236, 229, .74); --bone-3: rgba(238, 236, 229, .52);
+  --nline: rgba(238, 236, 229, .12); --nline-2: rgba(238, 236, 229, .24);
+  --alu: #e4e3de; --ink: #121210; --ink-2: #3c3b37; --ink-3: #66645e; --line: rgba(18, 18, 16, .14);
+  --signal: #ff6a13; --signal-2: #ff8a45;
+  --works-fg: #0f7a3d; --works-bg: #e6f6ec; --broken-fg: #b42318; --broken-bg: #fdeceb;
+  --alu-1: #f1f0ec; --alu-2: #dcdad4; --alu-3: #c4c2bb;
+  --gut: max(16px, env(safe-area-inset-left, 0px));
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+* { box-sizing: border-box; }
+html { overflow-x: clip; -webkit-text-size-adjust: 100%; background: var(--night); }
+body { margin: 0; overflow-x: clip; background: var(--night); color: var(--bone); font: 400 16.5px/1.55 var(--sans); font-stretch: 100%; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+code { font: .9em var(--mono); font-variant-ligatures: none; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.wrap { max-width: 1360px; margin: 0 auto; padding: 0 var(--gut); }
+.mono-k { margin: 0; font: 500 11px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--bone-3); }
+.mono-k b { color: var(--signal); font-weight: 600; }
+.disp { font-family: var(--sans); font-weight: 800; font-stretch: 62%; text-transform: uppercase; letter-spacing: -.005em; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border: 0; border-radius: 10px; font: 600 14px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: transform .14s var(--ease), background-color .2s, box-shadow .2s; }
+.btn:active { transform: translateY(2px); }
+.btn-sig { background: var(--signal); color: var(--night); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 3px 0 #b8460a, 0 14px 26px -14px rgba(255, 106, 19, .8); }
+.btn-sig:active { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 1px 0 #b8460a; }
+.btn-line { background: transparent; color: var(--bone); box-shadow: inset 0 0 0 1px var(--nline-2); }
+@media (hover: hover) { .btn-sig:hover { background: var(--signal-2); } .btn-line:hover { box-shadow: inset 0 0 0 1px var(--bone); } }
+
+/* header */
+.top { position: sticky; top: 0; z-index: 20; background: rgba(11, 11, 10, .9); border-bottom: 1px solid var(--nline); }
+.top-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: 700 15px/1 var(--sans); letter-spacing: .02em; text-transform: uppercase; font-stretch: 80%; text-decoration: none; }
+.mark { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--bone); }
+.mark i { width: 9px; height: 10px; margin-left: -1px; background: var(--night); clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+.nav { display: none; gap: 2px; font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--bone-2); }
+.nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; text-decoration: none; }
+.nav a:hover { color: var(--bone); }
+.top .btn { min-height: 44px; padding: 0 16px; font-size: 12px; }
+
+/* hero: dark panel, device under a fixed spotlight */
+.hero { position: relative; padding: 16px 0 0; background: radial-gradient(70% 55% at 72% 46%, #2a2a26 0%, #161614 52%, var(--night) 100%); }
+.panel { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 0 12px; border-bottom: 1px solid var(--nline-2); }
+.panel .mono-k { display: inline-flex; align-items: center; gap: 8px; }
+.ledo { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 10px 2px rgba(255, 106, 19, .5); }
+.hero-grid { display: grid; }
+@media (max-width: 999px) {
+  .hero-copy { display: contents; }
+  .hero-grid .h1 { order: 1; }
+  .hero-copy .sub { order: 2; }
+  .hero-copy .ctas { order: 3; }
+  .hero-grid .devbox { order: 4; margin-top: 12px; }
+  .hero-copy .gap-note { order: 5; }
+  .devbox > .dev-ctl, .devbox > .fine { margin-left: var(--gut); margin-right: var(--gut); }
+  .dev-ctl .dev-read { grid-column: 1 / -1; }
+}
+.h1 { margin: 22px 0 18px; font-size: clamp(44px, 16vw, 130px); line-height: .88; color: var(--bone); }
+.h1 span { display: block; white-space: nowrap; }
+.h1 .hl { color: var(--bone); }
+.h1 .hl::after { content: ""; display: inline-block; width: .16em; height: .16em; margin-left: .04em; background: var(--signal); }
+.devbox { margin: 0 calc(var(--gut) * -1); }
+.rig { height: min(80vw, 380px); }
+.sub { max-width: 36ch; margin: 4px 0 18px; font-size: 19px; line-height: 1.42; color: var(--bone-2); text-wrap: pretty; }
+.sub b { color: var(--bone); font-weight: 600; }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; }
+.ctas .btn { flex: 1 1 auto; }
+.gap-note { max-width: 50ch; margin: 20px 0 0; padding: 12px 0 0; border-top: 1px solid var(--nline-2); font-size: 14px; line-height: 1.5; color: var(--bone-2); }
+.gap-note b { color: var(--bone); }
+.gap-note a { color: var(--bone); }
+.gap-note code { white-space: nowrap; }
+.dev-ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 8px; }
+.dev-ctl .btn { min-height: 44px; font-size: 12px; }
+.dev-read { margin: 0 0 6px; min-height: 1.5em; font: 500 12px/1.5 var(--mono); color: var(--bone); }
+.dev-read::before { content: "Screen  "; color: var(--bone-3); }
+.fine { margin: 0; max-width: 58ch; font: 400 11.5px/1.55 var(--mono); color: var(--bone-3); }
+
+.readout { display: grid; grid-template-columns: 1fr 1fr; margin-top: 40px; border-top: 1px solid var(--nline-2); }
+.readout div { padding: 14px 12px 20px 0; border-bottom: 1px solid var(--nline); }
+.readout div:nth-child(odd) { border-right: 1px solid var(--nline); }
+.readout div:nth-child(even) { padding-left: 12px; }
+.readout b { display: block; margin: 6px 0 4px; font-size: 34px; line-height: .9; }
+.readout span { display: block; font-size: 13.5px; line-height: 1.4; color: var(--bone-2); }
+
+/* sections */
+.sec { padding: 64px 0 76px; }
+.sec-head { display: grid; gap: 14px; margin-bottom: 32px; }
+.h2 { margin: 0; max-width: 14ch; font-size: clamp(54px, 15vw, 150px); line-height: .86; text-wrap: balance; }
+.lead { max-width: 50ch; margin: 0; font-size: 17.5px; line-height: 1.5; text-wrap: pretty; }
+
+/* proof: the light panel */
+.proof { background: var(--alu); color: var(--ink); }
+.proof .mono-k { color: var(--ink-3); }
+.proof .mono-k b { color: var(--ink); }
+.proof .lead { color: var(--ink-2); }
+.proof .fine { color: var(--ink-3); }
+.verdicts { margin: 0; font-size: clamp(46px, 13.6vw, 132px); line-height: .9; }
+.verdicts span { display: inline-block; }
+.verdicts .b { color: var(--broken-fg); }
+.verdicts .g { color: var(--works-fg); }
+.js [data-stagger] [data-i] { opacity: 0; transform: translate3d(0, 18px, 0); transition: opacity .45s var(--ease), transform .45s var(--ease); transition-delay: calc(var(--i) * 160ms); }
+.js [data-stagger].in [data-i] { opacity: 1; transform: none; }
+.pf-grid { display: grid; gap: 22px; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.pc { position: relative; min-height: 150px; padding: 12px; border-radius: 12px; background: #f6f5f1; box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0, 0, 0, .08), 0 14px 28px -18px rgba(0, 0, 0, .35); }
+.pc-k { margin: 0; font: 500 9.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.pc h3 { margin: 10px 0 2px; font: 700 21px/1 var(--sans); font-stretch: 75%; letter-spacing: -.005em; text-transform: uppercase; }
+.pc-m { margin: 0; font: 11.5px/1.4 var(--mono); color: var(--ink-3); }
+.pc-s { position: absolute; left: 12px; right: 12px; bottom: 10px; margin: 0; font: 10.5px/1.3 var(--mono); color: var(--ink-2); }
+.stamp { position: absolute; right: 10px; bottom: 40px; display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 4px 9px; border: 2px solid currentColor; border-radius: 6px; font: 650 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; transform: rotate(-7deg); }
+.sh { width: 7px; height: 7px; background: currentColor; }
+.st-b { color: var(--broken-fg); background: var(--broken-bg); }
+.st-b .sh { transform: rotate(45deg) scale(.86); border-radius: 1px; }
+.st-g { color: var(--works-fg); background: var(--works-bg); }
+.st-g .sh { border-radius: 50%; }
+.js .cards[data-stagger] .stamp { opacity: 0; transform: rotate(-7deg) scale(1.6); transition: opacity .15s, transform .35s cubic-bezier(.34, 1.4, .64, 1); transition-delay: calc(var(--i) * 160ms + 260ms); }
+.js .cards[data-stagger].in .stamp { opacity: 1; transform: rotate(-7deg) scale(1); }
+.term { margin: 0; padding: 14px 16px; overflow-x: auto; border-radius: 12px; background: var(--night); color: var(--bone); font: 12.5px/1.7 var(--mono); white-space: pre; box-shadow: 0 0 0 1px rgba(0, 0, 0, .3), 0 24px 40px -26px rgba(0, 0, 0, .7); }
+.term .p { color: var(--bone-3); }
+.term .pass { color: #4ade80; }
+.term .fail { color: #f87171; }
+
+/* spec sheet: dark */
+.spec .lead { color: var(--bone-2); }
+.spec-grid { display: grid; gap: 36px; }
+.sl { display: grid; margin: 0; border-top: 2px solid var(--bone); }
+.sl div { display: grid; gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--nline); }
+.sl dt { font: 500 13.5px/1.4 var(--mono); color: var(--bone); }
+.sl dd { margin: 0; font-size: 15px; color: var(--bone-2); }
+.tg { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 5px 10px; border-radius: 6px; font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.tg-built { background: var(--bone); color: var(--night); }
+.tg-dev { box-shadow: inset 0 0 0 1px var(--bone-2); color: var(--bone); }
+.tg-plan { border: 1px dashed var(--bone-3); color: var(--bone-2); padding: 4px 9px; }
+.side { display: grid; gap: 28px; align-content: start; }
+.side .sl { border-top-width: 1px; border-top-color: var(--nline-2); }
+.count { padding: 22px; border-radius: 18px; background: linear-gradient(165deg, var(--alu-1), var(--alu-2) 70%, var(--alu-3)); color: var(--ink); box-shadow: inset 0 1px 0 #fff, 0 3px 0 #9e9c95, 0 24px 40px -24px rgba(0, 0, 0, .8); }
+.count .lcd { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 16px; border-radius: 10px; background: #0d0e0d; color: var(--bone); box-shadow: inset 0 2px 8px rgba(0, 0, 0, .7); }
+.count .lcd b { font: 500 64px/1 var(--mono); letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.count .lcd span { font: 500 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--signal); }
+.count p { margin: 12px 2px 0; font-size: 14.5px; color: var(--ink-2); }
+.next-up { margin-top: 56px; padding: 16px 0; border-top: 1px solid var(--nline-2); border-bottom: 1px solid var(--nline-2); font: 500 12px/1.6 var(--mono); letter-spacing: .04em; color: var(--bone-3); }
+.next-up b { color: var(--bone); font-weight: 500; }
+.foot { padding: 40px 0 56px; border-top: 1px solid var(--nline); font-size: 13.5px; color: var(--bone-3); }
+.giant { margin: 0 0 20px; font-size: 27vw; line-height: .8; color: var(--bone); white-space: nowrap; }
+
+.js .rv { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+.js .rv.in { opacity: 1; transform: none; }
+
+/* B tints the device: the dial mark carries the signal orange */
+.kmark { background: var(--signal); box-shadow: 0 0 8px rgba(255, 106, 19, .7); }
+
+/* ---------- tablet and up ---------- */
+@media (min-width: 720px) {
+  :root { --gut: max(32px, 4vw); }
+  .readout { grid-template-columns: repeat(4, 1fr); }
+  .readout div, .readout div:nth-child(odd), .readout div:nth-child(even) { padding: 16px 18px 22px; border-right: 1px solid var(--nline); }
+  .readout div:first-child { padding-left: 0; }
+  .readout div:last-child { border-right: 0; }
+  .ctas .btn { flex: none; }
+  .cards { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .pc { min-height: 178px; padding: 14px; }
+  .pc-s { left: 14px; right: 14px; bottom: 12px; }
+  .stamp { bottom: 46px; }
+  .sl div { grid-template-columns: minmax(170px, auto) 1fr; gap: 18px; }
+}
+@media (min-width: 1000px) {
+  .nav { display: flex; }
+  .hero { padding-top: 18px; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-rows: auto 1fr; column-gap: 2vw; }
+  .h1 { grid-column: 1; margin-top: clamp(20px, 4vh, 48px); font-size: clamp(84px, 7.2vw, 150px); }
+  .devbox { grid-column: 2; grid-row: 1 / span 2; align-self: center; margin: 0; }
+  .rig { height: clamp(400px, 58vh, 600px); }
+  .hero-copy { grid-column: 1; }
+  .dev-ctl { grid-template-columns: auto auto 1fr; align-items: center; margin: 0 0 8px 6%; }
+  .dev-ctl .dev-read { margin: 0 0 0 8px; }
+  .devbox .fine { margin-left: 6%; }
+  .readout { margin-top: 28px; }
+  .sec { padding: 112px 0 120px; }
+  .sec-head { grid-template-columns: 1fr 1fr; gap: 28px 6vw; align-items: end; margin-bottom: 56px; }
+  .sec-head .mono-k { grid-column: 1 / -1; }
+  .pf-grid { grid-template-columns: 1.5fr 1fr; gap: 28px; align-items: start; }
+  .spec-grid { grid-template-columns: 1.25fr 1fr; gap: 6vw; }
+  .giant { font-size: 19vw; }
+}
+@media (min-width: 1000px) and (max-height: 820px) {
+  .h1 { font-size: clamp(80px, min(7.2vw, 15vh), 140px); margin-top: 16px; }
+  .sub { font-size: 18px; margin-bottom: 14px; }
+  .gap-note { margin-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .rv, .js [data-stagger] [data-i], .js .cards[data-stagger] .stamp { opacity: 1; transform: none; transition: none; }
+  .js .cards[data-stagger] .stamp { transform: rotate(-7deg); }
+  .btn { transition: none; }
+}
+</style>
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="#top"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main"><a href="#proof">Proof</a><a href="#spec">Spec sheet</a><a href="#spec">Agents</a><a href="../../site/index.html#pricing">Pricing</a><a href="../../site/security.html">Security</a></nav>
+    <a class="btn btn-sig" href="../../site/index.html#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="top" aria-labelledby="hero-h" data-tilt-zone>
+  <div class="wrap">
+    <div class="panel">
+      <p class="mono-k"><span class="ledo" aria-hidden="true"></span>Early. The tm command line tool works today.</p>
+      <p class="mono-k">Not on npm yet</p>
+      <p class="mono-k">Mac app in development</p>
+    </div>
+    <div class="hero-grid">
+      <h1 class="h1 disp" id="hero-h"><span>Rewind to</span> <span class="hl">what worked</span></h1>
+      <div class="devbox">
+        <div class="rig" id="rig" data-rx="20" data-ry="-24" data-rz="3" data-mrx="16" data-mry="-10" data-mrz="1" data-fill="0.88">
+          <div class="dev" id="dev">
+            <div class="face f-back" aria-hidden="true"></div>
+            <div class="face f-top" aria-hidden="true"></div>
+            <div class="face f-bot" aria-hidden="true"></div>
+            <div class="face f-l" aria-hidden="true"></div>
+            <div class="face f-r" aria-hidden="true"></div>
+            <div class="face f-front">
+              <div class="silk silk-wm" aria-hidden="true">time machine</div>
+              <div class="silk silk-model" aria-hidden="true">tm · v0</div>
+              <div class="grille" aria-hidden="true"></div>
+
+              <div class="screen" id="screen" aria-hidden="true">
+                <div class="scr-glass"></div>
+                <div class="scr-top"><span class="scr-mode" id="dMode">saved</span><span class="scr-clock" id="dClock">10:42:07</span></div>
+                <div class="scr-id" id="dId">cp-0003</div>
+                <div class="scr-note" id="dNote">Added dark mode</div>
+                <div class="scr-log" id="dLog"></div>
+                <div class="scr-stat" id="dStat">not checked yet</div>
+                <div class="scr-line" id="dLine">
+                  <i style="--x:0"></i><i style="--x:1"></i><i style="--x:2"></i><i style="--x:3"></i><i style="--x:4"></i><i style="--x:5"></i>
+                  <b class="scr-head" id="dHead"></b>
+                </div>
+              </div>
+
+              <div class="led-wrap" aria-hidden="true">
+                <div class="led" id="led"><i class="led-g"></i><i class="led-r"></i><i class="led-hi"></i></div>
+                <span class="silk">verdict</span>
+              </div>
+
+              <div class="dial" aria-hidden="true">
+                <i style="--a:-135deg"><b>1</b></i><i style="--a:-81deg"><b>2</b></i><i style="--a:-27deg"><b>3</b></i><i style="--a:27deg"><b>4</b></i><i style="--a:81deg"><b>5</b></i><i style="--a:135deg"><b>6</b></i>
+              </div>
+              <div class="knob" id="knob" role="slider" tabindex="0" aria-label="Time dial. Choose a save point." aria-valuemin="1" aria-valuemax="6" aria-valuenow="3" aria-valuetext="cp-0003, Added dark mode, not checked yet">
+                <div class="knob-rot" id="knobRot">
+                  <i class="kl" style="--z:0"></i><i class="kl" style="--z:1"></i><i class="kl" style="--z:2"></i><i class="kl" style="--z:3"></i><i class="kl" style="--z:4"></i><i class="kl" style="--z:5"></i><i class="kl" style="--z:6"></i><i class="kl" style="--z:7"></i>
+                  <i class="kcap"><b class="kmark"></b></i>
+                </div>
+                <div class="knob-hint" id="knobHint"></div>
+              </div>
+
+              <div class="keys">
+                <button class="key" type="button" data-k="save" tabindex="0" aria-label="Save"><span class="lamp"></span><span class="cap"></span><span class="silk" aria-hidden="true">save</span></button>
+                <button class="key" type="button" data-k="check" tabindex="0" aria-label="Check this save point"><span class="lamp"></span><span class="cap"></span><span class="silk" aria-hidden="true">check</span></button>
+                <button class="key" type="button" data-k="recover" tabindex="0" aria-label="Recover"><span class="lamp"></span><span class="cap"></span><span class="silk" aria-hidden="true">recover</span></button>
+                <button class="key key-wide" type="button" data-k="rewind" tabindex="0" aria-label="Rewind one save point"><span class="lamp"></span><span class="cap"><span class="glyph" aria-hidden="true"><i></i><i></i></span></span><span class="silk" aria-hidden="true">rewind</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dev-ctl"><button class="btn btn-line" type="button" data-dev="rewind">Rewind</button><button class="btn btn-line" type="button" data-dev="check">Check</button><p class="dev-read" data-dev-out aria-live="polite">cp-0006 · Added a dependency · not checked yet</p></div>
+        <p class="fine">Turn the dial, press Rewind, then Check. Verdicts are recorded from a real <code>tm demo</code> run on a synthetic project. Nothing runs in your browser.</p>
+      </div>
+      <div class="hero-copy">
+        <p class="sub">Your agent can break things. <b>Time Machine proves which version still passes your tests</b> and gets you back to it.</p>
+        <div class="ctas"><a class="btn btn-sig" href="../../site/index.html#waitlist">Join the waitlist</a><a class="btn btn-line" href="#proof">See the proof</a></div>
+        <p class="gap-note"><b>The gap.</b> Claude Code's rewind "does not track files modified by Bash commands", like <code>rm</code>, <code>mv</code> or <code>sed -i</code>. With its Claude Code hooks, Time Machine saves your project before each prompt and before risky shell commands, outside the project folder. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Source: Claude Code docs</a></p>
+      </div>
+    </div>
+    <div class="readout">
+      <div><p class="mono-k"><b>01</b> Save</p><b class="disp">Before each prompt</b><span>And before risky commands like <code>rm -rf</code>, with the Claude Code hooks.</span></div>
+      <div><p class="mono-k"><b>02</b> Check</p><b class="disp">Network off</b><span>Your own test, in a separate copy.</span></div>
+      <div><p class="mono-k"><b>03</b> Bring back</p><b class="disp">New branch</b><span>Your folder is never touched. Nothing is pushed.</span></div>
+      <div><p class="mono-k"><b>04</b> Receipt</p><b class="disp">What's missing</b><span>It says what it could not bring back, like secret values.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec proof" id="proof" aria-labelledby="proof-h">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="mono-k"><b>02</b> &nbsp;The proof · <code>tm find-good</code></p>
+      <h2 class="h2 verdicts disp" id="proof-h" data-stagger aria-label="Broken. Broken. Broken. Works."><span class="b" data-i style="--i:0">Broken.</span> <span class="b" data-i style="--i:1">Broken.</span> <span class="b" data-i style="--i:2">Broken.</span> <span class="g" data-i style="--i:3">Works.</span></h2>
+      <p class="lead">Time Machine rebuilds each save point in a separate copy, turns the network off, and runs your own check. Newest first. It stops at the first one that passes.</p>
+    </div>
+    <div class="pf-grid">
+      <ol class="cards" data-stagger>
+        <li class="pc" data-i style="--i:0"><p class="pc-k">Safe copy · Network off</p><h3>Added a dependency</h3><p class="pc-m">cp-0006 · 11:12</p><p class="stamp st-b"><span class="sh" aria-hidden="true"></span>Broken</p><p class="pc-s">The check failed with exit code 1.</p></li>
+        <li class="pc" data-i style="--i:1"><p class="pc-k">Safe copy · Network off</p><h3>Changed currency</h3><p class="pc-m">cp-0005 · 11:04</p><p class="stamp st-b"><span class="sh" aria-hidden="true"></span>Broken</p><p class="pc-s">The check failed with exit code 1.</p></li>
+        <li class="pc" data-i style="--i:2"><p class="pc-k">Safe copy · Network off</p><h3>Agent: fixed lint warnings</h3><p class="pc-m">cp-0004 · 10:51</p><p class="stamp st-b"><span class="sh" aria-hidden="true"></span>Broken</p><p class="pc-s">The check failed with exit code 1.</p></li>
+        <li class="pc" data-i style="--i:3"><p class="pc-k">Safe copy · Network off</p><h3>Added dark mode</h3><p class="pc-m">cp-0003 · 10:42</p><p class="stamp st-g"><span class="sh" aria-hidden="true"></span>Works</p><p class="pc-s">The check passed.</p></li>
+      </ol>
+      <div class="rv">
+        <pre class="term" aria-label="Output of tm find-good, from a real tm demo run"><span class="p">$ </span>tm find-good
+  cp-0006  <span class="fail">FAIL</span>  The check failed with exit code 1.
+  cp-0005  <span class="fail">FAIL</span>  The check failed with exit code 1.
+  cp-0004  <span class="fail">FAIL</span>  The check failed with exit code 1.
+  cp-0003  <span class="pass">PASS</span>  The check passed.
+<span class="pass">PASS</span>  cp-0003 is the newest version that works.
+Next: tm recover cp-0003</pre>
+        <p class="fine" style="margin-top:12px">Dramatized on a synthetic demo project. Save point IDs, verdicts and command output come from a real <code>tm demo</code> run. Times other than 10:42 and 10:51 are illustrative.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec spec" id="spec" aria-labelledby="spec-h">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="mono-k"><b>03</b> &nbsp;Spec sheet</p>
+      <h2 class="h2 disp" id="spec-h">What works today.</h2>
+      <p class="lead">No logos and no user counts. Just what is built, what is not yet, and the tests that check it.</p>
+    </div>
+    <div class="spec-grid">
+      <div class="rv">
+        <p class="tg tg-built">Built</p>
+        <dl class="sl">
+          <div><dt>tm checkpoint</dt><dd>Save a checkpoint by hand.</dd></div>
+          <div><dt>tm timeline · tm diff</dt><dd>See every save point and what changed.</dd></div>
+          <div><dt>tm verify</dt><dd>Run your check in a separate copy, network off.</dd></div>
+          <div><dt>tm find-good</dt><dd>Find the newest save point that passes.</dd></div>
+          <div><dt>tm recover</dt><dd>A new branch and a recovery copy. Your folder is never touched.</dd></div>
+          <div><dt>Claude Code hooks</dt><dd>Save before each prompt, and before risky shell commands such as <code>rm -rf</code> and <code>git reset --hard</code>.</dd></div>
+          <div><dt>MCP server</dt><dd>7 tools. Agents that speak MCP can save, check and find the good one.</dd></div>
+        </dl>
+      </div>
+      <div class="side rv">
+        <div class="count">
+          <div class="lcd"><b>128</b><span>tests pass</span></div>
+          <p>Automated tests pass today. 126 run on macOS, 2 are Linux only. Real proof instead of social proof.</p>
+        </div>
+        <div>
+          <p class="tg tg-dev">In development</p>
+          <dl class="sl"><div><dt>Mac app</dt><dd>The same engine, with a timeline you can see. Not signed or shipped yet.</dd></div></dl>
+        </div>
+        <div>
+          <p class="tg tg-plan">Planned</p>
+          <dl class="sl">
+            <div><dt>npm package</dt><dd>The <code>tm</code> CLI is not on npm yet.</dd></div>
+            <div><dt>Cursor, Codex, Gemini CLI</dt><dd>Hook kits for these agents are planned, not built.</dd></div>
+            <div><dt>The Ladder</dt><dd>Pricing. Nothing is for sale yet. Restores are never paywalled.</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <p class="next-up">Concept stops here. The full page continues with <b>how it works</b>, <b>agents</b>, <b>The Ladder</b> (pricing, planned), <b>FAQ</b> and <b>the founder</b>. See design/SITE_V3_DIRECTION.md.</p>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="giant disp" aria-hidden="true">Time Machine</p>
+    <p>Concept B, instrument. Built by a solo founder. Not affiliated with Apple Inc.</p>
+  </div>
+</footer>
+
+<script src="site-v3-assets/device.js" defer></script>
+<script src="site-v3-assets/reveal.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concept A, editorial. Time Machine. Rewind to what worked.</title>
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f3efe5">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="site-v3-assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site-v3-assets/device.css">
+<script>document.documentElement.classList.add("js");</script>
+<style>
+/* Concept A: editorial and serious. Newsreader display, Inter body, Geist Mono labels. Warm paper, one deep ink blue.
+   Fonts are self hosted under site-v3-assets/fonts with their SIL OFL 1.1 licences. Mobile first. */
+@font-face { font-family: "Newsreader"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("site-v3-assets/fonts/newsreader-latin-opsz-normal.woff2") format("woff2-variations"); }
+@font-face { font-family: "Newsreader"; font-style: italic; font-weight: 200 800; font-display: swap; src: url("site-v3-assets/fonts/newsreader-latin-opsz-italic.woff2") format("woff2-variations"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("site-v3-assets/fonts/inter-latin-opsz-normal.woff2") format("woff2-variations"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("site-v3-assets/fonts/geist-mono-latin-wght-normal.woff2") format("woff2-variations"); }
+
+:root {
+  --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --paper: #f3efe5; --paper-2: #ebe5d6; --card: #fbf9f4;
+  --ink: #15130f; --ink-2: #3b372f; --ink-3: #6a6458;
+  --line: rgba(21, 19, 15, .12); --line-2: rgba(21, 19, 15, .24);
+  --blue: #1d3bb8; --blue-ink: #142a86; --blue-tint: #e3e7f6;
+  --works-fg: #0f7a3d; --works-bg: #e6f6ec; --broken-fg: #b42318; --broken-bg: #fdeceb;
+  --alu-1: #f1f0ec; --alu-2: #dcdad4; --alu-3: #c4c2bb;
+  --gut: max(18px, env(safe-area-inset-left, 0px));
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+* { box-sizing: border-box; }
+html { overflow-x: clip; -webkit-text-size-adjust: 100%; }
+body { margin: 0; overflow-x: clip; background: var(--paper); color: var(--ink); font: 400 16.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+code { font: .9em var(--mono); font-variant-ligatures: none; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 var(--gut); }
+.label { margin: 0; font: 500 11.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.label b { font-weight: 600; color: var(--blue); }
+
+/* buttons: 48 px tall, so every tap target clears 44 px */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; font: 500 15.5px/1 var(--sans); letter-spacing: -.01em; text-decoration: none; cursor: pointer; transition: transform .2s var(--ease), background-color .2s, box-shadow .2s; }
+.btn:active { transform: scale(.97); }
+.btn-blue { background: var(--blue); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 10px 22px -12px rgba(20, 42, 134, .7); }
+.btn-ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
+@media (hover: hover) { .btn-blue:hover { background: var(--blue-ink); transform: translateY(-1px); } .btn-ghost:hover { box-shadow: inset 0 0 0 1px var(--ink); } }
+.arr { display: inline-block; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+
+/* header */
+.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 92%, transparent); border-bottom: 1px solid var(--line); }
+.top-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: 600 15px/1 var(--sans); letter-spacing: -.015em; text-decoration: none; }
+.mark { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--ink); }
+.mark i { width: 9px; height: 10px; margin-left: -1px; background: var(--paper); clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+.nav { display: none; gap: 4px; font-size: 14.5px; color: var(--ink-2); }
+.nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; text-decoration: none; }
+.nav a:hover { color: var(--ink); text-decoration: underline; }
+.top .btn { min-height: 44px; padding: 0 18px; font-size: 14.5px; }
+
+/* hero */
+.hero { padding: 22px 0 0; }
+.mast { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 20px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+.mast .dot { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border: 1.5px solid currentColor; border-radius: 50%; vertical-align: 1px; }
+.hero-grid { display: grid; gap: 8px; }
+@media (max-width: 999px) {
+  .hero-copy { display: contents; }
+  .hero-copy .h1 { order: 1; }
+  .hero-copy .dek { order: 2; }
+  .hero-copy .ctas { order: 3; }
+  .hero-grid .devbox { order: 4; }
+  .hero-copy .gap-note { order: 5; }
+}
+.h1 { margin: 26px 0 18px; font: 330 clamp(54px, 15.6vw, 150px)/.9 var(--serif); font-variation-settings: "opsz" 72; letter-spacing: -.035em; text-wrap: balance; }
+.h1 em { font-style: italic; font-weight: 300; color: var(--blue); letter-spacing: -.03em; }
+.dek { max-width: 34ch; margin: 0 0 22px; font: 400 clamp(19px, 5vw, 24px)/1.38 var(--serif); font-variation-settings: "opsz" 18; letter-spacing: -.005em; color: var(--ink-2); text-wrap: pretty; }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; }
+.ctas .btn { flex: 1 1 auto; }
+.gap-note { max-width: 46ch; margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line-2); font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.gap-note b { color: var(--ink); }
+.gap-note code { white-space: nowrap; }
+
+.devbox { position: relative; margin: 6px calc(var(--gut) * -1) 0; }
+.rig { height: min(78vw, 360px); }
+.dev-cap { display: grid; gap: 12px; padding: 0 var(--gut); }
+.dev-read { margin: 0; min-height: 1.5em; font: 500 12px/1.5 var(--mono); color: var(--ink); }
+.dev-read::before { content: "Screen: "; color: var(--ink-3); }
+.dev-ctl { display: flex; gap: 8px; }
+.dev-ctl .btn { flex: 1; min-height: 44px; font-size: 14.5px; }
+.dev-ctl .rw { display: inline-flex; }
+.dev-ctl .rw i { width: .6em; height: .7em; background: currentColor; clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+.dev-ctl .rw i + i { margin-left: -.08em; }
+.fine { margin: 0; max-width: 56ch; font: 400 11.5px/1.55 var(--mono); color: var(--ink-3); }
+
+.ledger { display: grid; grid-template-columns: 1fr 1fr; margin-top: 36px; border-top: 1px solid var(--ink); }
+.ledger div { padding: 16px 14px 18px 0; border-bottom: 1px solid var(--line-2); }
+.ledger div:nth-child(odd) { padding-right: 14px; border-right: 1px solid var(--line-2); }
+.ledger div:nth-child(even) { padding-left: 14px; }
+.ledger b { display: block; font: 300 40px/1 var(--serif); font-variation-settings: "opsz" 60; letter-spacing: -.03em; }
+.ledger span { display: block; margin-top: 8px; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
+
+/* sections */
+.sec { padding: 72px 0 80px; border-top: 1px solid var(--line); }
+.sec-head { display: grid; gap: 14px; margin-bottom: 36px; }
+.h2 { margin: 0; max-width: 18ch; font: 340 clamp(38px, 10vw, 92px)/.98 var(--serif); font-variation-settings: "opsz" 72; letter-spacing: -.03em; text-wrap: balance; }
+.h2 em { font-style: italic; color: var(--blue); }
+.lead { max-width: 52ch; margin: 0; font-size: 17.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+
+/* section 1: the gap */
+.gap-grid { display: grid; gap: 40px; }
+.quote { margin: 0; padding: 22px 0 0; border-top: 3px solid var(--blue); }
+.quote p { margin: 0 0 14px; font: 400 italic clamp(28px, 7vw, 44px)/1.12 var(--serif); font-variation-settings: "opsz" 48; letter-spacing: -.015em; }
+.quote footer { font: 500 12px/1.5 var(--mono); color: var(--ink-3); }
+.quote footer a { color: var(--blue); }
+.log { margin: 0; padding: 0; list-style: none; font: 13px/1.4 var(--mono); }
+.log li { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.log time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.log code { font-size: 12px; color: var(--ink-3); }
+.log .ok span { color: var(--ink); }
+.log .err { border-top-color: var(--ink); }
+.log .err span { font-weight: 600; }
+.vs { display: grid; gap: 14px; margin-top: 44px; }
+.vs-row { display: grid; gap: 8px; }
+.vs-k { margin: 0; font-weight: 600; line-height: 1.25; }
+.vs-k span { display: block; font: 400 12.5px/1.4 var(--mono); color: var(--ink-3); }
+.vs-bar { position: relative; min-height: 54px; padding: 10px 14px; overflow: hidden; display: flex; align-items: center; border-radius: 10px; background: var(--paper-2); }
+.vs-bar i { position: absolute; inset: 0; transform-origin: 0 50%; transform: scaleX(var(--w)); background: var(--ink-3); transition: transform 1.1s var(--ease); }
+.vs-row.tm .vs-bar i { background: var(--blue); }
+.js .vs:not(.in) .vs-bar i { transform: scaleX(0); }
+.vs-bar span { position: relative; font: 12.5px/1.35 var(--mono); color: #fff; }
+.vs-row:first-child .vs-bar span { color: var(--ink); padding-left: calc(36% + 6px); }
+
+/* section 2: how it works */
+.steps { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ink); }
+.step { display: grid; gap: 10px; padding: 26px 0 30px; border-bottom: 1px solid var(--line-2); }
+.step-n { font: 300 italic 52px/1 var(--serif); font-variation-settings: "opsz" 72; color: var(--blue); }
+.step h3 { margin: 0; font: 600 21px/1.2 var(--sans); letter-spacing: -.02em; }
+.step p { margin: 0; color: var(--ink-2); max-width: 40ch; }
+.cmd { margin: 8px 0 0; padding: 14px 16px; overflow-x: auto; border-radius: 10px; background: #171511; color: #ece9e0; font: 12.5px/1.65 var(--mono); white-space: pre; }
+.cmd .p { color: #8d887c; }
+.cmd .pass { color: #4ade80; }
+.cmd .fail { color: #f87171; }
+.agents { margin-top: 48px; }
+.agents h3 { margin: 0 0 14px; font: 400 30px/1.1 var(--serif); font-variation-settings: "opsz" 36; letter-spacing: -.015em; }
+.ag { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ink); }
+.ag li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--line-2); }
+.ag b { font-weight: 600; }
+.ag span { grid-column: 1 / -1; font-size: 14.5px; color: var(--ink-2); }
+.tag { justify-self: end; padding: 4px 9px; border-radius: 999px; font: 500 11px/1 var(--mono); letter-spacing: .04em; white-space: nowrap; }
+.t-built { background: var(--blue-tint); color: var(--blue-ink); }
+.t-dev { box-shadow: inset 0 0 0 1px var(--ink-3); color: var(--ink-2); }
+.t-plan { box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); border: 1px dashed var(--ink-3); padding: 3px 8px; }
+.next-up { margin-top: 56px; padding: 18px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); font: 500 12px/1.6 var(--mono); letter-spacing: .04em; color: var(--ink-3); }
+.next-up b { color: var(--ink); }
+
+.foot { padding: 40px 0 56px; font-size: 13.5px; color: var(--ink-3); }
+.giant { margin: 0 0 24px; font: 300 22vw/.85 var(--serif); font-variation-settings: "opsz" 72; letter-spacing: -.04em; color: var(--ink); white-space: nowrap; }
+.giant em { font-style: italic; color: var(--blue); }
+
+/* reveals: once, transform and opacity only */
+.js .rv { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+.js .rv.in { opacity: 1; transform: none; }
+
+/* ---------- tablet and up ---------- */
+@media (min-width: 720px) {
+  :root { --gut: max(32px, 4vw); }
+  .ledger { grid-template-columns: repeat(4, 1fr); }
+  .ledger div, .ledger div:nth-child(odd), .ledger div:nth-child(even) { padding: 18px 18px 22px; border-right: 1px solid var(--line-2); }
+  .ledger div:first-child { padding-left: 0; }
+  .ledger div:last-child { border-right: 0; }
+  .ledger b { font-size: 52px; }
+  .ctas .btn { flex: none; }
+  .vs-row { grid-template-columns: 240px 1fr; gap: 24px; align-items: center; }
+  .steps { grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
+  .step { padding: 28px 28px 34px; border-bottom: 0; border-right: 1px solid var(--line-2); align-content: start; }
+  .step:first-child { padding-left: 0; }
+  .step:last-child { border-right: 0; padding-right: 0; }
+  .ag { grid-template-columns: 1fr 1fr; column-gap: 40px; }
+}
+@media (min-width: 1000px) {
+  .nav { display: flex; }
+  .hero { padding-top: 28px; }
+  .hero-grid { grid-template-columns: minmax(0, 1.04fr) minmax(0, 1fr); gap: 2vw; align-items: center; }
+  .h1 { margin-top: clamp(28px, 5vh, 56px); font-size: clamp(84px, min(8.6vw, 15vh), 150px); }
+  .devbox { margin: 0 -2vw 0 0; }
+  .rig { height: clamp(380px, 54vh, 560px); }
+  .dev-cap { grid-template-columns: 1fr auto; align-items: center; padding: 0 0 0 4%; }
+  .dev-cap .fine { grid-column: 1 / -1; }
+  .dev-ctl .btn { flex: none; }
+  .ledger { margin-top: 28px; }
+  .sec { padding: 120px 0 128px; }
+  .sec-head { grid-template-columns: 220px 1fr; gap: 28px; margin-bottom: 64px; }
+  .sec-head .lead { grid-column: 2; }
+  .gap-grid { grid-template-columns: 1fr 1.1fr; gap: 6vw; align-items: start; }
+  .giant { font-size: 17vw; }
+}
+@media (min-width: 1000px) and (max-height: 820px) {
+  .h1 { font-size: clamp(76px, 14vh, 130px); margin-top: 20px; }
+  .dek { font-size: 21px; margin-bottom: 18px; }
+  .gap-note { margin-top: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .rv { opacity: 1; transform: none; transition: none; }
+  .vs-bar i, .btn { transition: none; }
+  .js .vs:not(.in) .vs-bar i { transform: scaleX(var(--w)); }
+}
+</style>
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="#top"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main"><a href="#how">How it works</a><a href="#gap">The gap</a><a href="#agents">Agents</a><a href="../../site/index.html#pricing">Pricing</a><a href="../../site/security.html">Security</a></nav>
+    <a class="btn btn-blue" href="../../site/index.html#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="top" aria-labelledby="hero-h">
+  <div class="wrap">
+    <div class="mast">
+      <p class="label"><span class="dot" aria-hidden="true"></span>Early. The tm command line tool works today.</p>
+      <p class="label">Not on npm yet · Mac app in development</p>
+    </div>
+    <div class="hero-grid" data-tilt-zone>
+      <div class="hero-copy">
+        <h1 class="h1" id="hero-h">Rewind to <em>what worked.</em></h1>
+        <p class="dek">Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.</p>
+        <div class="ctas"><a class="btn btn-blue" href="../../site/index.html#waitlist">Join the waitlist</a><a class="btn btn-ghost" href="#how">How it works <span class="arr" aria-hidden="true"></span></a></div>
+        <p class="gap-note"><b>The gap.</b> Claude Code's rewind "does not track files modified by Bash commands", like <code>rm</code>, <code>mv</code> or <code>sed -i</code>. With its Claude Code hooks, Time Machine saves your project before each prompt and before risky shell commands, outside the project folder.</p>
+      </div>
+      <div class="devbox">
+        <div class="rig" id="rig" data-rx="16" data-ry="-20" data-rz="2" data-mrx="14" data-mry="-8" data-mrz="0" data-fill="0.86">
+          <div class="dev" id="dev">
+            <div class="face f-back" aria-hidden="true"></div>
+            <div class="face f-top" aria-hidden="true"></div>
+            <div class="face f-bot" aria-hidden="true"></div>
+            <div class="face f-l" aria-hidden="true"></div>
+            <div class="face f-r" aria-hidden="true"></div>
+            <div class="face f-front">
+              <div class="silk silk-wm" aria-hidden="true">time machine</div>
+              <div class="silk silk-model" aria-hidden="true">tm · v0</div>
+              <div class="grille" aria-hidden="true"></div>
+
+              <div class="screen" id="screen" aria-hidden="true">
+                <div class="scr-glass"></div>
+                <div class="scr-top"><span class="scr-mode" id="dMode">saved</span><span class="scr-clock" id="dClock">10:42:07</span></div>
+                <div class="scr-id" id="dId">cp-0003</div>
+                <div class="scr-note" id="dNote">Added dark mode</div>
+                <div class="scr-log" id="dLog"></div>
+                <div class="scr-stat" id="dStat">not checked yet</div>
+                <div class="scr-line" id="dLine">
+                  <i style="--x:0"></i><i style="--x:1"></i><i style="--x:2"></i><i style="--x:3"></i><i style="--x:4"></i><i style="--x:5"></i>
+                  <b class="scr-head" id="dHead"></b>
+                </div>
+              </div>
+
+              <div class="led-wrap" aria-hidden="true">
+                <div class="led" id="led"><i class="led-g"></i><i class="led-r"></i><i class="led-hi"></i></div>
+                <span class="silk">verdict</span>
+              </div>
+
+              <div class="dial" aria-hidden="true">
+                <i style="--a:-135deg"><b>1</b></i><i style="--a:-81deg"><b>2</b></i><i style="--a:-27deg"><b>3</b></i><i style="--a:27deg"><b>4</b></i><i style="--a:81deg"><b>5</b></i><i style="--a:135deg"><b>6</b></i>
+              </div>
+              <div class="knob" id="knob" role="slider" tabindex="0" aria-label="Time dial. Choose a save point." aria-valuemin="1" aria-valuemax="6" aria-valuenow="3" aria-valuetext="cp-0003, Added dark mode, not checked yet">
+                <div class="knob-rot" id="knobRot">
+                  <i class="kl" style="--z:0"></i><i class="kl" style="--z:1"></i><i class="kl" style="--z:2"></i><i class="kl" style="--z:3"></i><i class="kl" style="--z:4"></i><i class="kl" style="--z:5"></i><i class="kl" style="--z:6"></i><i class="kl" style="--z:7"></i>
+                  <i class="kcap"><b class="kmark"></b></i>
+                </div>
+                <div class="knob-hint" id="knobHint"></div>
+              </div>
+
+              <div class="keys">
+                <button class="key" type="button" data-k="save" tabindex="0" aria-label="Save"><span class="lamp"></span><span class="cap"></span><span class="silk" aria-hidden="true">save</span></button>
+                <button class="key" type="button" data-k="check" tabindex="0" aria-label="Check this save point"><span class="lamp"></span><span class="cap"></span><span class="silk" aria-hidden="true">check</span></button>
+                <button class="key" type="button" data-k="recover" tabindex="0" aria-label="Recover"><span class="lamp"></span><span class="cap"></span><span class="silk" aria-hidden="true">recover</span></button>
+                <button class="key key-wide" type="button" data-k="rewind" tabindex="0" aria-label="Rewind one save point"><span class="lamp"></span><span class="cap"><span class="glyph" aria-hidden="true"><i></i><i></i></span></span><span class="silk" aria-hidden="true">rewind</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dev-cap">
+          <p class="dev-read" data-dev-out aria-live="polite">cp-0006 · Added a dependency · not checked yet</p>
+          <div class="dev-ctl"><button class="btn btn-ghost" type="button" data-dev="rewind"><span class="rw" aria-hidden="true"><i></i><i></i></span>Rewind</button><button class="btn btn-ghost" type="button" data-dev="check">Check</button></div>
+          <p class="fine">Turn the dial or press Rewind, then Check. Verdicts are recorded from a real <code>tm demo</code> run on a synthetic project. Nothing runs in your browser.</p>
+        </div>
+      </div>
+    </div>
+    <div class="ledger">
+      <div><b>128</b><span>automated tests pass today. 126 run on macOS, 2 are Linux only.</span></div>
+      <div><b>7</b><span>MCP tools. Agents that speak MCP can save, check and find the good one.</span></div>
+      <div><b>Off</b><span>The network, while your own check runs in a separate copy.</span></div>
+      <div><b>Names</b><span>Only key names are kept. Secret values are never stored.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="gap" aria-labelledby="gap-h">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="label"><b>01</b> &nbsp;The problem</p>
+      <h2 class="h2" id="gap-h">Undo goes back one edit. <em>Then what?</em></h2>
+      <p class="lead">It worked at 10:42. Then the agent kept going. By the time you run your tests, the version that worked is several steps back, and some of those steps were shell commands.</p>
+    </div>
+    <div class="gap-grid">
+      <blockquote class="quote rv">
+        <p>"Does not track files modified by Bash commands."</p>
+        <footer>Claude Code docs on its rewind. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Checkpointing, "Bash command changes not tracked"</a></footer>
+      </blockquote>
+      <div class="rv">
+        <ol class="log" aria-label="A morning with an agent">
+          <li class="ok"><time>10:42</time><span>Dark mode looks right. Saved.</span><code>cp-0003</code></li>
+          <li><time>10:44</time><span>You: "Fix the lint warnings."</span><code></code></li>
+          <li><time>10:51</time><span>Agent: fixed lint warnings</span><code>cp-0004</code></li>
+          <li><time>11:04</time><span>Changed currency</span><code>cp-0005</code></li>
+          <li><time>11:12</time><span>Added a dependency</span><code>cp-0006</code></li>
+          <li class="err"><time>11:14</time><span>You run <code>npm test</code>. Exit code 1.</span><code></code></li>
+        </ol>
+        <p class="fine" style="margin-top:12px">Dramatized on a synthetic demo project. Save point IDs and verdicts come from a real <code>tm demo</code> run. Times other than 10:42 and 10:51 are illustrative.</p>
+      </div>
+    </div>
+    <div class="vs rv" aria-label="What each kind of rewind covers">
+      <div class="vs-row"><p class="vs-k">Claude Code rewind<span>Built in checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Edits made by its file editing tools. Not Bash commands</span></div></div>
+      <div class="vs-row tm"><p class="vs-k">Time Machine<span>tm, today</span></p><div class="vs-bar"><i style="--w:1"></i><span>Your code, uncommitted work and the files Git sees at each save point, plus a check that proves it runs</span></div></div>
+    </div>
+    <p class="fine" style="margin-top:16px">Time Machine does not save secret values, databases, deployed versions, files your .gitignore skips or files over the size limit.</p>
+  </div>
+</section>
+
+<section class="sec" id="how" aria-labelledby="how-h">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <p class="label"><b>02</b> &nbsp;How it works</p>
+      <h2 class="h2" id="how-h">Save. Check. <em>Bring back.</em></h2>
+      <p class="lead">Three steps, one engine. The CLI, the hooks and the MCP server all call the same functions, so they never disagree.</p>
+    </div>
+    <ol class="steps">
+      <li class="step rv"><span class="step-n" aria-hidden="true">i.</span><h3>Save</h3><p>Before each prompt, and before risky commands like <code>rm -rf</code> or <code>git reset --hard</code>. Save points live outside your project folder.</p>
+        <pre class="cmd"><span class="p">$ </span>tm checkpoint -m "Added dark mode"</pre></li>
+      <li class="step rv"><span class="step-n" aria-hidden="true">ii.</span><h3>Check</h3><p>Your own test runs in a separate copy, with the network off. Newest first, until one passes.</p>
+        <pre class="cmd"><span class="p">$ </span>tm find-good
+  cp-0006  <span class="fail">FAIL</span>
+  cp-0005  <span class="fail">FAIL</span>
+  cp-0004  <span class="fail">FAIL</span>
+  cp-0003  <span class="pass">PASS</span></pre></li>
+      <li class="step rv"><span class="step-n" aria-hidden="true">iii.</span><h3>Bring back</h3><p>The newest save point that works, on a new branch. Your folder is never touched. Nothing is pushed, merged or deployed.</p>
+        <pre class="cmd"><span class="p">$ </span>tm recover cp-0003
+  Branch  tm/recover/cp-0003
+  Saved first  cp-0007</pre></li>
+    </ol>
+
+    <div class="agents rv" id="agents">
+      <h3>Works with your agent</h3>
+      <ul class="ag">
+        <li><b>Claude Code</b><em class="tag t-built">Built</em><span>Hooks save before each prompt and before risky shell commands, and check at the end of each turn.</span></li>
+        <li><b>Any agent that speaks MCP</b><em class="tag t-built">Built</em><span>7 tools: checkpoint, timeline, diff, verify, find_good, recover and log.</span></li>
+        <li><b>Mac app</b><em class="tag t-dev">In development</em><span>The same engine, with a timeline you can see. Not signed or shipped yet.</span></li>
+        <li><b>Cursor, Codex, Gemini CLI</b><em class="tag t-plan">Planned</em><span>Hook kits for these agents are planned, not built.</span></li>
+      </ul>
+    </div>
+
+    <p class="next-up">Concept stops here. The full page continues with <b>the proof</b>, <b>the spec sheet</b>, <b>The Ladder</b> (pricing, planned), <b>FAQ</b> and <b>the founder</b>. See design/SITE_V3_DIRECTION.md.</p>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="giant" aria-hidden="true">Time <em>Machine</em></p>
+    <p>Concept A, editorial. Built by a solo founder. Not affiliated with Apple Inc.</p>
+  </div>
+</footer>
+
+<script src="site-v3-assets/device.js" defer></script>
+<script src="site-v3-assets/reveal.js" defer></script>
+</body>
+</html>
