@@ -24,6 +24,7 @@
 .txt { margin: 14px 0 0; color: var(--ink-2); line-height: 1.6; text-wrap: pretty; }
 .txt:first-child { margin-top: 0; }
 .cap-note { margin: 16px 0 0; font: 400 12px/1.5 var(--font-mono); color: var(--ink-3); }
+.cap-note code { font-size: 1em; }
 .silk { font: 500 8.5px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: #77756e; }
 
 /* ---------- layout ---------- */
