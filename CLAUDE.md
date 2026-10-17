@@ -72,6 +72,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 Read `docs/BUILD_BRIEF.md` before starting any work. It is the source of truth for scope.
 
+Then read `docs/HANDOFF.md`: the full memory of past sessions (decisions, environment rules, what is built and verified, every open task). Update it at the end of each session.
+
 - **Scope is the MVP in the brief:** Phase A (engine and CLI, C01 to C15, tests V01 to V14) first, then Phase B (desktop app, D01 to D08). No hosted dashboard, accounts, billing, cloud storage, database snapshots, deployment rollback, or business-automation replay until the founder explicitly changes it.
 - **One engine.** `packages/core` has no Electron imports. The CLI and the desktop app call the same functions and must never disagree.
 - **Every bug fix starts with a failing test.** That is the product thesis; the codebase has to live by it.
