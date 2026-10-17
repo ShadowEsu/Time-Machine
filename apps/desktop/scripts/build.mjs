@@ -26,7 +26,7 @@ if (preview) {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   await build({ ...web, entryPoints: [join(here, "preview/entry.ts")], outfile: join(out, "app.js"), sourcemap: false });
-  copyFileSync(join(here, "src/renderer/styles.css"), join(out, "styles.css"));
+  for (const f of ["styles.css", "features.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
   // Fonts ship with the app (SIL OFL 1.1, licences alongside). No network fonts.
   cpSync(join(here, "src/renderer/fonts"), join(out, "fonts"), { recursive: true });
   copyFileSync(join(here, "preview/index.html"), join(out, "index.html"));
@@ -55,7 +55,7 @@ if (preview) {
     build({ ...web, entryPoints: [join(here, "src/renderer/index.ts")], outfile: join(out, "renderer.js") }),
     build({ ...web, entryPoints: [join(here, "src/renderer/overlay.ts")], outfile: join(out, "overlay.js") }),
   ]);
-  for (const f of ["index.html", "overlay.html", "styles.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
+  for (const f of ["index.html", "overlay.html", "styles.css", "features.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
   cpSync(join(here, "src/renderer/fonts"), join(out, "fonts"), { recursive: true });
   console.log(`App built in ${out}.`);
 }
