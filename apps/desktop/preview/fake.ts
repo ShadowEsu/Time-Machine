@@ -41,7 +41,7 @@ function makePoint(n: number, note: string, time: string, trigger: string, track
   captured.push(ENV_LINE);
   return {
     entry: {
-      id, createdAt: time, note, trigger, commit, branch: "main", dirty: files > 0, files,
+      id, createdAt: time, note, trigger, commit, head: commit, branch: "main", dirty: files > 0, files,
       agent: trigger.startsWith("claude-code") ? { name: "Claude Code", ...(prompt ? { prompt } : {}) } : null,
       coverage: { captured, restorable: ["Code", ...(files ? [`${files} saved file${files === 1 ? "" : "s"}`] : [])], missing: [], manual: [SECRETS, NOT_CAPTURED] },
       verdict: null, isolation: null,
