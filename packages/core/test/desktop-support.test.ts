@@ -1,6 +1,7 @@
 // Engine support for the Mac app's menu bar and Settings (D06, D07): the agent turn signal,
 // Claude Code connection status, and cleaning up the store without touching save points.
-import { existsSync, mkdirSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -91,5 +92,20 @@ describe("store cleanup", () => {
     const { ctx } = await setupDemo();
     const r = await tm.cleanStore({ ...ctx, tmHome: join(ctx.tmHome ?? "", "elsewhere") }, { apply: true, files: [] });
     expect(r).toEqual({ files: [], bytes: 0, applied: true });
+  });
+});
+
+describe("the Git HEAD of a save point", () => {
+  test("the timeline keeps the HEAD commit, also when uncommitted changes made a separate save point commit", async () => {
+    const { dir, ctx } = await setupDemo();
+    const git = (...args: string[]): string => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+    const head = git("rev-parse", "HEAD");
+    const tracked = git("ls-files").split("\n")[0] ?? "";
+    appendFileSync(join(dir, tracked), "\n// an uncommitted change\n");
+    const { checkpoint } = await tm.checkpoint(ctx, { note: "with an uncommitted change" });
+    const entry = (await tm.timeline(ctx)).checkpoints.find((c) => c.id === checkpoint.id);
+    expect(entry?.dirty).toBe(true);
+    expect(entry?.head).toBe(head);
+    expect(entry?.commit).not.toBe(head);
   });
 });

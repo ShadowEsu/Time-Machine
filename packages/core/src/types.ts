@@ -28,7 +28,10 @@ export interface CheckpointSummary {
   trigger: string;
   /** Null when a person made it (the app, the CLI) or for save points made before this was recorded. */
   agent: AgentInfo | null;
+  /** The save point itself, as a Git commit. Equals `head` when no tracked file had uncommitted changes. */
   commit: string;
+  /** The project's Git HEAD commit when the save point was made. Null before the first commit. */
+  head: string | null;
   branch: string | null;
   dirty: boolean;
   files: number;

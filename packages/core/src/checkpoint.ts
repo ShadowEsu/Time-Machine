@@ -25,6 +25,7 @@ export function summarize(m: Manifest): CheckpointSummary {
     trigger: m.trigger,
     agent: m.agent ?? null,
     commit: m.git.snapshot,
+    head: m.git.head,
     branch: m.git.branch,
     dirty: m.git.dirty,
     files: m.files.length,
