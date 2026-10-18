@@ -290,6 +290,20 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 form[data-waitlist][data-state="pending"] .btn { opacity: .6; cursor: progress; }
 form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
 .wl input[aria-invalid="true"] { border-color: var(--broken-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--broken-dot) 18%, transparent); }
+
+/* Typing (motion.js). Text waits hidden until the script splits it, with a 3 s safety reveal
+   in case the script never runs. Reduced motion: plain text, no typing. */
+@media (prefers-reduced-motion: no-preference) {
+  :root.js [data-type]:not(.tw) { visibility: hidden; animation: tw-safety 0s 3s forwards; }
+}
+@keyframes tw-safety { to { visibility: visible; } }
+.tw-c { opacity: 0; }
+.tw-c.on, .tw-done .tw-c { opacity: 1; }
+.tw-caret { position: relative; }
+.tw-caret::after { content: ""; position: absolute; top: .1em; bottom: .06em; right: -.1em; width: max(2px, .06em); background: #ff791f; animation: tw-blink .9s steps(1) infinite; }
+@keyframes tw-blink { 50% { opacity: 0; } }
+.tw-term .tl { visibility: hidden; }
+.tw-term .tl.on { visibility: visible; }
 .wl-consent input[aria-invalid="true"] { outline: 2px solid var(--broken-dot); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .wl-status[data-state="pending"]::before { animation: none; } }
 @media (max-width: 520px) { .wl-row { flex-direction: column; } .wl input[type="email"] { flex: none; width: 100%; } .wl-row .btn { width: 100%; } }
