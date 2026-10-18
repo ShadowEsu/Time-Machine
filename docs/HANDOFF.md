@@ -190,7 +190,14 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - **Home** rebuilt after Preston's reference (tenacitylabs.co): one dark page, a warm curtain glow, centered serif promise, three real verdict chips, the form, three cards (Save, Check, Bring back), then a dense footer with status, what works with it, what does not come back, five FAQs, navigation and the giant wordmark. 1815 px tall at 1440. Other pages stay, linked from the footer.
 - **Waitlist** (agent WaitlistBackend, commits 3752993, a77056c, 58aab82): pending signups, no site email, confirmed-only ranks; `/api/health` email is always false. An earlier Resend double opt-in draft was built then removed on Preston's "no emails" call. SQL block ran twice on Postgres 17; pending rows get no place, a hand-confirmed row does, refs credit only active rows, anon and authenticated are refused.
 - **Mac app** (agent AppFirstRun, 1438b21): `pnpm --filter @timetm/desktop package:local` builds `apps/desktop/release/Time Machine.app` signed with the stable self-signed identity "Time Machine Self Signed" (backups in `~/.timemachine-signing/`, 0600). Same designated requirement across two builds; Gatekeeper rejects it, as expected without Apple Developer ID.
-- **Blocked:** npm publish (account needs two-factor; logged in as prestonsusanto, E403); Supabase (Composio link tm-waitlist still INITIALIZING).
+- **Blocked:** npm publish (account needs two-factor; logged in as prestonsusanto, E403, nothing published); Supabase (Composio links tm-waitlist and tm-waitlist-2 both EXPIRED before sign-in finished; nothing created).
+- **Live:** PR #6 merged 87acf0f, prod deploy `mikjromdp` at https://time-machine-site.vercel.app (200, health `waitlist:false, email:false`), 1883 px at 1440, BOSS approved.
+
+### Where w2 stopped (18 Oct, usage pause)
+- Nothing in progress, tree clean. Resume when BOSS says usage refilled.
+- **Supabase next steps** once a new Composio supabase link shows ACTIVE: `SUPABASE_LIST_ALL_ORGANIZATIONS` -> `SUPABASE_CREATE_A_PROJECT` (name `time-machine-waitlist`, region `us-west-1`, free; generate the DB password locally, never print it) -> wait healthy -> `SUPABASE_BETA_RUN_SQL_QUERY` with the combined block in `docs/launch/SUPABASE_SETUP.md` §2 -> `SUPABASE_GET_PROJECT_API_KEYS` reveal, pipe the service role key on stdin to `npx vercel env add SUPABASE_SERVICE_ROLE_KEY production` (plus `SUPABASE_URL`) -> redeploy -> one real signup with a `+test` address, confirm the pending row by read-only SQL, delete it. Pending rows get no place, so expect `{ok:true,pending:true}` only.
+- **npm next steps** once Preston enables 2FA: `npm publish --access public` in `packages/cli` (send any OTP or browser URL to BOSS), then `npm view timetm version` and `npx timetm@latest demo` in a clean HOME; then update "not on npm yet" everywhere and redeploy.
+- **Email:** do not send or wire any email. Preston's own email agents handle it. Unused Vercel vars `WAITLIST_FROM` and `SITE_URL` are set on time-machine-site production; nothing reads them.
 
 ---
 
