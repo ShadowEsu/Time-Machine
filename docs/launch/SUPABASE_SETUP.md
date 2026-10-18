@@ -1,16 +1,17 @@
-# Supabase setup for the waitlist
+# Supabase and Resend setup for the waitlist
 
-This guide is for Preston. It takes about 15 minutes. You do not need to write any code.
+This guide is for Preston. You do not need to write code. The double opt-in flow is built, but real Supabase and Resend setup and email delivery have not been verified.
 
-When you finish, the waitlist on https://time-machine-site.vercel.app saves signups, gives each person a referral link, and counts page visits and shares. Until then, the form says the waitlist is not open yet and asks people to email you. It never pretends to save.
+After setup and redeployment, the form saves a pending signup and sends a confirmation email. It shows no referral code or card yet. Clicking the confirmation link activates the signup, opens the referral card and sends a welcome email. Only confirmed, subscribed people count in positions, totals and referral credit.
 
 ## What gets stored
 
-- **Each signup:** the email, the consent tick, the page they signed up from, the time, their own referral code, and the referral code that brought them (if any).
-- **Funnel counts:** the event type (visit, share or copy), the page path, whether the visit came from a referral link, and the time.
-- **Never stored:** IP addresses, browser details, cookies. The funnel counts hold no email and no code.
+- **Each signup:** email, consent, source page, signup time, referral codes, confirmation and unsubscribe state, send timing and SHA-256 token hashes. Raw tokens are not stored.
+- **Email links:** confirmation tokens are single-use and expire after 7 days. Confirmation resends have a 10-minute cooldown. Unsubscribe tokens do not expire. Confirmation replaces the initial unsubscribe link with a new one in the welcome email.
+- **Funnel counts:** event type (visit, share or copy), page path, referral flag and time. No email or code.
+- **Never stored:** IP addresses, browser details or cookies.
 
-Only the site's server function can read or write any of this. The public key can do nothing.
+Only the site's server functions can read or write this data. The public key has no access. The only automatic emails are confirmation and welcome. Either email has an unsubscribe link. Opening it with GET changes nothing. Pressing the button sends POST and stops the subscription. A later signup does not silently reactivate it.
 
 ## 1. Create the Supabase project
 
@@ -22,7 +23,7 @@ Only the site's server function can read or write any of this. The public key ca
 6. For **Region**, pick a West US option (for example West US, North California).
 7. Click **Create new project**. Wait until it says the project is ready. This takes a minute or two.
 
-## 2. Create the tables
+## 2. Apply migrations 0001 + 0002 + 0003
 
 1. In the left sidebar, click **SQL Editor**.
 2. Click **New query**.
@@ -31,9 +32,9 @@ Only the site's server function can read or write any of this. The public key ca
 5. You should see "Success. No rows returned". Notices that say "already exists, skipping" are fine.
 6. In the left sidebar, click **Table Editor**. You should see two tables: `waitlist` and `funnel_events`. Both are empty.
 
-The block is safe to run more than once. Running it again changes nothing.
+The block supports reruns without creating duplicate tables or signups. Existing rows are not proof of email confirmation.
 
-It is the two files `supabase/migrations/0001_waitlist.sql` and `supabase/migrations/0002_referrals_and_funnel.sql`, one after the other.
+It combines `supabase/migrations/0001_waitlist.sql`, `supabase/migrations/0002_referrals_and_funnel.sql` and `supabase/migrations/0003_double_opt_in.sql`, in that order. Run the whole block so the final double opt-in functions replace the earlier signup behavior.
 
 ```sql
 -- Time Machine waitlist.
@@ -232,44 +233,65 @@ notify pgrst, 'reload schema';
 ## 3. Copy two values from Supabase
 
 1. In the left sidebar, click the gear icon, **Project Settings**.
-2. Click **API**. (On newer dashboards the URL is under **Data API** and the keys are under **API Keys**.)
+2. Click **API**. On newer dashboards, the URL is under **Data API** and keys are under **API Keys**.
 3. Copy the **Project URL**. It looks like `https://abcdefghijklmnop.supabase.co`.
-4. Copy the **service_role** key. Click **Reveal** first. On newer dashboards it is on the **Legacy API keys** tab. A new secret key that starts with `sb_secret_` also works.
+4. Copy the **service_role** key. Click **Reveal** first. On newer dashboards it is on the **Legacy API keys** tab. A new secret key starting with `sb_secret_` also works.
 
-**Warning: the service_role key is a secret.** It can read and delete every signup. Never share it, never paste it in a chat, an email or a document, and never commit it to the repo. It goes in exactly one place: Vercel, in the next step.
+The service role key is a secret. It can read and change the data. Save it in your password manager. Never paste it into chat, an email, a document or the repo. It goes in Vercel in step 5.
 
-## 4. Add the two values to Vercel
+## 4. Set up a free Resend account and sending domain
 
-1. Go to https://vercel.com and open the project **time-machine-site**.
+1. Go to https://resend.com and create a free account, or sign in to the account you want to use.
+2. Click **Domains**, then **Add domain**, and enter `unvibe.site`. If it is already listed, open it.
+3. Leave the domain page open. It shows the DNS records needed to verify sending.
+4. In another tab, open the DNS settings where you manage `unvibe.site`.
+5. Add each record Resend shows. Copy the exact **Type**, **Name** and **Value** from Resend. Use its shown settings for any other fields. Do not invent record values or remove unrelated records.
+6. Go back to Resend and click **Verify**. Wait until it shows the sending domain is verified.
+7. Open **API Keys** and click **Create API Key**. Create a key with permission to send from this domain.
+8. Save the key in your password manager. Do not put it in chat or the repo.
+
+No domain or provider configuration is assumed to be complete. The sender will default to `Time Machine <timemachine@unvibe.site>`, which requires `unvibe.site` to be verified in your Resend account.
+
+## 5. Add the settings to Vercel, then ask for a redeploy
+
+1. Go to https://vercel.com and open **time-machine-site**.
 2. Click **Settings**, then **Environment Variables**.
-3. Add the first variable:
-   - Key: `SUPABASE_URL`
-   - Value: the Project URL from step 3
-   - Environments: tick **Production** and **Preview**
-4. Click **Save**.
-5. Add the second variable:
-   - Key: `SUPABASE_SERVICE_ROLE_KEY`
-   - Value: the service_role key from step 3
-   - Environments: tick **Production** and **Preview**
-   - If Vercel offers a **Sensitive** switch, turn it on.
-6. Click **Save**.
-7. Tell BOSS or your coding agent: "The Supabase variables are in Vercel. Please redeploy time-machine-site." The site only picks up new variables after a redeploy.
+3. Add each required variable below. Copy its name exactly and paste its value. Select **Production** and **Preview**, then click **Save** for each one.
+4. For secret keys, turn on **Sensitive** if Vercel offers it.
+5. The last two settings are optional. Leave them unset to use the defaults shown, or save your own sender and public site address.
 
-## 5. Check it works
+| Name | Status | Value |
+|---|---|---|
+| `SUPABASE_URL` | Required | Project URL from step 3, starting with `https://` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Required, secret | Supabase service role key from step 3 |
+| `RESEND_API_KEY` | Required, secret | Resend API key from step 4 |
+| `WAITLIST_FROM` | Optional, default | `Time Machine <timemachine@unvibe.site>` |
+| `SITE_URL` | Optional, default | `https://time-machine-site.vercel.app` |
 
-1. Open https://time-machine-site.vercel.app/api/health in your browser.
-2. It should show `{"ok":true,"waitlist":true}`. It never shows the key.
-3. If it shows `"waitlist":false`, a variable is missing, misspelled, or the URL does not start with `https://`. Fix it in Vercel and redeploy again.
-4. Sign up on the live site with your own email. You should get your place in the list and your referral link.
-5. In Supabase, open **Table Editor**, then `waitlist`. Your row should be there.
+Any custom sender must use a domain verified in your Resend account. `SITE_URL` is the public address used for email links.
 
-If the form says it could not save, the tables are missing or the key is wrong. Run step 2 again, check the key, and redeploy. The Vercel function log shows only a status code from Supabase, never an email or the key.
+Tell BOSS or the coding agent: "Supabase, Resend and DNS are configured. Please redeploy time-machine-site." New variables only take effect after a redeploy.
 
-## 6. Read your numbers
+## 6. Understand readiness
 
-Open **SQL Editor**, click **New query**, paste one of these, and click **Run**.
+After redeployment, open https://time-machine-site.vercel.app/api/health. It should show `{"ok":true,"waitlist":true,"email":true}`. This checks configuration presence and the Supabase URL shape only. It does not contact Supabase or Resend, check tables, verify the domain or prove delivery.
 
-**Newest signups:**
+- `waitlist:false`: a Supabase variable is missing or the URL does not start with `https://`. Fix it in Vercel and ask for another redeploy.
+- `email:false`: check `RESEND_API_KEY`. Without it, signup returns `503`.
+- Resend send failure: signup returns `502`. The pending row stays saved. The 10-minute resend cooldown still applies.
+- Welcome send failure: the row stays confirmed and the confirmation token stays consumed. There is no automatic welcome retry.
+
+A successful signup returns `200 {"ok":true,"pending":true}`. Only after confirmation does `/api/waitlist?code=CODE` return `ok`, `position`, `referrals` and `total`. Pending and unsubscribed codes return `404`. A valid confirmation link opens `/confirmed.html?code=CODE`; invalid, used or expired links open `/confirmed.html?error=invalid`.
+
+Use synthetic data for local checks. Do not run a real signup or send a test email without separate founder approval. Seeing a pending row in **Table Editor → waitlist** proves storage only, not delivery.
+
+## 7. Read your numbers
+
+For the current subscriber list, open **Table Editor → waitlist**. Filter `confirmed_at` to not null and `unsubscribed_at` to null. Only these rows count in public positions and totals. Referral credit also requires the friend to be confirmed and subscribed.
+
+The SQL reports below include raw signup history. They are not all active-subscriber reports. Open **SQL Editor**, click **New query**, paste one report and click **Run**.
+
+**Newest stored signups, including pending and unsubscribed rows:**
 
 ```sql
 select email, source, referred_by is not null as came_from_a_friend, created_at
@@ -278,7 +300,7 @@ order by created_at desc
 limit 50;
 ```
 
-**How many people are on the list:**
+**All stored signups, not the confirmed subscriber total:**
 
 ```sql
 select count(*) as signups from public.waitlist;
@@ -290,9 +312,9 @@ select count(*) as signups from public.waitlist;
 select * from public.funnel_daily limit 30;
 ```
 
-The columns are: `visits`, `visits_via_ref` (visits that came from a referral link), `signups`, `signups_via_ref` (signups that used someone's referral code), `shares` and `copies` (people who shared or copied their link).
+The funnel columns include `visits`, `visits_via_ref`, `signups`, `signups_via_ref`, `shares` and `copies`. Migration `0003` adds `confirms` and `unsubscribes`. Signup columns are raw signup history, not current subscribers. Confirmation and unsubscribe columns record those actions by day.
 
-**Who brought the most friends:**
+**Raw referred signups by person, including pending and unsubscribed rows. This is not public referral credit:**
 
 ```sql
 select w.email, count(r.id) as friends_joined
@@ -303,7 +325,7 @@ order by friends_joined desc
 limit 20;
 ```
 
-**Delete one person** (when someone asks to be removed). Replace the example address:
+**Delete one person**, only when they ask for deletion. For stopping mail, they can use the unsubscribe link in their email at any time. Replace the synthetic example address only in the SQL editor, never in a committed file:
 
 ```sql
 delete from public.waitlist where email_normalized = lower(trim('person@example.com'));
