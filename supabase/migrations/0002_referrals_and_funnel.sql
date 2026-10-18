@@ -113,7 +113,9 @@ comment on table public.funnel_events is
   'Anonymous page visits, shares and link copies. Written only by the site API with the service role key.';
 
 -- Signups and funnel counts per day (UTC).
-create or replace view public.funnel_daily
+-- Rebuild so rerunning the combined setup also works after 0003 adds view columns.
+drop view if exists public.funnel_daily;
+create view public.funnel_daily
 with (security_invoker = true)
 as
 with e as (

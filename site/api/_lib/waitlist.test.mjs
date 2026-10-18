@@ -4,7 +4,7 @@ import { handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES } from ".
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
 const NORMALIZED = "synthetic.person+tm@example.test";
-const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key-123" };
+const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key-123", RESEND_API_KEY: "fake-resend-secret" };
 const HOST = "timemachine.example.test";
 
 function request(body, overrides = {}) {
@@ -23,10 +23,10 @@ const CODE = "abc123xyz0";
 const REF = "frnd000ref";
 const json = (value, status = 200) =>
   new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const joined = () => json([{ code: CODE, position: 7, total: 42 }]);
+const joined = () => json([{ send_confirmation: true }]);
 
 function setup({ env = ENV, response = joined } = {}) {
-  const fetch = vi.fn(async () => response());
+  const fetch = vi.fn(async (url) => url === "https://api.resend.com/emails" ? json({ id: "synthetic-message" }) : response());
   const log = vi.fn();
   return { fetch, log, deps: { env, fetch, log } };
 }
@@ -34,25 +34,27 @@ function setup({ env = ENV, response = joined } = {}) {
 const good = { email: EMAIL, consent: true, source: "/blog/first-post", company: "" };
 
 describe("waitlist handler", () => {
-  it("stores a new signup through the join function and returns its code and position", async () => {
+  it("prepares a signup and sends confirmation without exposing its code", async () => {
     const { fetch, deps } = setup();
     const res = await handleWaitlist(request(good), deps);
-    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, code: CODE, position: 7, total: 42 } });
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, pending: true } });
+    expect(fetch).toHaveBeenCalledTimes(2);
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_join");
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
-    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null });
+    expect(JSON.parse(init.body)).toMatchObject({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null });
+    expect(JSON.parse(init.body).p_confirm_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.parse(init.body).p_unsub_hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("answers ok without a code when the email is already on the list", async () => {
-    const { deps } = setup({ response: () => json([]) });
+  it("answers the same pending response for confirmed, unsubscribed or throttled rows without sending", async () => {
+    const { deps, fetch } = setup({ response: () => json([]) });
     const res = await handleWaitlist(request(good), deps);
-    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true } });
+    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, pending: true } });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
-
   it("passes a well formed ref code to Supabase", async () => {
     const { fetch, deps } = setup();
     const res = await handleWaitlist(request({ ...good, ref: REF }), deps);
@@ -65,7 +67,7 @@ describe("waitlist handler", () => {
     for (const ref of bad) {
       const { fetch, deps } = setup();
       const res = await handleWaitlist(request({ ...good, ref }), deps);
-      expect(res.body).toEqual({ ok: true, code: CODE, position: 7, total: 42 });
+      expect(res.body).toEqual({ ok: true, pending: true });
       expect(JSON.parse(fetch.mock.calls[0][1].body).p_ref).toBeNull();
     }
   });
@@ -113,7 +115,7 @@ describe("waitlist handler", () => {
     const { fetch, deps } = setup();
     const res = await handleWaitlist(request({ ...good, company: "Acme Bots" }), deps);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, pending: true });
     expect(fetch).not.toHaveBeenCalled();
   });
 

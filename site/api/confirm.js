@@ -1,0 +1,10 @@
+import { handleConfirm } from "./_lib/opt-in.js";
+import { tokenRoute } from "./_lib/token-route.js";
+const handle = tokenRoute(handleConfirm);
+export const GET = handle;
+export const HEAD = handle;
+export const POST = handle;
+export const PUT = handle;
+export const PATCH = handle;
+export const DELETE = handle;
+export const OPTIONS = handle;
