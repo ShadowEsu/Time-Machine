@@ -1,16 +1,20 @@
 # Supabase setup for the waitlist
 
-The site has one form that saves emails: the waitlist. It posts to `/api/waitlist`, a small Vercel function in `site/api/`. That function writes to one Supabase table. Nothing else in the site uses Supabase.
+The site has one form that saves emails: the waitlist. It posts to `/api/waitlist`, a small Vercel function in `site/api/`. `GET /api/waitlist?code=` looks up a person's place in the list. `POST /api/event` counts page visits, shares and link copies. These functions are the only things in the site that use Supabase.
+
+For a click-by-click guide with the full SQL in one block, see `docs/launch/SUPABASE_SETUP.md`.
 
 Until the two settings below are in Vercel, the form says the waitlist isn't open yet and asks people to email the founder. It never pretends to save.
 
 ## What gets stored
 
-One row per person: the email, the consent tick (always true), the page they signed up from, and the time. No IP address. No browser details. Repeat signups with the same email are ignored, so each person is stored once.
+One row per person: the email, the consent tick (always true), the page they signed up from, the time, their own referral code, and the referral code that brought them (if any). No IP address. No browser details. Repeat signups with the same email are ignored, so each person is stored once.
 
-Nobody can read or write the table with the public key. Row level security is on with no policies, and the `anon` and `authenticated` roles have no access. Only the service role key can insert. That key lives in Vercel and never reaches the browser.
+The `funnel_events` table holds one row per visit, share or link copy: the event type, the page path, whether the visit came through a referral link, and the time. No email, no code, no IP address, no browser details. The `funnel_daily` view adds these up per day, next to signups.
 
-## 1. Create the table
+Nobody can read or write the tables, the view or the functions with the public key. Row level security is on with no policies, and the `anon` and `authenticated` roles have no access. Only the service role key can use them. That key lives in Vercel and never reaches the browser.
+
+## 1. Create the tables
 
 Pick one way.
 
@@ -18,8 +22,8 @@ Pick one way.
 
 1. Open your Supabase project, or create one called `time-machine`.
 2. Go to SQL Editor and start a new query.
-3. Paste all of `supabase/migrations/0001_waitlist.sql` and press Run.
-4. Go to Table Editor. You should see a `waitlist` table with no rows.
+3. Paste all of `supabase/migrations/0001_waitlist.sql`, then all of `supabase/migrations/0002_referrals_and_funnel.sql`, and press Run.
+4. Go to Table Editor. You should see `waitlist` and `funnel_events` tables with no rows.
 
 **Supabase CLI**
 
@@ -27,7 +31,7 @@ Pick one way.
 2. From the repo root, run `supabase link --project-ref <your-project-ref>`.
 3. Run `supabase db push`. It applies everything in `supabase/migrations/`.
 
-The file is safe to run twice.
+The files are safe to run twice.
 
 ## 2. Add two settings to Vercel
 
