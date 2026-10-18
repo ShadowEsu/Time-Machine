@@ -186,6 +186,12 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - **README** now leads with the site's promise, a 30 second demo block, install (npm once published, source today), four-command use with the timing, safety limits, CI and MIT badges.
 - **Mac app first run** (agent AppFirstRun, commits 5359ad1, fd70c10): Try the demo is the primary button and reaches a recovery branch in 2 clicks (was 3, and used to leave two branches); picking a folder starts setup; step 3 is one click to connect Claude Code and finish, or skip; buttons stay in view at 960x640; welcome shows "Not signed or notarized by Apple yet"; `apps/desktop/README.md` "Running an unsigned build". Welcome headline now matches the site: "Get back the version that passed your tests." Native Electron smoke passed (screens in `/tmp/tm-pw/app-firstrun/native-after/`).
 
+### One page home, no site email, signed app (18 Oct)
+- **Home** rebuilt after Preston's reference (tenacitylabs.co): one dark page, a warm curtain glow, centered serif promise, three real verdict chips, the form, three cards (Save, Check, Bring back), then a dense footer with status, what works with it, what does not come back, five FAQs, navigation and the giant wordmark. 1815 px tall at 1440. Other pages stay, linked from the footer.
+- **Waitlist** (agent WaitlistBackend, commits 3752993, a77056c, 58aab82): pending signups, no site email, confirmed-only ranks; `/api/health` email is always false. An earlier Resend double opt-in draft was built then removed on Preston's "no emails" call. SQL block ran twice on Postgres 17; pending rows get no place, a hand-confirmed row does, refs credit only active rows, anon and authenticated are refused.
+- **Mac app** (agent AppFirstRun, 1438b21): `pnpm --filter @timetm/desktop package:local` builds `apps/desktop/release/Time Machine.app` signed with the stable self-signed identity "Time Machine Self Signed" (backups in `~/.timemachine-signing/`, 0600). Same designated requirement across two builds; Gatekeeper rejects it, as expected without Apple Developer ID.
+- **Blocked:** npm publish (account needs two-factor; logged in as prestonsusanto, E403); Supabase (Composio link tm-waitlist still INITIALIZING).
+
 ---
 
 ## 6. Open work, in order (small items included)

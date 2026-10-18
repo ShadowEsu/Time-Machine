@@ -46,3 +46,10 @@ The Privacy draft (`docs/legal/PRIVACY.md`) keeps waitlist emails until the pers
 ## Migration path
 
 Export the table to CSV from Table Editor, or run `select email, source, created_at from public.waitlist order by created_at;`. Any Postgres or email tool can take that file. The function makes one REST insert, so moving to another store means changing one URL and one header.
+
+## Addendum, 18 October 2026
+
+- Signups are saved as **pending and unconfirmed** (`waitlist_join_pending`). The answer is the same for new and existing emails. Unsubscribed rows are never reactivated by a new signup.
+- **The site sends no email.** Founder decision: his existing email agents handle outreach. A confirmation or welcome flow needs his explicit approval of that exact flow first.
+- Places in line, totals and referral credit count only rows with `confirmed_at` set and `unsubscribed_at` empty. Nothing on the site confirms a row today, so nobody sees a place yet.
+- Also stored: a referral code per row, the code that brought the person (if any), and anonymous daily visit counts in `funnel_events`. Migrations 0002 and 0003; combined SQL in `docs/launch/SUPABASE_SETUP.md`.
