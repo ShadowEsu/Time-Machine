@@ -4,7 +4,7 @@ import { handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES } from ".
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
 const NORMALIZED = "synthetic.person+tm@example.test";
-const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key-123" };
+const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_KEY: "fake-service-role-key-123" };
 const HOST = "timemachine.example.test";
 
 function request(body, overrides = {}) {
@@ -42,8 +42,8 @@ describe("waitlist handler", () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_join_pending");
     expect(init.method).toBe("POST");
-    expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
-    expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
+    expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
+    expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_KEY}`);
     expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null });
   });
 
@@ -159,7 +159,7 @@ describe("waitlist handler", () => {
   });
 
   it("returns not_configured when either variable is missing", async () => {
-    const envs = [{}, { SUPABASE_URL: ENV.SUPABASE_URL }, { SUPABASE_SERVICE_ROLE_KEY: "k" }, { ...ENV, SUPABASE_URL: "not a url" }];
+    const envs = [{}, { SUPABASE_URL: ENV.SUPABASE_URL }, { SUPABASE_KEY: "k" }, { ...ENV, SUPABASE_URL: "not a url" }];
     for (const env of envs) {
       const { fetch, deps } = setup({ env });
       const res = await handleWaitlist(request(good), deps);
@@ -188,24 +188,24 @@ describe("waitlist handler", () => {
   });
 
   it("never puts the email or the key in a log line or a response", async () => {
-    const leaky = `{"message":"duplicate key","details":"Key (email_normalized)=(${NORMALIZED}) already exists, key ${ENV.SUPABASE_SERVICE_ROLE_KEY}"}`;
+    const leaky = `{"message":"duplicate key","details":"Key (email_normalized)=(${NORMALIZED}) already exists, key ${ENV.SUPABASE_KEY}"}`;
     const cases = [
       setup({ response: () => new Response(leaky, { status: 500 }) }),
       setup({
         response: () => {
-          throw new Error(`connect failed for ${NORMALIZED} with ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
+          throw new Error(`connect failed for ${NORMALIZED} with ${ENV.SUPABASE_KEY}`);
         },
       }),
       setup({ env: {} }),
       setup(),
-      setup({ response: () => json([{ email: NORMALIZED, key: ENV.SUPABASE_SERVICE_ROLE_KEY }]) }),
+      setup({ response: () => json([{ email: NORMALIZED, key: ENV.SUPABASE_KEY }]) }),
     ];
     for (const { deps, log } of cases) {
       const res = await handleWaitlist(request({ ...good, ref: REF }), deps);
       const outputs = [JSON.stringify(res), ...log.mock.calls.map((args) => args.join(" "))];
       for (const out of outputs) {
         expect(out.toLowerCase()).not.toContain(NORMALIZED);
-        expect(out).not.toContain(ENV.SUPABASE_SERVICE_ROLE_KEY);
+        expect(out).not.toContain(ENV.SUPABASE_KEY);
       }
     }
     // The failure cases did log something, so the check above was not vacuous.
@@ -247,7 +247,7 @@ describe("waitlist status lookup", () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_status");
     expect(init.method).toBe("POST");
-    expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
+    expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
     expect(JSON.parse(init.body)).toEqual({ p_code: CODE });
   });
 
@@ -281,10 +281,10 @@ describe("waitlist status lookup", () => {
 
   it("returns 502 upstream when Supabase fails or answers oddly, and logs no key", async () => {
     const responses = [
-      () => new Response(`{"message":"${ENV.SUPABASE_SERVICE_ROLE_KEY}"}`, { status: 500 }),
+      () => new Response(`{"message":"${ENV.SUPABASE_KEY}"}`, { status: 500 }),
       () => json([{ position: 1 }]),
       () => {
-        throw new Error(`down ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
+        throw new Error(`down ${ENV.SUPABASE_KEY}`);
       },
     ];
     for (const response of responses) {
@@ -292,7 +292,7 @@ describe("waitlist status lookup", () => {
       const res = await handleWaitlist(statusRequest(CODE), deps);
       expect(res).toEqual({ status: 502, headers: {}, body: { ok: false, error: "upstream" } });
       expect(log).toHaveBeenCalled();
-      for (const args of log.mock.calls) expect(args.join(" ")).not.toContain(ENV.SUPABASE_SERVICE_ROLE_KEY);
+      for (const args of log.mock.calls) expect(args.join(" ")).not.toContain(ENV.SUPABASE_KEY);
     }
   });
 });

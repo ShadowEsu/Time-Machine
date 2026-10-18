@@ -1,5 +1,5 @@
 // POST /api/event. Vercel Node.js function using the Web Request and Response signature.
-// Counts page visits, shares and link copies. Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel.
+// Counts page visits, shares and link copies. Needs SUPABASE_URL and SUPABASE_KEY in Vercel.
 import { handleEvent } from "./_lib/event.js";
 
 async function handle(request) {
