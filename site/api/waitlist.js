@@ -1,4 +1,5 @@
-// POST /api/waitlist. Vercel Node.js function using the Web Request and Response signature.
+// POST /api/waitlist joins the list. GET /api/waitlist?code=<CODE> looks up a place in the list.
+// Vercel Node.js function using the Web Request and Response signature.
 // Needs two environment variables in Vercel: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 import { handleWaitlist } from "./_lib/waitlist.js";
 
@@ -8,6 +9,7 @@ async function handle(request) {
       method: request.method,
       origin: request.headers.get("origin"),
       host: request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host,
+      code: new URL(request.url).searchParams.get("code"),
       contentLength: request.headers.get("content-length"),
       readBody: () => request.text(),
     },

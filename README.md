@@ -75,10 +75,10 @@ npx timetm init
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 228 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 250 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Mac app | Notebook history, Rewind dial with undo, Compare, agent channels, overlays, opt-in Ask and read-only Vercel deploy links. Native macOS smoke exercised real-engine recovery and the non-focusing corner card | Built from source; not signed or shipped |
-| Website | Static site in `site/` with a waitlist | In development, private |
+| Website | Static site in `site/` with a waitlist, personal referral links and anonymous funnel counts. Public at https://time-machine-site.vercel.app | Live; waitlist saves once Supabase is set up |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
 | Pro pricing | "The Ladder": $9 a month, $8 from month 7, $7 from month 13, $6 floor. The CLI is free. Restores are never paywalled | Planned, see ADR 0002 |
 
@@ -139,13 +139,9 @@ Then open http://localhost:8080. The waitlist form needs the Vercel function, so
 
 ## Waitlist setup (for the founder)
 
-The form posts to `/api/waitlist`, which writes to one Supabase table. Until both settings exist, the form says the waitlist is not open yet and asks people to email the founder. It never fakes a signup.
+The form posts to `/api/waitlist`, which writes to Supabase. Until the settings exist, the form says the waitlist opens soon and asks people to email the founder. It never fakes a signup.
 
-1. **Create a Supabase project** for Time Machine.
-2. **Create the table.** In its SQL editor, run all of `supabase/migrations/0001_waitlist.sql`.
-3. **Add two settings in Vercel** for the project `time-machine-site`: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Then redeploy.
-
-Check it at `/api/health`, which should say `"waitlist":true`. Only the email, the consent tick, the signup page and the date are stored. No IP address. Full steps, export and delete: `supabase/README.md`. The decision: `docs/adr/0006-waitlist-backend.md`.
+Step by step, with the SQL to paste and the queries to read signups and the funnel: `docs/launch/SUPABASE_SETUP.md`. Check it at `/api/health`, which should say `"waitlist":true`. What is stored: `site/privacy.html` and `supabase/README.md`. The decision: `docs/adr/0006-waitlist-backend.md`.
 
 ## Run the tests
 
