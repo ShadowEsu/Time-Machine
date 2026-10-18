@@ -190,10 +190,11 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 4. Keep test counts and status in `README.md`, `docs/PLAN.md`, `site/index.html`, `site/story.html`, `site/company.html` in sync.
 
 ### Blocked on the founder
-7. **npm publish of `timetm` 0.1.0.** Package is ready (`npm pack --dry-run`: 3 files, 151 kB; installs from tarball; `tm --help` works). License is MIT (ADR 0010). Needs: founder npm account with 2FA and `npm login`, then remove `"private": true` from `packages/cli/package.json` and publish. Until published, the app uses its bundled CLI and the pinned npx fallback.
+7. **npm publish of `timetm` 0.1.0.** One command away: `"private"` removed, MIT `LICENSE` in the package, repository/homepage/bugs/author set, README rewritten for npm. `npm pack`: 4 files, 151.9 kB; installed from the tarball in a clean temp dir with a fresh HOME, `tm --version` 0.1.0, `--help`, `npx timetm demo` all worked (17 Oct). Founder steps: `docs/launch/NPM_PUBLISH.md`. After publish, update every "not on npm yet" (site status line + FAQ, README, GUIDE, PLAN) and redeploy.
 8. **D08 signing and notarization** of the Mac app: needs an Apple Developer account and an adult signer (founder is a student; see `docs/legal/README.md`).
 9. **Waitlist backend:** the founder creates the Supabase project by following `docs/launch/SUPABASE_SETUP.md`, then a redeploy. Until then the form says the waitlist opens soon.
 10. **Vercel login protection:** off since 17 Oct (founder decision). The site is public on vercel.app.
+10b. **Waitlist emails (double opt-in + unsubscribe):** not built, nothing is emailed. Options for the founder in `docs/launch/EMAIL_OPT_IN.md` (Resend on unvibe.site, Resend on a new domain, or wait).
 11. **Domain** purchase, **lawyer review** of Terms and Privacy, **who signs for money**.
 12. **Record the 60 second demo video** (`docs/DEMO_SCRIPT.md`).
 13. **Fill `[FOUNDER]` placeholders** and submit: a16z speedrun by 1 Nov 11:59pm PT, YC W27 by 2 Nov 8pm PT. Notes from the drafts: a16z FAQ suggests students check the alpha fellowship and email sr-team@a16z.com about age; speedrun residency is in person in SF from Feb 2027.

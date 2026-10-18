@@ -1,10 +1,21 @@
 # Time Machine
 
-Save points for your projects, with proof of which ones still work.
+Save points for your projects before AI agents act, checked with your own tests.
 
 When an AI agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check, rebuilds it in a separate copy, and prepares a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
-**Status: early. Not on npm yet.** The engine, the CLI, Claude Code hooks and the MCP server below work and are tested. The Mac app is planned.
+**Status: early.** The engine, the CLI, Claude Code hooks and the MCP server below work and are tested. The Mac app is in development. Website: https://time-machine-site.vercel.app
+
+## Install
+
+Needs Node 22 or newer and Git.
+
+```sh
+npx timetm demo        # builds a small broken project and rescues it, in about a minute
+npm install -g timetm  # then use the `tm` command
+```
+
+Until the first npm release, build from source (below).
 
 ## What works today
 
@@ -45,7 +56,7 @@ Checks run in **host mode**: a separate Git worktree on your machine with a clea
 
 Usage errors exit 64.
 
-## Try it from source
+## Build from source
 
 Needs Node 22 or newer, pnpm and Git.
 
@@ -58,10 +69,8 @@ node packages/cli/dist/tm.js demo
 
 Save points live outside your project in `~/.timemachine` (or `$TM_HOME`), so deleting the project folder does not delete them.
 
-## Docs
+## Docs and source
 
-- `docs/GUIDE.md`: the user guide
-- `docs/BUILD_BRIEF.md`: scope and requirements
-- `docs/PLAN.md`: milestones and dates
-- `docs/adr/`: decisions
-- `design/`: app and website design
+Source, user guide and decisions: https://github.com/ShadowEsu/Time-Machine (`docs/GUIDE.md`, `docs/adr/`).
+
+MIT license.

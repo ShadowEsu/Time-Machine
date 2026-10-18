@@ -31,7 +31,7 @@ function hookCommand(env: NodeJS.ProcessEnv): string {
   return r.status === 0 && r.stdout.trim() === VERSION ? "tm" : tm.npxHookCommand(VERSION);
 }
 
-const HELP = `tm: save points for your project, with proof of which ones still work.
+const HELP = `tm: save points for your project, checked with your own tests.
 
 Usage: tm <command> [options]
 

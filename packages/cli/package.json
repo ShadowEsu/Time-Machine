@@ -1,9 +1,18 @@
 {
   "name": "timetm",
   "version": "0.1.0",
-  "private": true,
   "license": "MIT",
   "description": "Save points for your projects before AI agents act, checked with your own tests.",
+  "author": "Preston Susanto <preston@unvibe.site>",
+  "homepage": "https://time-machine-site.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShadowEsu/Time-Machine.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/ShadowEsu/Time-Machine/issues"
+  },
   "keywords": [
     "checkpoint",
     "recovery",
@@ -19,7 +28,8 @@
   },
   "files": [
     "dist/tm.js",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=22"
