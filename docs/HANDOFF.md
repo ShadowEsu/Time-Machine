@@ -83,7 +83,7 @@ Read this file first, then `CLAUDE.md`, then `docs/BUILD_BRIEF.md`. This file is
 ## 4. Repo map
 
 - **Repo:** https://github.com/ShadowEsu/Time-Machine (public). Local clone: `~/projects/Time-Machine`.
-- **Branch:** `claude/awesome-mendel-5sk1w0`. Never merged to `main`.
+- **Branches:** `main` (merged from `claude/awesome-mendel-5sk1w0` by PR #1 on 17 Oct, history kept). Keep working on a branch and merge by PR after CI is green.
 - **Package manager:** pnpm 10.28.0 via corepack. Node 22+ (the Mac has Node 25).
 
 | Path | What |
@@ -170,12 +170,14 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - CI green on macOS and Linux, Node 22 and 24: run 39070976942 on commit 1a1d322.
 - Private Vercel preview redeployed from `git archive HEAD`: https://time-machine-site-5ku15uzil-shadowesus-projects.vercel.app (anonymous 302; deployed `index.html` contains opening.js, sound.js, "Play break + rewind", "passes your tests", "228"). Older preview: https://time-machine-site-8ka8ecc0l-shadowesus-projects.vercel.app.
 
-### Waitlist share step (17 Oct evening, private only)
-- After a real signup (server said ok), the form shows one line and one button: "Know someone who lets an AI agent change their code? Send them the link." Uses the Web Share API, else copies `/?via=share`, else shows the link in a read-only field. No rewards, no queue position, no counters (EXPERIENCE §8).
-- A visit that starts at `?via=share` is kept in `sessionStorage` (`tm-via`), so a signup on any page stores `source` like `/how-it-works.html?via=share`. Server unchanged (`cleanSource` already accepts it). Privacy draft says so and says we do not record who shared.
-- Measure once the backend is live: share-driven signups = rows whose `source` ends in `?via=share`, divided by all rows.
-- Verified: `/tmp/tm-pw/share-smoke.mjs` (1440 and 390, mocked `/api/waitlist`): source carries `?via=share` across pages, plain source without it, Copy link and manual-field fallback work, one block after two signups, no page errors. Shots `/tmp/tm-pw/share-1440.png`, `share-390.png`. Site waitlist tests 14/14.
-- Needs Preston's OK on the copy before any public launch (human gate).
+### Public site, waitlist growth, MIT (17 Oct evening, founder decisions relayed by BOSS)
+- **Public:** Vercel SSO protection turned off on `time-machine-site` (API `PATCH ssoProtection: null`); anonymous GET https://time-machine-site.vercel.app/ returns 200. Production deploys are authorized after screenshot self-review and green CI.
+- **License MIT** (ADR 0010, `LICENSE`, every package.json). npm still unpublished.
+- **Home page rebuilt** (Preston: "the website is horrible"): one promise ("Your AI agent broke it. Get back the version that passed your tests."), real `tm demo` output right beside or under it, the waitlist form in the first screen, then Why (Claude Code docs quote), How (3 steps + what does not come back), Built in the open (CI, MIT, agents), 6 FAQs, end form. 4014 px tall at 1440 (was 8460), 4845 at 390 (was 11332). The first-visit opening, the 3D device, sound and the Ladder were removed from home (in git history; the story page keeps its own cinema). Absolute OG image `assets/img/og.png` on every page, canonical, `robots.txt`, `sitemap.xml`.
+- **Referral + funnel** (contract in `docs/launch/SUPABASE_SETUP.md` and `site/api/_lib/`): signup returns a personal code, place in line and total; `?ref=` is kept per visit and credited on signup; returning visitors see their real place (`GET /api/waitlist?code=`). Order rule shown on the site: most friends joined first, then earliest signup. `/api/event` counts visit, copy and share with no IP, cookie or identifier, and skips browsers with GPC or DNT. View `funnel_daily` reads the funnel. The no-checkbox hero form asks consent through the button and the line under it; forms with a checkbox still need the tick.
+- **Honest closed state:** `/api/health` says `waitlist:false`, so every form says up front "The waitlist opens soon. It is not saving emails yet." with the founder's email.
+- **Verified:** `pnpm typecheck`, `pnpm test` 248 passed + 2 Linux-only skipped. `/tmp/tm-pw/audit5.mjs`: 108 loads (9 pages x 1440/390/320 x light/dark x motion/reduced) with no page errors and no sideways scroll. `/tmp/tm-pw/ref-smoke.mjs` (mocked API at 1440/390/320): ref credited across pages, card shows "#3 of 41", reload shows fresh "#2 of 42 / 1 friend", Copy puts `/?ref=<code>` on the clipboard, events carry `via: ref`. Mobile LCP (390, 4x CPU, slow 4G, local server) 0.90 to 0.92 s, element `p.dek`. Shots: `/tmp/tm-pw/v4-*.png`, `ref-*.png`, `soon-390.png`. Backend SQL ran twice on a local Postgres 17 with Supabase-style roles (WaitlistBackend agent).
+- **Not done:** double opt-in and unsubscribe emails (need an email provider and a sending domain; today nothing is emailed); real Supabase; Safari/Firefox/physical phones.
 
 ---
 
@@ -188,10 +190,10 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 4. Keep test counts and status in `README.md`, `docs/PLAN.md`, `site/index.html`, `site/story.html`, `site/company.html` in sync.
 
 ### Blocked on the founder
-7. **npm publish of `timetm` 0.1.0.** Package is ready (`npm pack --dry-run`: 3 files, 151 kB; installs from tarball; `tm --help` works). The name was unclaimed as of 16 Oct. Needs: founder npm account with 2FA, `npm login`, a license choice recorded as an ADR and a LICENSE file. Until published, the app uses its bundled CLI and the pinned npx fallback.
+7. **npm publish of `timetm` 0.1.0.** Package is ready (`npm pack --dry-run`: 3 files, 151 kB; installs from tarball; `tm --help` works). License is MIT (ADR 0010). Needs: founder npm account with 2FA and `npm login`, then remove `"private": true` from `packages/cli/package.json` and publish. Until published, the app uses its bundled CLI and the pinned npx fallback.
 8. **D08 signing and notarization** of the Mac app: needs an Apple Developer account and an adult signer (founder is a student; see `docs/legal/README.md`).
-9. **Waitlist backend:** Supabase project plus two Vercel env settings (ADR 0006). Until then the form answers "not configured".
-10. **Turn off Vercel login protection** only when the founder approves the copy.
+9. **Waitlist backend:** the founder creates the Supabase project by following `docs/launch/SUPABASE_SETUP.md`, then a redeploy. Until then the form says the waitlist opens soon.
+10. **Vercel login protection:** off since 17 Oct (founder decision). The site is public on vercel.app.
 11. **Domain** purchase, **lawyer review** of Terms and Privacy, **who signs for money**.
 12. **Record the 60 second demo video** (`docs/DEMO_SCRIPT.md`).
 13. **Fill `[FOUNDER]` placeholders** and submit: a16z speedrun by 1 Nov 11:59pm PT, YC W27 by 2 Nov 8pm PT. Notes from the drafts: a16z FAQ suggests students check the alpha fellowship and email sr-team@a16z.com about age; speedrun residency is in person in SF from Feb 2027.
