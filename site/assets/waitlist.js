@@ -1,19 +1,17 @@
-/* Waitlist forms and the confirmation page share /api/waitlist.
-   Signup asks for email confirmation. Only confirmed entries get a referral card.
-   Funnel counts (visit, share, copy) go to /api/event with no IP, cookie or identifier. */
+/* Waitlist forms. Wires every form[data-waitlist] to /api/waitlist.
+   A signup is saved as pending and unconfirmed. The site sends no email. Never fakes success.
+   A friend's ?ref= code is kept for the visit and sent with the signup.
+   Visit counts go to /api/event with no IP, cookie or identifier. */
 (function () {
   "use strict";
 
   var FOUNDER = "preston@unvibe.site";
   var CODE_RE = /^[a-z0-9]{10}$/;
   var MSG = {
-    ok: "Check your inbox. Click the link to confirm your place.",
-    confirmed: "Your email is confirmed.",
-    invalid: "This confirmation link is invalid or no longer active.",
-    loading: "Loading your place...",
-    sending: "Adding you…",
+    ok: "Saved as pending and unconfirmed. No email has been sent.",
+    sending: "Saving…",
     email: "Please enter a valid email address.",
-    consent: "Please tick the box so we can email you.",
+    consent: "Please tick the box to join the waitlist.",
     invalidEmail: "That email doesn't look right. Check it and try again.",
     badRequest: "Something in the form went wrong. Reload the page and try again.",
     origin: "This form only works on the Time Machine site.",
@@ -32,7 +30,6 @@
     try {
       var s = kind === "local" ? localStorage : sessionStorage;
       if (value === undefined) return s.getItem(key);
-      if (value === null) return s.removeItem(key);
       s.setItem(key, value);
     } catch (e) { /* Storage is optional. */ }
     return null;
@@ -89,63 +86,7 @@
     return MSG.upstream;
   }
 
-  function el(tag, cls, text) {
-    var n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text) n.textContent = text;
-    return n;
-  }
-
-  // Only a confirmed entry fetched from the server gets a card.
-  function showCard(form, info) {
-    var old = form.parentNode.querySelector(".ref-card");
-    if (old) old.remove();
-    var link = location.origin + "/?ref=" + info.code;
-    var card = el("div", "ref-card");
-    if (typeof info.position === "number" && typeof info.total === "number") {
-      card.appendChild(el("p", "ref-pos", "You're #" + info.position + " of " + info.total + "."));
-    }
-    if (typeof info.referrals === "number") {
-      card.appendChild(el("p", "ref-sub", info.referrals === 1 ? "1 friend confirmed with your link." : info.referrals + " friends confirmed with your link."));
-    }
-    card.appendChild(el("p", "ref-rule", "Each friend who confirms with your link counts. Order: most confirmed friends first, then earlier signup."));
-    var row = el("div", "ref-row");
-    var field = el("input");
-    field.type = "text";
-    field.readOnly = true;
-    field.value = link;
-    field.setAttribute("aria-label", "Your personal link");
-    field.addEventListener("focus", function () { field.select(); });
-    var copy = el("button", "btn btn-warm btn-sm", "Copy link");
-    copy.type = "button";
-    copy.addEventListener("click", function () {
-      count("copy");
-      var done = function () { copy.textContent = "Copied"; };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, function () { field.focus(); });
-      else field.focus();
-    });
-    row.appendChild(field);
-    row.appendChild(copy);
-    if (typeof navigator.share === "function") {
-      var share = el("button", "btn btn-ghost btn-sm", "Share");
-      share.type = "button";
-      share.addEventListener("click", function () {
-        count("share");
-        navigator.share({
-          title: "Time Machine",
-          text: "Time Machine saves your project before an AI agent acts and brings back the newest version that passes your tests.",
-          url: link
-        }).catch(function () {});
-      });
-      row.appendChild(share);
-    }
-    card.appendChild(row);
-    form.parentNode.insertBefore(card, form.nextSibling);
-  }
-
-  var signupStarted = false;
-
-  function wire(form, first) {
+  function wire(form) {
     var email = form.querySelector('input[name="email"]');
     var consent = form.querySelector('input[name="consent"]');
     var honeypot = form.querySelector('input[name="company"]');
@@ -176,10 +117,6 @@
 
       if (isFile) return say(status, form, "info", MSG.soon);
 
-      signupStarted = true;
-      var cards = document.querySelectorAll(".ref-card");
-      for (var c = 0; c < cards.length; c++) cards[c].remove();
-
       busy = true;
       if (button) button.disabled = true;
       form.setAttribute("aria-busy", "true");
@@ -205,7 +142,6 @@
         })
         .then(function (r) {
           if (r.status === 200 && r.data.ok === true && r.data.pending === true) {
-            store("local", "tm-code", null);
             say(status, form, "ok", MSG.ok);
             form.reset();
           } else if (r.status === 503 && r.data.error === "not_configured") {
@@ -224,56 +160,17 @@
           form.removeAttribute("aria-busy");
         });
     });
-
-    if (first) lookup(form);
-  }
-
-  // Returning visitors and the confirmation page both fetch a fresh, confirmed place.
-  function lookup(target) {
-    var confirmed = target.hasAttribute("data-waitlist-confirmed");
-    var status = confirmed ? target.querySelector("[data-waitlist-status]") : null;
-    var code = confirmed ? params.get("code") : store("local", "tm-code");
-    if (!CODE_RE.test(code || "") || (confirmed && params.has("error"))) {
-      if (status) say(status, target, "error", MSG.invalid);
-      return;
-    }
-    if (isFile) {
-      if (status) say(status, target, "error", MSG.network);
-      return;
-    }
-    if (status) say(status, target, "pending", MSG.loading);
-    fetch(api("waitlist") + "?code=" + encodeURIComponent(code), { headers: { Accept: "application/json" }, credentials: "same-origin" })
-      .then(function (res) {
-        if (res.status === 404) return null;
-        if (!res.ok) throw new Error("lookup_failed");
-        return res.json();
-      })
-      .then(function (data) {
-        if (!confirmed && signupStarted) return;
-        if (data && data.ok === true) {
-          data.code = code;
-          store("local", "tm-code", code);
-          if (status) say(status, target, "ok", MSG.confirmed);
-          showCard(target, data);
-        } else {
-          if (store("local", "tm-code") === code) store("local", "tm-code", null);
-          if (status) say(status, target, "error", MSG.invalid);
-        }
-      }, function () {
-        if (status) say(status, target, "error", MSG.network);
-      });
   }
 
   // Say up front when the list is not saving yet, so nobody is surprised after typing.
   var forms = document.querySelectorAll("form[data-waitlist]");
-  for (var i = 0; i < forms.length; i++) wire(forms[i], i === 0);
-  var confirmation = document.querySelector("[data-waitlist-confirmed]");
-  if (confirmation) lookup(confirmation);
+  for (var i = 0; i < forms.length; i++) wire(forms[i]);
   if (!isFile && forms.length) {
     fetch(api("health"), { headers: { Accept: "application/json" }, credentials: "same-origin" })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (h) {
-        if (!h || (h.waitlist !== false && h.email !== false)) return;
+        // Only Supabase decides if signups are saved. The site sends no email, so h.email is not checked.
+        if (!h || h.waitlist !== false) return;
         for (var j = 0; j < forms.length; j++) {
           var s = forms[j].querySelector("[data-waitlist-status]");
           if (s && !s.getAttribute("data-state")) say(s, forms[j], "info", MSG.soon);
