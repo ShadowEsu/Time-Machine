@@ -73,13 +73,14 @@ tm init
 ```
 Created /home/you/my-app/timemachine.yml
   Check     npm test
+  Setup     npm ci --prefer-offline --no-audit --no-fund   (runs first in each fresh copy)
   Network   on during checks
 Next: tm checkpoint -m "first save point"
 ```
 
 `init` guesses the check: `npm test`, then `npm run build`, then `cargo test`, `go test ./...` or `pytest`. If it finds nothing, the check is empty. Open `timemachine.yml` and set `verify.command`.
 
-If your check needs dependencies, add a setup step such as `setup: "npm ci"`. Checks run in a fresh copy with no `node_modules`. Setup always has the network.
+Checks run in a fresh copy with no `node_modules`, so `init` also guesses the install step for Node projects with dependencies: `npm ci` with a `package-lock.json`, `pnpm install --frozen-lockfile` with a `pnpm-lock.yaml`, `yarn install --frozen-lockfile` with a `yarn.lock`, otherwise `npm install`. It is written as `verify.setup` and you can change it. Setup always has the network.
 
 **Step 2. Save.**
 
@@ -161,7 +162,7 @@ Every command takes `--json`. The JSON and the human output come from the same r
 
 | Command | What it does |
 |---|---|
-| `tm init` | Writes `timemachine.yml` with a guessed check. Keeps an existing file. |
+| `tm init` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. |
 | `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. |
 | `tm timeline` | Lists save points, newest first, with verdicts. |
 | `tm diff <a> <b>` | Compares code, files, config keys, dependencies and environment. |
