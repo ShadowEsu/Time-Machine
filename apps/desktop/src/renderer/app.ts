@@ -14,6 +14,7 @@ import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { hookStepActions } from "./first-run.js";
+import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -684,7 +685,7 @@ function checkSheet(): string {
   const done = c.phase === "done" || !!c.error;
   const lw = lastWorking();
   const goBack = done && c.result?.verdict === "FAIL" && lw ? lw : null;
-  return `<div class="scrim ${once("scrim:check")}"><div class="sheet" role="dialog" aria-modal="true" aria-label="Check it works">
+  return `<div class="scrim ${once("scrim:check")}" data-leave="check"><div class="sheet" role="dialog" aria-modal="true" aria-label="Check it works">
     <h2>Checking ${esc(p.name)}</h2>${list}${result}
     <p class="small muted">Your project folder is not touched. The check runs in a separate copy.</p>
     <div class="row-btns" style="justify-content:flex-end">
@@ -711,7 +712,7 @@ function rewind(): string {
     ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? clock(e.createdAt) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
     : "";
   const pane = c ? tvRead(r, c) : { read: `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div>`, key: tvKey("find", "Find the last working version", "enter", "↵"), alts: [] };
-  return `<div class="scrim ${once("scrim:rewind")}"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
+  return `<div class="scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
     <div class="sheet-head"><div><h2>Go back in ${esc(p.name)}</h2>${rewindSteps(r)}</div>
       <button class="btn ghost" data-act="tv-exit" ${r.recovering ? "disabled" : ""}>Close<kbd>Esc</kbd></button></div>
     ${triedRows}${pane.read}<div class="tv-acts">${pane.key}${pane.alts.join("")}</div>
@@ -1033,7 +1034,7 @@ function timeView(): string {
   sceneIds = pts.map((x) => x.id);
   const still = r.finding || r.trying || r.recovering || r.step === "done";
   const pane = tvRead(r, c);
-  return `<div class="tv ${once("tv")} step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}" tabindex="-1">
+  return `<div class="tv ${once("tv")} step-${r.step}" data-leave="tv" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}" tabindex="-1">
     <header class="tv-top">
       <div class="tv-name"><span>Go back</span><b>${esc(p.name)}</b></div>
       ${rewindSteps(r)}
@@ -1107,6 +1108,8 @@ function compare(): string {
 }
 
 const LOADING = '<span class="spin" role="status" aria-label="Loading"></span>';
+/** An empty project list: one sentence and the one thing to do about it. */
+const NO_PROJECTS = '<div class="tr"><span class="muted">No projects yet.</span><button class="btn" data-act="add">Add a project</button></div>';
 
 /** Agents: one channel per coding agent, then Claude Code's connection in each project. */
 function agentsScreen(): string {
@@ -1124,7 +1127,7 @@ function agentsScreen(): string {
         const working = a.working ? `<div class="small">Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</div>` : "";
         const btn = a.claudeCode === "not-connected" || a.claudeCode === "partial" ? `<button class="btn dark" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect"}</button>` : "<span></span>";
         return `<div class="tr"><div><div class="t1">${esc(a.name)}</div><div class="small muted">Claude Code: ${esc(words)}</div>${working}${st.settings.showGitDetails && a.settingsPath ? `<div class="mono muted">${esc(a.settingsPath)}</div>` : ""}</div>${btn}</div>`;
-      }).join("") || '<span class="muted">Add a project first.</span>'
+      }).join("") || NO_PROJECTS
     : LOADING;
   const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Idle", partial: "Partly connected", "not-connected": "Not connected", planned: "Planned" };
   const channel = (ch: Channel): string =>
@@ -1153,7 +1156,7 @@ function storageScreen(): string {
     return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
   };
   const rows = st.storage
-    ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on this Mac</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || '<span class="muted">No projects yet.</span>'
+    ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on this Mac</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || NO_PROJECTS
     : LOADING;
   return `<div class="page"><div class="col">
     <div><h1>Storage</h1><p class="lede">Save points are stored on this Mac, outside your project folders, so deleting a project does not delete its history. This is not a full Mac backup.</p></div>
@@ -1254,7 +1257,7 @@ function hookSheet(): string {
   const h = st.hookSheet;
   if (!h) return "";
   const p = st.projects.find((x) => x.id === h.projectId);
-  return `<div class="scrim ${once("scrim:hook")}"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Claude Code">
+  return `<div class="scrim ${once("scrim:hook")}" data-leave="hook"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Claude Code">
     <h2>Connect Claude Code to ${esc(p?.name ?? "this project")}?</h2>
     <p>We'll add these lines to Claude Code's settings for this project and keep everything already there:</p>
     ${hookLines(h.preview)}
@@ -1279,7 +1282,7 @@ function inspector(): string {
   const block = (title: string, command: string | null, json: unknown): string => `<div style="display:grid;gap:8px"><div class="kv"><span class="h">${esc(title)}</span></div>
     ${command ? `<pre class="code cmd">${esc(command)}</pre><div class="row-btns"><button class="btn" data-act="copy" data-text="${esc(command)}">Copy as command</button></div>` : '<p class="small muted">No tm command for this. It is app only.</p>'}
     <pre class="code">${esc(JSON.stringify(json, null, 2))}</pre></div>`;
-  return `<aside class="drawer ${once("drawer")}" role="complementary" aria-label="Inspector"><header><h2>Inspector</h2><span class="muted small">${esc(keys("Mod+I"))}</span><button class="btn ghost" data-act="inspector">Close</button></header>
+  return `<aside class="drawer ${once("drawer")}" data-leave="inspector" role="complementary" aria-label="Inspector"><header><h2>Inspector</h2><span class="muted small">${esc(keys("Mod+I"))}</span><button class="btn ghost" data-act="inspector">Close</button></header>
     <div class="body">
       <p class="small muted">The raw engine result and the same action as a tm command. The app and the CLI call the same engine.</p>
       ${rec ? block(`Last action: ${rec.title} · ${when(rec.at)}`, rec.command, rec.json) : '<p class="muted">No actions yet. Press Save now or Check it works.</p>'}
@@ -1316,7 +1319,7 @@ function savePointBlock(c: TimelineEntry, p: ProjectEntry): string {
 
 function busyScrim(): string {
   if (!st.demoBusy) return "";
-  return `<div class="scrim ${once("scrim:demo")}"><div class="sheet"><h2>Building the demo</h2>
+  return `<div class="scrim ${once("scrim:demo")}" data-leave="demo"><div class="sheet"><h2>Building the demo</h2>
     <div class="steplist"><div class="r"><span class="spin"></span><span>Making Marigold Tips, a small app with tests, then breaking it on purpose. The real engine checks its save points, newest first, to find the last one that works. Then you choose to go back to it.</span></div></div>
     <p class="small muted">This takes a few seconds. It happens in a new temporary folder.</p></div></div>`;
 }
@@ -1462,7 +1465,7 @@ function paletteList(): string {
 
 function paletteView(): string {
   if (!st.palette) return "";
-  return `<div class="scrim pal-scrim ${once("scrim:pal")}"><div class="pal" role="dialog" aria-modal="true" aria-label="Jump to">
+  return `<div class="scrim pal-scrim ${once("scrim:pal")}" data-leave="pal"><div class="pal" role="dialog" aria-modal="true" aria-label="Jump to">
     <input class="pal-q" data-model="pal" placeholder="Jump to a project, a save point or an action…" value="${esc(st.palette.q)}" aria-label="Jump to" autocomplete="off" spellcheck="false">
     <div class="pal-list" role="listbox">${paletteList()}</div>
     <div class="pal-foot muted"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>Esc</kbd> close</span></div>
@@ -1473,7 +1476,7 @@ function paletteView(): string {
 function keysSheetView(): string {
   if (!st.keysSheet) return "";
   const row = (k: string, what: string): string => `<div class="ks-r"><span class="ks-k">${k.split(" ").map((x) => `<kbd>${esc(keys(x))}</kbd>`).join("")}</span><span>${esc(what)}</span></div>`;
-  return `<div class="scrim ${once("scrim:keys")}"><div class="sheet ks" role="dialog" aria-modal="true" aria-label="Shortcuts">
+  return `<div class="scrim ${once("scrim:keys")}" data-leave="keys"><div class="sheet ks" role="dialog" aria-modal="true" aria-label="Shortcuts">
     <div class="sheet-head"><h2>Shortcuts</h2><button class="btn ghost" data-act="close-keys">Close<kbd>Esc</kbd></button></div>
     <div class="ks-cols">
       <div><div class="ks-h">Everywhere</div>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Go back to a working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last rewind")}${row("Mod+J", "Show or hide Ask")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
@@ -1580,6 +1583,62 @@ function cite(id: string): void {
   }, 1400);
 }
 
+/** The page on screen and when it appeared. The Rewind sits over History, so it is the same page. */
+let pageIn = { key: "", at: 0 };
+/** When each project's journal first showed its rows. Rows rise in only that first time. */
+const journalIn = new Map<string, number>();
+
+/** A new page fades in and rises; a project's journal rows rise in one after another, once. Redraws continue them. */
+function applyEntrances(scene: boolean): void {
+  const now = performance.now();
+  const key = `${st.screen === "rewind" ? "history" : st.screen}:${st.screen === "onboarding" ? st.onboarding.step : ""}:${PROJECT_SCREENS.includes(st.screen) ? (st.projectId ?? "") : ""}`;
+  if (key !== pageIn.key) pageIn = { key, at: now };
+  if (reducedMotion()) return;
+  const enter = (el: HTMLElement, cls: string, delay: number | null): void => {
+    if (delay === null) return;
+    el.classList.add(cls);
+    el.style.animationDelay = `${delay}ms`;
+  };
+  const page = root.querySelector<HTMLElement>(".main > .toolbar + *");
+  if (page) enter(page, "page-in", entranceDelay(0, now - pageIn.at, PAGE_IN_MS));
+  const rows = root.querySelectorAll<HTMLElement>("#list > *");
+  if (!st.projectId || scene || !rows.length) return;
+  const since = journalIn.get(st.projectId) ?? now;
+  journalIn.set(st.projectId, since);
+  rows.forEach((row, i) => enter(row, "row-in", rowDelay(i, now - since)));
+}
+
+/** A sheet, the Rewind, the Inspector or a toast that was on screen, and where it sat. */
+interface Leaving {
+  el: HTMLElement;
+  parent: ".main" | ".app";
+}
+
+/**
+ * What closed fades out. The old element stays for a moment over the new draw, inert and not
+ * clickable, so nothing waits for it. Web animations keep their time when a later redraw moves
+ * the element again, so a fade is never restarted or cut.
+ */
+function placeLeaving(old: Leaving[]): void {
+  for (const { el, parent } of old) {
+    const host = root.querySelector(parent);
+    if (!host) continue;
+    if (!el.classList.contains("leave")) {
+      if (reducedMotion() || root.querySelector(`[data-leave="${CSS.escape(el.dataset.leave ?? "")}"]:not(.leave)`)) continue;
+      el.classList.remove("enter");
+      el.classList.add("leave");
+      el.inert = true;
+      el.setAttribute("aria-hidden", "true");
+      const timing: KeyframeAnimationOptions = { duration: LEAVE_MS, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" };
+      const sheet = el.querySelector<HTMLElement>(":scope > .sheet, :scope > .pal");
+      sheet?.animate([{ transform: "none" }, { transform: "scale(.97)" }], timing);
+      const to = el.classList.contains("drawer") ? "translateX(24px)" : el.classList.contains("toast") ? "translateY(6px)" : "none";
+      el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: to }], timing).onfinish = () => el.remove();
+    }
+    host.append(el);
+  }
+}
+
 function render(): void {
   const pageKey = `${st.screen}:${st.screen === "onboarding" ? st.onboarding.step : ""}`;
   const pageScroll = pageKey === drawnPage ? (document.querySelector(".page")?.scrollTop ?? 0) : 0;
@@ -1592,6 +1651,7 @@ function render(): void {
     for (const el of [m.el, ...m.el.querySelectorAll<HTMLElement>("*")]) if (el.scrollTop) scrolled.push([el, el.scrollTop]);
   }
   captureCarry();
+  const leaving: Leaving[] = [...root.querySelectorAll<HTMLElement>("[data-leave]")].map((el) => ({ el, parent: el.parentElement?.classList.contains("main") ? ".main" : ".app" }));
   drawOnce = new Set();
   const scene = st.screen === "rewind" && st.rewind?.mode === "scene";
   const main =
@@ -1609,7 +1669,7 @@ function render(): void {
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    <div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
+    <div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" data-leave="toast" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
   seenOnce = drawOnce;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
@@ -1617,10 +1677,12 @@ function render(): void {
   fitSessions();
   applyCarry();
   applyFlash();
+  applyEntrances(scene);
   const tv = root.querySelector<HTMLElement>(".tv");
   const again = focus ? root.querySelector<HTMLElement>(focus) : null;
   if (again && !(again instanceof HTMLButtonElement && again.disabled)) again.focus({ preventScroll: true });
   else if (tv && !tv.contains(document.activeElement)) tv.focus({ preventScroll: true });
+  placeLeaving(leaving);
 }
 
 /** "These stay saved" sits on the session lane. A session it would cover ends before it, or hides when too little is left. */
