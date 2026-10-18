@@ -5,7 +5,10 @@ alter table public.waitlist
   add column if not exists unsubscribed_at timestamptz,
   add column if not exists confirm_token_hash text unique,
   add column if not exists unsub_token_hash text unique,
-  add column if not exists confirm_sent_at timestamptz;
+  add column if not exists confirm_sent_at timestamptz,
+  add column if not exists welcome_sent_at timestamptz,
+  add column if not exists welcome_position bigint,
+  add column if not exists welcome_total bigint;
 
 -- Only confirmed, subscribed entries and friends count toward the list.
 create or replace function public.waitlist_status(p_code text)
@@ -63,7 +66,8 @@ begin
 end;
 $$;
 
--- Consume the confirmation once. Raw tokens never enter the database.
+-- Confirm once, but retain the token until the welcome is accepted by Resend.
+-- Freeze the first rank for an identical, idempotent welcome payload on retries.
 create or replace function public.waitlist_confirm(p_hash text, p_unsub_hash text)
 returns table (email text, code text, "position" bigint, total bigint)
 language plpgsql volatile set search_path = ''
@@ -75,16 +79,29 @@ begin
   if p_unsub_hash is null or p_unsub_hash !~ '^[a-f0-9]{64}$' then
     raise exception 'Invalid token hash';
   end if;
-  update public.waitlist w set confirmed_at = now(), confirm_token_hash = null,
+  update public.waitlist w set confirmed_at = coalesce(w.confirmed_at, now()),
     unsub_token_hash = p_unsub_hash
     where w.confirm_token_hash = p_hash
       and w.confirm_sent_at >= now() - interval '7 days'
-      and w.confirmed_at is null and w.unsubscribed_at is null
+      and w.welcome_sent_at is null and w.unsubscribed_at is null
     returning w.email, w.ref_code into v_email, v_code;
   if v_code is null then return; end if;
-  return query select v_email, v_code, s."position", s.total
-    from public.waitlist_status(v_code) s;
+  update public.waitlist w set welcome_position = coalesce(w.welcome_position, s."position"),
+    welcome_total = coalesce(w.welcome_total, s.total)
+    from public.waitlist_status(v_code) s where w.ref_code = v_code;
+  return query select v_email, v_code, w.welcome_position, w.welcome_total
+    from public.waitlist w where w.ref_code = v_code;
 end;
+$$;
+
+-- Only called after provider acceptance, which is not proof of inbox delivery.
+create or replace function public.waitlist_confirm_complete(p_hash text)
+returns table (completed boolean)
+language sql volatile set search_path = ''
+as $$
+  update public.waitlist set confirm_token_hash = null, welcome_sent_at = now()
+    where confirm_token_hash = p_hash and confirmed_at is not null and unsubscribed_at is null
+    returning true;
 $$;
 
 create or replace function public.waitlist_unsubscribe(p_hash text)
@@ -133,10 +150,12 @@ grant select, insert, update on table public.waitlist to service_role;
 grant select on table public.funnel_daily to service_role;
 revoke all on function public.waitlist_join(text,text,text,text,text) from public, anon, authenticated;
 revoke all on function public.waitlist_confirm(text,text) from public, anon, authenticated;
+revoke all on function public.waitlist_confirm_complete(text) from public, anon, authenticated;
 revoke all on function public.waitlist_unsubscribe(text) from public, anon, authenticated;
 revoke all on function public.waitlist_status(text) from public, anon, authenticated;
 grant execute on function public.waitlist_join(text,text,text,text,text) to service_role;
 grant execute on function public.waitlist_confirm(text,text) to service_role;
+grant execute on function public.waitlist_confirm_complete(text) to service_role;
 grant execute on function public.waitlist_unsubscribe(text) to service_role;
 grant execute on function public.waitlist_status(text) to service_role;
 notify pgrst, 'reload schema';

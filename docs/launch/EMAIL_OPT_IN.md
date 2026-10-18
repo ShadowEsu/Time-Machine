@@ -11,6 +11,10 @@ The email flow is built. Preston still needs to set up Supabase, Resend, DNS and
 
 The only automatic emails are confirmation and welcome. There is no launch campaign or bulk send. The database stores SHA-256 token hashes, not the raw links. Confirmation links are single-use and expire after 7 days. Confirmation resends have a 10-minute cooldown. Unsubscribe links do not expire. Confirmation replaces the first unsubscribe link with a new one in the welcome email. People can unsubscribe at any time using the current link.
 
+For safe welcome retries, the welcome unsubscribe token is derived with domain-separated HMAC-SHA256 from the original random confirmation token. Only its SHA-256 hash is stored. The welcome's first position and total are frozen in the database so retry payloads stay identical. The confirmation page always fetches the current position.
+
+Provider acceptance is not proof that an email reached an inbox. Check the recipient inbox before claiming delivery. Resend retains idempotency keys for 24 hours. If Resend accepted a welcome but the final database update failed, retry promptly within that window. A later retry after that rare partial failure may duplicate the welcome.
+
 ## Preston: connect the services
 
 For the complete database steps, use [Supabase setup](SUPABASE_SETUP.md). Apply migrations `0001`, `0002` and `0003` in order before opening the form.
@@ -19,6 +23,7 @@ For the complete database steps, use [Supabase setup](SUPABASE_SETUP.md). Apply 
 2. Open **Domains**, click **Add domain**, and enter `unvibe.site`. If it is already listed, open it instead.
 3. Open the DNS settings where you manage `unvibe.site`. Add the exact DNS records Resend shows, including each type, name and value. Do not copy example values from another domain or remove unrelated records.
 4. Back in Resend, click **Verify** and wait until the sending domain is verified.
+   Before sending, open the domain settings and turn **Open tracking** and **Click tracking** off. The code sends direct links and no images. Resend must not add tracking pixels or rewrite token links.
 5. Open **API Keys**, click **Create API Key**, and create a key allowed to send from this domain. Save it in your password manager. Do not paste it into chat, docs or source code.
 6. Open https://vercel.com, select **time-machine-site**, then **Settings → Environment Variables**. Add the settings below for **Production** and **Preview**. Mark secret values **Sensitive** if that switch is available.
 
@@ -40,7 +45,7 @@ After redeployment, `/api/health` should show `{"ok":true,"waitlist":true,"email
 
 - No Resend key: signup returns `503`. Email is not configured.
 - Resend send failure: signup returns `502`. The saved row stays pending. The 10-minute cooldown still applies before another confirmation attempt.
-- Welcome send failure: the row stays confirmed. The confirmation token is already consumed. There is no automatic welcome retry.
+- Welcome request failure: the row stays confirmed, but the confirmation link is retained until expiry. Opening the same link retries the welcome with an identical payload and Resend idempotency key. The token is consumed only after provider acceptance. A repeat after successful completion sends no email.
 - `GET /api/waitlist?code=CODE` returns `{"ok":true,"position":…,"referrals":…,"total":…}` for a confirmed, subscribed person. Pending or unsubscribed codes return `404`.
 
 Use synthetic data for local checks. Do not send real email or run a live signup test without separate founder approval.

@@ -7,7 +7,7 @@ For click-by-click setup and the combined SQL, see [Supabase setup](../docs/laun
 ## API behavior
 
 - `POST /api/waitlist` saves a pending signup and sends a confirmation email. Success is `200 {"ok":true,"pending":true}`. It returns no code or referral card before confirmation.
-- `GET /api/confirm` consumes a valid confirmation token once, confirms the row and sends a welcome email. It redirects to `/confirmed.html?code=CODE`, or `/confirmed.html?error=invalid` for an invalid, used or expired link.
+- `GET /api/confirm` confirms the row and requests a welcome email. It consumes the token only after provider acceptance, then redirects to `/confirmed.html?code=CODE`. Invalid, used or expired links redirect to `/confirmed.html?error=invalid`.
 - `GET /api/waitlist?code=CODE` returns `ok`, `position`, `referrals` and `total` for confirmed, subscribed rows only. Pending or unsubscribed rows return `404`. Codes are 10 lowercase letters or digits.
 - `GET /api/unsubscribe` only shows a confirmation page. `POST /api/unsubscribe` stops the subscription. Signup does not silently reactivate an unsubscribed row.
 - `POST /api/event` still counts visits, shares and link copies.
@@ -59,7 +59,7 @@ Tell BOSS or the coding agent: "Supabase, Resend and DNS are configured. Please 
 - `waitlist:false`: check the Supabase variables and URL.
 - `email:false` or signup `503`: check `RESEND_API_KEY` and required configuration.
 - Signup `502` after a Resend failure: the pending row is retained. The 10-minute resend cooldown still applies.
-- Welcome send failure: the row stays confirmed and the token stays consumed. There is no automatic welcome retry.
+- Welcome request failure: the row stays confirmed and the token is retained until expiry for a retry of the same link. Retries use an identical welcome payload and Resend idempotency key. Provider acceptance is not proof of inbox delivery. See the 24-hour idempotency limitation in `docs/launch/EMAIL_OPT_IN.md`.
 
 Use synthetic data for local checks. Real signup or delivery tests need separate founder approval.
 

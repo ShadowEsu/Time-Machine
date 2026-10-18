@@ -11,7 +11,8 @@ const hash = (token) => createHash("sha256").update(token).digest("hex");
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status });
 const signup = () => ({ method: "POST", origin: "https://site.example.test", host: "site.example.test", readBody: async () => JSON.stringify({ email: EMAIL, consent: true }) });
 function setup(rows = [], env = ENV, mail = () => json({ id: "synthetic" })) {
-  const fetch = vi.fn(async (url) => url === "https://api.resend.com/emails" ? mail() : json(rows));
+  const fetch = vi.fn(async (url) => url === "https://api.resend.com/emails" ? mail()
+    : url.endsWith("/waitlist_confirm_complete") ? json([{ completed: true }]) : json(rows));
   const log = vi.fn();
   return { fetch, log, deps: { env, fetch, log } };
 }
@@ -98,6 +99,35 @@ describe("confirmation", () => {
     const res = await handleConfirm({ method: "GET", token: TOKEN }, deps);
     expect(res.status).toBe(502);
     expect(JSON.stringify([res, log.mock.calls])).not.toContain(EMAIL);
+  });
+  it("retains confirmation after provider failure and retries an identical idempotent welcome", async () => {
+    let accepted = false;
+    let completed = false;
+    const calls = [];
+    const deps = {
+      env: ENV, log: vi.fn(),
+      fetch: vi.fn(async (url, init) => {
+        if (url === "https://api.resend.com/emails") {
+          calls.push(init);
+          return json({}, accepted ? 200 : 503);
+        }
+        if (url.endsWith("/waitlist_confirm_complete")) {
+          completed = true;
+          return json([{ completed: true }]);
+        }
+        return json(completed ? [] : [{ email: EMAIL, code: CODE, position: 2, total: 9 }]);
+      }),
+    };
+    expect((await handleConfirm({ method: "GET", token: TOKEN }, deps)).status).toBe(502);
+    expect(completed).toBe(false);
+    accepted = true;
+    expect((await handleConfirm({ method: "GET", token: TOKEN }, deps)).status).toBe(303);
+    expect(completed).toBe(true);
+    expect(calls[0].body).toBe(calls[1].body);
+    expect(calls[0].headers["Idempotency-Key"]).toBe(`welcome/${hash(TOKEN)}`);
+    expect(calls[1].headers["Idempotency-Key"]).toBe(calls[0].headers["Idempotency-Key"]);
+    expect((await handleConfirm({ method: "GET", token: TOKEN }, deps)).headers.Location).toBe("/confirmed.html?error=invalid");
+    expect(calls).toHaveLength(2);
   });
   it("rejects unsupported methods", async () => {
     expect((await handleConfirm({ method: "POST", token: TOKEN }, setup().deps)).status).toBe(405);

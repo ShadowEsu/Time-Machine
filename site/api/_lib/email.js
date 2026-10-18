@@ -1,9 +1,11 @@
 // Raw tokens exist only in the outgoing email and request memory. Store SHA256 hashes only.
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, createHmac } from "node:crypto";
 
 export const hashToken = (token) => createHash("sha256").update(token).digest("hex");
 export const newToken = () => randomBytes(32).toString("base64url");
 export const validToken = (token) => typeof token === "string" && /^[A-Za-z0-9_-]{43}$/.test(token);
+// Recreate a stable, separate welcome unsubscribe token without persisting a raw token.
+export const welcomeUnsubToken = (confirm) => createHmac("sha256", confirm).update("time-machine/welcome-unsubscribe").digest("base64url");
 export const isEmailConfigured = (env) => Boolean(env && env.RESEND_API_KEY);
 export const siteUrl = (env) => (env.SITE_URL || "https://time-machine-site.vercel.app").replace(/\/$/, "");
 const escapeHtml = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -26,7 +28,10 @@ export async function sendEmail(kind, email, tokens, info, deps) {
   try {
     const res = await deps.fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${deps.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${deps.env.RESEND_API_KEY}`, "Content-Type": "application/json",
+        ...(kind === "welcome" ? { "Idempotency-Key": `welcome/${hashToken(tokens.confirm)}` } : {}),
+      },
       body: JSON.stringify({
         from: deps.env.WAITLIST_FROM || "Time Machine <timemachine@unvibe.site>",
         to: [email], subject, text, html,

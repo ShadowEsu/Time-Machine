@@ -1,6 +1,6 @@
 // Pure opt-in handlers. Env, fetch and logs are injected. Never echo an email or raw token.
 import { callRpc, isConfigured, isValidEmail, reply } from "./waitlist.js";
-import { hashToken, isEmailConfigured, newToken, sendEmail, validToken } from "./email.js";
+import { hashToken, isEmailConfigured, sendEmail, validToken, welcomeUnsubToken } from "./email.js";
 
 const redirect = (target) => reply(303, null, { Location: target });
 const upstream = () => reply(502, { ok: false, error: "upstream" });
@@ -9,7 +9,7 @@ export async function handleConfirm(req, deps) {
   if (req.method !== "GET") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "GET" });
   if (!validToken(req.token)) return redirect("/confirmed.html?error=invalid");
   if (!isConfigured(deps.env) || !isEmailConfigured(deps.env)) return reply(503, { ok: false, error: "not_configured" });
-  const unsub = newToken();
+  const unsub = welcomeUnsubToken(req.token);
   const rows = await callRpc("waitlist_confirm", { p_hash: hashToken(req.token), p_unsub_hash: hashToken(unsub) }, deps);
   if (!rows) return upstream();
   if (!rows.length) return redirect("/confirmed.html?error=invalid");
@@ -21,7 +21,11 @@ export async function handleConfirm(req, deps) {
     deps.log?.("confirm: upstream returned an unexpected shape");
     return upstream();
   }
-  if (!await sendEmail("welcome", info.email, { unsub }, info, deps)) return upstream();
+  if (!await sendEmail("welcome", info.email, { unsub, confirm: req.token }, info, deps)) return upstream();
+  const completed = await callRpc("waitlist_confirm_complete", { p_hash: hashToken(req.token) }, deps);
+  if (!completed) return upstream();
+  if (!completed.length) return redirect("/confirmed.html?error=invalid");
+  if (completed[0]?.completed !== true) return upstream();
   return redirect(`/confirmed.html?code=${info.code}`);
 }
 
