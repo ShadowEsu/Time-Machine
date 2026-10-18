@@ -35,6 +35,7 @@
 .term .p, .term .d { color: #8f8b82; }
 .term .pass { color: #4ade80; }
 .term .fail { color: #f87171; }
+.term-mini { display: none; }
 .proof figcaption { margin-top: 10px; font: 400 11.5px/1.55 var(--font-mono); color: var(--ink-3); }
 
 /* Sections */
@@ -73,10 +74,12 @@
 @media (max-width: 900px) {
   .hero-grid, .two { grid-template-columns: minmax(0, 1fr); }
   .steps { grid-template-columns: minmax(0, 1fr); }
+  .term-mini { display: block; margin-top: 16px; padding: 10px 12px; line-height: 1.55; }
 }
 @media (max-width: 640px) {
   .facts { grid-template-columns: minmax(0, 1fr); }
   .term { padding: 14px; font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .term-mini { padding: 10px 12px; font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { :root.js .wordmark span, :root.js .wordmark em { animation: none; } }
 :root[data-tier="low"] .wordmark span, :root[data-tier="low"] .wordmark em { animation: none; }

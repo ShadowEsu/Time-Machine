@@ -1,8 +1,8 @@
 # Time Machine
 
-**Save points for your code, with proof of which ones still work.**
+**Save points for your code before AI agents act, checked with your own tests.**
 
-When a coding agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check. It rebuilds that version in a separate copy, proves it works, and makes a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
+When a coding agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check. It rebuilds that version in a separate copy, runs your check there, and makes a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
 Git remembers your code. Time Machine remembers whether it worked.
 

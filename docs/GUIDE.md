@@ -1,6 +1,6 @@
 # Time Machine user guide
 
-Save points for your projects, with proof of which ones still work.
+Save points for your projects before AI agents act, checked with your own tests.
 
 ## 1. What Time Machine is and is not
 
