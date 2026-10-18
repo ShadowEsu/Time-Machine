@@ -19,7 +19,13 @@ function request(body, overrides = {}) {
   };
 }
 
-function setup({ env = ENV, response = () => new Response(null, { status: 201 }) } = {}) {
+const CODE = "abc123xyz0";
+const REF = "frnd000ref";
+const json = (value, status = 200) =>
+  new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
+const joined = () => json([{ code: CODE, position: 7, total: 42 }]);
+
+function setup({ env = ENV, response = joined } = {}) {
   const fetch = vi.fn(async () => response());
   const log = vi.fn();
   return { fetch, log, deps: { env, fetch, log } };
@@ -28,26 +34,57 @@ function setup({ env = ENV, response = () => new Response(null, { status: 201 })
 const good = { email: EMAIL, consent: true, source: "/blog/first-post", company: "" };
 
 describe("waitlist handler", () => {
-  it("stores a valid signup in Supabase and returns ok", async () => {
+  it("stores a new signup through the join function and returns its code and position", async () => {
     const { fetch, deps } = setup();
     const res = await handleWaitlist(request(good), deps);
-    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true } });
+    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, code: CODE, position: 7, total: 42 } });
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe("https://fake-project.supabase.test/rest/v1/waitlist?on_conflict=email_normalized");
+    expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_join");
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
-    expect(init.headers.Prefer).toBe("return=minimal,resolution=ignore-duplicates");
-    expect(JSON.parse(init.body)).toEqual({ email: NORMALIZED, consent: true, source: "/blog/first-post" });
+    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null });
   });
 
-  it("treats a repeat signup as ok (ignored duplicate or 409)", async () => {
-    for (const status of [201, 200, 409]) {
-      const { deps } = setup({ response: () => new Response(null, { status }) });
+  it("answers ok without a code when the email is already on the list", async () => {
+    const { deps } = setup({ response: () => json([]) });
+    const res = await handleWaitlist(request(good), deps);
+    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true } });
+  });
+
+  it("passes a well formed ref code to Supabase", async () => {
+    const { fetch, deps } = setup();
+    const res = await handleWaitlist(request({ ...good, ref: REF }), deps);
+    expect(res.status).toBe(200);
+    expect(JSON.parse(fetch.mock.calls[0][1].body).p_ref).toBe(REF);
+  });
+
+  it("ignores a bad ref and still signs the person up", async () => {
+    const bad = ["", "short", "UPPERCASE1", "abc123xyz01", "abc-23xyz0", " abc123xyz0", 1234567890, null, {}, ["abc123xyz0"]];
+    for (const ref of bad) {
+      const { fetch, deps } = setup();
+      const res = await handleWaitlist(request({ ...good, ref }), deps);
+      expect(res.body).toEqual({ ok: true, code: CODE, position: 7, total: 42 });
+      expect(JSON.parse(fetch.mock.calls[0][1].body).p_ref).toBeNull();
+    }
+  });
+
+  it("does not claim success when Supabase answers with an unexpected shape", async () => {
+    const shapes = [
+      () => json({ code: CODE }),
+      () => json([{ code: "NOT-A-CODE", position: 1, total: 1 }]),
+      () => json([{ code: CODE, position: "1", total: 1 }]),
+      () => json([{ code: CODE, position: 1, total: 1 }, { code: CODE, position: 1, total: 1 }]),
+      () => new Response("not json", { status: 200 }),
+      () => new Response(null, { status: 409 }),
+    ];
+    for (const response of shapes) {
+      const { deps, log } = setup({ response });
       const res = await handleWaitlist(request(good), deps);
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true });
+      expect(res.status).toBe(502);
+      expect(res.body).toEqual({ ok: false, error: "upstream" });
+      expect(log).toHaveBeenCalled();
     }
   });
 
@@ -103,12 +140,12 @@ describe("waitlist handler", () => {
     }
   });
 
-  it("allows only POST and says so in the Allow header", async () => {
-    for (const method of ["GET", "PUT", "DELETE", "OPTIONS"]) {
+  it("allows only GET and POST and says so in the Allow header", async () => {
+    for (const method of ["HEAD", "PUT", "DELETE", "OPTIONS"]) {
       const { fetch, deps } = setup();
       const res = await handleWaitlist(request(good, { method }), deps);
       expect(res.status).toBe(405);
-      expect(res.headers).toEqual({ Allow: "POST" });
+      expect(res.headers).toEqual({ Allow: "GET, POST" });
       expect(res.body).toEqual({ ok: false, error: "method_not_allowed" });
       expect(fetch).not.toHaveBeenCalled();
     }
@@ -167,9 +204,10 @@ describe("waitlist handler", () => {
       }),
       setup({ env: {} }),
       setup(),
+      setup({ response: () => json([{ email: NORMALIZED, key: ENV.SUPABASE_SERVICE_ROLE_KEY }]) }),
     ];
     for (const { deps, log } of cases) {
-      const res = await handleWaitlist(request(good), deps);
+      const res = await handleWaitlist(request({ ...good, ref: REF }), deps);
       const outputs = [JSON.stringify(res), ...log.mock.calls.map((args) => args.join(" "))];
       for (const out of outputs) {
         expect(out.toLowerCase()).not.toContain(NORMALIZED);
@@ -179,6 +217,7 @@ describe("waitlist handler", () => {
     // The failure cases did log something, so the check above was not vacuous.
     expect(cases[0].log).toHaveBeenCalled();
     expect(cases[1].log).toHaveBeenCalled();
+    expect(cases[4].log).toHaveBeenCalled();
   });
 
   it("never throws, even when the body cannot be read", async () => {
@@ -198,6 +237,68 @@ describe("waitlist handler", () => {
   it("stores only a path as the source", async () => {
     const { fetch, deps } = setup();
     await handleWaitlist(request({ ...good, source: "https://elsewhere.test/x" }), deps);
-    expect(JSON.parse(fetch.mock.calls[0][1].body).source).toBeNull();
+    expect(JSON.parse(fetch.mock.calls[0][1].body).p_source).toBeNull();
+  });
+});
+
+function statusRequest(code, overrides = {}) {
+  return { method: "GET", origin: null, host: HOST, code, readBody: async () => "", ...overrides };
+}
+
+describe("waitlist status lookup", () => {
+  it("returns position, referrals and total for a known code", async () => {
+    const { fetch, deps } = setup({ response: () => json([{ position: 3, referrals: 2, total: 42 }]) });
+    const res = await handleWaitlist(statusRequest(CODE), deps);
+    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, position: 3, referrals: 2, total: 42 } });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_status");
+    expect(init.method).toBe("POST");
+    expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
+    expect(JSON.parse(init.body)).toEqual({ p_code: CODE });
+  });
+
+  it("works without an Origin header, because browsers omit it on same origin GET", async () => {
+    const { deps } = setup({ response: () => json([{ position: 1, referrals: 0, total: 1 }]) });
+    const res = await handleWaitlist(statusRequest(CODE, { origin: undefined }), deps);
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 404 not_found for an unknown code", async () => {
+    const { deps } = setup({ response: () => json([]) });
+    const res = await handleWaitlist(statusRequest(CODE), deps);
+    expect(res).toEqual({ status: 404, headers: {}, body: { ok: false, error: "not_found" } });
+  });
+
+  it("returns 400 for a badly shaped code without calling Supabase", async () => {
+    for (const code of [null, "", "short", "ABC123XYZ0", "abc123xyz01", "abc123xyz%", "abc123xyz0 "]) {
+      const { fetch, deps } = setup();
+      const res = await handleWaitlist(statusRequest(code), deps);
+      expect(res).toEqual({ status: 400, headers: {}, body: { ok: false, error: "invalid_code" } });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it("returns not_configured when the settings are missing", async () => {
+    const { fetch, deps } = setup({ env: {} });
+    const res = await handleWaitlist(statusRequest(CODE), deps);
+    expect(res).toEqual({ status: 503, headers: {}, body: { ok: false, error: "not_configured" } });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 502 upstream when Supabase fails or answers oddly, and logs no key", async () => {
+    const responses = [
+      () => new Response(`{"message":"${ENV.SUPABASE_SERVICE_ROLE_KEY}"}`, { status: 500 }),
+      () => json([{ position: 1 }]),
+      () => {
+        throw new Error(`down ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
+      },
+    ];
+    for (const response of responses) {
+      const { deps, log } = setup({ response });
+      const res = await handleWaitlist(statusRequest(CODE), deps);
+      expect(res).toEqual({ status: 502, headers: {}, body: { ok: false, error: "upstream" } });
+      expect(log).toHaveBeenCalled();
+      for (const args of log.mock.calls) expect(args.join(" ")).not.toContain(ENV.SUPABASE_SERVICE_ROLE_KEY);
+    }
   });
 });
