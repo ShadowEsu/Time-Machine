@@ -352,3 +352,8 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 :root[data-tier="low"] .wl-status[data-state="pending"]::before { animation: none; }
 :root[data-tier="low"] .top { background: var(--paper); }
 :root[data-tier="low"] body { background-image: none; }
+
+/* Confirmed waitlist page uses the legal page header and footer without a draft bar. */
+.legal.confirmation header.top:has(.top-in) { top: 0; }
+.confirmation [data-waitlist-confirmed] { max-width: 520px; margin-top: 28px; }
+.confirmation .ref-card p { margin: 0; }
