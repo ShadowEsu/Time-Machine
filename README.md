@@ -1,20 +1,19 @@
 # Time Machine
 
-**Save points for your code before AI agents act, checked with your own tests.**
+[![CI](https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml/badge.svg)](https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-When a coding agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check. It rebuilds that version in a separate copy, runs your check there, and makes a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
+## Your AI agent broke it. Get back the version that passed your tests.
 
-Git remembers your code. Time Machine remembers whether it worked.
+Time Machine saves your project before Claude Code acts. It runs your own tests on each save point in a separate copy, then brings back the newest one that passes, on a new branch. Your folder and current branch are never touched. Nothing is pushed, merged or deployed.
 
-> **Status: early.** The engine, the `tm` command, Claude Code hooks and the MCP server work and are tested. They are **not on npm yet**. The Mac app is **in development**. Anything marked Planned is not built.
+Website and waitlist: **https://time-machine-site.vercel.app**
 
-## See it in a few seconds
+> **Status: early.** The `tm` CLI, Claude Code hooks and the MCP server work and are tested. **Not on npm yet** (build from source below). The Mac app is in development and not signed yet.
+
+## 30 seconds: watch it rescue a broken project
 
 ```text
 $ tm demo
-Built a demo project, Marigold Tips, in /tmp/tm-demo-xYg9f5/marigold-tips
-  cp-0001   Initial tip calculator
-  cp-0002   Added split bill
   cp-0003   Added dark mode
   cp-0004   Agent: fixed lint warnings    <- an agent's lint fix broke it here
   cp-0005   Changed currency
@@ -31,41 +30,51 @@ $ tm recover cp-0003
 Recovery ready for cp-0003. Nothing was pushed, merged or deployed. Your folder and branch were not touched.
   Branch          tm/recover/cp-0003
   Saved first     cp-0007, your state before this recovery
-  Last check      PASS
 Not restored
   Secret values in .env: PORT, STRIPE_SECRET_KEY
   Databases, deployed versions and external services are not captured
 ```
 
-That is real output, shortened. `tm demo` builds a small synthetic app, breaks it the way an agent might, and rescues it with the real engine. The `.env` key in it is fake.
+Real output, shortened. `tm demo` builds a small synthetic app, breaks it the way an agent might, and rescues it with the real engine.
 
-## Quick start
+## Install
 
-**From source, today.** Needs Node 22 or newer, pnpm and Git.
+Needs Node 22 or newer and Git.
 
-```sh
-git clone https://github.com/ShadowEsu/Time-Machine.git
-cd Time-Machine
-pnpm install
-pnpm build
-node packages/cli/dist/tm.js demo
-```
-
-To use it on your own project, make `tm` point at the build, then run it in your project folder:
+**Once on npm** (the package is `timetm`, the command is `tm`):
 
 ```sh
-alias tm="node /path/to/Time-Machine/packages/cli/dist/tm.js"
-tm init                          # writes timemachine.yml with a guessed check, like npm test
-tm checkpoint -m "first save point"
-tm verify                        # runs the check on the newest save point
-tm hook install                  # optional: Claude Code hooks
+npx timetm demo
 ```
 
-**From npm, once published.** The package is `timetm` and the command is `tm`. This does not work yet:
+**From source, today:**
 
 ```sh
-npx timetm init
+git clone https://github.com/ShadowEsu/Time-Machine.git && cd Time-Machine
+pnpm install && pnpm build
+alias tm="node $PWD/packages/cli/dist/tm.js"
+tm demo
 ```
+
+## Your own project in four commands
+
+```sh
+cd my-app                      # any Git repo
+tm init                        # guesses the check (npm test) and the install step (npm ci)
+tm checkpoint -m "works"       # or let the Claude Code hooks save for you: tm hook install
+# ...an agent breaks something...
+tm find-good                   # checks save points newest first, each in a fresh copy
+tm recover cp-0001             # new branch tm/recover/cp-0001 plus a recovery copy
+```
+
+Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `timetm` package, from a clean folder with a fresh home and an empty npm cache: `init` to a verified recovery branch in **54 to 82 s** over two runs. Almost all of it is `npm install` inside the fresh copies, so it depends on your network. Script: `scripts/time-first-run.sh`.
+
+## Safety limits
+
+- **Not universal undo.** Databases, deployed versions, emails, payments and anything outside your project are not captured. Every result says what was not restored.
+- **Secret values are never stored**, only key names and a fingerprint. You set them again by hand.
+- **Checks run in host mode:** a separate Git worktree with a clean environment and a time limit. That is weaker isolation than a container. With `network: deny` a sandbox turns the network off (`sandbox-exec` on macOS, `bwrap` or `unshare` on Linux); without a sandbox the verdict is BLOCKED.
+- **A passing check means your tests passed,** not that the app is correct. A save point never checked is shown as not checked, never as working.
 
 ## Built and planned
 
@@ -75,7 +84,7 @@ npx timetm init
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 250 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 261 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Mac app | Notebook history, Rewind dial with undo, Compare, agent channels, overlays, opt-in Ask and read-only Vercel deploy links. Native macOS smoke exercised real-engine recovery and the non-focusing corner card | Built from source; not signed or shipped |
 | Website | Static site in `site/` with a waitlist, personal referral links and anonymous funnel counts. Public at https://time-machine-site.vercel.app | Live; waitlist saves once Supabase is set up |
@@ -86,7 +95,7 @@ npx timetm init
 
 | Command | What it does |
 |---|---|
-| `tm init` | Writes `timemachine.yml` with a guessed check |
+| `tm init` | Writes `timemachine.yml` with a guessed check and install step |
 | `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, config key names, lockfile and environment digests |
 | `tm timeline` | Lists save points and their verdicts |
 | `tm diff cp-0002 cp-0004` | Compares code, files, config keys, dependencies and environment |
@@ -113,35 +122,15 @@ Every command takes `--json`. Human and JSON output come from the same result, s
 
 Usage errors exit 64. A save point with no verdict is shown as not checked, never as working.
 
-## What it does not do
-
-Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values, only key names and a fingerprint, so you set those again by hand. Every save point and every recovery says what was not restored.
-
-Checks run in **host mode**: a separate Git worktree on your machine with a clean environment and a time limit. That is weaker isolation than a container, and every verdict says so. With `network: deny`, the check runs with the network off through a sandbox (`sandbox-exec` on macOS, `bwrap` or `unshare` on Linux). If no sandbox is available, the check does not run and the verdict is BLOCKED.
-
 Save points and verdicts are signed with a key in `~/.timemachine`. That catches accidental edits and edits by tools that do not read the key. It is not tamper proof against someone who can read that key.
 
 ## The Mac app (in development)
 
-On a Mac, from the repo root: `pnpm app`. To see it in any browser with demo data, run `pnpm --filter @timetm/desktop preview:build` and open `apps/desktop/preview/dist/index.html`. A banner says it is a preview. Details: `apps/desktop/README.md`.
+On a Mac, from the repo root: `pnpm app`. To see it in any browser with demo data, run `pnpm --filter @timetm/desktop preview:build` and open `apps/desktop/preview/dist/index.html`. Builds are not signed by Apple yet, so macOS warns on first open. Details: `apps/desktop/README.md`.
 
-## The website
+## Repo map
 
-`site/` is a static site with no build step: plain HTML, CSS and JavaScript, self hosted fonts, and two small Vercel functions in `site/api/`. More pages are in progress.
-
-Preview it locally:
-
-```sh
-python3 -m http.server 8080 --directory site
-```
-
-Then open http://localhost:8080. The waitlist form needs the Vercel function, so it will not save from this preview. To run the function too, use `vercel dev` inside `site/` (needs the Vercel CLI and a login).
-
-## Waitlist setup (for the founder)
-
-The form posts to `/api/waitlist`, which writes to Supabase. Until the settings exist, the form says the waitlist opens soon and asks people to email the founder. It never fakes a signup.
-
-Step by step, with the SQL to paste and the queries to read signups and the funnel: `docs/launch/SUPABASE_SETUP.md`. Check it at `/api/health`, which should say `"waitlist":true`. What is stored: `site/privacy.html` and `supabase/README.md`. The decision: `docs/adr/0006-waitlist-backend.md`.
+`packages/core` (the one engine), `packages/cli` (`tm`), `apps/desktop` (Mac app), `site/` (static website with two Vercel functions; waitlist setup: `docs/launch/SUPABASE_SETUP.md`), `docs/` (guide, plan, decisions).
 
 ## Run the tests
 
@@ -168,6 +157,8 @@ The acceptance tests V01 to V14 run on a synthetic project. Every bug fix starts
 
 ## Who builds it
 
-Preston Susanto, a student founder who builds with coding agents. He also built Unvibe. Questions and bug reports: preston@unvibe.site.
+Preston Susanto, a student founder who builds with coding agents. Questions and bug reports: preston@unvibe.site or [GitHub issues](https://github.com/ShadowEsu/Time-Machine/issues).
 
-Time Machine is not affiliated with Apple Inc.
+## License
+
+MIT. See [LICENSE](LICENSE). Time Machine is not affiliated with Apple Inc.

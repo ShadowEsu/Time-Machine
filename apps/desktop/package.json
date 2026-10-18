@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Time Machine for Mac. Save points that know if they work.",
+  "description": "Time Machine for Mac. Get back the version that passed your tests.",
   "main": "out/main.cjs",
   "scripts": {
     "build": "node scripts/build.mjs",

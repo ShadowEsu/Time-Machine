@@ -22,9 +22,19 @@ Other scripts, run from the root with `pnpm --filter @timetm/desktop <script>`:
 | `preview:build` | Build the browser preview into `preview/dist/` |
 | `typecheck` | Type check the main process and the window code |
 
+## Running an unsigned build
+
+This build is not signed or notarized by Apple yet. macOS warns the first time you open it. To open it anyway, do one of these:
+
+- In Finder, Control-click the app, choose Open, then choose Open again.
+- Or open System Settings, then Privacy & Security, scroll to the message about the app and click Open Anyway.
+
+Only do this for a build you got from the official GitHub repository, [ShadowEsu/Time-Machine](https://github.com/ShadowEsu/Time-Machine). Signed and notarized builds are planned (D08). The welcome screen says the same in one line.
+
 ## What is built
 
-- **Onboarding (D01):** three named steps. Pick a project folder. Choose the check (prefilled by `init`, changed with `setCheck`) and try it. Choose when to save, including Claude Code hooks after showing the exact lines. The first save point is made right after setup. It says "Saved, not checked" until a check runs.
+- **Onboarding (D01):** three named steps, one click each. Pick a project folder: setup starts as soon as you pick it, adds `timemachine.yml` (`init`) and makes the first save point. It says "Saved, not checked" until a check runs. Choose the check: the one `init` found is already picked, with a quiet line for the install step that runs first when there is one ("Installs first with npm ci …"). Try it now is optional; changing it uses `setCheck`. Choose when to save: "Connect Claude Code and finish" adds the hook lines (shown first in plain words, the exact lines on request) and finishes, and "Skip, finish without it" finishes without them. If the lines cannot be prepared, or the command does not run on this Mac, Finish is the only button and the step says why. Each step's buttons stay in view on short windows.
+- **Try the demo:** the first button on the welcome screen. The real engine builds Marigold Tips in a new temporary folder, breaks it on purpose and checks its save points newest first (`tm demo`). The engine's demo also makes its own recovery; the app undoes just that branch and copy, so the one recovery is the one you choose. It then opens Rewind on Review of the version the search found, which says how many save points were checked, with one key: "Go back to the 7:03 PM version". Done shows what came back, what did not and the things to do by hand.
 - **Claude Code hook command:** the build bundles the `tm` CLI into `out/tm.mjs`, and the hooks call it with the app's own Node as quoted absolute paths: `ELECTRON_RUN_AS_NODE=1 '<Electron>' '<out/tm.mjs>'`. If that does not answer, the fallback is `npx -y timetm@<version>`, pinned to the CLI version, never the bare package name. `TM_HOOK_COMMAND` overrides both. Before adding any line the app runs `<command> --version` and adds nothing unless it answers with this version. Settings says "connected" only when the lines are there and the command runs, and "connected, but the command does not run yet" when the lines are there but it does not answer. The paths point into this checkout, so moving or deleting it stops the hooks until you connect again.
 - **Window frame:** a rail with Projects (a verdict glyph and how long ago each last saved), Add project, the Agents list (Claude Code with its real state, Codex, Gemini CLI and Cursor marked Planned), then Storage (space used) and Settings. A toolbar with a breadcrumb ("marigold-tips / History"), a "Back to now" pill whenever you are looking at the past (Compare, or an older save point, `⌘↑`), "Jump to…" (`⌘K`), Ask (`⌘J`) and a ⋯ menu with the other project actions and the Inspector. `?` shows every shortcut that works today. Toasts sit over the bottom of the rail, so they never cover the journal.
 - **Project page (D02):** one document column. A status sentence in Newsreader with an italic accent ("Broken *since 8:16 PM.*"), one filled primary button and at most one quiet text link: Broken with a known working version offers "Go back to the 7:03 PM version" and "See what changed"; Broken with none offers "Find the last working version"; Works offers Save now and Check it works; Not checked yet offers Check it works. Under it, "What does not come back" (or Saved and Not saved when nothing is broken) in plain words. Then a slim ruler with agent session clips and the playhead, and the journal: a day heading ("Today", the date, the count), then one entry per save point with its time in the margin, the verdict glyph on a hairline, a serif title, an author chip, the verdict pill, a check summary from recorded evidence only ("check failed · 4 files") and a "We ran" box. Two or more automatic saves in a row fold into one line until opened. Green only after a recorded PASS. Titles name the agent once: "Add dark mode" next to a "Claude Code" author chip, "Claude Code: add dark mode" where no author is shown (Jump to…, tooltips). Save point IDs, commits and isolation mode names appear only with Show Git details on.
@@ -43,7 +53,7 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 
 ## Planned, not built
 
-- Signing, notarization and auto update (D08). Until then macOS asks you to confirm the first open.
+- Signing, notarization and auto update (D08). Until then macOS asks you to confirm the first open (see Running an unsigned build).
 - Thinning old save points (cleanup removes old check logs only), stronger isolation with Docker or Apple container, Cursor, Codex and Gemini CLI hooks, automatic hourly saves.
 - Recording what an agent said at the end of a turn, so "Agent said" can show it next to "We ran". Test counts in the check summary ("3 tests failed"); today it says passed or failed and how many files changed.
 - From the Rewind design: screenshots per save point, sounds and haptics, zoom levels, the reverse fork animation on Undo, and stopping a running search (Esc leaves the view, the search keeps going).
@@ -51,9 +61,24 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 
 ## Browser preview
 
-`pnpm --filter @timetm/desktop preview:build` writes a static site to `preview/dist/` (`index.html`, `app.js`, `styles.css`, `features.css`, `fonts/`). It is the same window code with the engine swapped for an in-memory demo of the Marigold Tips story: six save points, the fourth one broke it, the project screen says so and offers to go back to the third, which worked. A banner says it is a preview with demo data, and the overlay card (bottom right, so it never covers the page's buttons) and timeline strip are simulated inside the page. `?state=works`, `?state=unchecked` and `?state=new` (no project yet, onboarding with the sample folder) tell shorter stories. The preview starts with Ask on and a Vercel project linked, with canned answers and sample deploys. `?state=ask-off`, `?state=no-key`, `?state=ask-error` and `?state=no-vercel` show those features off, without a Gemini key, failing to reach Gemini, and without a Vercel token. Open `index.html` in any browser. Nothing in it touches your files. Screenshots of every screen, light and dark at 1280 by 800 and 960 by 640, are in `preview-shots/v3/`.
+`pnpm --filter @timetm/desktop preview:build` writes a static site to `preview/dist/` (`index.html`, `app.js`, `styles.css`, `features.css`, `fonts/`). It is the same window code with the engine swapped for an in-memory demo of the Marigold Tips story: six save points, the fourth one broke it, the project screen says so and offers to go back to the third, which worked. A banner says it is a preview with demo data, and the overlay card (bottom right, so it never covers the page's buttons) and timeline strip are simulated inside the page. `?state=works`, `?state=unchecked` and `?state=new` tell shorter stories. `?state=new` is a first launch with no project: Add a project walks through onboarding with the sample folder, and Try the demo builds the demo story, searches it and lands on Review with the Go back key, like the app. The preview starts with Ask on and a Vercel project linked, with canned answers and sample deploys. `?state=ask-off`, `?state=no-key`, `?state=ask-error` and `?state=no-vercel` show those features off, without a Gemini key, failing to reach Gemini, and without a Vercel token. Open `index.html` in any browser. Nothing in it touches your files. Screenshots of every screen, light and dark at 1280 by 800 and 960 by 640, are in `preview-shots/v3/`.
 
 The preview never opens a simulated overlay by itself. Use the banner's Show overlay button when you want to try it, so it cannot cover consent or navigation.
+
+## First run exercised checks
+
+17 October 2026, synthetic data only. Clicks count from the first window to a recovery branch. Times are wall time with instant clicks, so reading time is not included.
+
+| Path | Before | After |
+|---|---|---|
+| Try the demo, real Electron app and engine | 3 clicks, 5.8 s. It landed on the project page saying "Not checked yet", because the newest save point was the engine's own "Before going back" one; the filled button was Check it works and going back was the quiet link. It also left two recovery branches (`tm/recover/cp-0003` and `-2`) | 2 clicks, 5.3 s: Try the demo, then the Go back key. One recovery branch, `tm/recover/cp-0003` |
+| Add a project, real Electron app and engine, a synthetic Git repo (folder dialog answered by the test) | 10 clicks, 3.2 s to a checked first save point plus 1.3 s for the rescue, without Claude Code | 9 clicks, 3.9 s plus 1.3 s, with Claude Code connected on the way |
+| Onboarding only, browser preview | 5 clicks; at 960 by 640 Continue and Finish were below the fold | 4 clicks; the buttons stay in view at 1280 by 800 and 960 by 640 |
+
+- In both native runs the project folder's branch, HEAD commit and `git status` were the same before and after Go back. Done listed what was not brought back (in the demo, the `.env` values, databases, deploys and other services) and the things to do by hand.
+- The Add a project path counted: Add a project, Choose folder, Continue, Connect Claude Code and finish, Check it works, Done, Save now (after a change outside the app broke the test), Go back to the version, the Go back key.
+- Browser preview, Playwright at 1280 by 800 and 960 by 640 (`/tmp/tm-pw/firstrun.mjs`): no covered buttons, no horizontal overflow, no page errors. Native runs: `/tmp/tm-pw/native-firstrun.mjs` and `/tmp/tm-pw/native-add.mjs`. Screenshots in `/tmp/tm-pw/app-firstrun/`.
+- Not exercised: the macOS first open warning itself (the build was run from source) and a real Finder folder dialog. Dark mode was looked at on the welcome screen and onboarding step 2 only.
 
 ## V3 exercised checks
 

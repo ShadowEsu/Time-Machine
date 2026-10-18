@@ -33,6 +33,7 @@ export function fmtInit(r: InitResult): string {
   return [
     r.created ? `Created ${r.configPath}` : `Kept your existing ${r.configPath}`,
     `  Check     ${r.verifyCommand || "(none yet, add verify.command)"}`,
+    ...(r.verifySetup ? [`  Setup     ${r.verifySetup}   (runs first in each fresh copy)`] : []),
     `  Network   ${r.network === "deny" ? `off during checks (${r.sandbox})` : "on during checks"}`,
     "Next: tm checkpoint -m \"first save point\"",
   ].join("\n");

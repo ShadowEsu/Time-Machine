@@ -13,6 +13,7 @@ import { renderAskPanel } from "./ask-panel.js";
 import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
+import { hookStepActions } from "./first-run.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -76,6 +77,8 @@ interface OnboardingState {
   trying: boolean;
   tryResult: VerifyResult | null;
   hook: HookPreview | null;
+  /** Why the Claude Code lines could not be prepared. Finishing still works without them. */
+  hookError: string | null;
   hookDone: string | null;
   /** The save point made right after setup. Saved, not checked, until a check runs. */
   first: { id: string } | null;
@@ -166,7 +169,7 @@ let root: HTMLElement;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 function emptyOnboarding(): OnboardingState {
-  return { step: 1, path: null, project: null, init: null, current: "", choice: "detected", custom: "", working: false, trying: false, tryResult: null, hook: null, hookDone: null, first: null, error: null };
+  return { step: 1, path: null, project: null, init: null, current: "", choice: "detected", custom: "", working: false, trying: false, tryResult: null, hook: null, hookError: null, hookDone: null, first: null, error: null };
 }
 
 // Engine calls
@@ -393,10 +396,11 @@ function sidebar(): string {
 function welcome(): string {
   return `<div class="welcome"><div class="inner">
     <div class="mini-ruler" aria-hidden="true">${glyph("PASS")}${glyph("PASS")}${glyph(null)}${glyph("PASS")}${glyph("FAIL")}${glyph("FAIL")}${glyph("FAIL")}<span class="ph"></span></div>
-    <h1>Save points that know if they work.</h1>
-    <p class="lede">Save your project as you go. We check each version in a safe copy. When something breaks, find the last one that works and put it on a new branch. Your folder and branch are not touched.</p>
-    <div class="row-btns"><button class="btn dark big" data-act="add">Add a project</button><button class="btn big" data-act="demo">Try the demo</button></div>
+    <h1>Get back the version that passed your tests.</h1>
+    <p class="lede">Time Machine saves your project before your agent acts and checks each save point with your own tests, in a safe copy. When something breaks, it brings back the newest one that passes, on a new branch. Your folder and branch are not touched.</p>
+    <div class="row-btns"><button class="btn dark big" data-act="demo">Try the demo</button><button class="btn big" data-act="add">Add a project</button></div>
     <p class="foot">Works on this Mac. Your code is not uploaded. Time Machine is not universal undo: every result says what was not restored.</p>
+    <p class="foot unsigned">Not signed or notarized by Apple yet, so macOS warns on first open. Signing is planned.</p>
   </div></div>`;
 }
 
@@ -919,7 +923,8 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     ...(tr ? [`<button class="btn link" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>`] : []),
   ];
   return {
-    read: `<div class="tv-verdict" aria-live="polite">${meta}<h2 class="tv-head">${head}</h2><p class="tv-lede">${esc(title(c, authorOf(c)))}</p><div class="tv-ev">${ev}</div></div>
+    read: `<div class="tv-verdict" aria-live="polite">${meta}<h2 class="tv-head">${head}</h2><p class="tv-lede">${esc(title(c, authorOf(c)))}</p><div class="tv-ev">${ev}</div>
+      ${r.find?.found === c.id ? `<p class="small muted">We checked ${esc(plural(r.find.tried.length, "save point"))}, newest first, each in a safe copy. This is the newest one that passed.</p>` : ""}</div>
     ${error}${warn}${opened}
     <div class="changed">${mosaic(c, prev)}</div>
     ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}
@@ -1201,11 +1206,12 @@ function onboarding(): string {
   let body = "";
   if (o.step === 1) {
     body = `<div><h1>Which project should we look after?</h1><p class="lede">Pick the folder of a project that uses Git. We only read the folder you pick.</p></div>
-      <div class="panel"><div class="row-btns"><button class="btn dark" data-act="ob-choose">Choose folder…</button><span class="mono muted">${esc(o.path ?? "No folder chosen")}</span></div>
-      <p class="small muted">We'll add one small settings file, timemachine.yml, to this folder. Nothing else in it changes. Save points are stored outside it.</p></div>
-      <div class="row-btns"><button class="btn dark" data-act="ob-next1" ${!o.path || o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Continue"}</button><button class="btn ghost" data-act="demo">Try the demo instead</button></div>`;
+      <div class="panel"><div class="row-btns"><button class="btn dark" data-act="ob-choose" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Choose folder…"}</button>${o.working ? '<span class="spin"></span>' : ""}<span class="mono muted">${esc(o.path ?? "No folder chosen")}</span></div>
+      <p class="small muted">Setup starts when you pick it. We'll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
+      <div class="row-btns ob-acts">${o.path && o.error && !o.working ? '<button class="btn" data-act="ob-next1">Try again</button>' : ""}<button class="btn ghost" data-act="demo">Try the demo instead</button></div>`;
   } else if (o.step === 2 && o.project) {
     const detected = o.init?.verifyCommand ?? "";
+    const setup = o.init?.verifySetup.trim() ?? "";
     const optRow = (key: OnboardingState["choice"], title: string, cmd: string, rec: boolean): string =>
       `<label class="opt ${o.choice === key ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="${key}" ${o.choice === key ? "checked" : ""}><span><div class="t">${esc(title)}</div>${cmd ? `<div class="d mono">${esc(cmd)}</div>` : ""}</span><span class="small muted">${rec ? "recommended" : ""}</span></label>`;
     const fv = o.tryResult && o.first && o.tryResult.checkpoint === o.first.id ? o.tryResult.verdict : null;
@@ -1218,23 +1224,25 @@ function onboarding(): string {
         ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true) : ""}
         ${detected !== "npm run build" ? optRow("build", "Build it", "npm run build", false) : ""}
         <label class="opt ${o.choice === "custom" ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="custom" ${o.choice === "custom" ? "checked" : ""}><span style="display:grid;gap:6px"><div class="t">My own command</div><input class="field" data-model="ob-custom" placeholder="for example: npm test" value="${esc(o.custom)}"></span><span></span></label>
+        ${setup ? `<p class="small muted">Installs first with <span class="mono">${esc(setup)}</span>, then runs the check.</p>` : ""}
         <p class="small muted">Checks run in a safe copy, never in your folder.${o.init?.network === "deny" ? " The internet is off during checks." : " The internet stays on during checks on this Mac, because no sandbox was found."}</p>
         <div class="row-btns"><button class="btn" data-act="ob-try" ${o.trying ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
           ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${esc(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
         ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn't pass right now. That's OK. We'll save it as Broken, and the next version that passes becomes your first working save point.</div>` : ""}
       </div>
-      <div class="row-btns"><button class="btn dark" data-act="ob-next2" ${o.working || o.trying ? "disabled" : ""}>Continue</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
+      <div class="row-btns ob-acts"><button class="btn dark" data-act="ob-next2" ${o.working || o.trying ? "disabled" : ""}>Continue</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
   } else if (o.step === 3 && o.project) {
     const h = o.hook;
+    const a = hookStepActions(h, !!o.hookDone);
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
         <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or from the menu bar.</div></span><span></span></label>
-        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code's settings for this project.</div>
+        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code's settings for this project. You can also do this later from Agents.</div>
           ${h ? hookLines(h) : ""}
-          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : `<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="ob-hook" ${o.working ? "disabled" : ""}>Add these lines</button></div>`}</span><span class="small muted">recommended</span></div>
+          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn't prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">recommended</span></div>
         <div class="opt"><span></span><span><div class="t">Every hour while files are changing</div><div class="d">Not built yet.</div></span><span class="planned">Planned</span></div>
       </div>
-      <div class="row-btns"><button class="btn dark" data-act="ob-finish" ${o.working ? "disabled" : ""}>${o.working ? "Saving…" : "Finish"}</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
+      <div class="row-btns ob-acts"><button class="btn dark" data-act="${a.primary.act}" ${o.working ? "disabled" : ""}>${o.working ? "Finishing…" : esc(a.primary.label)}</button>${a.skip ? `<button class="btn" data-act="ob-finish" ${o.working ? "disabled" : ""}>${esc(a.skip)}</button>` : ""}<button class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button></div>`;
   }
   return `<div class="page"><div class="col narrow">
     ${steps(o.step, ["Pick a folder", "Choose the check", "Choose when to save"])}
@@ -1309,7 +1317,7 @@ function savePointBlock(c: TimelineEntry, p: ProjectEntry): string {
 function busyScrim(): string {
   if (!st.demoBusy) return "";
   return `<div class="scrim ${once("scrim:demo")}"><div class="sheet"><h2>Building the demo</h2>
-    <div class="steplist"><div class="r"><span class="spin"></span><span>Making Marigold Tips, a small app with tests, then breaking it on purpose. The real engine finds the last working version and prepares a recovery branch.</span></div></div>
+    <div class="steplist"><div class="r"><span class="spin"></span><span>Making Marigold Tips, a small app with tests, then breaking it on purpose. The real engine checks its save points, newest first, to find the last one that works. Then you choose to go back to it.</span></div></div>
     <p class="small muted">This takes a few seconds. It happens in a new temporary folder.</p></div></div>`;
 }
 
@@ -1985,10 +1993,22 @@ async function runDemo(): Promise<void> {
   try {
     const r = await api({ method: "demo" });
     if (!st.projects.some((p) => p.id === r.project.id)) st.projects.push(r.project);
+    // The engine's demo ends with its own recovery. Undo just that branch and copy, so the one
+    // recovery in the demo is the one the user makes with the Go back key. If it can't be undone,
+    // the user's recovery gets the next free branch name, which is still correct.
+    const own = r.result.recover;
+    await bridge.call({ method: "undoRecover", projectId: r.project.id, id: own.id, branch: own.branch, copyDir: own.copyDir });
     st.demoBusy = false;
     await refreshStatuses();
     await selectProject(r.project.id);
-    toast(r.result.findGood.found ? `Demo ready. The ${pointName(r.result.findGood.found)} version was the last one that works, and a recovery branch was made.` : "Demo ready.");
+    // Land on Review of the version find-good found: one Go back key is left.
+    const found = r.result.findGood.found;
+    if (!found) return toast("Demo ready, but no working version was found.");
+    await startRewind(found);
+    if (st.rewind) {
+      st.rewind = { ...st.rewind, searched: true, find: r.result.findGood };
+      render();
+    }
   } catch (e) {
     st.demoBusy = false;
     toast(msg(e));
@@ -1996,13 +2016,16 @@ async function runDemo(): Promise<void> {
 }
 
 async function obChoose(): Promise<void> {
+  let path: string | null = null;
   try {
-    const path = await api({ method: "chooseFolder" });
-    if (path) st.onboarding = { ...st.onboarding, path, error: null };
+    path = await api({ method: "chooseFolder" });
   } catch (e) {
     st.onboarding.error = msg(e);
   }
-  render();
+  if (!path) return render();
+  st.onboarding = { ...st.onboarding, path, error: null };
+  // Picking the folder is the go-ahead: setup starts at once, with no extra Continue.
+  await obNext1();
 }
 
 async function obNext1(): Promise<void> {
@@ -2073,7 +2096,14 @@ async function obNext2(): Promise<void> {
   render();
   try {
     if (await obApplyCheck()) {
-      o.hook = await api({ method: "hookPreview", projectId: o.project.id });
+      // The Claude Code lines are optional. If they can't be prepared, step 3 says so and Finish still works.
+      try {
+        o.hook = await api({ method: "hookPreview", projectId: o.project.id });
+        o.hookError = null;
+      } catch (e) {
+        o.hook = null;
+        o.hookError = msg(e);
+      }
       o.step = 3;
     }
   } catch (e) {
@@ -2083,19 +2113,22 @@ async function obNext2(): Promise<void> {
   render();
 }
 
-async function obHook(): Promise<void> {
+/** Add the Claude Code lines, then finish. If adding fails, stay on the step with Finish still one click away. */
+async function obConnectFinish(): Promise<void> {
   const o = st.onboarding;
   if (!o.project) return;
   o.working = true;
+  o.error = null;
   render();
   try {
     const r = await api({ method: "hookInstall", projectId: o.project.id });
     o.hookDone = r.added.length ? `Added: ${r.added.join(", ")}.` : "Claude Code was already connected. Nothing changed.";
   } catch (e) {
     o.error = msg(e);
+    o.working = false;
+    return render();
   }
-  o.working = false;
-  render();
+  await obFinish();
 }
 
 async function obFinish(): Promise<void> {
@@ -2399,8 +2432,8 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "ob-back":
       st.onboarding.step = st.onboarding.step === 3 ? 2 : 1;
       return render();
-    case "ob-hook":
-      return obHook();
+    case "ob-connect-finish":
+      return obConnectFinish();
     case "ob-finish":
       return obFinish();
     case "preview":

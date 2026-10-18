@@ -55,6 +55,8 @@ export interface InitResult {
   configPath: string;
   created: boolean;
   verifyCommand: string;
+  /** Install step that runs before the check in the fresh copy. "" when none. */
+  verifySetup: string;
   network: "allow" | "deny";
   sandbox: string | null;
 }
