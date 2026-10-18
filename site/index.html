@@ -24,9 +24,15 @@
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/home.css">
 <script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+<script src="assets/intro.js"></script>
 </head>
 <body class="home">
 <a class="skip" href="#main">Skip to content</a>
+<div class="intro" aria-hidden="true">
+  <p class="intro-word"><span>Time</span> <em>Machine</em></p>
+  <p class="intro-line">Rewinding to the last version that worked</p>
+  <div class="intro-bar"><i></i></div>
+</div>
 
 <header class="bar">
   <a class="bar-brand" href="index.html" aria-current="page">Time Machine</a>
@@ -56,17 +62,64 @@
       </form>
     </div>
 
-    <ul class="cards">
+    <figure class="window" data-reveal>
+      <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>Time Machine</span></div>
+      <img src="assets/img/app-review.jpg" srcset="assets/img/app-review-800.jpg 800w, assets/img/app-review.jpg 1600w" sizes="(max-width: 1100px) 92vw, 1080px" width="1600" height="1000" alt="The Time Machine Mac app. It found the 9:54 AM version that works and shows a dial to go back to it, plus what comes back and what does not." fetchpriority="low" decoding="async">
+      <figcaption>The Mac app, in development. A real screen from the app running its demo project.</figcaption>
+    </figure>
+  </section>
+
+  <section class="block" aria-labelledby="plain-h">
+    <div class="block-head" data-reveal>
+      <p class="eyebrow">If you don't write code</p>
+      <h2 id="plain-h">You ask an AI to change your app. <em>Sometimes it breaks it.</em></h2>
+      <p class="lead">Time Machine keeps a copy of your project before the AI touches it, checks which copies still work, and gives you the last good one back. You press buttons. You don't need the terminal.</p>
+    </div>
+    <ol class="story">
+      <li class="story-row" data-reveal>
+        <div class="story-text">
+          <p class="story-n">1</p>
+          <h3>It tells you when something broke</h3>
+          <p>Every change gets a save point. The app shows plainly which ones work and which are broken, and the last one that worked.</p>
+        </div>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="834"><img src="assets/img/app-broken.jpg" width="1600" height="1000" loading="lazy" decoding="async" alt="The project page says Broken since 9:54 AM. The last version that works is from 9:54 AM, Added dark mode. A button: Go back to the 9:54 AM version. Below it, what does not come back and a list of save points, each marked Works or Broken."></picture><figcaption>Real screen, demo project.</figcaption></figure>
+      </li>
+      <li class="story-row flip" data-reveal>
+        <div class="story-text">
+          <p class="story-n">2</p>
+          <h3>Turn the dial back</h3>
+          <p>Pick the last version that works. Before anything happens, you see what comes back and what does not, like passwords or your database.</p>
+        </div>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="976"><img src="assets/img/app-review-wide.jpg" width="1600" height="718" loading="lazy" decoding="async" alt="The review screen: the 9:54 AM version works. Comes back: code and one saved file. Does not come back: secret values and database contents. A dial of save points and a Go back button."></picture><figcaption>Real screen, demo project.</figcaption></figure>
+      </li>
+      <li class="story-row" data-reveal>
+        <div class="story-text">
+          <p class="story-n">3</p>
+          <h3>Press Go back. Your work is safe.</h3>
+          <p>The good version comes back as a separate copy. Your current folder is not touched, so nothing is lost, and you can undo it.</p>
+        </div>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="616"><img src="assets/img/app-done.jpg" width="1600" height="1000" loading="lazy" decoding="async" alt="The done screen: the 9:54 AM version is back on a new branch, with a recovery copy next to the project. What came back, what did not, and things to do by hand."></picture><figcaption>Real screen, demo project.</figcaption></figure>
+      </li>
+    </ol>
+  </section>
+
+  <section class="block" aria-labelledby="dev-h">
+    <div class="block-head" data-reveal>
+      <p class="eyebrow">If you do</p>
+      <h2 id="dev-h">Three commands. <em>One engine.</em></h2>
+      <p class="lead">The Mac app, the <code>tm</code> CLI, the Claude Code hooks and the MCP server all call the same engine, so they never disagree.</p>
+    </div>
+    <ul class="cards" data-reveal>
       <li class="card">
         <p class="card-k">01</p>
-        <h2>Save</h2>
+        <h3>Save</h3>
         <p class="card-t">Before each prompt and before risky shell commands.</p>
         <p class="card-d">Claude Code's own rewind skips files changed by Bash. Time Machine saves first, outside your project folder, with a Git bundle.</p>
         <p class="card-f"><span class="ok">Built</span> Claude Code hooks</p>
       </li>
       <li class="card">
         <p class="card-k">02</p>
-        <h2>Check</h2>
+        <h3>Check</h3>
         <p class="card-t">Your own tests, in a separate copy.</p>
         <pre class="card-term" aria-label="Real tm find-good output"><span class="d">$</span> tm find-good
 cp-0004  <span class="f">FAIL</span>
@@ -75,12 +128,60 @@ cp-0003  <span class="p">PASS</span>  newest that works</pre>
       </li>
       <li class="card">
         <p class="card-k">03</p>
-        <h2>Bring back</h2>
+        <h3>Bring back</h3>
         <p class="card-t">The newest version that passes, on a new branch.</p>
         <p class="card-d">Your folder and current branch are never touched. Nothing is pushed, merged or deployed. Every report lists what did not come back.</p>
         <p class="card-f"><span class="ok">Built</span> <code>tm recover cp-0003</code></p>
       </li>
     </ul>
+    <figure class="term-block" data-reveal>
+      <pre aria-label="Real output of tm demo, shortened"><span class="d">$</span> tm find-good
+  cp-0006   <span class="f">FAIL</span>   The check failed with exit code 1.
+  cp-0005   <span class="f">FAIL</span>   The check failed with exit code 1.
+  cp-0004   <span class="f">FAIL</span>   The check failed with exit code 1.
+  cp-0003   <span class="p">PASS</span>   The check passed.
+<span class="p">PASS</span>  cp-0003 is the newest version that works.
+
+<span class="d">$</span> tm recover cp-0003
+Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
+  Branch        tm/recover/cp-0003
+  Saved first   cp-0007, your state before this recovery
+<span class="d">Not restored</span>
+  Secret values in .env: PORT, STRIPE_SECRET_KEY</pre>
+      <figcaption>Real output of <code>tm demo</code> on a synthetic project, shortened.</figcaption>
+    </figure>
+  </section>
+
+  <section class="block" aria-labelledby="why-h">
+    <div class="why" data-reveal>
+      <p class="eyebrow">Why it exists</p>
+      <h2 id="why-h">The built-in rewind <em>skips the shell.</em></h2>
+      <blockquote>
+        <p>"Checkpointing does not track files modified by Bash commands."</p>
+        <footer><a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Claude Code docs, Checkpointing</a></footer>
+      </blockquote>
+      <p class="lead">When an agent runs <code>rm</code>, <code>mv</code> or <code>sed -i</code>, that rewind cannot bring the files back. Time Machine saves before risky commands, outside your project, so a deleted folder does not take your save points with it.</p>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="words-h">
+    <div class="block-head" data-reveal>
+      <p class="eyebrow">Plain words</p>
+      <h2 id="words-h">Four words you will see.</h2>
+    </div>
+    <dl class="words" data-reveal>
+      <div><dt>Save point</dt><dd>A copy of your project at one moment. Made before each request to the AI and before risky commands.</dd></div>
+      <div><dt>Check</dt><dd>Your own tests, run on a save point in a separate copy. The answer is Works or Broken.</dd></div>
+      <div><dt>Go back</dt><dd>The newest save point that works comes back as a separate copy. Your current work stays where it is.</dd></div>
+      <div><dt>Does not come back</dt><dd>Passwords and keys, databases, anything already published. Every result lists these, so nothing surprises you.</dd></div>
+    </dl>
+  </section>
+
+  <section class="block end" aria-labelledby="end-h">
+    <div data-reveal>
+      <h2 id="end-h">Let your agent try. <em>Keep a way back.</em></h2>
+      <a class="btn btn-warm" href="#waitlist">Join the waitlist</a>
+    </div>
   </section>
 </main>
 
@@ -93,7 +194,7 @@ cp-0003  <span class="p">PASS</span>  newest that works</pre>
       <dl class="ft-status">
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
         <div><dt>Mac app</dt><dd>In development. Not signed by Apple yet.</dd></div>
-        <div><dt>Tests</dt><dd>261 automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
+        <div><dt>Tests</dt><dd>267 automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
         <div><dt>License</dt><dd>MIT. <a href="https://github.com/ShadowEsu/Time-Machine" rel="noopener">Source on GitHub</a></dd></div>
       </dl>
     </div>
