@@ -9,6 +9,8 @@
     "build": "node scripts/build.mjs",
     "dev": "install-electron && node scripts/build.mjs && electron .",
     "preview:build": "node scripts/build.mjs --preview",
+    "signing:setup": "node scripts/setup-signing.mjs",
+    "package:local": "node scripts/package-local.mjs",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json"
   },
   "devDependencies": {

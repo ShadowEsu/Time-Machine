@@ -108,8 +108,8 @@ async function callRpc(name, args, deps, log) {
       body: JSON.stringify(args),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
-  } catch (err) {
-    log(`waitlist: upstream request failed (${err && err.name ? err.name : "Error"})`);
+  } catch {
+    log("waitlist: upstream request failed");
     return null;
   }
   if (!res.ok) {
@@ -130,7 +130,7 @@ async function callRpc(name, args, deps, log) {
 }
 
 /**
- * POST joins the list. GET ?code= looks up a place in the list.
+ * POST saves a pending signup. GET ?code= looks up a confirmed place in the list.
  * @param {{ method: string, origin?: string|null, host?: string|null, code?: string|null,
  *           contentLength?: string|null, readBody: () => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
@@ -153,7 +153,7 @@ export async function handleWaitlist(req, deps) {
 
   // Honeypot. People never see this field. Bots that fill it get a quiet ok and nothing is stored.
   if (typeof data.company === "string" ? data.company.trim() !== "" : data.company != null) {
-    return reply(200, { ok: true });
+    return reply(200, { ok: true, pending: true });
   }
 
   if (typeof data.email !== "string") return reply(400, { ok: false, error: "invalid_email" });
@@ -165,17 +165,14 @@ export async function handleWaitlist(req, deps) {
 
   // A badly shaped ref is dropped here. An unknown or own code is dropped in SQL. Neither blocks the signup.
   const ref = typeof data.ref === "string" && CODE_RE.test(data.ref) ? data.ref : null;
-  const rows = await callRpc("waitlist_join", { p_email: email, p_source: cleanSource(data.source), p_ref: ref }, deps, log);
+  const rows = await callRpc("waitlist_join_pending", { p_email: email, p_source: cleanSource(data.source), p_ref: ref }, deps, log);
   if (!rows) return reply(502, { ok: false, error: "upstream" });
-
-  // No row back means the email was already on the list. Nothing changed.
-  if (rows.length === 0) return reply(200, { ok: true });
-  const { code, position, total } = rows[0] ?? {};
-  if (typeof code !== "string" || !CODE_RE.test(code) || !isCount(position) || !isCount(total)) {
+  if (rows[0]?.saved !== true) {
     log("waitlist: upstream returned an unexpected shape");
     return reply(502, { ok: false, error: "upstream" });
   }
-  return reply(200, { ok: true, code, position, total });
+  // Same answer for new and existing emails. Pending rows have no place in line, and no email is sent.
+  return reply(200, { ok: true, pending: true });
 }
 
 // GET ?code=. No Origin check: browsers do not send Origin on same origin GET requests.

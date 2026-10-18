@@ -21,6 +21,8 @@ Other scripts, run from the root with `pnpm --filter @timetm/desktop <script>`:
 | `build` | Build the app into `out/` without running it |
 | `preview:build` | Build the browser preview into `preview/dist/` |
 | `typecheck` | Type check the main process and the window code |
+| `signing:setup` | Create or reuse the local self-signed identity on this Mac |
+| `package:local` | Build, stage, package and self-sign `release/Time Machine.app`, then zip it |
 
 ## Running an unsigned build
 
@@ -29,7 +31,41 @@ This build is not signed or notarized by Apple yet. macOS warns the first time y
 - In Finder, Control-click the app, choose Open, then choose Open again.
 - Or open System Settings, then Privacy & Security, scroll to the message about the app and click Open Anyway.
 
-Only do this for a build you got from the official GitHub repository, [ShadowEsu/Time-Machine](https://github.com/ShadowEsu/Time-Machine). Signed and notarized builds are planned (D08). The welcome screen says the same in one line.
+Only do this for a build you got from the official GitHub repository, [ShadowEsu/Time-Machine](https://github.com/ShadowEsu/Time-Machine). Apple Developer ID signing and notarization are planned (D08). The welcome screen says this is not signed or notarized by Apple.
+
+## Local self-signed Mac package
+
+This is not Apple Developer ID signing. It does not notarize the app or make Apple trust it. The first-open warning and the guidance above still apply to downloaded builds. Apple signing and notarization remain planned (D08).
+
+From the root on a Mac with Node 22.12+, pnpm and OpenSSL 3 installed:
+
+```sh
+pnpm --filter @timetm/desktop package:local
+```
+
+The script builds `out/`, copies only that output and a minimal `package.json` to a temporary staging folder, and uses the exact `@electron/packager@19.0.1` and Electron version in this package. It does not package this checkout, `node_modules`, the store or signing material. The bundled engine and CLI are already in `out/`. The CLI stays unpacked because hooks run it through a real filesystem path.
+
+Output is `apps/desktop/release/Time Machine.app` and `apps/desktop/release/Time Machine.zip`. The script replaces only these two local artifacts. It does not install in `/Applications`, publish, enroll with Apple or notarize anything. The app keeps bundle ID `dev.timetm.desktop`; helper IDs stay under it.
+
+`signing:setup` runs automatically when packaging. It makes **Time Machine Self Signed** once, in a dedicated `~/.timemachine-signing/signing.keychain-db`. Future builds unlock and reuse it. The same directory holds an encrypted private key (`private-key.pem`), certificate (`certificate.pem`), encrypted PKCS#12 backup (`identity.p12`) and password file (`password`). Its permissions are 0700, with files 0600. Back up the whole directory privately. Never commit or share it. Losing it means losing this signing identity. Setup resumes incomplete steps without replacing an existing key or certificate.
+
+Trust is user-local, only for code signing. The dedicated keychain is appended to the user keychain search list, preserving every existing entry. No system trust or unrelated identities are changed. The identity has a ten-year certificate. `security` receives the saved password as a process argument for keychain operations; do not run this under shell tracing or log process arguments.
+
+Nested Mach-O code is signed first, then helper and framework bundles, then the app. Hardened runtime is on, with no timestamp. Main and helper executables get V8 JIT permission and the library-validation exception needed by a self-signed Electron app without an Apple Team ID. The app is not App Sandbox signed, so sandbox inheritance entitlements are not added. No unsigned executable memory, camera, microphone or Accessibility entitlement is added.
+
+Check the artifact locally:
+
+```sh
+codesign --verify --deep --strict --verbose=2 'apps/desktop/release/Time Machine.app'
+codesign -d -r- 'apps/desktop/release/Time Machine.app'
+spctl --assess --type execute --verbose=4 'apps/desktop/release/Time Machine.app'
+```
+
+The first command must pass. The last is expected to reject this non-Apple-trusted build. A stable designated requirement across rebuilds identifies the same signer and bundle, not proof that macOS privacy permissions persist. That persistence has not been tested.
+
+Exercised locally on 17 October 2026 (Apple silicon): two full packages reused the same certificate and had identical designated requirements. `codesign --verify --deep --strict` passed on the final app. Hardened runtime was present. `spctl` rejected it (exit 3), as expected for this signer.
+
+The packaged `.app` launched through its own executable with isolated HOME, TM_HOME and userData. The real-engine demo reached a passing version and made `tm/recover/cp-0003` in two clicks. The synthetic project kept the same branch, HEAD and working-tree status before and after recovery. The result showed what was not restored. No renderer page errors were observed. Evidence and screenshots: `/tmp/tm-pw/app-selfsigned/`. This did not exercise a quarantined download, Finder's first-open warning or privacy grant persistence.
 
 ## What is built
 
@@ -53,7 +89,7 @@ Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs somet
 
 ## Planned, not built
 
-- Signing, notarization and auto update (D08). Until then macOS asks you to confirm the first open (see Running an unsigned build).
+- Apple Developer ID signing, notarization and auto update (D08). A local self-signed package is built, but it is not Apple trusted (see Running an unsigned build).
 - Thinning old save points (cleanup removes old check logs only), stronger isolation with Docker or Apple container, Cursor, Codex and Gemini CLI hooks, automatic hourly saves.
 - Recording what an agent said at the end of a turn, so "Agent said" can show it next to "We ran". Test counts in the check summary ("3 tests failed"); today it says passed or failed and how many files changed.
 - From the Rewind design: screenshots per save point, sounds and haptics, zoom levels, the reverse fork animation on Undo, and stopping a running search (Esc leaves the view, the search keeps going).

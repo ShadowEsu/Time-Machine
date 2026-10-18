@@ -23,7 +23,7 @@ const CODE = "abc123xyz0";
 const REF = "frnd000ref";
 const json = (value, status = 200) =>
   new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const joined = () => json([{ code: CODE, position: 7, total: 42 }]);
+const joined = () => json([{ saved: true }]);
 
 function setup({ env = ENV, response = joined } = {}) {
   const fetch = vi.fn(async () => response());
@@ -34,23 +34,17 @@ function setup({ env = ENV, response = joined } = {}) {
 const good = { email: EMAIL, consent: true, source: "/blog/first-post", company: "" };
 
 describe("waitlist handler", () => {
-  it("stores a new signup through the join function and returns its code and position", async () => {
+  it("saves a pending signup with one Supabase call and sends no email", async () => {
     const { fetch, deps } = setup();
     const res = await handleWaitlist(request(good), deps);
-    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, code: CODE, position: 7, total: 42 } });
+    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true, pending: true } });
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_join");
+    expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_join_pending");
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
     expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null });
-  });
-
-  it("answers ok without a code when the email is already on the list", async () => {
-    const { deps } = setup({ response: () => json([]) });
-    const res = await handleWaitlist(request(good), deps);
-    expect(res).toEqual({ status: 200, headers: {}, body: { ok: true } });
   });
 
   it("passes a well formed ref code to Supabase", async () => {
@@ -65,17 +59,17 @@ describe("waitlist handler", () => {
     for (const ref of bad) {
       const { fetch, deps } = setup();
       const res = await handleWaitlist(request({ ...good, ref }), deps);
-      expect(res.body).toEqual({ ok: true, code: CODE, position: 7, total: 42 });
+      expect(res.body).toEqual({ ok: true, pending: true });
       expect(JSON.parse(fetch.mock.calls[0][1].body).p_ref).toBeNull();
     }
   });
 
   it("does not claim success when Supabase answers with an unexpected shape", async () => {
     const shapes = [
-      () => json({ code: CODE }),
-      () => json([{ code: "NOT-A-CODE", position: 1, total: 1 }]),
-      () => json([{ code: CODE, position: "1", total: 1 }]),
-      () => json([{ code: CODE, position: 1, total: 1 }, { code: CODE, position: 1, total: 1 }]),
+      () => json({ saved: true }),
+      () => json([]),
+      () => json([{ saved: "true" }]),
+      () => json([{ saved: true }, { saved: true }]),
       () => new Response("not json", { status: 200 }),
       () => new Response(null, { status: 409 }),
     ];
@@ -113,7 +107,7 @@ describe("waitlist handler", () => {
     const { fetch, deps } = setup();
     const res = await handleWaitlist(request({ ...good, company: "Acme Bots" }), deps);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, pending: true });
     expect(fetch).not.toHaveBeenCalled();
   });
 

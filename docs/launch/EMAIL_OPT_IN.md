@@ -1,18 +1,31 @@
-# Waitlist emails: double opt-in and unsubscribe (options for Preston, not built)
+# Waitlist email: not connected
 
-Today the waitlist sends no email at all. Signing up stores the row; nothing confirms it and nothing goes out. Before the first email to the list, two things should exist:
+The site sends no email. This is a founder decision, not unfinished work.
 
-1. **Confirm (double opt-in):** after signup, one email with a confirm link. Only confirmed rows get later emails. This keeps typos and fake signups off the list, and it makes referral credit harder to game with made-up addresses.
-2. **Unsubscribe:** a one-click link in every email that works for at least 30 days, honored within 10 business days (FTC CAN-SPAM guide: https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business). Each email also needs a real postal address under CAN-SPAM.
+## What happens today
 
-## Options to send the emails
+1. Someone submits the waitlist form.
+2. The server saves the signup in Supabase as pending and unconfirmed.
+3. It answers `200 {"ok":true,"pending":true}`. The answer is the same for new and existing emails, so nobody can probe who is on the list. It holds no referral code, no place in line and no token.
+4. The form says: "Saved as pending and unconfirmed. No email has been sent."
 
-| Option | What it needs from you | Trade-off |
-|---|---|---|
-| **Resend on `unvibe.site`** (Unvibe already sends through Resend on that domain) | OK to send Time Machine mail from an `unvibe.site` address, and the Resend API key added to Vercel `time-machine-site` | Fastest. Mail comes from the Unvibe domain, which may confuse people who signed up for Time Machine |
-| **Resend on a Time Machine domain** | Buy a domain (free ones found earlier: timetm.dev, gettimemachine.dev, rewindtm.dev, usetimetm.com), verify it in Resend (3 DNS records), add the key to Vercel | Clean brand and better deliverability. Needs the domain first |
-| **Do nothing until launch** | Nothing | Fine while no email is sent. Must be built before the first "it is on npm" email |
+Pending signups do not count in anyone's place in line, in the total, or in referral credit. Only rows with `confirmed_at` set and `unsubscribed_at` empty count. No row is confirmed by the site today, and the site has no confirmation or unsubscribe links.
 
-## What the agent builds once you pick
+`/api/health` answers `{"ok":true,"waitlist":true,"email":false}` once Supabase is set up. `email:false` is on purpose. It does not close the form. Only `waitlist:false` does.
 
-A `confirmed_at` column and a random confirm token in Supabase, a `/api/confirm` link, an unsubscribe token and `/api/unsubscribe`, one plain confirm email, and a change so only confirmed signups count for referral credit. Tests first, synthetic data only. No email is sent until you approve the exact text.
+No email service key is needed or read. `RESEND_API_KEY`, `WAITLIST_FROM` and `SITE_URL` are not used by the site.
+
+## Before any waitlist email is added
+
+Preston already has email agents that handle sending. Nothing on the site connects to them. Before any email is sent to people on the waitlist, Preston or BOSS must:
+
+1. Explain how the existing email agents work: who sends, from which address, and where they read the list from.
+2. Approve the exact flow in writing: which emails go out, when, to whom, and with what wording.
+3. Decide how a signup becomes confirmed and how people unsubscribe.
+4. Approve the matching update to the privacy page before anything is sent.
+
+Until all four are done, nobody writes code that sends, schedules or queues waitlist email.
+
+## History
+
+A Resend double opt-in flow was drafted on 18 October 2026 and removed before it was ever deployed (commits `5c48d8f` and `0defa5a`, removed in `3752993`). It is in git history for reference only. It is not approved.
