@@ -84,6 +84,8 @@ The packaged `.app` launched through its own executable with isolated HOME, TM_H
 - **Jump to… (`⌘K`):** one list you can type into: actions (Save now, Check it works, go back to the last working version, Compare, Agents, Storage, Settings), projects, and the 12 newest save points by time and title. Every typed word must match. Arrow keys and Enter, no mouse needed.
 - **Inspector (`⌘I`, or ⋯):** the raw engine result of the last action and the same action as a `tm` command, with Copy. For the selected save point: the exact commit, its ref, the last check's command, exit code and log (with Show log), and the `tm` commands to check, open, use and compare it. Undo of a rewind has no `tm` command yet, so the Inspector says it is app only.
 - **Look:** the Notebook direction from `design/APP_V3_DIRECTION.md`: warm paper and ink in light and dark, one mulberry accent for focus and questions (never a verdict), Newsreader headings with italic accents, Inter for text and Geist Mono for times and technical facts. The fonts ship in `src/renderer/fonts/` with their SIL OFL licences. Nothing loads from the network.
+- **Launch splash:** a black window with the Time Machine wordmark ("Machine" in italic orange) and a thin loading bar along the bottom edge, like the website's opening screen. It is drawn by `index.html` before any script runs and fades out over 300 ms once the settings, the projects and the first page are drawn, after at least 600 ms so it never flashes. The bar has no percentage. Any key or click skips it, and the key still reaches the app. It shows at launch only, never when you move between pages. With Reduce motion on it does not fade and has no minimum: it is there only while the app loads. The logic is in `src/renderer/splash.ts`.
+- **Motion:** a new page fades in and rises 8 px (220 ms). Sheets, Jump to… and the shortcut sheet scale and fade in, and they fade out when they close; the Rewind scene, the Inspector and toasts fade out too. What is closing never takes clicks, so nothing waits for it. A project's journal rows rise in one after another the first time the journal shows in a session, with the last row starting at most 300 ms after the first. Only opacity and transform move, so nothing shifts the layout. A redraw in the middle continues the movement instead of restarting it (`src/renderer/motion.ts`). The verdict stamp keeps its own moment. With Reduce motion on, none of this moves.
 
 Every verdict has a shape and a word: Works, Broken, Couldn't check, Needs something, Check crashed, Not checked yet. Color only confirms. When a shortcut fires, its button shows its pressed state for about 120 ms.
 
@@ -115,6 +117,15 @@ The preview never opens a simulated overlay by itself. Use the banner's Show ove
 - The Add a project path counted: Add a project, Choose folder, Continue, Connect Claude Code and finish, Check it works, Done, Save now (after a change outside the app broke the test), Go back to the version, the Go back key.
 - Browser preview, Playwright at 1280 by 800 and 960 by 640 (`/tmp/tm-pw/firstrun.mjs`): no covered buttons, no horizontal overflow, no page errors. Native runs: `/tmp/tm-pw/native-firstrun.mjs` and `/tmp/tm-pw/native-add.mjs`. Screenshots in `/tmp/tm-pw/app-firstrun/`.
 - Not exercised: the macOS first open warning itself (the build was run from source) and a real Finder folder dialog. Dark mode was looked at on the welcome screen and onboarding step 2 only.
+
+## Splash and motion exercised checks
+
+18 October 2026, Apple silicon, synthetic demo data only. The packaged self-signed app (`package:local`) ran through its own executable with isolated HOME, TM_HOME, TMPDIR and userData.
+
+- Splash timing, measured from the window starting to load to the fade starting: 658 to 735 ms over six normal launches. From starting the process that was 0.9 to 1.3 s, and 2.8 s on the first launch after packaging. With Reduce motion emulated, the splash went with no fade at 654 to 678 ms, which is when the first page was drawn. So the 600 ms minimum adds at most about 80 ms. A key pressed at 180 ms started the fade at once.
+- Demo to recovery still works with the splash. Packaged app: Try the demo, leave the Rewind, Check it works (Broken), then Go back made `tm/recover/cp-0003`. Built from source: Try the demo, then the Go back key, made it in 2 clicks. Both times the demo folder kept the same branch, HEAD and status, and no renderer page errors were seen.
+- Browser preview (Chrome, 1280 by 800): page entrance and journal stagger played once, a closing Jump to… kept fading across a redraw and was removed after it, and with Reduce motion nothing moved. The browser preview has no splash.
+- Screenshots for the website, 1280 by 800 at 2x, light and dark: `/tmp/tm-pw/site-app-shots/`. Scripts: `/tmp/tm-pw/native-shots.mjs`, `/tmp/tm-pw/native-splash.mjs`, `/tmp/tm-pw/polish-preview.mjs`.
 
 ## V3 exercised checks
 
