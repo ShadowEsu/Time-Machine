@@ -1,12 +1,14 @@
 # Plan to MVP
 
-Status (17 October 2026, evening): M0 to M3 code is built and merged to `main` (PR #1). License: MIT (ADR 0010). npm publication waits on the founder's account. 250 automated tests (248 on macOS, 2 run only on Linux) in CI on macOS and Linux, Node 22 and 24. D01 to D07 of the Mac app are built, including opt-in Ask (ADR 0008) and read-only Vercel deploy links (ADR 0009); native Electron smoke passed; signing (D08) remains. The website is public at https://time-machine-site.vercel.app: a short home page with one promise, real `tm demo` output as proof, one waitlist action, a personal referral link with the real place in line, and anonymous funnel counts. The cinematic story stays on `story.html`. The waitlist saves nothing until the founder creates the Supabase project (`docs/launch/SUPABASE_SETUP.md`). The action connector remains proposed v2 (ADR 0007). Full session memory: `docs/HANDOFF.md`.
+Status (17 October 2026, night): M0 to M3 code is built and merged to `main` (PRs #1 to #3). License: MIT (ADR 0010). `timetm` is one command from npm (`docs/launch/NPM_PUBLISH.md`); publication waits on the founder's account. 261 automated tests (259 on macOS, 2 run only on Linux) in CI on macOS and Linux, Node 22 and 24. D01 to D07 of the Mac app are built, including opt-in Ask (ADR 0008) and read-only Vercel deploy links (ADR 0009); native Electron smoke passed; signing (D08) remains. The website is public at https://time-machine-site.vercel.app: a short home page with one promise, real `tm demo` output as proof, one waitlist action, a personal referral link with the real place in line, and anonymous funnel counts. The cinematic story stays on `story.html`. The waitlist saves nothing until the founder creates the Supabase project (`docs/launch/SUPABASE_SETUP.md`). The action connector remains proposed v2 (ADR 0007). Full session memory: `docs/HANDOFF.md`.
 
 Waiting on the founder: npm account (publish), the Supabase project and two Vercel settings for the waitlist, who signs for money, lawyer review, a domain, and the demo video. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
 
 ## Goal
 
 By 31 October 2026, a stranger can run `npx timetm init` on the demo project, break it, and get a verified recovery branch in under 2 minutes. That is the demo for the a16z speedrun (closes 1 November) and YC W27 (closes 2 November, 8pm PT).
+
+Measured 17 October on a real repo (`sindresorhus/slugify`, packed `timetm`, fresh home, empty npm cache): 54 to 82 s from `init` to a verified recovery branch over two runs (`scripts/time-first-run.sh`). Before `init` guessed the install step, the same path never reached a verified branch: every check failed to start without `node_modules`. The Mac app's Try the demo reaches a recovery branch in 2 clicks. What remains for the goal is the npm publish itself.
 
 ## Milestones
 

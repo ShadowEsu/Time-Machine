@@ -396,8 +396,8 @@ function sidebar(): string {
 function welcome(): string {
   return `<div class="welcome"><div class="inner">
     <div class="mini-ruler" aria-hidden="true">${glyph("PASS")}${glyph("PASS")}${glyph(null)}${glyph("PASS")}${glyph("FAIL")}${glyph("FAIL")}${glyph("FAIL")}<span class="ph"></span></div>
-    <h1>Save points that know if they work.</h1>
-    <p class="lede">Save your project as you go. We check each version in a safe copy. When something breaks, find the last one that works and put it on a new branch. Your folder and branch are not touched.</p>
+    <h1>Get back the version that passed your tests.</h1>
+    <p class="lede">Time Machine saves your project before your agent acts and checks each save point with your own tests, in a safe copy. When something breaks, it brings back the newest one that passes, on a new branch. Your folder and branch are not touched.</p>
     <div class="row-btns"><button class="btn dark big" data-act="demo">Try the demo</button><button class="btn big" data-act="add">Add a project</button></div>
     <p class="foot">Works on this Mac. Your code is not uploaded. Time Machine is not universal undo: every result says what was not restored.</p>
     <p class="foot unsigned">Not signed or notarized by Apple yet, so macOS warns on first open. Signing is planned.</p>
