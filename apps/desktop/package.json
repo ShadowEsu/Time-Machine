@@ -2,6 +2,7 @@
   "name": "@timetm/desktop",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Time Machine for Mac. Save points that know if they work.",
   "main": "out/main.cjs",
   "scripts": {
