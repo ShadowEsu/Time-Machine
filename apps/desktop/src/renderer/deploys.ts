@@ -28,7 +28,7 @@ export function deployLink(d: VercelDeployment): string | null {
 /** One deploy as a chip, for example "Vercel Production · Ready". Neutral colours: a Vercel state is not a check result. */
 export function deployChip(d: VercelDeployment, exact: boolean): string {
   const text = `Vercel ${TARGET[d.target]} · ${STATE[d.state]}`;
-  const fit = exact ? "Built from this save point's commit." : "Built from this save point's commit. This save point also held changes that were not committed, so the deploy may differ.";
+  const fit = exact ? "Built from this save point’s commit." : "Built from this save point’s commit. This save point also held changes that were not committed, so the deploy may differ.";
   const label = `${text}. ${fit} Read only. Time Machine never deploys, promotes or rolls back.`;
   const url = deployLink(d);
   const body = `<i aria-hidden="true">▲</i>${esc(text)}<span class="ft-ro">read only</span>`;
@@ -89,7 +89,7 @@ export async function renderDeployChips(projectId: string, entries: readonly Pic
 
 /** The list under the journal: deploys from a computer that no save point can be linked to. */
 export function unlinkedHtml(result: DeploymentsResult | null, problem: string | null): string {
-  if (problem) return `<div class="ft-unlinked"><p class="ft-note">Couldn't read deploys from Vercel. ${esc(problem)}</p></div>`;
+  if (problem) return `<div class="ft-unlinked"><p class="ft-note">Couldn’t read deploys from Vercel. ${esc(problem)}</p></div>`;
   if (!result || (!result.noCommit.length && !result.otherCommits.length)) return "";
   const rows = result.noCommit
     .map((d) => {
@@ -103,7 +103,7 @@ export function unlinkedHtml(result: DeploymentsResult | null, problem: string |
     ? `<p class="ft-muted">${esc(`${plural(result.otherCommits.length, "other deploy")} came from Git commits that no save point recorded.`)}</p>`
     : "";
   const head = result.noCommit.length
-    ? `<h3>Deployed from your computer, not linked to a save point</h3><p class="ft-muted">These deploys have no Git commit, so Time Machine can't tell which save point they came from. Read only.</p><ul>${rows}</ul>`
+    ? `<h3>Deployed from your computer, not linked to a save point</h3><p class="ft-muted">These deploys have no Git commit, so Time Machine can’t tell which save point they came from. Read only.</p><ul>${rows}</ul>`
     : "";
   return `<div class="ft-unlinked">${head}${other}</div>`;
 }

@@ -76,7 +76,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
       };
     }
     case "INCOMPLETE":
-      return { v: "INCOMPLETE", head: "Couldn't check the newest save point.", em: "", body: "We won't call it working until a check finishes.", primary: check, secondary: goBack };
+      return { v: "INCOMPLETE", head: "Couldn’t check the newest save point.", em: "", body: "We won’t call it working until a check finishes.", primary: check, secondary: goBack };
     case "BLOCKED":
       return { v: "BLOCKED", head: "Needs something before it can be checked.", em: "", body: "The check could not start. Check again after you add what it needs.", primary: check, secondary: goBack };
     case "ERROR":
@@ -86,7 +86,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
         v: null,
         head: "Not checked yet.",
         em: "checked yet.",
-        body: `Saved at ${when(newest.createdAt)}. We don't know yet if this version works.`,
+        body: `Saved at ${when(newest.createdAt)}. We don’t know yet if this version works.`,
         primary: check,
         secondary: goBack,
       };
