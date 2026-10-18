@@ -1,8 +1,6 @@
 // Waitlist handler core. Pure: no Vercel, no globals. Fetch, env and log are injected.
 // Rules: never log or echo the email, never echo secrets, never fake success.
 
-import { isEmailConfigured, newToken, hashToken, sendEmail } from "./email.js";
-
 export const MAX_BODY_BYTES = 2048;
 export const MAX_EMAIL_LENGTH = 254;
 const MAX_SOURCE_LENGTH = 200;
@@ -101,7 +99,7 @@ const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
 
 // Calls a Postgres function through PostgREST. Returns the parsed rows array, or null after logging
 // a safe line. Logs only an error name or status code: upstream messages can quote the email back.
-export async function callRpc(name, args, deps, log = deps.log ?? (() => {})) {
+async function callRpc(name, args, deps, log) {
   let res;
   try {
     res = await deps.fetch(`${supabaseOrigin(deps.env)}/rest/v1/rpc/${name}`, {
@@ -132,7 +130,7 @@ export async function callRpc(name, args, deps, log = deps.log ?? (() => {})) {
 }
 
 /**
- * POST joins the list. GET ?code= looks up a place in the list.
+ * POST saves a pending signup. GET ?code= looks up a confirmed place in the list.
  * @param {{ method: string, origin?: string|null, host?: string|null, code?: string|null,
  *           contentLength?: string|null, readBody: () => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
@@ -163,24 +161,17 @@ export async function handleWaitlist(req, deps) {
   if (!isValidEmail(email)) return reply(400, { ok: false, error: "invalid_email" });
   if (data.consent !== true) return reply(400, { ok: false, error: "consent_required" });
 
-  if (!isConfigured(deps.env) || !isEmailConfigured(deps.env)) return reply(503, { ok: false, error: "not_configured" });
+  if (!isConfigured(deps.env)) return reply(503, { ok: false, error: "not_configured" });
 
   // A badly shaped ref is dropped here. An unknown or own code is dropped in SQL. Neither blocks the signup.
   const ref = typeof data.ref === "string" && CODE_RE.test(data.ref) ? data.ref : null;
-  const tokens = { confirm: newToken(), unsub: newToken() };
-  const rows = await callRpc("waitlist_join", {
-    p_email: email, p_source: cleanSource(data.source), p_ref: ref,
-    p_confirm_hash: hashToken(tokens.confirm), p_unsub_hash: hashToken(tokens.unsub),
-  }, deps, log);
+  const rows = await callRpc("waitlist_join_pending", { p_email: email, p_source: cleanSource(data.source), p_ref: ref }, deps, log);
   if (!rows) return reply(502, { ok: false, error: "upstream" });
-  if (rows.length) {
-    if (rows[0]?.send_confirmation !== true) {
-      log("waitlist: upstream returned an unexpected shape");
-      return reply(502, { ok: false, error: "upstream" });
-    }
-    if (!await sendEmail("confirm", email, tokens, {}, deps)) return reply(502, { ok: false, error: "upstream" });
+  if (rows[0]?.saved !== true) {
+    log("waitlist: upstream returned an unexpected shape");
+    return reply(502, { ok: false, error: "upstream" });
   }
-  // Same public response for new, pending, confirmed and unsubscribed addresses.
+  // Same answer for new and existing emails. Pending rows have no place in line, and no email is sent.
   return reply(200, { ok: true, pending: true });
 }
 
