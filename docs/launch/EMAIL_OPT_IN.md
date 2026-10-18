@@ -1,51 +1,31 @@
-# Waitlist emails: double opt-in and unsubscribe
+# Waitlist email: not connected
 
-The email flow is built. Preston still needs to set up Supabase, Resend, DNS and Vercel, then ask BOSS or the coding agent to redeploy. Real provider setup and delivery have not been verified.
+The site sends no email. This is a founder decision, not unfinished work.
 
-## What happens
+## What happens today
 
-1. Someone submits the form. The server saves a pending signup and sends a confirmation email through Resend. It returns `200 {"ok":true,"pending":true}`, with no referral code or card.
-2. They click the confirmation link. A valid link redirects to `/confirmed.html?code=CODE` and sends a welcome email. An invalid, used or expired link redirects to `/confirmed.html?error=invalid`.
-3. Only confirmed, subscribed people count in list positions and totals. Only confirmed, subscribed friends earn referral credit. Referral codes are 10 lowercase letters or digits.
-4. Both emails include an unsubscribe link. Opening it with GET only shows a page. Pressing its unsubscribe button sends POST and stops the subscription. A later signup does not silently subscribe that person again.
+1. Someone submits the waitlist form.
+2. The server saves the signup in Supabase as pending and unconfirmed.
+3. It answers `200 {"ok":true,"pending":true}`. The answer is the same for new and existing emails, so nobody can probe who is on the list. It holds no referral code, no place in line and no token.
+4. The form says: "Saved as pending and unconfirmed. No email has been sent."
 
-The only automatic emails are confirmation and welcome. There is no launch campaign or bulk send. The database stores SHA-256 token hashes, not the raw links. Confirmation links are single-use and expire after 7 days. Confirmation resends have a 10-minute cooldown. Unsubscribe links do not expire. Confirmation replaces the first unsubscribe link with a new one in the welcome email. People can unsubscribe at any time using the current link.
+Pending signups do not count in anyone's place in line, in the total, or in referral credit. Only rows with `confirmed_at` set and `unsubscribed_at` empty count. No row is confirmed by the site today, and the site has no confirmation or unsubscribe links.
 
-For safe welcome retries, the welcome unsubscribe token is derived with domain-separated HMAC-SHA256 from the original random confirmation token. Only its SHA-256 hash is stored. The welcome's first position and total are frozen in the database so retry payloads stay identical. The confirmation page always fetches the current position.
+`/api/health` answers `{"ok":true,"waitlist":true,"email":false}` once Supabase is set up. `email:false` is on purpose. It does not close the form. Only `waitlist:false` does.
 
-Provider acceptance is not proof that an email reached an inbox. Check the recipient inbox before claiming delivery. Resend retains idempotency keys for 24 hours. If Resend accepted a welcome but the final database update failed, retry promptly within that window. A later retry after that rare partial failure may duplicate the welcome.
+No email service key is needed or read. `RESEND_API_KEY`, `WAITLIST_FROM` and `SITE_URL` are not used by the site.
 
-## Preston: connect the services
+## Before any waitlist email is added
 
-For the complete database steps, use [Supabase setup](SUPABASE_SETUP.md). Apply migrations `0001`, `0002` and `0003` in order before opening the form.
+Preston already has email agents that handle sending. Nothing on the site connects to them. Before any email is sent to people on the waitlist, Preston or BOSS must:
 
-1. Go to https://resend.com and create a free account, or sign in to the account you want to use.
-2. Open **Domains**, click **Add domain**, and enter `unvibe.site`. If it is already listed, open it instead.
-3. Open the DNS settings where you manage `unvibe.site`. Add the exact DNS records Resend shows, including each type, name and value. Do not copy example values from another domain or remove unrelated records.
-4. Back in Resend, click **Verify** and wait until the sending domain is verified.
-   Before sending, open the domain settings and turn **Open tracking** and **Click tracking** off. The code sends direct links and no images. Resend must not add tracking pixels or rewrite token links.
-5. Open **API Keys**, click **Create API Key**, and create a key allowed to send from this domain. Save it in your password manager. Do not paste it into chat, docs or source code.
-6. Open https://vercel.com, select **time-machine-site**, then **Settings → Environment Variables**. Add the settings below for **Production** and **Preview**. Mark secret values **Sensitive** if that switch is available.
+1. Explain how the existing email agents work: who sends, from which address, and where they read the list from.
+2. Approve the exact flow in writing: which emails go out, when, to whom, and with what wording.
+3. Decide how a signup becomes confirmed and how people unsubscribe.
+4. Approve the matching update to the privacy page before anything is sent.
 
-| Vercel name | Status | Value |
-|---|---|---|
-| `SUPABASE_URL` | Required | Supabase Project URL, starting with `https://` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Required, secret | Supabase service role key |
-| `RESEND_API_KEY` | Required, secret | The Resend API key |
-| `WAITLIST_FROM` | Optional, default | `Time Machine <timemachine@unvibe.site>` |
-| `SITE_URL` | Optional, default | `https://time-machine-site.vercel.app` |
+Until all four are done, nobody writes code that sends, schedules or queues waitlist email.
 
-The sender must use a domain verified in your Resend account. `SITE_URL` is the public site address used in email links. Set it explicitly if you use another address.
+## History
 
-After saving the variables, tell BOSS or the coding agent: "Supabase, Resend and DNS are configured. Please redeploy time-machine-site." Existing deployments do not pick up new variables.
-
-## What the status means
-
-After redeployment, `/api/health` should show `{"ok":true,"waitlist":true,"email":true}`. This checks configuration presence and the Supabase URL shape only. It does not contact the providers, check migrations or prove email delivery.
-
-- No Resend key: signup returns `503`. Email is not configured.
-- Resend send failure: signup returns `502`. The saved row stays pending. The 10-minute cooldown still applies before another confirmation attempt.
-- Welcome request failure: the row stays confirmed, but the confirmation link is retained until expiry. Opening the same link retries the welcome with an identical payload and Resend idempotency key. The token is consumed only after provider acceptance. A repeat after successful completion sends no email.
-- `GET /api/waitlist?code=CODE` returns `{"ok":true,"position":…,"referrals":…,"total":…}` for a confirmed, subscribed person. Pending or unsubscribed codes return `404`.
-
-Use synthetic data for local checks. Do not send real email or run a live signup test without separate founder approval.
+A Resend double opt-in flow was drafted on 18 October 2026 and removed before it was ever deployed (commits `5c48d8f` and `0defa5a`, removed in `3752993`). It is in git history for reference only. It is not approved.

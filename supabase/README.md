@@ -1,26 +1,25 @@
-# Supabase and email setup for the waitlist
+# Supabase setup for the waitlist
 
-The double opt-in flow is built. Provider setup and delivery are not verified. Preston must configure Supabase, Resend, DNS and Vercel before the form can send mail.
+The site saves waitlist signups in one Supabase project. It sends no email. See [Waitlist email](../docs/launch/EMAIL_OPT_IN.md) for why, and what must happen before any email is added.
 
-For click-by-click setup and the combined SQL, see [Supabase setup](../docs/launch/SUPABASE_SETUP.md). For Resend and email behavior, see [Waitlist emails](../docs/launch/EMAIL_OPT_IN.md).
+For click-by-click setup and the combined SQL, see [Supabase setup](../docs/launch/SUPABASE_SETUP.md).
 
 ## API behavior
 
-- `POST /api/waitlist` saves a pending signup and sends a confirmation email. Success is `200 {"ok":true,"pending":true}`. It returns no code or referral card before confirmation.
-- `GET /api/confirm` confirms the row and requests a welcome email. It consumes the token only after provider acceptance, then redirects to `/confirmed.html?code=CODE`. Invalid, used or expired links redirect to `/confirmed.html?error=invalid`.
-- `GET /api/waitlist?code=CODE` returns `ok`, `position`, `referrals` and `total` for confirmed, subscribed rows only. Pending or unsubscribed rows return `404`. Codes are 10 lowercase letters or digits.
-- `GET /api/unsubscribe` only shows a confirmation page. `POST /api/unsubscribe` stops the subscription. Signup does not silently reactivate an unsubscribed row.
-- `POST /api/event` still counts visits, shares and link copies.
+- `POST /api/waitlist` saves a pending, unconfirmed signup. Success is `200 {"ok":true,"pending":true}` for new and existing emails alike. No code, place in line or token is returned. No email is sent.
+- `GET /api/waitlist?code=CODE` returns `ok`, `position`, `referrals` and `total` for confirmed, subscribed rows only. Pending, unsubscribed or unknown codes return `404`. Codes are 10 lowercase letters or digits.
+- `POST /api/event` counts visits, shares and link copies.
+- `GET /api/health` returns `{"ok":true,"waitlist":<bool>,"email":false}`. `waitlist` is true when both Supabase settings are present. `email` is always false.
 
-Only confirmed, subscribed rows count in positions and totals. Only confirmed, subscribed friends earn referral credit. Automatic emails are confirmation and welcome only.
+Only confirmed, subscribed rows count in positions and totals. Only confirmed, subscribed friends earn referral credit. The site does not confirm anyone today. How a signup becomes confirmed is not decided.
 
 ## What gets stored
 
-One row per normalized email: email, consent, source, signup time, referral codes, confirmation and unsubscribe state, send timing, and SHA-256 token hashes. Raw tokens are not stored. Confirmation tokens expire after 7 days and can be used once. Confirmation resends have a 10-minute cooldown. Unsubscribe tokens do not expire and remain reusable until replaced at confirmation.
+One row per normalized email: email, consent, source page, signup time, the person's own referral code, the code that referred them (if any), and `confirmed_at` and `unsubscribed_at` times (both empty for a site signup). No tokens. Saving again with the same email changes nothing, so an unsubscribed person is never added back.
 
-The `funnel_events` table stores event type, page path, referral flag and time. It holds no email or referral code. Neither table stores IP addresses, browser details or cookies. The `funnel_daily` view reports daily funnel counts, raw signups, confirmations and unsubscribes. Raw signups are not the confirmed subscriber total.
+The `funnel_events` table stores event type, page path, a referral flag and the time. It holds no email or referral code. Neither table stores IP addresses, browser details or cookies. The `funnel_daily` view reports daily visits, raw signups (pending included), confirmations, unsubscribes, shares and copies.
 
-Row level security is on with no public policies. The `anon` and `authenticated` roles have no access to the tables, view or waitlist functions. Only the server's service role key can use them. It never reaches the browser.
+Row level security is on with no policies. The `anon` and `authenticated` roles have no access to the tables, the view or the waitlist functions. Only the service role key can use them. It lives in Vercel and never reaches the browser.
 
 ## 1. Apply migrations 0001 + 0002 + 0003
 
@@ -28,45 +27,45 @@ In Supabase **SQL Editor**, paste these files in order and click **Run**:
 
 1. `supabase/migrations/0001_waitlist.sql`
 2. `supabase/migrations/0002_referrals_and_funnel.sql`
-3. `supabase/migrations/0003_double_opt_in.sql`
+3. `supabase/migrations/0003_pending_signups.sql`
 
-Or use the single combined block in the click-by-click guide. The scripts support reruns. `0003` replaces the old signup and ranking behavior with double opt-in.
+Or use the single combined block in the click-by-click guide. The files are safe to run twice. `0003` replaces the instant place-in-line signup from `0002` with pending signups. It also removes a never deployed email draft if a local database has it.
 
-With the Supabase CLI, link the project with `supabase link --project-ref <your-project-ref>`, then run `supabase db push` to apply migrations.
+With the Supabase CLI: `supabase link --project-ref <your-project-ref>`, then `supabase db push`.
 
-## 2. Configure Resend and Vercel
+## 2. Add two settings to Vercel
 
-Create a free Resend account. In **Domains**, add or open `unvibe.site`. At your DNS provider, add the exact record types, names and values Resend shows. Wait for Resend to mark the sending domain verified. Do not invent DNS values or remove unrelated records.
+In Supabase **Project Settings**, copy the Project URL and the service role key. In Vercel, open **time-machine-site → Settings → Environment Variables** and add, for **Production** and **Preview**:
 
-In Resend **API Keys**, create a sending key for the domain. In Supabase **Project Settings**, copy the Project URL and service role key. In Vercel, open **time-machine-site → Settings → Environment Variables** and add:
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | Supabase Project URL starting with `https://` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (secret) |
 
-| Name | Status | Value |
-|---|---|---|
-| `SUPABASE_URL` | Required | Supabase Project URL starting with `https://` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Required, secret | Supabase service role key |
-| `RESEND_API_KEY` | Required, secret | Resend sending key |
-| `WAITLIST_FROM` | Optional, default | `Time Machine <timemachine@unvibe.site>` |
-| `SITE_URL` | Optional, default | `https://time-machine-site.vercel.app` |
+Never put the secret key in source files, commits, docs or chats. Then tell BOSS or the coding agent: "The Supabase variables are in Vercel. Please redeploy time-machine-site." New variables need a redeploy.
 
-Save for **Production** and **Preview**. Mark secrets **Sensitive** if available. Never put secret values in source files, commits, docs or chats. The sender must use your verified domain. Set `SITE_URL` explicitly if email links should use another public site address.
+## 3. Check it
 
-Tell BOSS or the coding agent: "Supabase, Resend and DNS are configured. Please redeploy time-machine-site." New variables require a redeploy.
+`GET /api/health` should return `{"ok":true,"waitlist":true,"email":false}`. This checks that the settings are present and the URL has the right shape. It does not prove the tables exist or the key works. If `waitlist` is false, a setting is missing or the URL does not start with `https://`.
 
-## 3. Understand readiness and failures
+A signup with your own email should appear in **Table Editor → waitlist** with `confirmed_at` empty. The Vercel function log shows only a status code from Supabase, never an email or the key.
 
-`GET /api/health` should return `{"ok":true,"waitlist":true,"email":true}` after configuration. This checks configuration presence and the Supabase URL shape only. It does not prove migrations are applied, credentials work or messages arrive.
+## Export the list
 
-- `waitlist:false`: check the Supabase variables and URL.
-- `email:false` or signup `503`: check `RESEND_API_KEY` and required configuration.
-- Signup `502` after a Resend failure: the pending row is retained. The 10-minute resend cooldown still applies.
-- Welcome request failure: the row stays confirmed and the token is retained until expiry for a retry of the same link. Retries use an identical welcome payload and Resend idempotency key. Provider acceptance is not proof of inbox delivery. See the 24-hour idempotency limitation in `docs/launch/EMAIL_OPT_IN.md`.
+**Table Editor → waitlist → Export to CSV**, or in the SQL editor:
 
-Use synthetic data for local checks. Real signup or delivery tests need separate founder approval.
+```sql
+select email, source, created_at, confirmed_at, unsubscribed_at from public.waitlist order by created_at;
+```
 
-## Export confirmed subscribers
-
-In **Table Editor → waitlist**, filter `confirmed_at` to not null and `unsubscribed_at` to null before exporting. Do not use pending or unsubscribed rows for a mailing list. Exporting does not send email.
+Every site signup is pending. Do not use this list to send email until the steps in [Waitlist email](../docs/launch/EMAIL_OPT_IN.md) are done.
 
 ## Delete someone
 
-Unsubscribe links stop mail without deleting the row. If someone asks for deletion, use **Table Editor → waitlist**, find the requested email and delete that row. Never paste real addresses into committed examples.
+If a person asks to be removed:
+
+```sql
+delete from public.waitlist where email_normalized = lower(trim('person@example.com'));
+```
+
+Replace the synthetic example address only in the SQL editor, never in a committed file.

@@ -1,17 +1,18 @@
-# Supabase and Resend setup for the waitlist
+# Supabase setup for the waitlist
 
-This guide is for Preston. You do not need to write code. The double opt-in flow is built, but real Supabase and Resend setup and email delivery have not been verified.
+This guide is for Preston. It takes about 10 minutes. You do not need to write code.
 
-After setup and redeployment, the form saves a pending signup and sends a confirmation email. It shows no referral code or card yet. Clicking the confirmation link activates the signup, requests a welcome email and opens the referral card once Resend accepts the request. Provider acceptance is not proof of inbox delivery. Only confirmed, subscribed people count in positions, totals and referral credit.
+When you finish, the waitlist on https://time-machine-site.vercel.app saves signups. Each signup is saved as pending and unconfirmed. The site sends no email. Pending signups do not count in anyone's place in line, the total, or referral credit. How a signup becomes confirmed, and any future waitlist email, is not decided yet. See [Waitlist email](EMAIL_OPT_IN.md).
+
+Until you finish, the form says the waitlist is not open yet and asks people to email you. It never pretends to save.
 
 ## What gets stored
 
-- **Each signup:** email, consent, source page, signup time, referral codes, confirmation and unsubscribe state, send timing and SHA-256 token hashes. Raw tokens are not stored.
-- **Email links:** confirmation tokens are single-use and expire after 7 days. Confirmation resends have a 10-minute cooldown. Unsubscribe tokens do not expire. Confirmation replaces the initial unsubscribe link with a new one in the welcome email.
-- **Funnel counts:** event type (visit, share or copy), page path, referral flag and time. No email or code.
-- **Never stored:** IP addresses, browser details or cookies.
+- **Each signup:** the email, the consent tick, the page they signed up from, the time, their own referral code, the referral code that brought them (if any), and confirmation and unsubscribe times. Both times stay empty for a site signup.
+- **Funnel counts:** the event type (visit, share or copy), the page path, whether the visit came from a referral link, and the time. No email and no code.
+- **Never stored:** IP addresses, browser details, cookies, tokens.
 
-Only the site's server functions can read or write this data. The public key has no access. The only automatic emails are confirmation and welcome. Either email has an unsubscribe link. Opening it with GET changes nothing. Pressing the button sends POST and stops the subscription. A later signup does not silently reactivate it.
+Only the site's server function can read or write any of this. The public key can do nothing.
 
 ## 1. Create the Supabase project
 
@@ -23,18 +24,18 @@ Only the site's server functions can read or write this data. The public key has
 6. For **Region**, pick a West US option (for example West US, North California).
 7. Click **Create new project**. Wait until it says the project is ready. This takes a minute or two.
 
-## 2. Apply migrations 0001 + 0002 + 0003
+## 2. Create the tables
 
 1. In the left sidebar, click **SQL Editor**.
 2. Click **New query**.
 3. Copy the whole SQL block below, from the first line to the last. Paste it into the editor.
 4. Click **Run**.
-5. You should see "Success. No rows returned". Notices that say "already exists, skipping" are fine.
+5. You should see "Success. No rows returned". Notices that say "already exists, skipping" or "does not exist, skipping" are fine.
 6. In the left sidebar, click **Table Editor**. You should see two tables: `waitlist` and `funnel_events`. Both are empty.
 
-The block supports reruns without creating duplicate tables or signups. Existing rows are not proof of email confirmation.
+The block is safe to run more than once. Running it again changes no signups.
 
-It combines `supabase/migrations/0001_waitlist.sql`, `supabase/migrations/0002_referrals_and_funnel.sql` and `supabase/migrations/0003_double_opt_in.sql`, in that order. Run the whole block so the final double opt-in functions replace the earlier signup behavior.
+It is the three files `supabase/migrations/0001_waitlist.sql`, `supabase/migrations/0002_referrals_and_funnel.sql` and `supabase/migrations/0003_pending_signups.sql`, one after the other.
 
 ```sql
 -- Time Machine waitlist.
@@ -231,166 +232,147 @@ grant execute on function public.waitlist_join(text, text, text) to service_role
 -- Ask the Supabase API to pick up the new functions and table now.
 notify pgrst, 'reload schema';
 
--- Double opt-in. Safe to run twice after 0001 and 0002.
--- Existing signups stay unconfirmed until they opt in. No automatic emails.
+-- Pending signups. Safe to run twice after 0001 and 0002.
+-- The site sends no email. A signup is saved as pending and unconfirmed.
+-- Only confirmed, subscribed rows count in positions, totals and referral credit.
+-- How a row becomes confirmed is not decided yet. No tokens are made or stored.
+
 alter table public.waitlist
   add column if not exists confirmed_at timestamptz,
-  add column if not exists unsubscribed_at timestamptz,
-  add column if not exists confirm_token_hash text unique,
-  add column if not exists unsub_token_hash text unique,
-  add column if not exists confirm_sent_at timestamptz,
-  add column if not exists welcome_sent_at timestamptz,
-  add column if not exists welcome_position bigint,
-  add column if not exists welcome_total bigint;
+  add column if not exists unsubscribed_at timestamptz;
 
--- Only confirmed, subscribed entries and friends count toward the list.
+comment on column public.waitlist.confirmed_at is 'When this person confirmed. Null means pending.';
+comment on column public.waitlist.unsubscribed_at is 'When this person left the list. Null means subscribed.';
+
+-- Remove an earlier, never deployed email draft if a local database has it.
+drop function if exists public.waitlist_join(text, text, text, text, text);
+drop function if exists public.waitlist_confirm(text, text);
+drop function if exists public.waitlist_confirm_complete(text);
+drop function if exists public.waitlist_unsubscribe(text);
+alter table public.waitlist
+  drop column if exists confirm_token_hash,
+  drop column if exists unsub_token_hash,
+  drop column if exists confirm_sent_at,
+  drop column if exists welcome_sent_at,
+  drop column if exists welcome_position,
+  drop column if exists welcome_total;
+
+-- The 0002 join answered with a place in line at once. Pending rows have no place, so it goes.
+drop function if exists public.waitlist_join(text, text, text);
+
+-- Save a pending signup. Same answer for new and existing emails, so nobody can probe the list.
+-- An existing row is never changed, so an unsubscribed person is not added back.
+-- A ref that is badly shaped or matches no one is ignored.
+create or replace function public.waitlist_join_pending(p_email text, p_source text default null, p_ref text default null)
+returns table (saved boolean)
+language sql
+volatile
+set search_path = ''
+as $$
+  insert into public.waitlist (email, consent, source, referred_by)
+  values (
+    p_email,
+    true,
+    p_source,
+    (select w.ref_code from public.waitlist w where p_ref ~ '^[a-z0-9]{10}$' and w.ref_code = p_ref)
+  )
+  on conflict (email_normalized) do nothing;
+  select true;
+$$;
+
+-- Place in the list for one code. Only confirmed, subscribed rows count, and only their friends earn credit.
+-- Order rule, shown on the site: more friends who joined with your link first, then earlier join time first.
+-- No row back means the code is unknown, pending or unsubscribed.
 create or replace function public.waitlist_status(p_code text)
 returns table ("position" bigint, referrals bigint, total bigint)
-language sql stable set search_path = ''
+language sql
+stable
+set search_path = ''
 as $$
   with active as (
-    select * from public.waitlist where confirmed_at is not null and unsubscribed_at is null
-  ), refs as (
-    select referred_by as code, count(*) as n from active
-    where referred_by is not null group by referred_by
-  ), entries as (
-    select w.ref_code, w.created_at, coalesce(r.n, 0) as referrals
-    from active w left join refs r on r.code = w.ref_code
+    select w.ref_code, w.referred_by, w.created_at
+    from public.waitlist w
+    where w.confirmed_at is not null and w.unsubscribed_at is null
+  ),
+  refs as (
+    select a.referred_by as code, count(*) as n
+    from active a
+    where a.referred_by is not null
+    group by a.referred_by
+  ),
+  entries as (
+    select a.ref_code, a.created_at, coalesce(r.n, 0) as referrals
+    from active a
+    left join refs r on r.code = a.ref_code
   )
-  select 1 + (select count(*) from entries e
-              where e.referrals > me.referrals
-                 or (e.referrals = me.referrals and e.created_at < me.created_at)),
-         me.referrals, (select count(*) from active)
-  from entries me where me.ref_code = p_code;
+  select
+    1 + (
+      select count(*)
+      from entries e
+      where e.referrals > me.referrals
+         or (e.referrals = me.referrals and e.created_at < me.created_at)
+    ),
+    me.referrals,
+    (select count(*) from active)
+  from entries me
+  where me.ref_code = p_code;
 $$;
 
--- Replace the old immediate-join RPC completely.
-drop function if exists public.waitlist_join(text, text, text);
-create or replace function public.waitlist_join(
-  p_email text, p_source text, p_ref text, p_confirm_hash text, p_unsub_hash text
-)
-returns table (send_confirmation boolean)
-language plpgsql volatile set search_path = ''
-as $$
-declare
-  v_row public.waitlist%rowtype;
-  v_ref text;
-begin
-  if p_confirm_hash !~ '^[a-f0-9]{64}$' or p_unsub_hash !~ '^[a-f0-9]{64}$'
-     or p_confirm_hash is null or p_unsub_hash is null then
-    raise exception 'Invalid token hash';
-  end if;
-  select w.ref_code into v_ref from public.waitlist w
-    where p_ref ~ '^[a-z0-9]{10}$' and w.ref_code = p_ref;
-  insert into public.waitlist(email, consent, source, referred_by)
-    values(p_email, true, p_source, v_ref)
-    on conflict(email_normalized) do nothing;
-  -- Serialize resends, including concurrent requests for the same address.
-  select * into v_row from public.waitlist w
-    where w.email_normalized = lower(btrim(p_email)) for update;
-  if v_row.confirmed_at is not null or v_row.unsubscribed_at is not null
-     or v_row.confirm_sent_at > now() - interval '10 minutes' then
-    return;
-  end if;
-  update public.waitlist set confirm_token_hash = p_confirm_hash,
-    unsub_token_hash = p_unsub_hash, confirm_sent_at = now()
-    where id = v_row.id;
-  return query select true;
-end;
-$$;
-
--- Confirm once, but retain the token until the welcome is accepted by Resend.
--- Freeze the first rank for an identical, idempotent welcome payload on retries.
-create or replace function public.waitlist_confirm(p_hash text, p_unsub_hash text)
-returns table (email text, code text, "position" bigint, total bigint)
-language plpgsql volatile set search_path = ''
-as $$
-declare
-  v_email text;
-  v_code text;
-begin
-  if p_unsub_hash is null or p_unsub_hash !~ '^[a-f0-9]{64}$' then
-    raise exception 'Invalid token hash';
-  end if;
-  update public.waitlist w set confirmed_at = coalesce(w.confirmed_at, now()),
-    unsub_token_hash = p_unsub_hash
-    where w.confirm_token_hash = p_hash
-      and w.confirm_sent_at >= now() - interval '7 days'
-      and w.welcome_sent_at is null and w.unsubscribed_at is null
-    returning w.email, w.ref_code into v_email, v_code;
-  if v_code is null then return; end if;
-  update public.waitlist w set welcome_position = coalesce(w.welcome_position, s."position"),
-    welcome_total = coalesce(w.welcome_total, s.total)
-    from public.waitlist_status(v_code) s where w.ref_code = v_code;
-  return query select v_email, v_code, w.welcome_position, w.welcome_total
-    from public.waitlist w where w.ref_code = v_code;
-end;
-$$;
-
--- Only called after provider acceptance, which is not proof of inbox delivery.
-create or replace function public.waitlist_confirm_complete(p_hash text)
-returns table (completed boolean)
-language sql volatile set search_path = ''
-as $$
-  update public.waitlist set confirm_token_hash = null, welcome_sent_at = now()
-    where confirm_token_hash = p_hash and confirmed_at is not null and unsubscribed_at is null
-    returning true;
-$$;
-
-create or replace function public.waitlist_unsubscribe(p_hash text)
-returns table (unsubscribed boolean)
-language sql volatile set search_path = ''
-as $$
-  update public.waitlist set unsubscribed_at = coalesce(unsubscribed_at, now()),
-    confirm_token_hash = null
-  where unsub_token_hash = p_hash
-  returning true;
-$$;
-
--- Keep the existing column order and append confirmation/unsubscribe counts.
-create or replace view public.funnel_daily with (security_invoker = true) as
-with events as (
-  select (created_at at time zone 'utc')::date as day,
-    count(*) filter (where type = 'visit') as visits,
-    count(*) filter (where type = 'visit' and via_ref) as visits_via_ref,
-    count(*) filter (where type = 'share') as shares,
-    count(*) filter (where type = 'copy') as copies
-  from public.funnel_events group by 1
-), activity as (
-  select (created_at at time zone 'utc')::date as day,
-    1 as signup, (referred_by is not null)::integer as via_ref, 0 as confirms, 0 as unsubscribes
-    from public.waitlist
+-- Signups and funnel counts per day (UTC). Signups counts every row, pending included.
+drop view if exists public.funnel_daily;
+create view public.funnel_daily
+with (security_invoker = true)
+as
+with e as (
+  select
+    (f.created_at at time zone 'utc')::date as day,
+    count(*) filter (where f.type = 'visit') as visits,
+    count(*) filter (where f.type = 'visit' and f.via_ref) as visits_via_ref,
+    count(*) filter (where f.type = 'share') as shares,
+    count(*) filter (where f.type = 'copy') as copies
+  from public.funnel_events f
+  group by 1
+),
+w as (
+  select (created_at at time zone 'utc')::date as day, 1 as signups,
+    (referred_by is not null)::int as signups_via_ref, 0 as confirms, 0 as unsubscribes
+  from public.waitlist
   union all
   select (confirmed_at at time zone 'utc')::date, 0, 0, 1, 0
-    from public.waitlist where confirmed_at is not null
+  from public.waitlist where confirmed_at is not null
   union all
   select (unsubscribed_at at time zone 'utc')::date, 0, 0, 0, 1
-    from public.waitlist where unsubscribed_at is not null
-), signups as (
-  select day, sum(signup) as signups, sum(via_ref) as signups_via_ref,
-    sum(confirms) as confirms, sum(unsubscribes) as unsubscribes from activity group by day
+  from public.waitlist where unsubscribed_at is not null
+),
+s as (
+  select day, sum(signups) as signups, sum(signups_via_ref) as signups_via_ref,
+    sum(confirms) as confirms, sum(unsubscribes) as unsubscribes
+  from w
+  group by day
 )
-select coalesce(e.day, s.day) as day, coalesce(e.visits, 0) as visits,
-  coalesce(e.visits_via_ref, 0) as visits_via_ref, coalesce(s.signups, 0) as signups,
-  coalesce(s.signups_via_ref, 0) as signups_via_ref, coalesce(e.shares, 0) as shares,
-  coalesce(e.copies, 0) as copies, coalesce(s.confirms, 0) as confirms,
+select
+  coalesce(e.day, s.day) as day,
+  coalesce(e.visits, 0) as visits,
+  coalesce(e.visits_via_ref, 0) as visits_via_ref,
+  coalesce(s.signups, 0) as signups,
+  coalesce(s.signups_via_ref, 0) as signups_via_ref,
+  coalesce(e.shares, 0) as shares,
+  coalesce(e.copies, 0) as copies,
+  coalesce(s.confirms, 0) as confirms,
   coalesce(s.unsubscribes, 0) as unsubscribes
-from events e full join signups s on e.day = s.day order by 1 desc;
+from e
+full join s on s.day = e.day
+order by 1 desc;
 
-alter table public.waitlist enable row level security;
-revoke all on table public.waitlist, public.funnel_daily from public, anon, authenticated;
-grant select, insert, update on table public.waitlist to service_role;
+-- Only the service role can use any of it.
+revoke all on table public.funnel_daily from public, anon, authenticated;
 grant select on table public.funnel_daily to service_role;
-revoke all on function public.waitlist_join(text,text,text,text,text) from public, anon, authenticated;
-revoke all on function public.waitlist_confirm(text,text) from public, anon, authenticated;
-revoke all on function public.waitlist_confirm_complete(text) from public, anon, authenticated;
-revoke all on function public.waitlist_unsubscribe(text) from public, anon, authenticated;
+revoke all on function public.waitlist_join_pending(text, text, text) from public, anon, authenticated;
 revoke all on function public.waitlist_status(text) from public, anon, authenticated;
-grant execute on function public.waitlist_join(text,text,text,text,text) to service_role;
-grant execute on function public.waitlist_confirm(text,text) to service_role;
-grant execute on function public.waitlist_confirm_complete(text) to service_role;
-grant execute on function public.waitlist_unsubscribe(text) to service_role;
+grant execute on function public.waitlist_join_pending(text, text, text) to service_role;
 grant execute on function public.waitlist_status(text) to service_role;
+
+-- Ask the Supabase API to pick up the changes now.
 notify pgrst, 'reload schema';
 ```
 
@@ -401,63 +383,42 @@ notify pgrst, 'reload schema';
 3. Copy the **Project URL**. It looks like `https://abcdefghijklmnop.supabase.co`.
 4. Copy the **service_role** key. Click **Reveal** first. On newer dashboards it is on the **Legacy API keys** tab. A new secret key starting with `sb_secret_` also works.
 
-The service role key is a secret. It can read and change the data. Save it in your password manager. Never paste it into chat, an email, a document or the repo. It goes in Vercel in step 5.
+**Warning: the service_role key is a secret.** It can read and delete every signup. Never share it, never paste it in a chat, an email or a document, and never commit it to the repo. It goes in exactly one place: Vercel, in the next step.
 
-## 4. Set up a free Resend account and sending domain
+## 4. Add the two values to Vercel
 
-1. Go to https://resend.com and create a free account, or sign in to the account you want to use.
-2. Click **Domains**, then **Add domain**, and enter `unvibe.site`. If it is already listed, open it.
-3. Leave the domain page open. It shows the DNS records needed to verify sending.
-4. In another tab, open the DNS settings where you manage `unvibe.site`.
-5. Add each record Resend shows. Copy the exact **Type**, **Name** and **Value** from Resend. Use its shown settings for any other fields. Do not invent record values or remove unrelated records.
-6. Go back to Resend and click **Verify**. Wait until it shows the sending domain is verified.
-7. Open **API Keys** and click **Create API Key**. Create a key with permission to send from this domain.
-8. Save the key in your password manager. Do not put it in chat or the repo.
-
-Before sending, open the domain's settings in Resend and turn **Open tracking** and **Click tracking** off. The emails use direct links and no images. Resend must not add tracking pixels or rewrite the confirmation and unsubscribe links.
-
-No domain or provider configuration is assumed to be complete. The sender will default to `Time Machine <timemachine@unvibe.site>`, which requires `unvibe.site` to be verified in your Resend account.
-
-## 5. Add the settings to Vercel, then ask for a redeploy
-
-1. Go to https://vercel.com and open **time-machine-site**.
+1. Go to https://vercel.com and open the project **time-machine-site**.
 2. Click **Settings**, then **Environment Variables**.
-3. Add each required variable below. Copy its name exactly and paste its value. Select **Production** and **Preview**, then click **Save** for each one.
-4. For secret keys, turn on **Sensitive** if Vercel offers it.
-5. The last two settings are optional. Leave them unset to use the defaults shown, or save your own sender and public site address.
+3. Add the first variable:
+   - Key: `SUPABASE_URL`
+   - Value: the Project URL from step 3
+   - Environments: tick **Production** and **Preview**
+4. Click **Save**.
+5. Add the second variable:
+   - Key: `SUPABASE_SERVICE_ROLE_KEY`
+   - Value: the service_role key from step 3
+   - Environments: tick **Production** and **Preview**
+   - If Vercel offers a **Sensitive** switch, turn it on.
+6. Click **Save**.
+7. Tell BOSS or your coding agent: "The Supabase variables are in Vercel. Please redeploy time-machine-site." The site only picks up new variables after a redeploy.
 
-| Name | Status | Value |
-|---|---|---|
-| `SUPABASE_URL` | Required | Project URL from step 3, starting with `https://` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Required, secret | Supabase service role key from step 3 |
-| `RESEND_API_KEY` | Required, secret | Resend API key from step 4 |
-| `WAITLIST_FROM` | Optional, default | `Time Machine <timemachine@unvibe.site>` |
-| `SITE_URL` | Optional, default | `https://time-machine-site.vercel.app` |
+No email settings are needed. The site does not read any.
 
-Any custom sender must use a domain verified in your Resend account. `SITE_URL` is the public address used for email links.
+## 5. Check it works
 
-Tell BOSS or the coding agent: "Supabase, Resend and DNS are configured. Please redeploy time-machine-site." New variables only take effect after a redeploy.
+1. Open https://time-machine-site.vercel.app/api/health in your browser.
+2. It should show `{"ok":true,"waitlist":true,"email":false}`. It never shows the key. `email:false` is on purpose: the site sends no email.
+3. If it shows `"waitlist":false`, a variable is missing, misspelled, or the URL does not start with `https://`. Fix it in Vercel and ask for another redeploy.
+4. Sign up on the live site with your own email. The form should say "Saved as pending and unconfirmed. No email has been sent."
+5. In Supabase, open **Table Editor**, then `waitlist`. Your row should be there with `confirmed_at` empty.
 
-## 6. Understand readiness
+The health check only looks at the settings. It does not prove the tables exist or the key works. Step 5 does. If the form says it could not save, the tables are missing or the key is wrong. Run step 2 again, check the key, and redeploy. The Vercel function log shows only a status code from Supabase, never an email or the key.
 
-After redeployment, open https://time-machine-site.vercel.app/api/health. It should show `{"ok":true,"waitlist":true,"email":true}`. This checks configuration presence and the Supabase URL shape only. It does not contact Supabase or Resend, check tables, verify the domain or prove delivery.
+## 6. Read your numbers
 
-- `waitlist:false`: a Supabase variable is missing or the URL does not start with `https://`. Fix it in Vercel and ask for another redeploy.
-- `email:false`: check `RESEND_API_KEY`. Without it, signup returns `503`.
-- Resend send failure: signup returns `502`. The pending row stays saved. The 10-minute resend cooldown still applies.
-- Welcome send failure: the row stays confirmed, but the confirmation link remains usable until it expires. Open the same link to retry. The welcome request uses a stable idempotency key to avoid duplicate sends. The confirmation token is consumed only after Resend accepts the welcome request.
+Every site signup is pending. Nobody has a place in line until confirmation is decided and built. Open **SQL Editor**, click **New query**, paste one of these, and click **Run**.
 
-A successful signup returns `200 {"ok":true,"pending":true}`. Only after confirmation does `/api/waitlist?code=CODE` return `ok`, `position`, `referrals` and `total`. Pending and unsubscribed codes return `404`. A valid confirmation link opens `/confirmed.html?code=CODE`; invalid, used or expired links open `/confirmed.html?error=invalid`.
-
-Use synthetic data for local checks. Do not run a real signup or send a test email without separate founder approval. Seeing a pending row in **Table Editor → waitlist** proves storage only, not delivery.
-
-## 7. Read your numbers
-
-For the current subscriber list, open **Table Editor → waitlist**. Filter `confirmed_at` to not null and `unsubscribed_at` to null. Only these rows count in public positions and totals. Referral credit also requires the friend to be confirmed and subscribed.
-
-The SQL reports below include raw signup history. They are not all active-subscriber reports. Open **SQL Editor**, click **New query**, paste one report and click **Run**.
-
-**Newest stored signups, including pending and unsubscribed rows:**
+**Newest signups:**
 
 ```sql
 select email, source, referred_by is not null as came_from_a_friend, created_at
@@ -466,7 +427,7 @@ order by created_at desc
 limit 50;
 ```
 
-**All stored signups, not the confirmed subscriber total:**
+**How many people signed up (pending included):**
 
 ```sql
 select count(*) as signups from public.waitlist;
@@ -478,9 +439,9 @@ select count(*) as signups from public.waitlist;
 select * from public.funnel_daily limit 30;
 ```
 
-The funnel columns include `visits`, `visits_via_ref`, `signups`, `signups_via_ref`, `shares` and `copies`. Migration `0003` adds `confirms` and `unsubscribes`. Signup columns are raw signup history, not current subscribers. Confirmation and unsubscribe columns record those actions by day.
+The columns are: `visits`, `visits_via_ref` (visits that came from a referral link), `signups` (every signup, pending included), `signups_via_ref` (signups that used someone's referral code), `shares`, `copies`, `confirms` and `unsubscribes`. The last two stay at 0 until confirmation exists.
 
-**Raw referred signups by person, including pending and unsubscribed rows. This is not public referral credit:**
+**Who brought the most friends (pending signups, not public referral credit):**
 
 ```sql
 select w.email, count(r.id) as friends_joined
@@ -491,7 +452,7 @@ order by friends_joined desc
 limit 20;
 ```
 
-**Delete one person**, only when they ask for deletion. For stopping mail, they can use the unsubscribe link in their email at any time. Replace the synthetic example address only in the SQL editor, never in a committed file:
+**Delete one person** (when someone asks to be removed). Replace the example address only in the SQL editor, never in a committed file:
 
 ```sql
 delete from public.waitlist where email_normalized = lower(trim('person@example.com'));
