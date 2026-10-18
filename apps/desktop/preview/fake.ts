@@ -109,7 +109,8 @@ export class FakeEngine implements TmBridge {
     }
   }
 
-  reset(): void {
+  /** `story` is the scenario by default. Try the demo in the "new" story builds the broken one. */
+  reset(story: Scenario = this.scenario): void {
     const base: FileMap = { ".gitignore": "1", "package.json": "1", "config/app.json": "USD", "src/tips.js": "ok", "test/tips.test.js": "1" };
     const split = { ...base, "src/split.js": "1", "test/split.test.js": "1" };
     const dark = { ...split, "src/theme.js": "1", "test/theme.test.js": "1" };
@@ -130,9 +131,9 @@ export class FakeEngine implements TmBridge {
     for (const id of ["cp-0001", "cp-0002", "cp-0003"]) this.setVerdict(id, "PASS");
     this.setVerdict("cp-0006", "FAIL");
     // Shorter stories: it still works (three passing save points), or the newest one is not checked yet.
-    if (this.scenario === "works") this.points = this.points.slice(0, 3);
-    if (this.scenario === "unchecked") this.points = this.points.slice(0, 4);
-    if (this.scenario === "new") {
+    if (story === "works") this.points = this.points.slice(0, 3);
+    if (story === "unchecked") this.points = this.points.slice(0, 4);
+    if (story === "new") {
       this.seed = this.points[0] ?? null;
       this.points = [];
       this.added = false;
@@ -292,7 +293,7 @@ export class FakeEngine implements TmBridge {
       case "statuses":
         return this.added ? [this.status()] : [];
       case "init":
-        return { configPath: `${ROOT}/timemachine.yml`, created: this.scenario === "new", verifyCommand: "npm test", network: "allow", sandbox: null };
+        return { configPath: `${ROOT}/timemachine.yml`, created: this.scenario === "new", verifyCommand: "npm test", verifySetup: "npm ci --prefer-offline --no-audit --no-fund", network: "allow", sandbox: null };
       case "setCheck":
         return { configPath: `${ROOT}/timemachine.yml`, verifyCommand: call.command };
       case "checkpoint": {
@@ -371,8 +372,18 @@ export class FakeEngine implements TmBridge {
       case "hookInstall":
         await wait(300);
         return { settingsPath: `${ROOT}/.claude/settings.json`, added: [], alreadyPresent: ["UserPromptSubmit", "PreToolUse", "Stop"] };
-      case "demo":
-        throw new Error("This preview is the demo. Reload the page to start the story over.");
+      case "demo": {
+        // The new-user walkthrough builds the demo story, then rescues it with the same steps as the engine.
+        if (this.scenario !== "new" || this.added) throw new Error("This preview is the demo. Reload the page to start the story over.");
+        await wait(600);
+        this.reset("broken");
+        this.added = true;
+        const findGood = (await this.dispatch({ method: "findGood", projectId: PROJECT_ID })) as FindGoodResult;
+        if (!findGood.found) throw new Error("The demo could not find a working save point.");
+        const recover = (await this.dispatch({ method: "recover", projectId: PROJECT_ID, id: findGood.found })) as RecoverResult;
+        const checkpoints = this.points.slice(0, 6).map((p) => ({ id: p.entry.id, note: p.entry.note ?? "", expect: p.tracked["src/tips.js"] === "ok" ? ("PASS" as const) : ("FAIL" as const) }));
+        return { project: this.project, result: { dir: ROOT, checkpoints, findGood, recover } };
+      }
       case "storage":
         return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" }] : [];
       case "cleanStore":
