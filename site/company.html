@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Company. Time Machine</title>
+<meta name="description" content="Time Machine helps people who build with coding agents get back to the last version that worked, with proof. Why it matters, what is built, how we work, the plan and why we are raising.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f3efe5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0e0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Company. Time Machine">
+<meta property="og:description" content="Time Machine helps people who build with coding agents get back to the last version that worked, with proof. Why it matters, what is built, how we work, the plan and why we are raising.">
+<meta property="og:image" content="assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
+<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+      <a href="security.html">Security</a>
+      <a href="company.html" aria-current="page">Company</a>
+      <a href="blog/index.html">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+<section class="hero" aria-labelledby="hero-h">
+  <div class="wrap hero-g">
+    <div>
+      <p class="k rv">Company</p>
+      <h1 class="dx rv" style="--d:1" id="hero-h">Build with<br><span class="dim">a way back.</span></h1>
+      <p class="sub rv" style="--d:2">Time Machine has one job. When a coding agent breaks your project, help you get back to the last version that worked, with proof that it works.</p>
+      <div class="btn-row rv" style="--d:3"><a class="btn btn-primary" href="#plan">See the plan</a><a class="btn btn-ghost" href="#raising">Why we are raising</a></div>
+    </div>
+    <div class="rv" style="--d:2">
+      <div class="stagebox">
+        <div class="mod tilt" role="group" aria-label="Where Time Machine stands today">
+          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">status · 15 oct 2026</span><span class="grille"></span></div>
+          <div class="readouts">
+            <div class="ro"><b data-count="228">228</b><span>automated tests. 226 passed locally on macOS. 2 Linux-only skips.</span></div>
+            <div class="ro"><b data-count="17">17</b><span>bugs found by two reviews, all fixed test first</span></div>
+            <div class="ro"><b data-count="7">7</b><span>MCP tools on the same engine as the CLI</span></div>
+            <div class="ro"><b>Local</b><span>save points. Known secrets filtered. Review what you capture.</span></div>
+          </div>
+          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">tests passing</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="problem" aria-labelledby="pb-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">01</span> The problem</p><h2 class="hx2" id="pb-h">Agents move fast.<br><span class="dim">The way back is missing.</span></h2></div>
+      <p class="sub rv" style="--d:1">Coding agents now run shell commands, delete folders and touch databases. The tools around them were built to undo an edit, not to bring back a project that works.</p>
+    </div>
+    <div class="incs">
+      <article class="inc rv">
+        <span class="n">Rewind gap</span>
+        <h3>Claude Code's rewind does not cover the shell.</h3>
+        <p>Its docs say checkpointing "does not track files modified by Bash commands". Changes made by commands like <code>rm</code> or <code>mv</code> cannot be undone through rewind.</p>
+        <p class="src">Sources: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Claude Code docs</a>, <a href="https://www.eon.io/blog/claude-code-rewind-bash" rel="noopener">eon.io</a></p>
+      </article>
+      <article class="inc rv" style="--d:1">
+        <span class="n">Deleted folder</span>
+        <h3>A Cursor agent deleted a production folder.</h3>
+        <p>A user reported that an agent permanently deleted an entire production resource folder, and asked for help getting it back.</p>
+        <p class="src">Source: <a href="https://forum.cursor.com/t/agent-permanently-deleted-entire-production-resource-folder-seeking-acknowledgment-and-support/167875" rel="noopener">Cursor community forum</a></p>
+      </article>
+      <article class="inc rv">
+        <span class="n">Lost files</span>
+        <h3>Gemini CLI deleted a user's files.</h3>
+        <p>Asked to reorganize a folder, the agent ran commands that lost the user's files, then reported what it had done.</p>
+        <p class="src">Source: <a href="https://incidentdatabase.ai/reports/6120" rel="noopener">AI Incident Database</a></p>
+      </article>
+      <article class="inc rv" style="--d:1">
+        <span class="n">Wiped database</span>
+        <h3>Replit's agent wiped a production database.</h3>
+        <p>During a code freeze, the agent deleted a live database, then called it a catastrophic failure.</p>
+        <p class="src">Source: <a href="https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure" rel="noopener">Fortune</a></p>
+      </article>
+    </div>
+    <div class="trust">
+      <div class="rv">
+        <span class="tbig">7%</span>
+        <div class="tbar" aria-hidden="true"><i style="--w:7%"></i></div>
+        <p>of developers trust AI with important decisions.</p>
+      </div>
+      <div class="rv" style="--d:1">
+        <span class="tbig">48%</span>
+        <div class="tbar" aria-hidden="true"><i style="--w:48%"></i></div>
+        <p>trust it when the output is easy to check.</p>
+      </div>
+    </div>
+    <p class="cap-note rv">Figures as reported by <a href="https://www.infoworld.com/article/4233357/ai-distrust-is-githubs-opportunity.html" rel="noopener">InfoWorld</a>. About 7 percent and 48 percent.</p>
+    <p class="takeaway rv">Trust follows proof. So Time Machine does not ask you to trust the agent, or us. It runs your check and shows you the result.</p>
+  </div>
+</section>
+
+<section class="sec" id="built" aria-labelledby="bt-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">02</span> What is built</p><h2 class="hx2" id="bt-h">Built and tested.<br><span class="dim">The rest is labelled.</span></h2></div>
+      <p class="sub rv" style="--d:1">Everything below marked Built works today and is covered by tests. Planned means not built.</p>
+    </div>
+    <ul class="blt rv">
+      <li><span><b>The tm command line tool</b><span class="d">init, checkpoint, timeline, diff, log, open, verify, find-good, recover, demo, hook install and mcp.</span></span><span class="tag tag-now">Built</span></li>
+      <li><span><b>Claude Code hooks</b><span class="d">Save before each prompt and before risky shell commands like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code> and <code>DROP TABLE</code>. Check at the end of each turn.</span></span><span class="tag tag-now">Built</span></li>
+      <li><span><b>MCP server</b><span class="d">Seven tools for any agent that speaks MCP.</span></span><span class="tag tag-now">Built</span></li>
+      <li><span><b>Store outside the project</b><span class="d">In <code>~/.timemachine</code>, with a Git bundle, so save points survive the project folder being deleted.</span></span><span class="tag tag-now">Built</span></li>
+      <li><span><b>Checks in a separate copy</b><span class="d">With the network off when a sandbox exists, and BLOCKED when that cannot be enforced.</span></span><span class="tag tag-now">Built</span></li>
+      <li><span><b>Tests</b><span class="d">228 automated tests, passing in CI on macOS and Linux with Node 22 and 24. Also tested on a real open source project, sindresorhus/slugify.</span></span><span class="tag tag-now">Built</span></li>
+      <li><span><b>npm package</b><span class="d"><code>timetm</code>, command <code>tm</code>. Build from source until then.</span></span><span class="tag tag-plan">Not published yet</span></li>
+      <li><span><b>Mac app</b><span class="d">History, save point detail, Rewind and Compare, on the same engine. Not signed or shipped yet.</span></span><span class="tag tag-dev">In development</span></li>
+      <li><span><b>Action connector for Claude and ChatGPT</b><span class="d">Version 2. Record what agents do in apps like Gmail and Slack, and reverse only what can honestly be reversed. Not available.</span></span><span class="tag tag-plan">Planned</span></li>
+      <li><span><b>The Ladder pricing</b><span class="d">A Pro plan that gets cheaper the longer you stay. The CLI stays free. Restores are never paywalled. Nothing is for sale yet.</span></span><span class="tag tag-plan">Planned</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="how-we-work" aria-labelledby="hw-h">
+  <div class="wrap split">
+    <div class="rv">
+      <p class="k"><span class="n">03</span> How we work</p>
+      <h2 class="hx2" id="hw-h">Every bug fix starts with a failing test.</h2>
+    </div>
+    <div class="rv" style="--d:1">
+      <p class="txt">That is the whole idea of Time Machine, so the codebase lives by it. Before a fix, there is a test that shows the bug. The fix is done when that test passes and nothing else broke.</p>
+      <p class="txt">Two independent reviews of the engine found 17 bugs. Every one was fixed test first. The reviews also changed the design: verdicts are now bound to the exact save point they were made for, a store inside the project is refused, and restores never write through a symbolic link.</p>
+      <ul class="facts" style="margin-top:28px">
+        <li><b>One engine.</b> The CLI, the hooks, the MCP server and the Mac app call the same code, so they never disagree.</li>
+        <li><b>Decisions are written down</b> as short records with the choice, the alternatives and the cost.</li>
+        <li><b>Planned is labelled Planned,</b> on this site, in the docs and in the help text.</li>
+        <li><b>Synthetic data only.</b> No real customer data in tests, logs or examples.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="plan" aria-labelledby="pl-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">04</span> The plan</p><h2 class="hx2" id="pl-h">Gates, not dates.</h2></div>
+      <p class="sub rv" style="--d:1">Each stage starts when the one before it has met its gate. A gate is an outcome you can check, not a day on a calendar.</p>
+    </div>
+    <div class="gates rv" data-stepper role="group" aria-label="The plan in three gates">
+      <div class="g-track" style="--now:.3" aria-hidden="true"><span class="g-base"></span><span class="g-post done" style="--x:.1667"></span><span class="g-post" style="--x:.5"></span><span class="g-post" style="--x:.8333"></span><span class="g-fill"></span><span class="g-now"><span>Now</span></span></div>
+      <div class="g-keys">
+        <button class="g-key" type="button" data-step aria-pressed="false"><span class="silk-n">Gate 1</span><b>Engine and CLI</b><span class="tag tag-now">Done</span></button>
+        <button class="g-key" type="button" data-step aria-pressed="true"><span class="silk-n">Gate 2 · next</span><b>Mac app</b><span class="tag tag-dev">In development</span></button>
+        <button class="g-key" type="button" data-step aria-pressed="false"><span class="silk-n">Gate 3</span><b>Action connector</b><span class="tag tag-plan">Planned</span></button>
+      </div>
+      <div class="g-panes" aria-live="polite">
+        <div class="g-pane" data-pane hidden>
+          <p class="k">Gate 1 · Engine and CLI</p>
+          <p><b>Done when:</b> every acceptance test passes on macOS and Linux CI, the demo runs end to end, and your folder and current branch are byte for byte unchanged after every command.</p>
+          <p><b>Status:</b> met. 228 automated tests pass in CI on macOS and Linux. Publishing <code>timetm</code> to npm is the last step.</p>
+        </div>
+        <div class="g-pane" data-pane>
+          <p class="k">Gate 2 · Mac app</p>
+          <p><b>Done when:</b> someone who does not use a terminal can go back to the last working version with one button, on the same engine as the CLI, in a signed Mac app.</p>
+          <p><b>Status:</b> in development. Not signed or shipped yet. The screens run in a preview with demo data.</p>
+        </div>
+        <div class="g-pane" data-pane hidden>
+          <p class="k">Gate 3 · Action connector</p>
+          <p><b>Starts only when:</b> <code>timetm</code> is on npm and a stranger can reach a verified recovery branch, the design is signed off in writing, and the legal and data questions are settled.</p>
+          <p><b>What it would do:</b> record what agents do in apps like Gmail, Slack, Notion and Calendar through Claude and ChatGPT, and reverse only what each app can really reverse. Every result would say what was not reversed.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="raising" aria-labelledby="ra-h">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="rv"><p class="k"><span class="n">05</span> Why we are raising</p><h2 class="hx2" id="ra-h">To do this properly.</h2></div>
+      <p class="sub rv" style="--d:1">The CLI works. Turning it into something people can trust with their projects takes four things that time alone cannot buy.</p>
+    </div>
+    <ul class="raise rv">
+      <li><b>Full time building.</b><span>Focused time on the engine and the Mac app, instead of fitting it around other work.</span></li>
+      <li><b>A signed Mac app.</b><span>Shipping a signed, notarized Mac app needs the Apple Developer Program.</span></li>
+      <li><b>An outside security review.</b><span>A tool that touches your code should be checked by someone other than the person who wrote it.</span></li>
+      <li><b>Support for design partners.</b><span>Time and help for the first builders who use it on real projects and tell us where it breaks.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="founder" aria-labelledby="fo-h">
+  <div class="wrap">
+    <p class="k rv"><span class="n">06</span> The founder</p>
+    <div class="founder rv">
+      <div class="mono-plate" aria-hidden="true">PS</div>
+      <div>
+        <h2 class="founder-h" id="fo-h" style="margin:0;font-size:clamp(28px,1.2rem + 1.4vw,40px);font-weight:640;letter-spacing:-.04em;line-height:1.05">Preston Susanto</h2>
+        <p class="role">Solo student founder</p>
+        <p class="txt" style="max-width:56ch;margin-top:18px">Preston builds with coding agents every day, and wanted a way back he could check instead of hope for. He builds Time Machine with coding agents too, under the same rule: every bug fix starts with a failing test. He also built Unvibe.</p>
+        <div class="btn-row"><a class="btn btn-ghost" href="mailto:preston@unvibe.site">preston@unvibe.site</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="story.html">The story</a>
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="assets/pages.js" defer></script>
+<script src="assets/waitlist.js" defer></script>
+</body>
+</html>

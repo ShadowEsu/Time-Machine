@@ -1,0 +1,21 @@
+{
+  "name": "time-machine",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b packages/core packages/cli && pnpm --filter timetm bundle",
+    "typecheck": "tsc -b packages/core packages/cli && tsc -p tsconfig.test.json && pnpm --filter @timetm/desktop typecheck",
+    "test": "vitest run",
+    "app": "pnpm --filter @timetm/desktop dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,392 @@
+<title>Time Machine for Mac</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+/* Layout: one native-feeling Mac window (sidebar, save point list, inspector, ruler) on a soft desk, a Rewind sheet inside it, and three overlay studies below. Greys do the work; color only for verdicts. */
+:root {
+  --ink: #09090b; --ink-2: #3f3f46; --ink-3: #71717a; --ink-4: #a1a1aa; --ink-5: #d4d4d8;
+  --paper: #ffffff; --soft: #fafafa; --card: #f4f4f5; --side: #f5f5f6; --desk: #ececee;
+  --line: rgba(9,9,11,.08); --line-2: rgba(9,9,11,.13); --sel: rgba(9,9,11,.06); --veil: rgba(250,250,250,.72);
+  --pass-fg: #15803d; --pass-bg: #ecfdf3; --pass-dot: #22c55e;
+  --inc-fg: #a16207; --inc-bg: #fefce8; --inc-dot: #eab308;
+  --fail-fg: #b91c1c; --fail-bg: #fef2f2; --fail-dot: #ef4444;
+  --shadow-lg: 0 0 0 1px rgba(9,9,11,.07), 0 2px 4px rgba(9,9,11,.04), 0 30px 70px -14px rgba(9,9,11,.25);
+  --shadow-md: 0 0 0 1px rgba(9,9,11,.07), 0 1px 2px rgba(9,9,11,.04), 0 12px 30px -10px rgba(9,9,11,.16);
+  --font-body: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease: cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ink: #fafafa; --ink-2: #d4d4d8; --ink-3: #a1a1aa; --ink-4: #71717a; --ink-5: #3f3f46;
+  --paper: #18181b; --soft: #1c1c1f; --card: #27272a; --side: #1f1f22; --desk: #0c0c0e;
+  --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14); --sel: rgba(255,255,255,.07); --veil: rgba(12,12,14,.7);
+  --pass-fg: #86efac; --pass-bg: rgba(34,197,94,.14); --inc-fg: #fde047; --inc-bg: rgba(234,179,8,.14); --fail-fg: #fca5a5; --fail-bg: rgba(239,68,68,.15);
+  --shadow-lg: 0 0 0 1px rgba(255,255,255,.08), 0 30px 70px -14px rgba(0,0,0,.7);
+  --shadow-md: 0 0 0 1px rgba(255,255,255,.08), 0 12px 30px -10px rgba(0,0,0,.6);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ink: #fafafa; --ink-2: #d4d4d8; --ink-3: #a1a1aa; --ink-4: #71717a; --ink-5: #3f3f46;
+  --paper: #18181b; --soft: #1c1c1f; --card: #27272a; --side: #1f1f22; --desk: #0c0c0e;
+  --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14); --sel: rgba(255,255,255,.07); --veil: rgba(12,12,14,.7);
+  --pass-fg: #86efac; --pass-bg: rgba(34,197,94,.14); --inc-fg: #fde047; --inc-bg: rgba(234,179,8,.14); --fail-fg: #fca5a5; --fail-bg: rgba(239,68,68,.15);
+  --shadow-lg: 0 0 0 1px rgba(255,255,255,.08), 0 30px 70px -14px rgba(0,0,0,.7);
+  --shadow-md: 0 0 0 1px rgba(255,255,255,.08), 0 12px 30px -10px rgba(0,0,0,.6);
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--ink); font-family: var(--font-body); font-size: 13px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 56px 72px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 56px; }
+.mono { font-family: var(--font-mono); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 7px; }
+.label { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.label::before { content: "// "; color: var(--ink-4); }
+
+.intro { display: grid; gap: 14px; max-width: 64ch; }
+.intro h1 { margin: 0; font-size: clamp(36px, 5vw, 60px); line-height: 1; letter-spacing: -.045em; font-weight: 620; font-variation-settings: "opsz" 32; }
+.intro h1 .g { color: var(--ink-4); }
+.intro p { margin: 0; color: var(--ink-3); font-size: 16px; }
+
+/* Window */
+.win { position: relative; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-lg); overflow: hidden; display: grid; grid-template-columns: 220px minmax(0, 1fr) 300px; height: 660px; }
+.side { background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: grid; align-content: start; gap: 2px; overflow: hidden; }
+.lights { display: flex; gap: 7px; padding: 2px 6px 18px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: var(--ink-5); }
+.sec { font-size: 11px; color: var(--ink-4); font-weight: 500; padding: 12px 8px 4px; }
+.it { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px; color: var(--ink-2); border: 0; background: none; text-align: left; cursor: default; }
+.it.on { background: var(--sel); color: var(--ink); font-weight: 500; }
+.it .ico { width: 16px; height: 16px; border-radius: 4.5px; background: var(--ink-5); flex: none; display: grid; place-items: center; }
+.it .ico svg { width: 10px; height: 10px; color: var(--paper); }
+.it .d { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; flex: none; }
+.d.p { background: var(--pass-dot); } .d.f { background: var(--fail-dot); } .d.n { box-shadow: inset 0 0 0 1.5px var(--ink-4); }
+.side .store { margin-top: 18px; padding: 10px; border-radius: 10px; background: var(--paper); box-shadow: var(--shadow-md); display: grid; gap: 7px; font-size: 11.5px; color: var(--ink-3); }
+.side .store .bar { height: 5px; border-radius: 999px; background: var(--card); overflow: hidden; }
+.side .store .bar i { display: block; width: 17%; height: 100%; background: var(--ink); border-radius: 999px; }
+
+.main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; position: relative; }
+.tbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); min-height: 58px; }
+.tbar h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.tbar .sub { color: var(--ink-3); font-size: 12px; }
+.branchchip { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--card); color: var(--ink-2); }
+.seg { margin-left: auto; display: flex; background: var(--card); border-radius: 8px; padding: 2px; font-size: 12px; }
+.seg span { padding: 4px 10px; border-radius: 6px; color: var(--ink-3); }
+.seg span.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(9,9,11,.1); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; border: 0; cursor: pointer; background: var(--paper); color: var(--ink); box-shadow: var(--shadow-md); transition: transform .12s var(--ease), opacity .2s; white-space: nowrap; }
+.btn:active { transform: scale(.97); }
+.btn.dark { background: var(--ink); color: var(--paper); box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 1px 2px rgba(0,0,0,.25); }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+.btn kbd { font-family: var(--font-mono); font-size: 10.5px; opacity: .55; }
+.btn .tri { width: 7px; height: 8px; background: currentColor; clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+
+.list { overflow: auto; padding: 6px 10px 10px; }
+.day { font-size: 11px; color: var(--ink-4); font-weight: 500; padding: 12px 8px 4px; }
+.row { width: 100%; display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 7px 8px; border-radius: 9px; border: 0; background: none; text-align: left; cursor: pointer; transition: background .15s; }
+.row:hover { background: var(--sel); }
+.row.sel { background: var(--card); }
+.row .t1 { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; }
+.row .t2 { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; }
+.th { height: 38px; border-radius: 6px; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--line); background: #fbfaf8; }
+.th::before { content: ""; position: absolute; left: 6px; right: 18px; top: 6px; height: 4px; border-radius: 2px; background: #d9d6d0; }
+.th::after { content: ""; position: absolute; left: 6px; right: 6px; top: 15px; height: 16px; border-radius: 3px; background: repeating-linear-gradient(90deg, #e7e4df 0 30%, transparent 30% 35%); }
+.th.dk { background: #17171a; } .th.dk::before { background: #e9e9e6; opacity: .8; } .th.dk::after { background: repeating-linear-gradient(90deg, #2a2a2e 0 30%, transparent 30% 35%); }
+.th.er { background: #fff; } .th.er::before { left: 14px; right: 14px; top: 13px; background: #e4e4e7; } .th.er::after { left: 18px; right: 18px; top: 21px; height: 4px; background: #e4e4e7; }
+.th.fp { background: var(--card); } .th.fp::before, .th.fp::after { background: var(--ink-5); }
+.vb { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11.5px; font-weight: 500; background: var(--card); color: var(--ink-3); white-space: nowrap; }
+.vb::before { content: ""; width: 6px; height: 6px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; }
+.vb.p { background: var(--pass-bg); color: var(--pass-fg); } .vb.p::before { background: var(--pass-dot); box-shadow: none; }
+.vb.f { background: var(--fail-bg); color: var(--fail-fg); } .vb.f::before { background: var(--fail-dot); box-shadow: none; border-radius: 1px; transform: rotate(45deg); }
+.vb.i { background: var(--inc-bg); color: var(--inc-fg); } .vb.i::before { box-shadow: inset 0 0 0 1.5px var(--inc-dot); background: linear-gradient(90deg, var(--inc-dot) 50%, transparent 50%); }
+.vb.c::before { animation: breathe 1.1s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
+.stamp { animation: stamp .45s cubic-bezier(.34,1.56,.64,1); }
+@keyframes stamp { 0% { transform: scale(.7); opacity: 0 } 70% { transform: scale(1.07); opacity: 1 } 100% { transform: none } }
+
+.ruler { border-top: 1px solid var(--line); padding: 12px 18px 10px; }
+.ticks { display: flex; justify-content: space-between; align-items: center; position: relative; height: 22px; }
+.ticks::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--ink-5); }
+.tk { position: relative; width: 18px; height: 18px; border: 0; background: none; padding: 0; display: grid; place-items: center; cursor: pointer; }
+.tk i { width: 9px; height: 9px; border-radius: 50%; background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink-4); transition: transform .15s; }
+.tk:hover i { transform: scale(1.3); }
+.tk.p i { background: var(--pass-dot); box-shadow: none; }
+.tk.f i { background: var(--fail-dot); box-shadow: none; border-radius: 1.5px; transform: rotate(45deg); width: 8px; height: 8px; }
+.tk.i i { box-shadow: inset 0 0 0 1.5px var(--inc-dot); background: linear-gradient(90deg, var(--inc-dot) 50%, var(--paper) 50%); }
+.tk.c i { animation: breathe 1.1s ease-in-out infinite; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.ph { position: absolute; top: -9px; bottom: -6px; width: 1.5px; background: var(--ink); transition: left .42s cubic-bezier(.65,0,.35,1); pointer-events: none; }
+.ph::before { content: ""; position: absolute; top: -2px; left: -5px; width: 11px; height: 8px; background: var(--ink); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.tlab { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+
+.insp { border-left: 1px solid var(--line); padding: 16px; display: grid; align-content: start; gap: 14px; overflow: auto; }
+.pv { aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); position: relative; }
+.mg { position: absolute; inset: 0; padding: 8%; display: grid; align-content: start; gap: 7%; background: #fbfaf8; color: #1b1a17; font-size: 9px; }
+.mg.dk { background: #17171a; color: #ededea; }
+.mg .hd { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.mg .hd span { margin-left: auto; width: 16px; height: 9px; border-radius: 999px; border: 1px solid currentColor; opacity: .5; }
+.mg h6 { margin: 0; font-size: 14px; letter-spacing: -.02em; line-height: 1.05; }
+.mg .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mg .cards i { height: 26px; border-radius: 4px; background: rgba(127,127,127,.16); }
+.mg.er { place-content: center; justify-items: center; text-align: center; background: #fff; color: #18181b; }
+.mg.er pre { margin: 0; font-family: var(--font-mono); font-size: 8.5px; background: #f4f4f5; border-radius: 5px; padding: 6px 8px; text-align: left; white-space: pre-wrap; }
+.mg.fp { background: var(--card); color: var(--ink-3); place-content: center; justify-items: center; text-align: center; font-size: 11px; }
+.insp h3 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
+.insp .meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.ev { font-size: 12px; color: var(--ink-3); }
+.kv { display: grid; gap: 6px; font-size: 12px; }
+.kv .h { font-size: 11px; font-weight: 500; color: var(--ink-4); }
+.kv span:not(.h) { display: flex; gap: 8px; color: var(--ink-2); }
+.kv span:not(.h)::before { content: "✓"; width: 10px; color: var(--ink); }
+.kv.no span:not(.h)::before { content: "○"; color: var(--ink-4); }
+.insp .acts { display: grid; gap: 8px; }
+.insp .acts .btn { height: 34px; }
+
+/* Rewind sheet */
+.sheet { position: absolute; inset: 0; z-index: 5; background: var(--veil); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease); }
+.sheet.open { opacity: 1; pointer-events: auto; }
+.shead { display: flex; align-items: center; gap: 12px; padding: 18px 22px; }
+.shead h3 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+.shead .s { color: var(--ink-3); font-size: 12.5px; }
+.shead .x { margin-left: auto; }
+.film { display: flex; gap: 16px; align-items: center; padding: 10px 22px; overflow-x: auto; scroll-snap-type: x mandatory; }
+.fc { flex: 0 0 210px; scroll-snap-align: center; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-md); padding: 10px; display: grid; gap: 9px; transition: transform .35s var(--ease), opacity .35s, box-shadow .35s; opacity: .55; transform: scale(.94); }
+.fc.cur { opacity: 1; transform: none; box-shadow: var(--shadow-lg); }
+.fc.win1 { box-shadow: 0 0 0 1.5px var(--pass-dot), var(--shadow-lg); }
+.fc .pv { aspect-ratio: 16 / 10.5; }
+.fc .tt { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fc .tt b { font-family: var(--font-mono); font-weight: 500; font-size: 13px; font-variant-numeric: tabular-nums; }
+.fc .nm { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc .why { font-size: 11.5px; color: var(--ink-3); min-height: 16px; }
+.sfoot { border-top: 1px solid var(--line); padding: 14px 22px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--paper); }
+.sfoot .msg { color: var(--ink-2); font-size: 13px; flex: 1 1 260px; }
+.sfoot .msg b { font-weight: 600; }
+.confirm { display: grid; gap: 6px; font-size: 12.5px; color: var(--ink-2); flex: 1 1 360px; }
+.confirm ol { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.confirm p { margin: 0; color: var(--ink-3); }
+
+.toast { position: absolute; left: 50%; bottom: 70px; z-index: 6; transform: translate(-50%, 12px); opacity: 0; transition: all .35s var(--ease); background: var(--ink); color: var(--paper); border-radius: 12px; padding: 10px 10px 10px 14px; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow-lg); font-size: 12.5px; white-space: nowrap; max-width: calc(100% - 24px); }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast .btn { background: rgba(255,255,255,.12); color: var(--paper); box-shadow: none; height: 26px; }
+:root[data-theme="dark"] .toast .btn { background: rgba(0,0,0,.08); }
+
+/* Overlays */
+.ovs h2 { margin: 10px 0 24px; font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -.04em; line-height: 1; font-weight: 620; }
+.ovgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ov { border-radius: 22px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); padding: 22px; display: grid; gap: 16px; align-content: start; min-height: 320px; }
+.ov h3 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
+.ov p { margin: 0; color: var(--ink-3); font-size: 13px; }
+.menubar { display: flex; justify-content: flex-end; gap: 14px; align-items: center; font-size: 12px; color: var(--ink-2); background: var(--card); border-radius: 8px; padding: 5px 10px; font-variant-numeric: tabular-nums; }
+.mbi { display: inline-flex; align-items: center; gap: 4px; padding: 1px 5px; border-radius: 5px; background: var(--sel); }
+.mbi .t { width: 8px; height: 9px; background: var(--ink); clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+.mbi .d { width: 6px; height: 6px; border-radius: 50%; background: var(--fail-dot); }
+.drop { border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-lg); padding: 12px; display: grid; gap: 10px; }
+.drop .st { display: flex; justify-content: space-between; align-items: center; font-weight: 500; }
+.mini { display: flex; gap: 6px; }
+.mini i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
+.mini i.p { background: var(--pass-dot); box-shadow: none; } .mini i.f { background: var(--fail-dot); box-shadow: none; border-radius: 1.5px; transform: rotate(45deg); width: 7px; height: 7px; }
+.menu { display: grid; font-size: 12.5px; color: var(--ink-2); }
+.menu span { display: flex; justify-content: space-between; padding: 5px 7px; border-radius: 6px; }
+.menu span:first-child { background: var(--card); color: var(--ink); }
+.menu kbd { font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); }
+.ccard { border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-lg); padding: 14px; display: grid; gap: 10px; }
+.ccard .top { display: flex; gap: 10px; }
+.ccard .ic { width: 26px; height: 26px; border-radius: 8px; background: var(--fail-bg); display: grid; place-items: center; flex: none; }
+.ccard .ic i { width: 8px; height: 8px; background: var(--fail-dot); transform: rotate(45deg); border-radius: 1px; }
+.ccard .s { color: var(--ink-3); font-size: 12.5px; margin: 2px 0 0; }
+.ccard .r { display: flex; gap: 8px; }
+.pillbox { display: grid; gap: 14px; justify-items: center; padding-top: 18px; }
+.pill { display: inline-flex; align-items: center; gap: 10px; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 8px 14px 8px 10px; font-size: 12.5px; box-shadow: var(--shadow-lg); }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--paper); animation: breathe 1.6s ease-in-out infinite; }
+.pill span:last-child { opacity: .6; font-family: var(--font-mono); font-size: 11px; }
+.rest { width: 44px; height: 10px; border-radius: 999px; background: var(--ink); opacity: .85; }
+.keys { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--ink-3); }
+.keys kbd { font-family: var(--font-mono); font-size: 11px; border-radius: 5px; padding: 1px 6px; background: var(--paper); box-shadow: var(--shadow-md); color: var(--ink); }
+
+@media (max-width: 1020px) {
+  .win { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 640px; }
+  .side, .insp { display: none; }
+  .ovgrid { grid-template-columns: minmax(0, 1fr); }
+  .ov { min-height: 0; }
+}
+@media (max-width: 520px) { .seg { display: none; } .fc { flex-basis: 170px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <span class="label">App concept · simulated data · nothing is built yet</span>
+    <h1>Time Machine for Mac. <span class="g">Every save point, checked.</span></h1>
+    <p>Your agent broke Marigold sometime after 10:42. Click any save point to inspect it, then press <b>Rewind</b>. It checks backwards until something works.</p>
+  </header>
+
+  <section class="win" aria-label="Time Machine app window">
+    <aside class="side">
+      <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="sec">Projects</div>
+      <button class="it on"><span class="ico"></span>marigold<span class="d f" id="projDot"></span></button>
+      <button class="it"><span class="ico"></span>acme-shop<span class="d p"></span></button>
+      <button class="it"><span class="ico"></span>thesis-rl<span class="d n"></span></button>
+      <div class="sec">Agents</div>
+      <button class="it"><span class="ico"></span>Claude Code<span class="d n" style="box-shadow:none"></span></button>
+      <button class="it"><span class="ico"></span>Cursor</button>
+      <div class="sec">Library</div>
+      <button class="it"><span class="ico"></span>Audit log</button>
+      <button class="it"><span class="ico"></span>Settings</button>
+      <div class="store"><div style="display:flex;justify-content:space-between"><span>Backups</span><span class="mono">34 MB</span></div><div class="bar"><i></i></div><span>Kept outside your projects</span></div>
+    </aside>
+
+    <div class="main">
+      <div class="tbar">
+        <div><h2>marigold</h2><div class="sub" id="sub">Broken since 11:21 · 7 save points today</div></div>
+        <span class="branchchip" id="branch">main</span>
+        <div class="seg" aria-hidden="true"><span class="on">Important</span><span>Everything</span></div>
+        <button class="btn dark" id="rewindBtn"><span class="tri"></span>Rewind <kbd>⌘⇧R</kbd></button>
+      </div>
+      <div class="list" id="list"></div>
+      <div class="ruler"><div class="ticks" id="ticks"></div><div class="tlab"><span>9:00</span><span>10:00</span><span>11:00</span><span>12:00</span><span>now</span></div></div>
+
+      <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Rewind">
+        <div class="shead"><div><h3>Find the last working version</h3><div class="s" id="sheetSub">Checking newest first, each in a safe copy</div></div><button class="btn x" id="closeSheet">Close <kbd>esc</kbd></button></div>
+        <div class="film" id="film"></div>
+        <div class="sfoot" id="sfoot"></div>
+      </div>
+      <div class="toast" id="toast" role="status"></div>
+    </div>
+
+    <aside class="insp" id="insp"></aside>
+  </section>
+
+  <section class="ovs">
+    <span class="label">Overlays</span>
+    <h2>Quiet until it matters.</h2>
+    <div class="ovgrid">
+      <div class="ov"><h3>Menu bar</h3>
+        <div class="menubar"><span>Wed 14 Oct</span><span class="mbi"><span class="t"></span><span class="d"></span></span><span>3:14 PM</span></div>
+        <div class="drop"><div class="st">Broken since 11:21 <span class="vb f">2 failing</span></div><div class="mini"><i class="p"></i><i class="p"></i><i></i><i class="p"></i><i class="f"></i><i class="f"></i><i></i></div><div class="menu"><span>Rewind to 10:42 <kbd>⌘⇧R</kbd></span><span>Save a checkpoint <kbd>⌘S</kbd></span><span>Is it working?</span></div></div>
+        <p>Grey until a check runs. Never green without a real pass.</p>
+      </div>
+      <div class="ov"><h3>Corner card</h3>
+        <div class="ccard"><div class="top"><span class="ic"><i></i></span><div><b>Something broke after Claude's last change.</b><p class="s">3 tests fail in auth.test.ts. Last working: 10:42, Added dark mode.</p></div></div><div class="r"><button class="btn dark" id="cardRewind">Rewind to 10:42</button><button class="btn">What changed</button></div></div>
+        <p>Never steals focus. Broken cards stay until you act. Everything else fades after 8 seconds.</p>
+      </div>
+      <div class="ov"><h3>Agent pill</h3>
+        <div class="pillbox"><div class="rest" aria-hidden="true"></div><div class="pill"><i></i>Claude Code is working<span>3 saves</span></div></div>
+        <p>Exists only while an agent runs a turn. Hover to expand. Hidden in full screen apps.</p>
+      </div>
+    </div>
+    <div class="keys" style="margin-top:22px"><span><kbd>J</kbd> <kbd>L</kbd> step through save points</span><span><kbd>⌘⇧R</kbd> rewind</span><span><kbd>↵</kbd> use this version</span><span><kbd>esc</kbd> close</span></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const P = [
+    { t: "9:30",  title: "Recipe search",           who: "You",          v: "p", s: "lt", ev: "Tests passed in 18 s · safe copy" },
+    { t: "10:05", title: "Recipe cards",            who: "Claude Code",  v: "p", s: "lt", ev: "Tests passed in 22 s · safe copy" },
+    { t: "10:20", title: "Fixed lint errors",       who: "Claude Code",  v: "n", h: "p", s: "lt", ev: "Tests passed in 24 s · safe copy", ai: true },
+    { t: "10:42", title: "Added dark mode",         who: "Claude Code",  v: "p", s: "dk", ev: "38 tests passed in 41 s · safe copy" },
+    { t: "11:21", title: "Before rm -rf src/theme", who: "Safety save",  v: "f", s: "er", ev: "1 test failing: formatCookTime" },
+    { t: "11:46", title: "Before config edit",      who: "Safety save",  v: "n", h: "f", s: "er", ev: "9 tests failing" },
+    { t: "11:58", title: "After agent turn",        who: "Claude Code · 47 steps", v: "n", h: "i", s: "er", ev: "Needs DATABASE_URL to run the check. Value never saved." }
+  ];
+  const lab = { p: "Works", f: "Broken", i: "Couldn't check", n: "Not checked", c: "Checking" };
+  let sel = 6, open = false, busy = false, confirming = false, recovered = false, cur = -1, winner = -1;
+  const $ = (id) => document.getElementById(id);
+  const wait = (ms) => new Promise((r) => setTimeout(r, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms));
+
+  function screen(p) {
+    if (p.v === "n" || p.v === "c") return '<div class="mg fp">No preview yet<br>Check it to see it</div>';
+    if (p.s === "er") return '<div class="mg er"><pre>Error: Cannot find module\n\'./theme/dark\'</pre></div>';
+    return '<div class="mg' + (p.s === "dk" ? " dk" : "") + '"><div class="hd">Marigold<span></span></div><h6>What are we<br>cooking tonight?</h6><div class="cards"><i></i><i></i><i></i></div></div>';
+  }
+  const badge = (v, extra) => '<span class="vb ' + v + (extra || "") + '">' + lab[v] + "</span>";
+
+  function renderList() {
+    const rows = P.map((p, i) => ({ p, i })).reverse();
+    let h = '<div class="day">Today</div>';
+    rows.forEach(({ p, i }) => {
+      h += '<button class="row' + (i === sel ? " sel" : "") + '" data-i="' + i + '"><div class="th ' + (p.v === "n" || p.v === "c" ? "fp" : p.s) + '"></div><div style="min-width:0"><div class="t1">' + p.title + (p.ai ? ' <span class="ai">AI</span>' : "") + '</div><div class="t2">' + p.t + " · " + p.who + "</div></div>" + badge(p.v) + "</button>";
+    });
+    $("list").innerHTML = h;
+    $("ticks").innerHTML = P.map((p, i) => '<button class="tk ' + p.v + '" data-i="' + i + '" aria-label="' + p.t + " " + p.title + ", " + lab[p.v] + '"><i></i></button>').join("") + '<span class="ph" id="ph"></span>';
+    requestAnimationFrame(() => { const t = $("ticks").children[sel]; if (t) $("ph").style.left = (t.offsetLeft + t.offsetWidth / 2) + "px"; });
+  }
+
+  function renderInsp() {
+    const p = P[sel];
+    const back = ["Code and 2 uncommitted changes", "4 project files", "12 config keys", "Packages and Node 24"];
+    const no = ["Database contents", "Secret values (names kept)", "Anything already sent"];
+    $("insp").innerHTML = '<div class="pv">' + screen(p) + '</div><div><h3>' + p.title + '</h3><div class="meta">' + p.t + " · " + p.who + "</div></div>" + badge(p.v).replace('class="vb', 'style="justify-self:start" class="vb') +
+      '<div class="ev">' + (p.v === "n" ? "No check has run on this save point yet." : p.ev) + "</div>" +
+      '<div class="kv"><span class="h">Comes back</span>' + back.map((x) => "<span>" + x + "</span>").join("") + '</div><div class="kv no"><span class="h">Does not come back</span>' + no.map((x) => "<span>" + x + "</span>").join("") + "</div>" +
+      '<div class="acts">' + (p.v === "p" ? '<button class="btn dark" id="useDirect">Use this version</button><button class="btn">Try it in a safe copy</button>' : p.v === "n" ? '<button class="btn dark" id="checkOne">Check this one</button>' : '<button class="btn" id="openRw">Find the last working version</button>') + "</div>";
+    const u = $("useDirect"); if (u) u.onclick = () => openSheet(sel);
+    const c = $("checkOne"); if (c) c.onclick = () => checkOne(sel);
+    const o = $("openRw"); if (o) o.onclick = () => openSheet();
+  }
+  function render() { renderList(); renderInsp(); }
+
+  async function checkOne(i) {
+    if (busy) return; busy = true; P[i].v = "c"; render(); await wait(900); P[i].v = P[i].h; render();
+    const b = document.querySelector('.row[data-i="' + i + '"] .vb'); if (b) b.classList.add("stamp"); busy = false;
+  }
+
+  function renderFilm() {
+    $("film").innerHTML = P.map((p, i) => ({ p, i })).reverse().map(({ p, i }) =>
+      '<div class="fc' + (i === cur ? " cur" : "") + (i === winner ? " win1" : "") + '" data-i="' + i + '"><div class="pv">' + screen(p) + '</div><div class="tt"><b>' + p.t + "</b>" + badge(p.v, p.v === "c" ? " c" : "") + '</div><div class="nm">' + p.title + '</div><div class="why">' + (p.v === "n" ? "Not checked yet" : p.v === "c" ? "Rebuilding, then npm test" : p.ev.split(" · ")[0]) + "</div></div>").join("");
+    const c = $("film").querySelector(".cur"); if (c) c.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }
+  function renderFoot() {
+    const f = $("sfoot");
+    if (confirming) {
+      f.innerHTML = '<div class="confirm"><ol><li>Save your current version first, so this is undoable.</li><li>Make branch <span class="mono">tm/recover/cp-0003</span> from 10:42.</li><li>Put your saved files back in a recovery copy.</li></ol><p>Your current folder is not touched. Nothing is pushed, merged, deployed or deleted.</p></div><button class="btn" id="cancelUse">Cancel</button><button class="btn dark" id="doUse">Do it <kbd>↵</kbd></button>';
+      $("cancelUse").onclick = () => { confirming = false; renderFoot(); }; $("doUse").onclick = doUse; $("doUse").focus(); return;
+    }
+    if (busy) { f.innerHTML = '<div class="msg">Checking <b>' + (P[cur] ? P[cur].t : "") + '</b> in a safe copy. Your folder is untouched.</div><button class="btn" disabled>Use this version</button>'; return; }
+    if (winner >= 0) { f.innerHTML = '<div class="msg"><b>10:42 works.</b> 38 tests passed. Checked 3 save points on the way: 1 couldn\'t be checked, 2 broken.</div><button class="btn">Try it first</button><button class="btn dark" id="useBtn">Use this version <kbd>↵</kbd></button>'; $("useBtn").onclick = () => { confirming = true; renderFoot(); }; return; }
+    f.innerHTML = '<div class="msg">Starting from now and walking back.</div>';
+  }
+
+  async function openSheet(direct) {
+    if (busy || recovered) return;
+    open = true; $("sheet").classList.add("open"); confirming = false;
+    if (direct !== undefined) { winner = direct; cur = direct; renderFilm(); confirming = true; renderFoot(); return; }
+    busy = true; winner = -1;
+    for (let i = P.length - 1; i >= 0; i--) {
+      cur = i; renderFilm(); renderFoot(); await wait(420);
+      if (P[i].v === "n") { P[i].v = "c"; renderFilm(); await wait(900); P[i].v = P[i].h; renderFilm(); const b = $("film").querySelector(".cur .vb"); if (b) b.classList.add("stamp"); await wait(300); }
+      if (P[i].v === "p") { winner = i; break; }
+    }
+    busy = false; sel = winner; render(); renderFilm(); renderFoot();
+    const b = $("film").querySelector(".cur .vb"); if (b) b.classList.add("stamp");
+  }
+  function closeSheet() { if (busy) return; open = false; confirming = false; $("sheet").classList.remove("open"); }
+
+  function toast(html) { const t = $("toast"); t.innerHTML = html; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 6000); }
+  function doUse() {
+    confirming = false; recovered = true; closeSheet();
+    P.push({ t: "3:14", title: "Before rewind", who: "Saved automatically", v: "f", s: "er", ev: "Your broken state, kept so you can undo" });
+    sel = 3; $("branch").textContent = "main · tm/recover/cp-0003 ready"; $("sub").textContent = "Recovery branch ready from 10:42 · Works"; $("projDot").className = "d p"; render();
+    toast('Branch tm/recover/cp-0003 is ready. Your folder is unchanged. <button class="btn">Switch to it</button> <button class="btn" id="undo">Undo ⌘Z</button>');
+    $("undo").onclick = () => { P.pop(); recovered = false; sel = P.length - 1; $("branch").textContent = "main"; $("sub").textContent = "Broken since 11:21 · 7 save points today"; $("projDot").className = "d f"; render(); toast("Undone. Back on main, exactly as before."); };
+  }
+
+  $("list").addEventListener("click", (e) => { const r = e.target.closest(".row"); if (!r || busy) return; sel = +r.dataset.i; render(); });
+  $("ticks").addEventListener("click", (e) => { const r = e.target.closest(".tk"); if (!r || busy) return; sel = +r.dataset.i; render(); });
+  $("rewindBtn").onclick = () => openSheet();
+  $("cardRewind").onclick = () => { $("rewindBtn").scrollIntoView({ behavior: "smooth", block: "center" }); openSheet(); };
+  $("closeSheet").onclick = closeSheet;
+  document.addEventListener("keydown", (e) => {
+    if (/input|textarea/i.test(e.target.tagName)) return;
+    if (e.key === "Escape") { if (confirming) { confirming = false; renderFoot(); } else closeSheet(); return; }
+    if (e.key.toLowerCase() === "r" && e.metaKey && e.shiftKey) { e.preventDefault(); openSheet(); return; }
+    if (busy || open || e.metaKey || e.ctrlKey) return;
+    if (e.key === "j" || e.key === "ArrowUp") { sel = Math.min(P.length - 1, sel + 1); render(); }
+    if (e.key === "l" || e.key === "ArrowDown") { sel = Math.max(0, sel - 1); render(); }
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && open && !busy && !e.target.closest("button")) { if (confirming) doUse(); else if (winner >= 0) { confirming = true; renderFoot(); } } });
+  addEventListener("resize", renderList);
+  render();
+})();
+</script>

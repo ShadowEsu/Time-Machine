@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What Time Machine does not do. Time Machine</title>
+<meta name="description" content="The full list of what Time Machine does not cover today: databases, deploys, secret values, container isolation, and more. Written down on purpose.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f3efe5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0e0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="What Time Machine does not do">
+<meta property="og:description" content="The full list of what Time Machine does not cover today: databases, deploys, secret values, container isolation, and more. Written down on purpose.">
+<meta property="og:image" content="../assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta property="article:published_time" content="2026-10-15">
+<meta property="article:author" content="Preston Susanto">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-10-15">15 October 2026</time><span aria-hidden="true">·</span><span>5 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title">What Time Machine does not do</h1>
+    <p class="sub rv" style="--d:2">A safety tool that oversells is worse than no tool at all. Here is everything Time Machine does not cover today, in one place.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">PS</span><span><b>Preston Susanto</b><br>Founder, Time Machine</span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>Safety tools have a habit of overselling. "Never lose work again." "Total peace of mind." The more a tool promises, the less you can tell what it actually covers, and the worse the surprise when it does not.</p>
+<p>So here is the opposite: everything Time Machine does not do today. This list also lives in our docs, on the security page, and in a "Not restored" section on every recovery report.</p>
+
+<h2>It only restores captured project state</h2>
+<p>Time Machine saves your project folder. It does not restore databases, deployed versions, emails, payments, or anything else outside that folder. If an agent runs a migration that drops a table, your code comes back and the table does not. Keep real backups of your data. Every save point lists what it did not capture, so you know before you need it.</p>
+
+<h2>It does not store secret values</h2>
+<p>For files like <code>.env</code>, Time Machine saves the key names and a keyed fingerprint, never the values. Files whose name or content looks like a secret are skipped and listed. After a recovery, you set those values again by hand, and the report tells you which ones.</p>
+<p>One side effect: checks run with a clean environment. If your test suite needs a secret value to pass, the check may fail in the safe copy even though the code is fine. You can mark keys as plain in <code>config.plain</code> if their values are safe to save.</p>
+
+<h2>It is not a container</h2>
+<p>Checks run in host mode: a separate Git worktree on your own machine, with a clean environment and a time limit. The check runs as you. That is weaker isolation than a container, and every verdict says "host mode" so you never mistake one for the other. Container isolation with Docker, OrbStack or Apple's container tool is Planned.</p>
+<p>With <code>network: deny</code>, the check runs inside a sandbox with the network off. If no sandbox is available, the check does not run and the verdict is BLOCKED. The setup step, like <code>npm ci</code>, still has the network, so it can install dependencies.</p>
+
+<h2>Its signature is not tamper proof</h2>
+<p>Save points and verdicts are signed with a key in <code>~/.timemachine</code>. That catches accidental edits, and edits by tools that do not read the key. It does not stop someone who can read the key file. We say "signed", not "tamper proof".</p>
+
+<h2>It does not save everything in your folder</h2>
+<ul>
+  <li>Files over the size limit, 5 MB by default, are skipped and listed as missing.</li>
+  <li>Symbolic links are not saved.</li>
+  <li>Installed dependencies like <code>node_modules</code> are not saved. Only the lockfile fingerprint is kept, and the safe copy installs fresh.</li>
+  <li>Files ignored by <code>.gitignore</code> are not saved, unless you list them in <code>capture.include</code>.</li>
+</ul>
+
+<h2>It does not prove your app is correct</h2>
+<p>A PASS means your check passed. If the check does not test the thing that broke, a PASS will not catch it. Time Machine is only as strict as the check you give it.</p>
+
+<h2>It does not push, merge, deploy or switch</h2>
+<p>This one is a choice, not a gap. Recover makes a new branch and a recovery copy next to your project. It never switches your folder or your current branch, and it never pushes, merges or deploys. You look first, then you decide.</p>
+
+<h2>It does not replace a disk backup</h2>
+<p>The store lives on the same disk as your project. If the disk dies, both go. Keep a real backup.</p>
+
+<h2>It does not trim its own store yet</h2>
+<p>Files are stored once by content and compressed, so repeats cost nothing. But the store only grows today. You can check it with <code>du -sh ~/.timemachine</code>. Automatic thinning with a size budget is Planned.</p>
+
+<h2>It is not on npm, and the Mac app is not out</h2>
+<p>The <code>tm</code> command works and is tested, but you build it from source for now. The npm package will be <code>timetm</code>. The Mac app is in development, not signed or shipped yet, and not available to download.</p>
+
+<h2>It does not cover what agents do outside code</h2>
+<p>Agents now send email, post to Slack and edit documents. Time Machine does not see any of that today. An action connector for Claude and ChatGPT is Planned, and even then it would never claim to unsend an email. It could hold an email before it goes out, or delete a Slack message, and it would say plainly what could not be reversed.</p>
+
+<h2>Why write this down</h2>
+<p>Because the moment you need a tool like this is the worst moment to learn its limits. If you know exactly where Time Machine stops, you can plan around it. If you find a limit that is not on this list, email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> and it will be added.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://git-scm.com/docs/git-worktree" rel="noopener">Git documentation: git worktree</a></li>
+    <li><a href="https://github.com/containers/bubblewrap" rel="noopener">bubblewrap: the Linux sandbox used for network: deny</a></li>
+    <li><a href="https://code.claude.com/docs/en/checkpointing" rel="noopener">Anthropic: Claude Code checkpointing documentation</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="pv" href="a-save-point-should-prove-it-works.html"><span>Previous</span><b>A save point should prove it works</b></a><a class="nx" href="why-a-safety-net-makes-people-braver.html"><span>Next</span><b>Why a safety net makes people braver</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../story.html">The story</a>
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../terms.html">Terms (draft)</a>
+        <a href="../privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+/* Opt-in features: the Ask panel, Vercel deploy chips and Settings > Features.
+   Classes start with ft-. Tokens come from styles.css. */
+
+/* Ask panel. The host is a flex column; the thread scrolls inside it. */
+.ft-ask { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.ft-ask-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 18px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); }
+.ft-sp { flex: 1; }
+.ft-menu-wrap { position: relative; }
+.ft-menu-btn { height: 26px; padding: 0 8px; font-size: 15px; letter-spacing: .08em; }
+.ft-menu { position: absolute; right: 0; top: 30px; z-index: 5; min-width: 220px; padding: 4px; border-radius: 10px; background: var(--sheet, var(--surface)); box-shadow: var(--shadow-lg); }
+.ft-menu button { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: 500 12.5px/1.2 var(--font); cursor: pointer; }
+.ft-menu button:hover, .ft-menu button:focus-visible { background: var(--sel); outline: none; }
+
+.ft-thread { flex: 1; min-height: 0; overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.ft-intro { font: 400 15px/1.5 var(--serif); color: var(--ink-3); }
+.ft-q { align-self: flex-end; max-width: 88%; font: 400 15px/1.4 var(--serif); color: var(--ink); background: var(--accent-bg, var(--card)); border-radius: 14px 14px 4px 14px; padding: 9px 13px; overflow-wrap: anywhere; }
+.ft-a { font: 400 15px/1.55 var(--serif); color: var(--ink-2); overflow-wrap: anywhere; animation: ft-rise .4s var(--ease) both; }
+.ft-a p + p { margin-top: 10px; }
+.ft-a.ft-cant { color: var(--ink-3); font-style: italic; }
+.ft-wait { display: flex; align-items: center; gap: 9px; color: var(--ink-3); font-style: italic; }
+.ft-cites { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.ft-cites-l { font: 500 10px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin-right: 2px; }
+.ft-cite { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--paper); color: var(--ink); font: 500 11.5px/1 var(--font); cursor: pointer; }
+.ft-cite:hover { border-color: var(--accent, var(--ink-3)); }
+.ft-cite:focus-visible { outline: 2px solid var(--accent, var(--ink)); outline-offset: 1px; }
+.ft-cite .g { width: 7px; height: 7px; }
+.ft-basis { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font: 400 11.5px/1.45 var(--font); font-style: normal; color: var(--ink-3); }
+.ft-aitag { font: 600 9px/1 var(--mono); letter-spacing: .06em; color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 4px; vertical-align: 1px; margin-left: 2px; }
+.ft-sugg { display: flex; flex-wrap: wrap; gap: 6px; }
+.ft-sugg button { height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--paper); color: var(--ink-2); font: 400 12.5px/1 var(--font); cursor: pointer; }
+.ft-sugg button:hover { border-color: var(--accent, var(--ink-3)); color: var(--accent, var(--ink)); }
+.ft-ask-in { margin: 0 14px 6px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--paper); padding: 8px 8px 8px 12px; display: flex; align-items: flex-end; gap: 8px; }
+.ft-ask-in:focus-within { border-color: var(--accent, var(--ink)); }
+.ft-ask-in textarea { flex: 1; resize: none; border: 0; background: none; outline: none; font: 400 14px/1.4 var(--serif); color: var(--ink); min-height: 40px; user-select: text; }
+.ft-ask-in textarea::placeholder { color: var(--ink-3); }
+.ft-ask-foot { padding: 0 18px 12px; font-size: 11px; color: var(--ink-3); }
+
+/* Ask off: the consent card. */
+.ft-consent { display: grid; gap: 10px; padding: 18px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.ft-consent h3 { font: 400 22px/1.15 var(--serif); color: var(--ink); letter-spacing: -.01em; }
+.ft-consent h4, .ft-details h4 { font: 500 10.5px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin-top: 4px; }
+.ft-consent ul, .ft-details ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.ft-consent .btn { justify-self: start; margin-top: 4px; }
+
+/* Shared bits. */
+.ft-muted { color: var(--ink-3); }
+.ft-note { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.ft-err { font-size: 12.5px; line-height: 1.5; color: var(--fail-fg); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ft-status { font-size: 12.5px; color: var(--ink-2); }
+.ft-link { border: 0; background: none; padding: 0; color: var(--accent, var(--ink)); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ft-link:hover { color: var(--ink); }
+
+/* Vercel deploy chips: neutral, dashed, never green. A Vercel state is not a check result. */
+.ft-deploy { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; border-radius: 999px; border: 1px dashed var(--line-2); background: none; font: 500 11px/1 var(--font); color: var(--ink-3); white-space: nowrap; }
+button.ft-deploy { cursor: pointer; }
+button.ft-deploy:hover { color: var(--ink); border-color: var(--ink-3); }
+.ft-deploy i { font-style: normal; font-size: 9px; }
+.ft-deploy .ft-ro { color: var(--ink-4); font-weight: 400; }
+.ft-deploy .ft-ro::before { content: "· "; }
+.ft-deploy-error, .ft-deploy-canceled, .ft-deploy-deleted, .ft-deploy-blocked { text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.chip-slot .ft-deploy + .ft-deploy { margin-left: 6px; }
+
+.ft-unlinked { margin-top: 18px; padding: 14px 16px; border-radius: 12px; border: 1px dashed var(--line-2); display: grid; gap: 8px; font-size: 12.5px; }
+.ft-unlinked h3 { font: 400 17px/1.2 var(--serif); color: var(--ink); }
+.ft-unlinked ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ft-unlinked li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* Settings > Features. */
+.ft-settings { display: grid; }
+.ft-sec { font: 400 17px/1.2 var(--serif); color: var(--ink); padding: 14px 0 4px; }
+.ft-sec:first-child { padding-top: 0; }
+.ft-ro-note { font-size: 12.5px; color: var(--ink-2); padding-bottom: 6px; }
+.ft-stack { display: grid; gap: 8px; min-width: 0; }
+.ft-stack .row-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ft-stack .row-btns .field { flex: 1; min-width: 200px; max-width: 360px; }
+.ft-keystate { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.ft-dot { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
+.ft-dot.on { background: var(--ink-2); box-shadow: none; }
+.ft-details { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.ft-details summary { cursor: pointer; color: var(--ink); font-weight: 500; }
+.ft-details[open] > * + * { margin-top: 8px; }
+
+@keyframes ft-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ft-a { animation: none; } }

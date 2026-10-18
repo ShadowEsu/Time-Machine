@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Why a safety net makes people braver. Time Machine</title>
+<meta name="description" content="Easy reversal, loss aversion, the peak end rule and how long habits take. The research behind Time Machine's design, and why we refuse streaks and fake urgency.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f3efe5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0e0c" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Why a safety net makes people braver">
+<meta property="og:description" content="Easy reversal, loss aversion, the peak end rule and how long habits take. The research behind Time Machine's design, and why we refuse streaks and fake urgency.">
+<meta property="og:image" content="../assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A silver Time Machine device with a time dial and the words Rewind to what worked.">
+<meta property="article:published_time" content="2026-10-15">
+<meta property="article:author" content="Preston Susanto">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151411'/%3E%3Cpath d='M21.5 9.5v13L11 16z' fill='%23faf8f3'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-10-15">15 October 2026</time><span aria-hidden="true">·</span><span>6 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title">Why a safety net makes people braver</h1>
+    <p class="sub rv" style="--d:2">People take better risks when they know they can get back. The idea is old and well tested, and it shapes almost every choice in Time Machine.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">PS</span><span><b>Preston Susanto</b><br>Founder, Time Machine</span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>Watch someone use a coding agent on a project they care about. Often they hold back. They ask for small changes, read every diff, and stop the agent before it gets anywhere interesting. Not because the agent is bad, but because there is no easy way back if it goes wrong.</p>
+<p>Give the same person a reliable way back and something shifts. They try the bigger refactor. They let the agent run. They explore. Time Machine is built on that shift, and the reasons behind it are some of the best tested ideas in psychology and design.</p>
+
+<h2>Easy reversal is a design rule</h2>
+<p>Ben Shneiderman's eight golden rules of interface design have guided software for decades. Rule six is "permit easy reversal of actions". The reasoning is simple: when people know an action can be reversed, anxiety drops, and they are more willing to explore options they do not know yet.</p>
+<p>Editors learned this long ago with undo. Agents broke it again. When one prompt can change forty files and run ten shell commands, editor undo is no longer a way back. Time Machine tries to restore the rule at the scale agents work at: the whole project, with a check that says which version works.</p>
+
+<h2>Losses weigh about twice as much</h2>
+<p>Loss aversion is the finding that a loss feels bigger than a gain of the same size. A 2024 meta-analysis in the Journal of Economic Literature pooled hundreds of estimates and found a mean loss aversion coefficient of about 1.955. Roughly, losing something hurts about twice as much as gaining the same thing feels good.</p>
+<p>Apply that to an agent session. The gain is a new feature. The possible loss is an hour of work that already ran. If the loss feels twice as heavy, people protect what they have and take fewer good risks. A tested way back lowers the cost of the loss, so the math changes in favor of trying.</p>
+
+<h2>Progress you can see helps you finish</h2>
+<p>In a well known study on the endowed progress effect, a car wash handed out loyalty cards. One card needed eight stamps. Another needed ten, but came with two already stamped. Both needed eight more washes. About 34 percent of people with the head start finished, against 19 percent without it.</p>
+<p>We take the lesson that visible progress helps, but not the trick. Time Machine's setup shows real steps only: make the config, take the first save point, run the first check. No fake head starts and no progress bars that move on their own. A save point that was never checked says "not checked yet", never "works".</p>
+
+<h2>The peak and the end</h2>
+<p>The peak end rule says people judge an experience mostly by its most intense moment and by how it ended, not by the average of every moment.</p>
+<p>For Time Machine the peak is clear: the verdict on a save point turns to Works, and you know you can get back. So we spend design effort there, on a clear stamp with a word and a shape, not just a color. The end is the recovery report. It lists what came back and also what did not: secret values you need to set again, the database it never touched. We would rather end on a true sentence than on confetti. There are no celebrations on a rewind, because a rewind means something went wrong.</p>
+
+<h2>Habits take longer than a week</h2>
+<p>A study from University College London followed people building a new daily habit. On average it took 66 days for the behavior to become automatic, with a wide range from person to person.</p>
+<p>That number changed how we think about the product. We will not try to build a habit in a week with pressure. Instead, the Claude Code hooks make the important part automatic from day one: Time Machine saves before each prompt and before risky commands, and checks at the end of each turn. You do not need a habit for that. The habit you do build over time is simpler: when something looks broken, ask Time Machine which version works.</p>
+
+<h2>Why we refuse streaks and fake urgency</h2>
+<p>Streaks work. Econsultancy's write up of Duolingo's experiments describes a test where showing the streak moved daily active users by about 3 percent. For a language app that wants you back every day, that is a real win.</p>
+<p>A safety tool is different. You should come back when you need it, not because a counter is about to reset. And a broken streak is a loss. If losses weigh about twice as much as gains, a streak turns every missed day into a small punishment. So Time Machine has:</p>
+<ul>
+  <li>No streaks that can break. Counts only grow, like save points kept and rescues done.</li>
+  <li>No countdowns and no "act now" banners.</li>
+  <li>No "at risk" alerts unless a real check failed.</li>
+  <li>No guilt copy and no notifications that exist only to bring you back.</li>
+</ul>
+<p>The best compliment a safety net can get is that you forgot it was there, right up until the moment you needed it.</p>
+
+<h2>Braver, not fearless</h2>
+<p>We do not say Time Machine makes you fearless. Fearless suggests nothing can go wrong, and things will go wrong. Databases, deploys and sent emails are outside what it saves. What it can do is make the most common disaster, a project that worked an hour ago and does not now, into something you can fix with one command and a branch you can inspect. That is enough to take the bigger swing.</p>
+<p>Build with a way back.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://www.ics.com/blog/eight-golden-rules-rule-6-permit-easy-reversal-actions-0" rel="noopener">ICS: Shneiderman's eight golden rules, rule 6, permit easy reversal of actions</a></li>
+    <li><a href="https://www.aeaweb.org/doi/10.1257/jel.20221698" rel="noopener">Journal of Economic Literature: meta-analysis of empirical estimates of loss aversion</a></li>
+    <li><a href="https://www.coglode.com/nuggets/endowed-progress-effect" rel="noopener">Coglode: the endowed progress effect</a></li>
+    <li><a href="https://learningloop.io/plays/psychology/peak-end-rule" rel="noopener">Learning Loop: the peak end rule</a></li>
+    <li><a href="https://www.ucl.ac.uk/news/2009/aug/how-long-does-it-take-form-habit" rel="noopener">UCL News: how long does it take to form a habit?</a></li>
+    <li><a href="https://www.econsultancy.com/six-a-b-tests-used-by-duolingo-to-tap-into-habit-forming-behaviour" rel="noopener">Econsultancy: six A/B tests used by Duolingo to tap into habit forming behaviour</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="pv" href="what-time-machine-does-not-do.html"><span>Previous</span><b>What Time Machine does not do</b></a><a class="nx" href="building-in-the-open.html"><span>Next</span><b>Building Time Machine in the open: the plan, and why we will raise</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <p class="k">Waitlist</p>
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../story.html">The story</a>
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../terms.html">Terms (draft)</a>
+        <a href="../privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email the founder</a>
+      </nav>
+      <p class="foot-note">Built by a solo founder. Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>

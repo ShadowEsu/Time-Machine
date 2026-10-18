@@ -1,0 +1,542 @@
+<title>Time Machine Website</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+/* Layout: premium product site. Floating glass nav, centered two-tone hero, big product shot, scroll statement, sticky how-it-works, bento, numbers, FAQ, dark CTA card, giant wordmark footer. Single light world: ink on white, greys do the work, color only for verdicts. */
+:root {
+  --ink: #09090b; --ink-2: #3f3f46; --ink-3: #71717a; --ink-4: #a1a1aa; --ink-5: #d4d4d8;
+  --paper: #ffffff; --soft: #fafafa; --card: #f4f4f5; --line: rgba(9,9,11,.07); --line-2: rgba(9,9,11,.12);
+  --pass-fg: #15803d; --pass-bg: #ecfdf3; --pass-dot: #22c55e;
+  --inc-fg: #a16207; --inc-bg: #fefce8; --inc-dot: #eab308;
+  --fail-fg: #b91c1c; --fail-bg: #fef2f2; --fail-dot: #ef4444;
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --shadow-lg: 0 0 0 1px rgba(9,9,11,.06), 0 2px 4px rgba(9,9,11,.04), 0 24px 64px -12px rgba(9,9,11,.18);
+  --shadow-md: 0 0 0 1px rgba(9,9,11,.06), 0 1px 2px rgba(9,9,11,.04), 0 12px 32px -8px rgba(9,9,11,.12);
+  --ease: cubic-bezier(.22,1,.36,1);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { overflow-x: clip; scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; }
+.gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1160px; margin: 0 auto; }
+.mono { font-family: var(--font-mono); }
+.label { font-family: var(--font-mono); font-size: 12px; letter-spacing: .02em; color: var(--ink-3); }
+.label::before { content: "// "; color: var(--ink-4); }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 999px; font: 500 15px/1 var(--font-body); border: 0; cursor: pointer; transition: transform .15s var(--ease), box-shadow .2s, background .2s; white-space: nowrap; }
+.btn:active { transform: scale(.97); }
+.btn.dark { background: var(--ink); color: var(--paper); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 2px rgba(9,9,11,.3), 0 8px 20px -6px rgba(9,9,11,.45); }
+.btn.dark:hover { background: #27272a; }
+.btn.ghost { background: var(--paper); color: var(--ink); box-shadow: var(--shadow-md); font-family: var(--font-mono); font-size: 14px; }
+.btn.ghost:hover { background: var(--soft); }
+.btn svg { flex: none; }
+
+/* Nav: floating glass pill */
+.navwrap { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 0; right: 0; z-index: 50; display: flex; justify-content: center; pointer-events: none; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.nav { pointer-events: auto; display: flex; align-items: center; gap: 6px; height: 52px; padding: 0 6px 0 16px; border-radius: 999px; background: rgba(255,255,255,.72); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); box-shadow: var(--shadow-md); width: min(760px, 100%); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 620; letter-spacing: -.02em; font-size: 15px; margin-right: auto; }
+.mark { width: 24px; height: 24px; border-radius: 7px; background: var(--ink); display: grid; place-items: center; flex: none; }
+.mark i { width: 9px; height: 10px; background: var(--paper); clip-path: polygon(100% 0, 100% 100%, 0 50%); display: block; margin-left: -1px; }
+.nav .links { display: flex; gap: 2px; font-size: 14px; color: var(--ink-2); }
+.nav .links a { padding: 8px 12px; border-radius: 999px; transition: background .2s; }
+.nav .links a:hover { background: rgba(9,9,11,.05); }
+.nav .btn { height: 40px; padding: 0 16px; font-size: 14px; }
+@media (max-width: 760px) { .nav .links { display: none; } }
+
+/* Hero */
+.hero { padding-block: calc(150px + env(safe-area-inset-top, 0px)) 0; text-align: center; position: relative; }
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px 0 6px; border-radius: 999px; box-shadow: var(--shadow-md); font-size: 13px; color: var(--ink-2); background: var(--paper); }
+.chip b { font-weight: 500; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 2px 8px; font-size: 11.5px; }
+h1.hl { margin: 26px auto 0; font-family: var(--font-display); font-weight: 620; font-size: clamp(44px, 7.6vw, 96px); line-height: .98; letter-spacing: -.048em; max-width: 13ch; font-variation-settings: "opsz" 32; text-wrap: balance; }
+h1.hl .g { color: var(--ink-4); }
+.w { display: inline-block; animation: wordin .9s var(--ease) both; }
+@keyframes wordin { from { opacity: 0; filter: blur(10px); transform: translateY(14px); } to { opacity: 1; filter: none; transform: none; } }
+.lede { margin: 22px auto 0; max-width: 52ch; color: var(--ink-3); font-size: clamp(16px, 1.6vw, 19px); text-wrap: balance; animation: wordin 1s .35s var(--ease) both; }
+.ctas { margin-top: 32px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; animation: wordin 1s .45s var(--ease) both; }
+.facts { margin-top: 22px; display: flex; gap: 8px 22px; justify-content: center; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); animation: wordin 1s .55s var(--ease) both; }
+.facts span { display: inline-flex; gap: 6px; align-items: center; }
+.facts svg { color: var(--ink); }
+
+/* Product shot */
+.shotstage { position: relative; margin-top: 72px; perspective: 1600px; }
+.shotstage::before { content: ""; position: absolute; left: 50%; top: 4%; width: 90%; height: 80%; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(9,9,11,.10), transparent); filter: blur(40px); z-index: 0; }
+.shot { position: relative; z-index: 1; transform-origin: 50% 0; transform: rotateX(var(--tilt, 18deg)) scale(var(--sc, .94)); transition: transform .1s linear; will-change: transform; }
+.mac { border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-lg); overflow: hidden; display: grid; grid-template-columns: 210px minmax(0, 1fr) 290px; min-height: 560px; text-align: left; font-size: 13px; }
+.side { background: #f6f6f7; border-right: 1px solid var(--line); padding: 14px 10px; display: grid; align-content: start; gap: 2px; }
+.lights { display: flex; gap: 7px; padding: 2px 6px 16px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; background: #e4e4e7; }
+.side .sec { font-size: 11px; color: var(--ink-4); font-weight: 500; padding: 12px 8px 4px; }
+.side .it { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px; color: var(--ink-2); }
+.side .it.on { background: rgba(9,9,11,.07); color: var(--ink); font-weight: 500; }
+.side .it .d { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; }
+.d.p { background: var(--pass-dot); } .d.f { background: var(--fail-dot); } .d.n { border: 1.5px solid var(--ink-4); }
+.side .ico { width: 16px; height: 16px; border-radius: 4px; background: var(--ink-5); flex: none; }
+.main { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
+.tbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.tbar h4 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.tbar .sub { color: var(--ink-3); font-size: 12px; }
+.seg { margin-left: auto; display: flex; background: var(--card); border-radius: 8px; padding: 2px; font-size: 12px; }
+.seg span { padding: 4px 10px; border-radius: 6px; color: var(--ink-3); }
+.seg span.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(9,9,11,.08); }
+.rw { height: 30px; padding: 0 12px; font-size: 12.5px; border-radius: 8px; }
+.list { padding: 8px 10px; display: grid; align-content: start; gap: 2px; overflow: hidden; }
+.day { font-size: 11px; color: var(--ink-4); font-weight: 500; padding: 10px 8px 4px; }
+.row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 7px 8px; border-radius: 9px; }
+.row.sel { background: var(--card); }
+.thumb { height: 36px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); position: relative; overflow: hidden; }
+.thumb::before { content: ""; position: absolute; left: 6px; right: 6px; top: 7px; height: 4px; border-radius: 2px; background: var(--ink-5); }
+.thumb::after { content: ""; position: absolute; left: 6px; top: 15px; width: 60%; height: 13px; border-radius: 3px; background: var(--ink-5); opacity: .6; }
+.thumb.dk { background: #18181b; }
+.thumb.er::after { width: 70%; height: 3px; top: 20px; box-shadow: 0 6px 0 var(--ink-5); }
+.row .t1 { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .t2 { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vb { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11.5px; font-weight: 500; background: var(--card); color: var(--ink-3); white-space: nowrap; }
+.vb::before { content: ""; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; }
+.vb.p { background: var(--pass-bg); color: var(--pass-fg); } .vb.p::before { background: var(--pass-dot); border-color: var(--pass-dot); }
+.vb.f { background: var(--fail-bg); color: var(--fail-fg); } .vb.f::before { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 1px; transform: rotate(45deg); }
+.vb.i { background: var(--inc-bg); color: var(--inc-fg); } .vb.i::before { border-color: var(--inc-dot); background: linear-gradient(90deg, var(--inc-dot) 50%, transparent 50%); }
+.ruler { border-top: 1px solid var(--line); padding: 14px 18px 12px; }
+.ticks { display: flex; justify-content: space-between; align-items: center; position: relative; height: 18px; }
+.ticks::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--ink-5); }
+.ticks i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--ink-4); }
+.ticks i.p { background: var(--pass-dot); border-color: var(--pass-dot); }
+.ticks i.f { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 1.5px; transform: rotate(45deg); width: 7px; height: 7px; }
+.ticks .ph { position: absolute; top: -8px; bottom: -6px; width: 1.5px; background: var(--ink); }
+.ticks .ph::before { content: ""; position: absolute; top: -2px; left: -5px; width: 11px; height: 8px; background: var(--ink); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.tlab { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.insp { border-left: 1px solid var(--line); padding: 16px; display: grid; align-content: start; gap: 14px; background: var(--paper); }
+.prev { aspect-ratio: 16 / 10; border-radius: 10px; background: #18181b; border: 1px solid var(--line); padding: 10% 9%; display: grid; align-content: start; gap: 8%; }
+.prev i { display: block; height: 5px; border-radius: 3px; background: #3f3f46; }
+.prev i:first-child { width: 40%; height: 7px; background: #fafafa; opacity: .85; }
+.prev .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6%; }
+.prev .grid i { height: 26px; border-radius: 4px; background: #27272a; }
+.insp h5 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.insp .meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.kv { display: grid; gap: 6px; font-size: 12px; }
+.kv .h { font-size: 11px; font-weight: 500; color: var(--ink-4); }
+.kv span { display: flex; gap: 8px; color: var(--ink-2); }
+.kv span::before { content: "✓"; color: var(--ink); width: 10px; }
+.kv.no span::before { content: "○"; color: var(--ink-4); }
+.insp .btn { height: 34px; font-size: 13px; justify-content: center; border-radius: 9px; }
+
+.ov { position: absolute; z-index: 3; box-shadow: var(--shadow-lg); background: rgba(255,255,255,.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 16px; text-align: left; font-size: 13px; }
+.ovcard { right: -28px; bottom: 54px; width: 300px; padding: 14px; display: grid; gap: 10px; }
+.ovcard .top { display: flex; gap: 10px; }
+.ovcard .ic { width: 26px; height: 26px; border-radius: 8px; background: var(--fail-bg); display: grid; place-items: center; flex: none; }
+.ovcard .ic i { width: 8px; height: 8px; background: var(--fail-dot); transform: rotate(45deg); border-radius: 1px; }
+.ovcard p { margin: 0; }
+.ovcard .s { color: var(--ink-3); font-size: 12.5px; }
+.ovcard .r { display: flex; gap: 8px; }
+.ovcard .btn { height: 30px; font-size: 12.5px; padding: 0 12px; }
+.ovcard .btn.ghost { font-family: var(--font-body); }
+.ovmenu { left: -26px; top: 80px; width: 230px; padding: 12px; display: grid; gap: 10px; }
+.ovmenu .st { display: flex; align-items: center; justify-content: space-between; font-weight: 500; }
+.mini { display: flex; gap: 6px; }
+.mini i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ink-4); }
+.mini i.p { background: var(--pass-dot); border-color: var(--pass-dot); } .mini i.f { background: var(--fail-dot); border-color: var(--fail-dot); border-radius: 1.5px; transform: rotate(45deg); width: 7px; height: 7px; }
+.ovmenu .m { display: grid; gap: 1px; font-size: 12.5px; color: var(--ink-2); }
+.ovmenu .m span { display: flex; justify-content: space-between; padding: 5px 6px; border-radius: 6px; }
+.ovmenu .m span:first-child { background: var(--card); color: var(--ink); }
+.ovmenu kbd { font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); }
+
+/* Works with */
+.with { margin-top: 84px; display: grid; gap: 18px; justify-items: center; text-align: center; }
+.with .names { display: flex; gap: 14px 40px; flex-wrap: wrap; justify-content: center; font-size: 17px; font-weight: 600; letter-spacing: -.02em; color: var(--ink-4); }
+
+/* Statement */
+.statement { padding-block: 150px 40px; }
+.statement p { margin: 18px 0 0; font-size: clamp(26px, 3.6vw, 46px); line-height: 1.16; letter-spacing: -.03em; font-weight: 560; max-width: 24ch; text-wrap: pretty; }
+.statement .sw { color: var(--ink); transition: color .25s; }
+.statement .sw.dim { color: var(--ink-5); }
+
+/* How it works (sticky) */
+.how { position: relative; height: 380vh; }
+.howpin { position: sticky; top: 0; height: 100svh; display: grid; align-items: center; }
+.howgrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; align-items: center; }
+.steps { display: grid; gap: 4px; }
+.steps h2 { margin: 12px 0 24px; font-size: clamp(32px, 4vw, 52px); letter-spacing: -.04em; line-height: 1; font-weight: 620; }
+.step { display: grid; grid-template-columns: 36px 1fr; gap: 4px 12px; padding: 16px 16px 16px 0; border-top: 1px solid var(--line); transition: opacity .3s; opacity: .38; }
+.step.on { opacity: 1; }
+.step .n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); padding-top: 4px; }
+.step h3 { margin: 0; font-size: 19px; letter-spacing: -.02em; font-weight: 600; }
+.step p { grid-column: 2; margin: 0; color: var(--ink-3); font-size: 15px; max-height: 0; overflow: hidden; transition: max-height .4s var(--ease); }
+.step.on p { max-height: 90px; }
+.panel { position: relative; aspect-ratio: 5 / 4; max-width: 100%; border-radius: 24px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.scene { position: absolute; inset: 0; padding: 8%; display: grid; place-items: center; opacity: 0; transform: translateY(16px) scale(.98); transition: opacity .45s var(--ease), transform .45s var(--ease); }
+.scene.on { opacity: 1; transform: none; }
+.card { background: var(--paper); border-radius: 14px; box-shadow: var(--shadow-md); width: 100%; padding: 16px; font-size: 13px; }
+.logl { display: grid; gap: 8px; font-family: var(--font-mono); font-size: 12px; }
+.logl div { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; color: var(--ink-2); }
+.logl .tm { color: var(--ink-4); }
+.logl .sv { font-family: var(--font-body); font-size: 11px; background: var(--card); border-radius: 999px; padding: 2px 8px; color: var(--ink-2); }
+.split2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; }
+.split2 .card h6 { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.split2 .card b { font-weight: 600; font-size: 14px; display: block; margin-bottom: 10px; }
+.chk { display: grid; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.chk span::before { content: "✓  "; color: var(--ink); font-family: var(--font-mono); }
+.chk span.run::before { content: "◌  "; color: var(--ink-4); }
+.v3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+.v3 .card { display: grid; gap: 10px; }
+.v3 .tm2 { font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
+.v3 .why { color: var(--ink-3); font-size: 12px; }
+.rep { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; font-size: 13px; }
+.rep dt { color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; padding-top: 1px; }
+.rep dd { margin: 0; color: var(--ink-2); }
+.branch { margin-bottom: 14px; display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; }
+.branch svg { flex: none; }
+
+/* Bento */
+.sechead { display: grid; gap: 12px; margin-bottom: 40px; }
+.sechead h2 { margin: 0; font-size: clamp(32px, 4.4vw, 56px); letter-spacing: -.045em; line-height: 1; font-weight: 620; max-width: 16ch; text-wrap: balance; }
+.sechead h2 .g { color: var(--ink-4); }
+.bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.bx { grid-column: span 2; border-radius: 22px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); padding: 22px; display: grid; grid-template-rows: auto auto 1fr; gap: 8px; min-height: 300px; overflow: hidden; }
+.bx.w3 { grid-column: span 3; }
+.bx h3 { margin: 0; font-size: 18px; letter-spacing: -.02em; font-weight: 600; }
+.bx p { margin: 0; color: var(--ink-3); font-size: 14.5px; max-width: 40ch; }
+.bx .vis { align-self: end; margin-top: 18px; }
+.hookl { display: grid; gap: 8px; font-family: var(--font-mono); font-size: 11.5px; }
+.hookl div { background: var(--paper); border-radius: 10px; box-shadow: var(--shadow-md); padding: 8px 12px; display: flex; justify-content: space-between; gap: 10px; color: var(--ink-2); }
+.hookl div span:last-child { color: var(--ink-4); }
+.bigruler { background: var(--paper); border-radius: 12px; box-shadow: var(--shadow-md); padding: 18px 16px 12px; }
+.folders { display: flex; gap: 12px; }
+.folder { flex: 1; background: var(--paper); border-radius: 12px; box-shadow: var(--shadow-md); padding: 12px; font-size: 12px; display: grid; gap: 4px; }
+.folder b { font-weight: 600; font-size: 13px; }
+.folder span { color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; }
+.keys { display: grid; gap: 6px; font-family: var(--font-mono); font-size: 12px; background: var(--paper); border-radius: 12px; box-shadow: var(--shadow-md); padding: 12px 14px; }
+.keys div { display: flex; justify-content: space-between; color: var(--ink-2); }
+.keys div span:last-child { color: var(--ink-4); letter-spacing: .15em; }
+.store { background: var(--paper); border-radius: 12px; box-shadow: var(--shadow-md); padding: 14px; display: grid; gap: 10px; font-size: 12.5px; }
+.store .bar { height: 8px; border-radius: 999px; background: var(--card); overflow: hidden; }
+.store .bar i { display: block; height: 100%; width: 17%; background: var(--ink); border-radius: 999px; }
+.store .ln { display: flex; justify-content: space-between; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Chips marquee */
+.marq { margin-top: 64px; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.marq .track { display: flex; gap: 10px; width: max-content; animation: marq 40s linear infinite; }
+.marq span { height: 36px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-2); font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+@keyframes marq { to { transform: translateX(-50%); } }
+
+/* Numbers */
+.nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.num { padding: 34px 28px 10px 0; display: grid; gap: 10px; }
+.num + .num { padding-left: 28px; border-left: 1px solid var(--line); }
+.num .big { font-size: clamp(56px, 7vw, 96px); letter-spacing: -.05em; line-height: .9; font-weight: 600; font-variant-numeric: tabular-nums; }
+.num h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.015em; }
+.num p { margin: 0; color: var(--ink-3); font-size: 15px; max-width: 32ch; }
+
+/* Honest */
+.honest { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; border-radius: 28px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); padding: 48px; }
+.honest h2 { margin: 12px 0 14px; font-size: clamp(28px, 3.4vw, 42px); letter-spacing: -.04em; line-height: 1.02; font-weight: 620; }
+.honest p { margin: 0; color: var(--ink-3); }
+.honest ul { list-style: none; margin: 0; padding: 0; display: grid; align-content: center; }
+.honest li { display: flex; gap: 14px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 16px; }
+.honest li:last-child { border-bottom: 0; }
+.honest li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink-4); flex: none; }
+
+/* Pricing */
+.prices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.price { border-radius: 22px; box-shadow: inset 0 0 0 1px var(--line-2); padding: 26px; display: grid; gap: 14px; align-content: start; }
+.price.pro { background: var(--ink); color: var(--paper); box-shadow: none; }
+.price h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.price .amt { font-size: 44px; letter-spacing: -.04em; font-weight: 600; line-height: 1; }
+.price .amt small { font-size: 15px; letter-spacing: 0; font-weight: 400; color: var(--ink-3); }
+.price.pro .amt small, .price.pro li { color: #a1a1aa; }
+.price ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14.5px; color: var(--ink-2); }
+.price li::before { content: "✓"; margin-right: 10px; }
+.note { margin-top: 14px; font-size: 13px; color: var(--ink-3); }
+
+/* FAQ */
+.faq { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 48px; }
+.faq h2 { margin: 12px 0 0; font-size: clamp(32px, 4vw, 52px); letter-spacing: -.045em; line-height: 1; font-weight: 620; }
+details { border-top: 1px solid var(--line); }
+details:last-child { border-bottom: 1px solid var(--line); }
+summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 40px 1fr 20px; gap: 12px; padding: 20px 0; font-size: 17px; font-weight: 500; letter-spacing: -.01em; align-items: center; }
+summary::-webkit-details-marker { display: none; }
+summary .n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-4); }
+summary .pl { width: 14px; height: 14px; position: relative; justify-self: end; }
+summary .pl::before, summary .pl::after { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 1.5px; background: var(--ink); transition: transform .3s var(--ease); }
+summary .pl::after { transform: rotate(90deg); }
+details[open] summary .pl::after { transform: rotate(0); }
+details p { margin: 0 0 22px 52px; color: var(--ink-3); max-width: 60ch; }
+
+/* CTA + footer */
+.cta { border-radius: 32px; background: var(--ink); color: var(--paper); text-align: center; padding: 96px 24px; display: grid; justify-items: center; gap: 22px; position: relative; overflow: hidden; }
+.cta::before { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 120%; background: radial-gradient(closest-side, rgba(255,255,255,.12), transparent); }
+.cta h2 { margin: 0; font-size: clamp(40px, 6.4vw, 84px); letter-spacing: -.05em; line-height: .96; font-weight: 620; position: relative; }
+.cta p { margin: 0; color: #a1a1aa; max-width: 44ch; position: relative; }
+.cta .ctas { margin: 0; animation: none; position: relative; }
+.cta .btn.dark { background: var(--paper); color: var(--ink); box-shadow: none; }
+.cta .btn.ghost { background: rgba(255,255,255,.08); color: var(--paper); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+footer { padding-block: 80px 0; overflow: hidden; }
+.fcols { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 32px; font-size: 14px; }
+.fcols h6 { margin: 0 0 12px; font-size: 12px; font-weight: 500; color: var(--ink-4); }
+.fcols a { display: block; color: var(--ink-2); padding: 3px 0; }
+.fcols p { margin: 12px 0 0; color: var(--ink-3); max-width: 30ch; font-size: 14px; }
+.giant { margin-top: 64px; font-size: clamp(64px, 17.4vw, 220px); font-weight: 650; letter-spacing: -.06em; line-height: .78; color: var(--card); white-space: nowrap; text-align: center; user-select: none; }
+.fine { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; padding-block: 20px calc(28px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+
+section.block { padding-block: 120px 0; }
+
+@media (max-width: 980px) {
+  .mac { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .side, .insp { display: none; }
+  .ovcard { right: 8px; bottom: -40px; width: min(300px, 86%); }
+  .ovmenu { display: none; }
+  .howgrid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .how { height: auto; }
+  .howpin { position: static; height: auto; padding-block: 40px; }
+  .step { opacity: 1; } .step p { max-height: none; }
+  .panel { display: none; }
+  .bento { grid-template-columns: minmax(0, 1fr); }
+  .bx, .bx.w3 { grid-column: auto; min-height: 0; }
+  .nums, .prices { grid-template-columns: minmax(0, 1fr); }
+  .num + .num { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .honest, .faq { grid-template-columns: minmax(0, 1fr); padding: 28px; gap: 24px; }
+  .faq { padding: 0; }
+  .fcols { grid-template-columns: 1fr 1fr; }
+  .v3 { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .w, .lede, .ctas, .facts { animation: none; }
+  .marq .track { animation: none; flex-wrap: wrap; width: auto; }
+  .shot { transform: none !important; }
+  .scene { transition: none; }
+}
+</style>
+
+<div class="navwrap"><nav class="nav" aria-label="Main">
+  <a class="brand" href="#top"><span class="mark"><i></i></span>Time Machine</a>
+  <div class="links"><a href="#how">How it works</a><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></div>
+  <a class="btn dark" href="#get">Get early access</a>
+</nav></div>
+
+<header class="hero gut" id="top">
+  <div class="wrap">
+    <span class="chip"><b>Concept</b>Coming soon for Mac · Free CLI</span>
+    <h1 class="hl"><span class="w" style="animation-delay:0s">Your</span> <span class="w" style="animation-delay:.05s">agent</span> <span class="w" style="animation-delay:.1s">broke</span> <span class="w" style="animation-delay:.15s">it.</span> <span class="g"><span class="w" style="animation-delay:.22s">Rewind</span> <span class="w" style="animation-delay:.27s">to</span> <span class="w" style="animation-delay:.32s">what</span> <span class="w" style="animation-delay:.37s">worked.</span></span></h1>
+    <p class="lede">Time Machine saves every step you and your AI agents take, checks which versions actually run, and brings back the last good one on a branch you can undo.</p>
+    <div class="ctas">
+      <a class="btn dark" href="#get"><svg width="15" height="17" viewBox="0 0 15 17" aria-hidden="true"><path fill="currentColor" d="M12.4 9c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.3-.1-2.6.8-3.3.8-.7 0-1.7-.8-2.8-.8C3.6 4 2.2 4.9 1.5 6.2 0 8.9 1.1 12.8 2.6 14.9c.7 1 1.5 2.2 2.6 2.1 1.1 0 1.4-.7 2.7-.7 1.3 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.2 1.1-2.3 1.1-2.3s-2.1-.8-2.2-3.4zM10.4 2.6c.6-.7 1-1.7.9-2.6-.8 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.5.9.1 1.9-.5 2.5-1.2z"/></svg>Download for Mac</a>
+      <button class="btn ghost" id="copyCli" type="button">npx timetm init<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+    </div>
+    <div class="facts">
+      <span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Local first</span>
+      <span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Never pushes or deploys</span>
+      <span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Secrets never stored</span>
+    </div>
+
+    <div class="shotstage" id="shotstage">
+      <div class="shot" id="shot">
+        <div class="mac" role="img" aria-label="The Time Machine app showing a project's history, with the newest save points broken and the 10:42 save point marked Works">
+          <aside class="side">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="sec">Projects</div>
+            <div class="it on"><span class="ico"></span>marigold<span class="d f"></span></div>
+            <div class="it"><span class="ico"></span>acme-shop<span class="d p"></span></div>
+            <div class="it"><span class="ico"></span>thesis-rl<span class="d n"></span></div>
+            <div class="sec">Agents</div>
+            <div class="it"><span class="ico"></span>Claude Code</div>
+            <div class="it"><span class="ico"></span>Cursor</div>
+            <div class="sec">Library</div>
+            <div class="it"><span class="ico"></span>Backups · 34 MB</div>
+            <div class="it"><span class="ico"></span>Audit log</div>
+          </aside>
+          <div class="main">
+            <div class="tbar"><div><h4>marigold</h4><div class="sub">Broken since 11:21 · 6 save points today</div></div><div class="seg"><span class="on">Important</span><span>Everything</span></div><span class="btn dark rw">Rewind</span></div>
+            <div class="list">
+              <div class="day">Today</div>
+              <div class="row"><div class="thumb er"></div><div><div class="t1">After agent turn</div><div class="t2">11:58 · Claude Code · 47 steps</div></div><span class="vb">Not checked</span></div>
+              <div class="row"><div class="thumb er"></div><div><div class="t1">Before config edit</div><div class="t2">11:46 · app.config.json</div></div><span class="vb f">Broken</span></div>
+              <div class="row"><div class="thumb er"></div><div><div class="t1">Before rm -rf src/theme</div><div class="t2">11:21 · safety save</div></div><span class="vb f">Broken</span></div>
+              <div class="row sel"><div class="thumb dk"></div><div><div class="t1">Added dark mode</div><div class="t2">10:42 · before agent turn</div></div><span class="vb p">Works</span></div>
+              <div class="row"><div class="thumb"></div><div><div class="t1">Recipe search</div><div class="t2">9:30 · You</div></div><span class="vb p">Works</span></div>
+              <div class="day">Yesterday</div>
+              <div class="row"><div class="thumb"></div><div><div class="t1">Deploy settings</div><div class="t2">5:12 pm · needs DATABASE_URL</div></div><span class="vb i">Couldn't check</span></div>
+            </div>
+            <div class="ruler">
+              <div class="ticks"><i class="p"></i><i class="p"></i><i class="p"></i><i></i><i class="p"></i><i class="f"></i><i class="f"></i><i></i><span class="ph" style="left:57%"></span></div>
+              <div class="tlab"><span>9:00</span><span>10:00</span><span>10:42</span><span>11:21</span><span>12:00</span></div>
+            </div>
+          </div>
+          <aside class="insp">
+            <div class="prev" aria-hidden="true"><i></i><i style="width:70%"></i><div class="grid"><i></i><i></i><i></i></div></div>
+            <div><h5>Added dark mode</h5><div class="meta">10:42 · Claude Code · cp-0003</div></div>
+            <span class="vb p" style="justify-self:start">Works · 38 tests passed</span>
+            <div class="kv"><span class="h">Comes back</span><span>Code and 2 uncommitted changes</span><span>4 project files</span><span>12 config keys</span><span>Packages and Node 24</span></div>
+            <div class="kv no"><span class="h">Does not come back</span><span>Database contents</span><span>Secret values</span></div>
+            <span class="btn dark">Use this version</span>
+          </aside>
+        </div>
+        <div class="ov ovmenu" aria-hidden="true">
+          <div class="st">Broken since 11:21 <span class="vb f">2</span></div>
+          <div class="mini"><i class="p"></i><i class="p"></i><i></i><i class="p"></i><i class="f"></i><i class="f"></i><i></i></div>
+          <div class="m"><span>Rewind to 10:42 <kbd>⌘⇧R</kbd></span><span>Save a checkpoint <kbd>⌘S</kbd></span><span>Is it working?</span></div>
+        </div>
+        <div class="ov ovcard" aria-hidden="true">
+          <div class="top"><span class="ic"><i></i></span><div><p><b>Something broke after Claude's last change.</b></p><p class="s">Last working: 10:42, Added dark mode.</p></div></div>
+          <div class="r"><span class="btn dark">Rewind to 10:42</span><span class="btn ghost">What changed</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="with"><span class="label">Designed for the tools you already use</span><div class="names"><span>Claude Code</span><span>Cursor</span><span>Codex</span><span>Gemini CLI</span><span>GitHub</span><span>Lovable</span></div></div>
+  </div>
+</header>
+
+<section class="statement gut"><div class="wrap">
+  <span class="label">Introduction</span>
+  <p id="stmt">Git remembers your code. Time Machine remembers whether it worked. Every change you or your agents make becomes a save point, with the files, settings and environment around it. Each one is checked in a safe copy, so going back is never a guess.</p>
+</div></section>
+
+<section class="how gut" id="how">
+  <div class="howpin"><div class="wrap howgrid">
+    <div class="steps">
+      <span class="label">How it works</span>
+      <h2>Four steps. One click.</h2>
+      <div class="step on" data-i="0"><span class="n">01</span><h3>Save</h3><p>A save point before every agent turn and every risky command. Automatically.</p></div>
+      <div class="step" data-i="1"><span class="n">02</span><h3>Check</h3><p>Rebuild any save point in a separate copy and run your check. Your folder is never touched.</p></div>
+      <div class="step" data-i="2"><span class="n">03</span><h3>Rewind</h3><p>Walks back newest first and stops at the first version that works.</p></div>
+      <div class="step" data-i="3"><span class="n">04</span><h3>Recover</h3><p>A new branch from that version, with a report of what came back and what didn't.</p></div>
+    </div>
+    <div class="panel" aria-hidden="true">
+      <div class="scene on" data-i="0"><div class="card"><div class="logl">
+        <div><span class="tm">10:42</span><span>before agent turn</span><span class="sv">Saved</span></div>
+        <div><span class="tm">11:21</span><span>before rm -rf src/theme</span><span class="sv">Saved</span></div>
+        <div><span class="tm">11:46</span><span>before app.config.json edit</span><span class="sv">Saved</span></div>
+        <div><span class="tm">11:58</span><span>after turn · 47 steps</span><span class="sv">Saved</span></div>
+      </div></div></div>
+      <div class="scene" data-i="1"><div class="split2">
+        <div class="card"><h6>Your project</h6><b>~/code/marigold</b><div class="chk"><span>Untouched</span><span>Still on main</span></div></div>
+        <div class="card"><h6>Safe copy · network off</h6><b>cp-0003 · 10:42</b><div class="chk"><span>Rebuild code and files</span><span>Install from lockfile</span><span>Restore config keys</span><span class="run">Running npm test</span></div></div>
+      </div></div>
+      <div class="scene" data-i="2"><div class="v3">
+        <div class="card"><span class="tm2">11:46</span><span class="vb f" style="justify-self:start">Broken</span><span class="why">9 tests failing</span></div>
+        <div class="card"><span class="tm2">11:21</span><span class="vb f" style="justify-self:start">Broken</span><span class="why">1 failing</span></div>
+        <div class="card"><span class="tm2">10:42</span><span class="vb p" style="justify-self:start">Works</span><span class="why">38 passed</span></div>
+      </div></div>
+      <div class="scene" data-i="3"><div class="card">
+        <div class="branch"><svg width="60" height="26" viewBox="0 0 60 26" aria-hidden="true"><path d="M2 22 H18 C28 22 28 4 38 4 H58" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="22" r="3.5" fill="#22c55e"/></svg>tm/recover/cp-0003</div>
+        <dl class="rep"><dt>Restored</dt><dd>Code, 4 files, 12 config keys, packages, Node 24</dd><dt>Not restored</dt><dd>Database contents, secret values, anything already sent</dd><dt>Undo</dt><dd>Your 11:58 state was saved first</dd></dl>
+      </div></div>
+    </div>
+  </div></div>
+</section>
+
+<section class="block gut" id="features"><div class="wrap">
+  <div class="sechead"><span class="label">Features</span><h2>Built for the way you build now. <span class="g">With agents, at speed.</span></h2></div>
+  <div class="bento">
+    <div class="bx w3"><h3>Saves before every agent turn</h3><p>Hooks into Claude Code first, then Cursor and Codex. A safety save lands before commands like rm -rf.</p>
+      <div class="vis hookl"><div><span>UserPromptSubmit · save point</span><span>10:42:07</span></div><div><span>PreToolUse · rm -rf src/theme · safety save</span><span>11:21:40</span></div><div><span>Stop · save point · checking in background</span><span>11:58:31</span></div></div></div>
+    <div class="bx w3"><h3>Finds the last version that works</h3><p>Not the last commit. The last state that actually passed your check, found automatically.</p>
+      <div class="vis bigruler"><div class="ticks"><i class="p"></i><i class="p"></i><i></i><i class="p"></i><i class="p"></i><i class="f"></i><i class="f"></i><i></i><span class="ph" style="left:57%"></span></div><div class="tlab"><span>9:00</span><span>10:42</span><span>11:21</span><span>now</span></div></div></div>
+    <div class="bx"><h3>Never touches your folder</h3><p>Every check runs in a separate copy.</p><div class="vis folders"><div class="folder"><b>Your project</b><span>untouched</span></div><div class="folder"><b>Safe copy</b><span>network off</span></div></div></div>
+    <div class="bx"><h3>Secrets stay secret</h3><p>We keep key names, never values.</p><div class="vis keys"><div><span>DATABASE_URL</span><span>••••••</span></div><div><span>STRIPE_KEY</span><span>••••••</span></div><div><span>NEXTAUTH_URL</span><span>changed</span></div></div></div>
+    <div class="bx"><h3>A tiny backup</h3><p>Save points are deduped and compressed.</p><div class="vis store"><div class="ln"><span>marigold</span><span>34 MB of 2 GB</span></div><div class="bar"><i></i></div><div class="ln"><span>Kept outside the project</span><span>survives rm -rf</span></div></div></div>
+  </div>
+  <div class="marq" aria-label="More features"><div class="track">
+    <span>Claude Code hooks</span><span>MCP server</span><span>Find last working</span><span>Recovery branch</span><span>Undo the rewind</span><span>Safe copy</span><span>Network off checks</span><span>Audit log</span><span>JSON output</span><span>Docker aware</span><span>Apple container aware</span><span>Secret scanner</span><span>Menu bar status</span><span>Corner cards</span><span>Local first</span>
+    <span>Claude Code hooks</span><span>MCP server</span><span>Find last working</span><span>Recovery branch</span><span>Undo the rewind</span><span>Safe copy</span><span>Network off checks</span><span>Audit log</span><span>JSON output</span><span>Docker aware</span><span>Apple container aware</span><span>Secret scanner</span><span>Menu bar status</span><span>Corner cards</span><span>Local first</span>
+  </div></div>
+</div></section>
+
+<section class="block gut"><div class="wrap">
+  <div class="sechead"><span class="label">By design</span><h2>Three numbers we will never change.</h2></div>
+  <div class="nums">
+    <div class="num"><span class="big" data-to="0">0</span><h3>Pushes, merges or deploys</h3><p>Time Machine works on a local branch. Shipping is always your call.</p></div>
+    <div class="num"><span class="big" data-to="0">0</span><h3>Green dots without a real check</h3><p>Works means a check ran and passed. Everything else is labeled honestly.</p></div>
+    <div class="num"><span class="big" data-to="1">1</span><h3>Click to rewind</h3><p>And one more to undo it, because your broken state is saved first.</p></div>
+  </div>
+</div></section>
+
+<section class="block gut"><div class="wrap honest">
+  <div><span class="label">Honest by default</span><h2>What no tool can undo.</h2><p>Some things leave your computer. Every rewind ends with a report that lists them, so nothing surprises you later.</p></div>
+  <ul><li>Emails, messages and payments already sent</li><li>Changes to a production database</li><li>A deploy people already saw</li><li>Secret values. We only keep their names</li></ul>
+</div></section>
+
+<section class="block gut" id="pricing"><div class="wrap">
+  <div class="sechead"><span class="label">Pricing</span><h2>Free to start. <span class="g">Rewinds are never paywalled.</span></h2></div>
+  <div class="prices">
+    <div class="price"><h3>CLI</h3><div class="amt">$0</div><ul><li>Unlimited local save points</li><li>Find last working, recover</li><li>Claude Code hooks and MCP</li></ul></div>
+    <div class="price pro"><h3>Pro</h3><div class="amt">$9<small> / month</small></div><ul><li>The Mac app and overlays</li><li>Unlimited projects and history</li><li>Half price for students</li></ul></div>
+    <div class="price"><h3>Team</h3><div class="amt">$20<small> / seat / month</small></div><ul><li>Shared history and reports</li><li>Client workspaces for agencies</li><li>Alerts on risky agent changes</li></ul></div>
+  </div>
+  <div class="note">Planned pricing. Nothing is for sale yet.</div>
+</div></section>
+
+<section class="block gut" id="faq"><div class="wrap faq">
+  <div><span class="label">FAQ</span><h2>Questions, answered.</h2></div>
+  <div>
+    <details open><summary><span class="n">01</span>How is this different from Git?<span class="pl"></span></summary><p>Git keeps code you committed. Time Machine also keeps uncommitted work, chosen files, settings and the environment, and it knows which versions actually pass your check.</p></details>
+    <details><summary><span class="n">02</span>Claude Code and Cursor already have rewind. Why this?<span class="pl"></span></summary><p>Built-in rewinds only see their own agent's file edits and miss shell commands. Time Machine works across agents, saves before risky commands, and proves a version works before you use it.</p></details>
+    <details><summary><span class="n">03</span>Will it touch my project or push anything?<span class="pl"></span></summary><p>No. Checks run in a separate copy. Recovering makes a local branch and saves your current state first. It never pushes, merges or deploys.</p></details>
+    <details><summary><span class="n">04</span>What about my secrets?<span class="pl"></span></summary><p>Secret values are never stored. Time Machine keeps key names and tells you when one changed, so you know what to re-enter.</p></details>
+    <details><summary><span class="n">05</span>Do I need Docker?<span class="pl"></span></summary><p>No. Checks run in a separate copy on your Mac. If Docker or Apple's container tool is installed, it uses them for stronger isolation and says so.</p></details>
+    <details><summary><span class="n">06</span>Is this Apple's Time Machine?<span class="pl"></span></summary><p>No. This Time Machine is an independent project for builders and is not affiliated with Apple Inc.</p></details>
+  </div>
+</div></section>
+
+<section class="block gut" id="get"><div class="wrap cta">
+  <h2>Back to what worked.</h2>
+  <p>Join the early access list for the Mac app, or start with the free CLI today.</p>
+  <div class="ctas"><span class="btn dark">Get early access</span><span class="btn ghost">npx timetm init</span></div>
+</div></section>
+
+<footer class="gut"><div class="wrap">
+  <div class="fcols">
+    <div><a class="brand" href="#top"><span class="mark"><i></i></span>Time Machine</a><p>Save points for everything you build, with proof of which ones still work.</p></div>
+    <div><h6>Product</h6><a href="#how">How it works</a><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></div>
+    <div><h6>Developers</h6><a href="#get">CLI</a><a href="#get">Agents and MCP</a><a href="#get">Changelog</a></div>
+    <div><h6>Company</h6><a href="#get">Story</a><a href="#get">Security</a><a href="#get">Contact</a></div>
+  </div>
+  <div class="giant" aria-hidden="true">Time Machine</div>
+  <div class="fine label"><span>Design concept. Simulated product, nothing is built yet</span><span>Not affiliated with Apple Inc.</span></div>
+</div></footer>
+
+<script>
+(function () {
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const shot = document.getElementById("shot"), stage = document.getElementById("shotstage");
+  const stmt = document.getElementById("stmt");
+  stmt.innerHTML = stmt.textContent.split(" ").map((w) => '<span class="sw">' + w + "</span>").join(" ");
+  const words = [...stmt.querySelectorAll(".sw")];
+  const how = document.getElementById("how");
+  const steps = [...document.querySelectorAll(".step")], scenes = [...document.querySelectorAll(".scene")];
+
+  function frame() {
+    const vh = innerHeight;
+    if (!reduce) {
+      const r = stage.getBoundingClientRect(), t = clamp(1 - (r.top - vh * .15) / (vh * .7));
+      shot.style.setProperty("--tilt", (18 * (1 - t)).toFixed(2) + "deg");
+      shot.style.setProperty("--sc", (.94 + .06 * t).toFixed(3));
+    }
+    const sr = stmt.getBoundingClientRect(), sp = reduce ? 1 : clamp((vh * .85 - sr.top) / (sr.height + vh * .35));
+    const lit = Math.round(sp * words.length);
+    words.forEach((w, i) => w.classList.toggle("dim", i >= lit));
+    if (getComputedStyle(how).height !== "auto" && how.offsetHeight > vh * 1.5) {
+      const hr = how.getBoundingClientRect(), hp = clamp(-hr.top / (how.offsetHeight - vh));
+      const idx = Math.min(3, Math.floor(hp * 4));
+      steps.forEach((s, i) => s.classList.toggle("on", i === idx));
+      scenes.forEach((s, i) => s.classList.toggle("on", i === idx));
+    }
+  }
+  let raf = 0;
+  addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; frame(); }); }, { passive: true });
+  addEventListener("resize", frame);
+  frame();
+
+  document.getElementById("copyCli").addEventListener("click", async (e) => {
+    const b = e.currentTarget, old = b.innerHTML;
+    try { await navigator.clipboard.writeText("npx timetm init"); b.textContent = "Copied"; }
+    catch (_) { b.textContent = "npx timetm init"; }
+    setTimeout(() => { b.innerHTML = old; }, 1600);
+  });
+})();
+</script>

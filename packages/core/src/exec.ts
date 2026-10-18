@@ -1,0 +1,79 @@
+import { spawn, spawnSync } from "node:child_process";
+import { onInterrupt } from "./cleanup.js";
+
+export interface RunResult {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
+
+export function runSync(file: string, args: string[], opts: { cwd: string; env: NodeJS.ProcessEnv }): RunResult {
+  const r = spawnSync(file, args, { cwd: opts.cwd, env: opts.env, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+  if (r.error) return { code: 127, stdout: "", stderr: r.error.message };
+  return { code: r.status ?? 1, stdout: r.stdout, stderr: r.stderr };
+}
+
+export interface TimedResult {
+  code: number | null;
+  signal: string | null;
+  timedOut: boolean;
+  output: string;
+  spawnError: string | null;
+}
+
+const MAX_OUTPUT = 1024 * 1024;
+
+/**
+ * Runs a command in its own process group. Resolves when the command exits, then kills
+ * anything it left running in the background, so a stray child cannot hold the check open.
+ */
+export function runWithTimeout(
+  file: string,
+  args: string[],
+  opts: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number },
+): Promise<TimedResult> {
+  return new Promise((resolve) => {
+    let output = "";
+    let timedOut = false;
+    let settled = false;
+    const child = spawn(file, args, { cwd: opts.cwd, env: opts.env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+    const killGroup = (): void => {
+      try {
+        if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    };
+    const dispose = onInterrupt(killGroup);
+    const collect = (chunk: Buffer): void => {
+      if (output.length < MAX_OUTPUT) output += chunk.toString("utf8");
+    };
+    child.stdout.on("data", collect);
+    child.stderr.on("data", collect);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killGroup();
+    }, Math.max(1, opts.timeoutMs));
+    const settle = (r: Omit<TimedResult, "timedOut" | "output">): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      dispose();
+      resolve({ ...r, timedOut, output: output.slice(0, MAX_OUTPUT) });
+    };
+    child.on("error", (e) => settle({ code: 127, signal: null, spawnError: e.message }));
+    child.on("exit", (code, signal) => {
+      killGroup();
+      // Give the pipes a moment to drain, then stop waiting on anything that escaped the group.
+      const grace = setTimeout(() => {
+        child.stdout.destroy();
+        child.stderr.destroy();
+        settle({ code, signal, spawnError: null });
+      }, 250);
+      child.on("close", () => {
+        clearTimeout(grace);
+        settle({ code, signal, spawnError: null });
+      });
+    });
+  });
+}

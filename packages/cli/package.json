@@ -1,0 +1,35 @@
+{
+  "name": "timetm",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Save points for your projects before AI agents act, checked with your own tests.",
+  "keywords": [
+    "checkpoint",
+    "recovery",
+    "git",
+    "ai-agents",
+    "claude-code",
+    "mcp"
+  ],
+  "type": "module",
+  "bin": {
+    "tm": "dist/tm.js",
+    "timetm": "dist/tm.js"
+  },
+  "files": [
+    "dist/tm.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bundle": "esbuild src/bin.ts --bundle --platform=node --format=esm --target=node22 --minify --legal-comments=eof --outfile=dist/tm.js \"--banner:js=import { createRequire as __tmRequire } from 'node:module'; const require = __tmRequire(import.meta.url);\""
+  },
+  "devDependencies": {
+    "@timetm/core": "workspace:*",
+    "esbuild": "^0.28.2",
+    "zod": "^4.6.7"
+  }
+}
