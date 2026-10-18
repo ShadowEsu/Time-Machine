@@ -1,7 +1,7 @@
 /* Opening screen and fade-ins.
    Opening: black stage, the wordmark, a loading bar at the bottom. First page load of a visit only.
-   The bar completes when the page and its fonts are ready, and the screen leaves then
-   (at least 900 ms, so it never flashes). Any click or key skips it. Reduced motion or no
+   The wordmark types in, the bar fills, and the screen leaves when the page and its fonts are
+   ready and at least 2 seconds have passed. Any click or key skips it. Reduced motion or no
    JavaScript: no opening at all. Loaded in <head> without defer so it can decide before paint. */
 (function () {
   "use strict";
@@ -15,11 +15,14 @@
   function finish() {
     if (root.getAttribute("data-intro") !== "play") return;
     root.setAttribute("data-intro", "leave");
-    setTimeout(function () { root.removeAttribute("data-intro"); }, 520);
+    document.dispatchEvent(new Event("tm:intro-end"));
+    setTimeout(function () { root.removeAttribute("data-intro"); }, 620);
   }
   function whenLoaded() {
-    root.setAttribute("data-loaded", "");
-    setTimeout(finish, Math.max(0, 900 - (Date.now() - started)));
+    setTimeout(function () {
+      root.setAttribute("data-loaded", "");
+      setTimeout(finish, 380);
+    }, Math.max(0, 1620 - (Date.now() - started)));
   }
   if (root.getAttribute("data-intro") === "play") {
     // Ready means the page is parsed and its fonts are in, so the first screen renders right.
@@ -30,7 +33,7 @@
     addEventListener("keydown", finish, { once: true });
     addEventListener("pointerdown", finish, { once: true });
     // Never hold the page hostage to a slow connection.
-    setTimeout(finish, 2500);
+    setTimeout(finish, 3600);
   }
 
   // Fade-ins: elements marked data-reveal rise in once when they enter the screen.

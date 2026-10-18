@@ -84,6 +84,10 @@ nav.ft-col a:hover { color: var(--ink); }
 .ft-faq details p { padding: 0 0 14px; line-height: 1.55; }
 .ft-word { margin: 56px 0 0; font: 400 min(13.4vw, 200px)/.82 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.045em; white-space: nowrap; text-align: center; color: rgba(255, 178, 122, .5); }
 .ft-word em { color: rgba(255, 178, 122, .78); }
+/* One light sweep when the wordmark comes into view (motion.js adds .sweep). */
+.ft-word.sweep { background: linear-gradient(100deg, rgba(255, 178, 122, .5) 40%, #fff2e6 50%, rgba(255, 178, 122, .5) 60%) 120% 0 / 250% 100% no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sweep 2.2s .2s var(--ease-inout) forwards; }
+.ft-word.sweep em { color: transparent; }
+@keyframes sweep { to { background-position: -20% 0; } }
 .ft-legal { max-width: 1200px; margin: 18px auto 0; color: var(--ink-3); font-size: 13px; }
 
 /* Opening screen: black stage, wordmark, loading bar at the bottom. Only when intro.js says play. */
@@ -92,15 +96,14 @@ nav.ft-col a:hover { color: var(--ink); }
 :root[data-intro="leave"] .intro { opacity: 0; visibility: hidden; }
 :root[data-intro="play"] body { overflow: hidden; }
 .intro-word { margin: 0; font: 300 clamp(56px, 13vw, 168px)/.9 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.04em; white-space: nowrap; }
-.intro-word span, .intro-word em { display: inline-block; animation: intro-rise .9s var(--ease-out) both; }
-.intro-word em { color: #ff791f; animation-delay: .12s; }
+.intro-word em { color: #ff791f; }
 .intro-line { margin: 0; font: 500 12px/1.4 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); animation: intro-fade .8s .35s both; }
 .intro-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
-.intro-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #d14e0b, #ff963f); transform-origin: 0 50%; transform: scaleX(.08); animation: intro-load 2.4s cubic-bezier(.1, .7, .3, 1) forwards; }
+.intro-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #d14e0b, #ff963f); box-shadow: 0 0 12px #ff791f; transform-origin: 0 50%; transform: scaleX(.04); animation: intro-load 1.9s cubic-bezier(.45, .05, .25, 1) forwards; }
 :root[data-loaded] .intro-bar i { animation: none; transform: scaleX(1); transition: transform .35s var(--ease-out); }
-@keyframes intro-rise { from { opacity: 0; transform: translateY(.22em); } to { opacity: 1; transform: none; } }
+:root[data-intro="leave"] .intro-word { transform: scale(1.04); filter: blur(4px); transition: transform .6s var(--ease-out), filter .6s var(--ease-out); }
 @keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes intro-load { to { transform: scaleX(.86); } }
+@keyframes intro-load { to { transform: scaleX(.9); } }
 
 /* Fade-ins. Without JavaScript or with reduced motion everything is simply visible. */
 :root.js [data-reveal] { opacity: 0; transform: translateY(22px); transition: opacity .7s var(--ease-out), transform .7s var(--ease-out); }
@@ -113,6 +116,13 @@ nav.ft-col a:hover { color: var(--ink); }
 
 /* App window under the hero. */
 .window { max-width: 1080px; margin: 64px auto 0; border-radius: 16px; overflow: hidden; background: #111; box-shadow: 0 0 0 1px var(--line-2), 0 40px 120px -40px rgba(255, 121, 31, .45); }
+/* The app window settles from a tilt as it scrolls into view, where scroll-driven animations exist. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .window { animation: settle linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; transform-origin: 50% 0; }
+    @keyframes settle { from { transform: perspective(1400px) rotateX(14deg) scale(.94); opacity: .4; } to { transform: none; opacity: 1; } }
+  }
+}
 .window-bar { display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; background: #19191c; border-bottom: 1px solid var(--line); }
 .window-bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a3a3f; }
 .window-bar span { margin-left: 10px; color: var(--ink-3); font-size: 12.5px; }
@@ -135,6 +145,10 @@ nav.ft-col a:hover { color: var(--ink); }
 .story-text h3 { margin: 0; font: 400 clamp(26px, 1rem + 1.4vw, 36px)/1.12 var(--font-display); }
 .story-text p:last-child { margin: 14px 0 0; color: var(--ink-2); font-size: 17px; line-height: 1.6; }
 .shot { margin: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px var(--line-2), 0 30px 80px -30px rgba(0, 0, 0, .9); }
+/* A soft light that follows the pointer (motion.js sets --mx and --my). */
+.card, .shot, .window { position: relative; }
+.card::after, .shot::after, .window::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s; background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 150, 70, .14), transparent 60%); }
+@media (hover: hover) and (pointer: fine) { .card:hover::after, .shot:hover::after, .window:hover::after { opacity: 1; } }
 .shot figcaption { padding: 8px 14px; color: var(--ink-3); font: 400 11.5px/1.5 var(--font-mono); background: #0d0d10; }
 
 .term-block { max-width: 760px; margin: 28px auto 0; }
