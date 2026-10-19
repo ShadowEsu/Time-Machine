@@ -18,6 +18,11 @@ const OUT = __dirname;
 
 if (process.env.TM_DESKTOP_USER_DATA) app.setPath("userData", process.env.TM_DESKTOP_USER_DATA);
 
+// One copy per userData folder. A second copy would run its own watcher, menu bar item and
+// shortcut against the same projects.json, so it hands over to the running one and exits.
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.exit(0);
+
 let state: AppState;
 let engine: Engine;
 let mainWindow: BrowserWindow | null = null;
@@ -33,6 +38,9 @@ let tray: Tray | null = null;
 let quitting = false;
 /** The global shortcut registered right now, or null when none is. */
 let activeHotkey: string | null = null;
+/** True once startup finished, so a second launch can show the window. */
+let started = false;
+let staleTurns: NodeJS.Timeout | undefined;
 
 /** What we last knew per project. */
 const auditSeen = new Map<string, number>();
@@ -48,6 +56,10 @@ function lockDown(win: BrowserWindow): void {
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (e) => e.preventDefault());
   win.webContents.on("will-attach-webview", (e) => e.preventDefault());
+}
+
+function alive(win: BrowserWindow | null): win is BrowserWindow {
+  return !!win && !win.isDestroyed();
 }
 
 function send(e: AppEvent): void {
@@ -138,15 +150,17 @@ function loaded(win: BrowserWindow): Promise<void> {
 }
 
 function ensureOverlay(): Promise<void> {
-  if (overlay && !overlay.isDestroyed() && overlayReady) return overlayReady;
+  if (alive(overlay) && overlayReady) return overlayReady;
   overlay = panelWindow(400, 200);
   overlayReady = loaded(overlay);
   return overlayReady;
 }
 
 async function showOverlay(content: Exclude<OverlayContent, { kind: "pill" }>): Promise<void> {
+  if (quitting) return;
   await ensureOverlay();
-  if (!overlay) return;
+  // The window may have gone away while it loaded, for example when the app quit.
+  if (quitting || !alive(overlay)) return;
   // The card and the pill never show at the same time.
   hidePill();
   overlayDisplay = cursorDisplay();
@@ -164,29 +178,29 @@ async function showOverlay(content: Exclude<OverlayContent, { kind: "pill" }>): 
 }
 
 function hideOverlay(): void {
-  if (overlay && !overlay.isDestroyed()) overlay.hide();
+  if (alive(overlay)) overlay.hide();
   void refreshPill();
 }
 
 function hidePill(): void {
   pillProject = null;
-  if (pill && !pill.isDestroyed()) pill.hide();
+  if (alive(pill)) pill.hide();
 }
 
 /** The "agent is working" pill: shown only while a Claude Code turn is in progress. */
 async function refreshPill(): Promise<void> {
   const p = state.projects.find((x) => turnStart.has(x.id));
-  if (!p || !state.settings.agentPill || overlay?.isVisible()) {
+  if (quitting || !p || !state.settings.agentPill || (alive(overlay) && overlay.isVisible())) {
     hidePill();
     return;
   }
-  if (pillProject === p.id && pill?.isVisible()) return;
-  if (!pill || pill.isDestroyed() || !pillReady) {
+  if (pillProject === p.id && alive(pill) && pill.isVisible()) return;
+  if (!alive(pill) || !pillReady) {
     pill = panelWindow(320, 36);
     pillReady = loaded(pill);
   }
   await pillReady;
-  if (!pill || overlay?.isVisible()) return;
+  if (quitting || !alive(pill) || (alive(overlay) && overlay.isVisible())) return;
   const wa = cursorDisplay().workArea;
   pill.setBounds({ x: wa.x + Math.round((wa.width - 320) / 2), y: wa.y + wa.height - 36 - 12, width: 320, height: 36 });
   pill.webContents.send("overlay:content", { kind: "pill", projectId: p.id, projectName: p.name, agent: "Claude Code" } satisfies OverlayContent);
@@ -289,6 +303,8 @@ async function primeWatchState(): Promise<void> {
 async function refreshTray(): Promise<void> {
   if (!tray) return;
   const statuses = await Promise.all(state.projects.map((p) => engine.status(p)));
+  // Reading the statuses takes a moment. The app may have started quitting meanwhile.
+  if (quitting || tray.isDestroyed()) return;
   const agentIn = state.projects.find((p) => turnStart.has(p.id));
   const busyIn = state.projects.find((p) => engine.busy.has(p.id));
   const dot = dotState(trayVerdicts(statuses), !!agentIn || !!busyIn);
@@ -488,7 +504,12 @@ async function handleCall(e: IpcMainInvokeEvent, raw: unknown): Promise<Res<unkn
 
 let watcher: StoreWatcher | null = null;
 
-void app.whenReady().then(async () => {
+// A second launch shows the running copy instead.
+app.on("second-instance", () => {
+  if (started) showMain(cursorDisplay());
+});
+
+if (primary) void app.whenReady().then(async () => {
   state = new AppState(app.getPath("userData"));
   // Keys for the opt-in features. From a source checkout, apps/desktop/.env may hold them.
   // Its values go only to Credentials, never into process.env.
@@ -506,7 +527,15 @@ void app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, done) => done(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
   appMenu();
-  ipcMain.handle("tm:call", handleCall);
+  // A call that throws (a full disk, a folder that went read only) answers like any other
+  // failure, so the window never gets a rejected promise it does not expect.
+  ipcMain.handle("tm:call", async (e, raw: unknown): Promise<Res<unknown>> => {
+    try {
+      return await handleCall(e, raw);
+    } catch (err) {
+      return { ok: false, error: { kind: "internal", message: err instanceof Error ? err.message : String(err) } };
+    }
+  });
   ipcMain.on("overlay:act", (e, raw: unknown) => {
     if (!fromOverlay(e)) return;
     const r = OverlayActionSchema.safeParse(raw);
@@ -522,7 +551,7 @@ void app.whenReady().then(async () => {
   // If another app owns the shortcut, the menu bar item still opens the window.
   applyHotkey(state.settings.hotkey);
   // A turn whose stop hook never ran goes stale after an hour. Look again now and then.
-  setInterval(() => {
+  staleTurns = setInterval(() => {
     if (!turnStart.size) return;
     const now = Date.now();
     for (const [id, since] of turnStart) if (agentTurnStart([{ at: since, action: "agent-turn", result: "started" }], now) === null) turnStart.delete(id);
@@ -535,6 +564,11 @@ void app.whenReady().then(async () => {
     (globalThis as Record<string, unknown>).__tmDesktop = { showOverlay, showStrip, refreshPill, verdictCard, state: () => state, turnStart };
   }
   app.on("activate", () => showMain());
+  started = true;
+}).catch((err: unknown) => {
+  // Without this the app would keep running with no window and no menu bar item.
+  dialog.showErrorBox("Time Machine could not start", `${err instanceof Error ? err.message : String(err)}\n\nCheck that this folder can be written: ${app.getPath("userData")}`);
+  app.exit(1);
 });
 
 app.on("before-quit", () => {
@@ -544,6 +578,10 @@ app.on("before-quit", () => {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   watcher?.close();
+  clearInterval(staleTurns);
+  // Stops a check that is still running and removes its temporary copy. The check runs in its
+  // own process group, so it would otherwise outlive the app.
+  tm.runInterruptCleanups();
 });
 
 app.on("window-all-closed", () => {
