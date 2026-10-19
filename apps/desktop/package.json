@@ -11,12 +11,14 @@
     "preview:build": "node scripts/build.mjs --preview",
     "signing:setup": "node scripts/setup-signing.mjs",
     "package:local": "node scripts/package-local.mjs",
+    "smoke:native": "node scripts/smoke-native.mjs",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json"
   },
   "devDependencies": {
     "@timetm/core": "workspace:*",
     "electron": "44.5.1",
     "esbuild": "^0.28.2",
+    "playwright-core": "1.61.1",
     "zod": "^4.6.7"
   }
 }

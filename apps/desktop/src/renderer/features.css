@@ -19,7 +19,7 @@
 .ft-a.ft-cant { color: var(--ink-3); font-style: italic; }
 .ft-wait { display: flex; align-items: center; gap: 9px; color: var(--ink-3); font-style: italic; }
 .ft-cites { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
-.ft-cites-l { font: 500 10px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin-right: 2px; }
+.ft-cites-l { font: 500 12px/1 var(--font); color: var(--ink-3); margin-right: 2px; }
 .ft-cite { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--paper); color: var(--ink); font: 500 11.5px/1 var(--font); cursor: pointer; }
 .ft-cite:hover { border-color: var(--accent, var(--ink-3)); }
 .ft-cite:focus-visible { outline: 2px solid var(--accent, var(--ink)); outline-offset: 1px; }
@@ -38,7 +38,7 @@
 /* Ask off: the consent card. */
 .ft-consent { display: grid; gap: 10px; padding: 18px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
 .ft-consent h3 { font: 400 22px/1.15 var(--serif); color: var(--ink); letter-spacing: -.01em; }
-.ft-consent h4, .ft-details h4 { font: 500 10.5px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin-top: 4px; }
+.ft-consent h4, .ft-details h4 { font: 500 12px/1.2 var(--font); color: var(--ink-3); margin-top: 4px; }
 .ft-consent ul, .ft-details ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
 .ft-consent .btn { justify-self: start; margin-top: 4px; }
 
