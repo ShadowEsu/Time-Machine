@@ -210,6 +210,12 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - **npm next steps** once Preston enables 2FA: `npm publish --access public` in `packages/cli` (send any OTP or browser URL to BOSS), then `npm view timetm version` and `npx timetm@latest demo` in a clean HOME; then update "not on npm yet" everywhere and redeploy.
 - **Email:** do not send or wire any email. Preston's own email agents handle it.
 
+### Interactive rewind story replaces the hero screenshot (19 Oct, Preston's request)
+- **Why:** Preston said the static app picture under the hero "doesn't really do anything" and asked for an interactive 3D story. The old `.rw` replay and the `.window` screenshot are gone, along with the now unused `app-review.jpg` and `app-review-800.jpg`. Real app screens stay in "If you don't write code".
+- **What:** `site/index.html` `figure.rewind-story[data-rewind]`, styles `.rs-*` in `site/assets/home.css`, behaviour in `site/assets/rewind.js`. It is a CSS 3D instrument (aluminium case, knurled dial, screen, LED, restore button) with save point cards behind it and a timeline. No Three.js and no network assets. Story: cp-0003 passes, cp-0004 to cp-0006 fail (verdicts from a real `tm demo` run), cp-0001 and cp-0002 have no check ("No verdict assumed"). Plays once when 40% visible (650 ms steps), stops at the break, and the visitor turns the dial back. "Bring back this version" works only on a passing save point and shows a receipt (new branch, separate copy, current folder untouched). Then "Start again".
+- **Controls:** dial is a `role=slider` (arrows, Home/End, pointer drag); timeline buttons; "Rewind to the passing version"; Play/Pause. Manual input stops playback. Pauses when hidden or scrolled away. Reduced motion and `data-tier="low"` never autoplay and jump straight to states. Visible caption labels it an illustration; a live region announces each state; noscript fallback text.
+- **Verified locally:** `/tmp/tm-pw/hero-story-smoke.mjs` at 1440, 390 and 320, motion and reduced: form above the fold, no sideways scroll, keyboard dial path to recovery, Start again, rewind, playback cancel, 0 page errors, axe WCAG 2.2 AA 0 violations on the story. Mobile LCP 1.1 to 1.7 s (`P.sub`). Site audit: 108 loads, 0 problems.
+
 ---
 
 ## 6. Open work, in order (small items included)
