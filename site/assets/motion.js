@@ -121,7 +121,7 @@
 
     // Pointer light on cards and screenshots.
     if (matchMedia("(hover: hover) and (pointer: fine)").matches && root.dataset.tier !== "low") {
-      var lit = document.querySelectorAll(".card, .shot, .window");
+      var lit = document.querySelectorAll(".card, .shot");
       for (var m = 0; m < lit.length; m++) {
         lit[m].addEventListener("pointermove", function (ev) {
           var r = this.getBoundingClientRect();

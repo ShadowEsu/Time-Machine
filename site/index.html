@@ -45,18 +45,6 @@
       <p class="badge"><span class="dot" aria-hidden="true"></span>Early access. The <code translate="no">tm</code> CLI works today.</p>
       <h1 id="hero-h" data-type data-type-now>Get back the version<br>that passed your tests.</h1>
       <p class="sub"><span translate="no">Time Machine</span> saves your project before Claude Code acts, checks each save point with your own tests, and brings back the newest one that passes.</p>
-      <figure class="rw" data-rewind aria-labelledby="rw-cap">
-        <ol class="rw-line">
-          <li data-cp="cp-0001" title="Initial tip calculator"><i></i><span>cp-0001</span></li>
-          <li data-cp="cp-0002" title="Added split bill"><i></i><span>cp-0002</span></li>
-          <li data-cp="cp-0003" data-v="pass" title="Added dark mode"><i></i><span>cp-0003</span></li>
-          <li data-cp="cp-0004" data-v="fail" title="Agent: fixed lint warnings"><i></i><span>cp-0004</span></li>
-          <li data-cp="cp-0005" data-v="fail" title="Changed currency"><i></i><span>cp-0005</span></li>
-          <li data-cp="cp-0006" data-v="fail" title="Added a dependency" class="now"><i></i><span>Now</span></li>
-        </ol>
-        <p class="rw-out" aria-live="polite"><code>cp-0006</code> Added a dependency. Your tests fail.</p>
-        <figcaption id="rw-cap"><button class="rw-go" type="button">Rewind</button> Replay of a real <code translate="no">tm demo</code> run.</figcaption>
-      </figure>
       <form id="waitlist" class="wl wl-hero" data-waitlist novalidate>
         <label class="sr-only" for="wl-email">Email</label>
         <div class="wl-row">
@@ -69,10 +57,64 @@
       </form>
     </div>
 
-    <figure class="window" data-reveal>
-      <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>Time Machine</span></div>
-      <img src="assets/img/app-review.jpg" srcset="assets/img/app-review-800.jpg 800w, assets/img/app-review.jpg 1600w" sizes="(max-width: 1100px) 92vw, 1080px" width="1600" height="1000" alt="The Time Machine Mac app. It found the 9:54 AM version that works and shows a dial to go back to it, plus what comes back and what does not." fetchpriority="low" decoding="async">
-      <figcaption>The Mac app, in development. A real screen from the app running its demo project.</figcaption>
+    <figure class="rewind-story" data-rewind data-phase="broken" aria-labelledby="rs-title" aria-describedby="rs-caption">
+      <div class="rs-copy">
+        <p class="rs-step" data-story-step>1 / The break</p>
+        <h2 id="rs-title">It worked.<br>Then one more change.</h2>
+        <p class="rs-description" data-story-description>The newest save point fails its tests. Turn the dial back to find the one that passed.</p>
+        <p class="rs-prompt" id="rs-help">Drag the dial, use its arrow keys, or pick a save point below.</p>
+      </div>
+      <div class="rs-scene">
+        <div class="rs-snapshots" aria-hidden="true">
+          <div class="rs-snapshot"><span>cp-0003</span><b>Dark mode</b><i></i><i></i><i></i><small>PASS</small></div>
+          <div class="rs-snapshot"><span>cp-0004</span><b>Lint changes</b><i></i><i></i><i></i><small>FAIL</small></div>
+          <div class="rs-snapshot"><span>cp-0006</span><b>A dependency</b><i></i><i></i><i></i><small>FAIL</small></div>
+        </div>
+        <div class="rs-instrument">
+          <div class="rs-receipt" aria-hidden="true">
+            <span>A separate copy, ready</span>
+            <b>cp-0003 <i>PASS</i></b>
+            <code>tm/recover/cp-0003</code>
+            <p>Your current folder stays as it is.</p>
+          </div>
+          <div class="rs-device">
+            <div class="rs-case" aria-hidden="true"></div>
+            <div class="rs-front">
+              <div class="rs-brand" aria-hidden="true">Time Machine <span>Marigold Tips</span></div>
+              <div class="rs-screen" aria-hidden="true">
+                <span class="rs-screen-top">Saved version <i data-story-verdict>FAIL</i></span>
+                <b data-story-id>cp-0006</b>
+                <span data-story-note>Added a dependency</span>
+                <p data-story-check>The check failed with exit code 1.</p>
+                <div class="rs-screen-line"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
+              </div>
+              <div class="rs-dial-ring" aria-hidden="true"><span>Past</span><span>Now</span></div>
+              <div class="rs-dial" data-story-dial role="slider" tabindex="-1" aria-disabled="true" aria-label="Save point dial" aria-describedby="rs-help" aria-valuemin="1" aria-valuemax="6" aria-valuenow="6" aria-valuetext="cp-0006, Added a dependency, tests failed">
+                <div class="rs-knurl"><div class="rs-dial-face"><i></i></div></div>
+              </div>
+              <div class="rs-led" aria-hidden="true"><i></i><span data-story-lamp>Tests failed</span></div>
+              <button class="rs-restore" type="button" data-story-recover disabled>Bring back this version <span aria-hidden="true">↵</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rs-controls" hidden>
+        <div class="rs-timeline" role="group" aria-label="Demo save points">
+          <button type="button" data-story-point="0" aria-pressed="false"><i></i><span>01</span></button>
+          <button type="button" data-story-point="1" aria-pressed="false"><i></i><span>02</span></button>
+          <button type="button" data-story-point="2" data-verdict="pass" aria-pressed="false"><i></i><span>03</span></button>
+          <button type="button" data-story-point="3" data-verdict="fail" aria-pressed="false"><i></i><span>04</span></button>
+          <button type="button" data-story-point="4" data-verdict="fail" aria-pressed="false"><i></i><span>05</span></button>
+          <button type="button" data-story-point="5" data-verdict="fail" aria-pressed="true"><i></i><span>Now</span></button>
+        </div>
+        <div class="rs-actions">
+          <button type="button" data-story-rewind>Rewind to the passing version</button>
+          <button type="button" data-story-play>Play the story</button>
+        </div>
+      </div>
+      <p class="sr-only" data-story-status role="status" aria-live="polite" aria-atomic="true"></p>
+      <noscript><p class="rs-fallback">In this demo, cp-0006 fails and cp-0003 passes. Time Machine brings cp-0003 back on a new branch without changing your current folder. Enable JavaScript to turn the dial.</p></noscript>
+      <figcaption id="rs-caption">An interactive illustration, not a physical product or a live project. Verdicts from a real <code translate="no">tm demo</code> run.</figcaption>
     </figure>
   </section>
 
