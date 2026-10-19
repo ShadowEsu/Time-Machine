@@ -5,7 +5,7 @@ import { checkpoint, NOT_CAPTURED } from "./checkpoint.js";
 import { TmError } from "./errors.js";
 import type { Manifest } from "./manifest.js";
 import { git, gitTry, short, splitZ } from "./git.js";
-import { checkRef, materialize } from "./materialize.js";
+import { checkRef, materialize, type Materialized } from "./materialize.js";
 import { resolveProject, type Project } from "./project.js";
 import { ensureStore, readManifest, sha256, stamp } from "./store.js";
 import type { Ctx, RecoverResult, UndoRecoverResult } from "./types.js";
@@ -42,7 +42,16 @@ export async function recover(ctx: Ctx, id: string): Promise<RecoverResult> {
   const branch = freeBranch(p, `tm/recover/${id}`);
   git(p.root, p.env, ["branch", branch, m.git.snapshot]);
   const copyDir = freeDir(join(dirname(p.root), `${basename(p.root)}-recovered-${id}`));
-  const r = materialize(p, m, copyDir, { branch });
+  let r: Materialized;
+  try {
+    r = materialize(p, m, copyDir, { branch });
+  } catch (e) {
+    // The copy could not be built and materialize already removed it. Remove the branch this
+    // attempt made too, only while no worktree has it and it still points where it was made.
+    gitTry(p.root, p.env, ["worktree", "prune"]);
+    if (!worktrees(p).some((w) => w.branch === `refs/heads/${branch}`)) gitTry(p.root, p.env, ["update-ref", "-d", `refs/heads/${branch}`, m.git.snapshot]);
+    throw e;
+  }
 
   const last = latestVerdicts(p).get(id) ?? null;
   // Everything the save point could not bring back: secret values, edits and files kept out
@@ -128,7 +137,10 @@ function changesInCopy(p: Project, copyDir: string, m: Manifest): string[] {
     const plain = c.keys.filter((k) => k.kind === "plain" && k.value !== undefined);
     if (plain.length) written.set(c.file, sha256(plain.map((k) => `${k.name}=${k.value ?? ""}`).join("\n") + "\n"));
   }
-  const fields = splitZ(git(copyDir, p.env, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]));
+  // Raw output: trimming would eat the leading space of the first " M path" entry.
+  const st = gitTry(copyDir, p.env, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]);
+  if (st.code !== 0) throw new TmError("internal", `git status failed: ${st.stderr.trim()}`);
+  const fields = splitZ(st.stdout);
   const changed: string[] = [];
   // Ignored files (an install, a build) are named by their top folder, first, not one by one.
   const ignoredDirs: string[] = [];
@@ -137,7 +149,8 @@ function changesInCopy(p: Project, copyDir: string, m: Manifest): string[] {
     const xy = f.slice(0, 2);
     const path = f.slice(3);
     if (/[RC]/.test(xy)) i++; // a rename or copy carries its old path next
-    if (xy === "??" || xy === "!!") {
+    // Files Time Machine wrote, including a tracked config file it rewrote with the plain values.
+    if (xy === "??" || xy === "!!" || xy === " M") {
       const want = written.get(path);
       try {
         if (want && sha256(readFileSync(join(copyDir, path))) === want) continue;

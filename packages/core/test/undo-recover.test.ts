@@ -1,5 +1,5 @@
 // D04: undo a recovery. It removes only what the recovery made, and only while it is untouched.
-import { existsSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -54,6 +54,44 @@ describe("undoRecover", () => {
     expect(u).toEqual({ id: "cp-0003", removedBranch: r.branch, removedCopy: null });
     expect(hasBranch(dir, r.branch)).toBe(false);
     expect(git(dir, "worktree", "list", "--porcelain")).not.toContain(r.copyDir);
+  });
+
+  test("undoes a recovery whose tracked config file Time Machine rewrote, but not one the person edited", async () => {
+    const { dir, ctx } = await setupDemo();
+    write(dir, ".env", "PORT=3000\nNAME=demo\n");
+    git(dir, "add", "-f", ".env");
+    git(dir, "commit", "-q", "-m", "track env");
+    write(dir, "timemachine.yml", 'version: 1\nverify:\n  command: "node --test"\nconfig:\n  files: [".env"]\n  plain: [PORT]\n');
+    const cp = await tm.checkpoint(ctx, { note: "plain port" });
+
+    const edited = await tm.recover(ctx, cp.checkpoint.id);
+    write(edited.copyDir, ".env", "PORT=4000\n");
+    await expect(tm.undoRecover(ctx, { id: edited.id, branch: edited.branch, copyDir: edited.copyDir })).rejects.toThrow(/changes \(\.env\)/);
+    expect(existsSync(edited.copyDir)).toBe(true);
+
+    const r = await tm.recover(ctx, cp.checkpoint.id);
+    const u = await tm.undoRecover(ctx, { id: r.id, branch: r.branch, copyDir: r.copyDir });
+    expect(u.removedCopy).toBe(r.copyDir);
+    expect(hasBranch(dir, r.branch)).toBe(false);
+  });
+
+  test("a recovery whose copy cannot be built leaves no recovery branch behind", async () => {
+    const { dir, ctx } = await setupDemo();
+    write(dir, "notes.txt", "not in Git\n");
+    const cp = await tm.checkpoint(ctx, { note: "with a saved file" });
+    const objects = join(tm.storeDirFor(ctx), "objects");
+    for (const sub of readdirSync(objects)) {
+      for (const f of readdirSync(join(objects, sub))) {
+        chmodSync(join(objects, sub, f), 0o644);
+        writeFileSync(join(objects, sub, f), "not gzip");
+      }
+    }
+
+    await expect(tm.recover(ctx, cp.checkpoint.id)).rejects.toThrow(/integrity/);
+
+    expect(git(dir, "branch", "--list", "tm/recover/*")).toBe("");
+    expect(git(dir, "worktree", "list", "--porcelain")).not.toContain("-recovered-");
+    expect(git(dir, "symbolic-ref", "HEAD")).toBe("refs/heads/main");
   });
 
   test("only removes branches that a recovery of that save point made", async () => {
