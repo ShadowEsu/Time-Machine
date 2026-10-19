@@ -16,7 +16,7 @@ export const EXIT_USAGE = 64;
 export const APP_WORDS: Record<Verdict | "UNVERIFIED", string> = {
   PASS: "Works",
   FAIL: "Broken",
-  INCOMPLETE: "Couldn't check",
+  INCOMPLETE: "Couldn’t check",
   BLOCKED: "Needs something",
   ERROR: "Check crashed",
   UNVERIFIED: "Not checked yet",

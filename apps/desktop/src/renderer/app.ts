@@ -15,6 +15,7 @@ import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { hookStepActions } from "./first-run.js";
 import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
+import { DialogFocus } from "./dialog-focus.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -168,6 +169,8 @@ let opts: StartOptions;
 let st: State;
 let root: HTMLElement;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
+let announcer: HTMLElement;
+const dialogFocus = new DialogFocus();
 
 function emptyOnboarding(): OnboardingState {
   return { step: 1, path: null, project: null, init: null, current: "", choice: "detected", custom: "", working: false, trying: false, tryResult: null, hook: null, hookError: null, hookDone: null, first: null, error: null };
@@ -522,7 +525,7 @@ function history(): string {
   const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null);
   const lw = lastWorking();
   const working = st.agents?.some((a) => a.projectId === p.id && a.working);
-  const head = s.em && s.head.endsWith(s.em) ? `${esc(s.head.slice(0, -s.em.length))}<em>${esc(s.em)}</em>` : esc(s.head);
+  const head = esc(s.head);
   const facts = (rows: [string, string[]][]): string =>
     `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v.map(esc).join(" · ")}</dd>`).join("")}</dl>`;
   const honest =
@@ -831,7 +834,7 @@ function versionHead(c: TimelineEntry, v: Verdict | null): string {
   const rest: { [K in Verdict | "none"]: string } = {
     PASS: "works.", FAIL: "is broken.", INCOMPLETE: "couldn’t be checked.", BLOCKED: "needs something before it can be checked.", ERROR: "had a check that crashed.", none: "is not checked yet.",
   };
-  return `The ${esc(pointName(c.id))} version <em>${esc(rest[v ?? "none"])}</em>`;
+  return `The ${esc(pointName(c.id))} version ${esc(rest[v ?? "none"])}`;
 }
 
 /** Use, said before anyone presses it. This is the confirmation: nothing here touches the folder, and Undo is one key. */
@@ -857,7 +860,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     const res = r.result;
     return {
       read: `<div class="tv-verdict"><div class="eyebrow tv-meta">Recovery copy ready · new branch</div>
-        <h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">The ${esc(pointName(res.id))} version is back <em>on a new branch.</em></h2>
+        <h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">The ${esc(pointName(res.id))} version is back on a new branch.</h2>
         <p class="tv-lede">It is on a new branch, with a recovery copy next to your project. Your folder was not touched, so switching is your call.</p>
         <div class="tv-ev">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a safe copy on this Mac.` : "Not checked yet. Run Check it works before you rely on it."}</span></div></div>
       <div class="report"><h3>What came back</h3>
@@ -875,7 +878,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
 
   if (r.finding) {
     return {
-      read: `<div class="tv-verdict" aria-live="polite">${meta}<h2 class="tv-head">Finding the last version <em>that works</em></h2>
+      read: `<div class="tv-verdict">${meta}<h2 class="tv-head">Finding the last version that works</h2>
         <div class="tv-ev"><span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>The ${esc(pointName(c.id))} version, ${r.progress.length + 1} of up to ${points().length}. Newest first, each in a safe copy.</span></div></div>
       ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
       key: tvKey("tv-wait", "Checking…", "enter", "", true),
@@ -890,7 +893,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
         : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
           : `We couldn’t check every save point, so we won’t call any of them working. ${last?.reason ?? ""}`;
     return {
-      read: `<div class="tv-verdict"><h2 class="tv-head">No working version <em>found.</em></h2><div class="note warn">${esc(why)}</div></div>
+      read: `<div class="tv-verdict"><h2 class="tv-head">No working version found.</h2><div class="note warn">${esc(why)}</div></div>
       ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
       key: tvKey("tv-exit", "Back to where I was", "enter", "↵"),
       alts: [],
@@ -900,7 +903,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   // Review: the version, what comes back, what going back will do. Going back is the key only when it is proven.
   const tr = r.tryResult && r.tryResult.checkpoint === c.id ? r.tryResult : null;
   const proven = v === "PASS";
-  const head = r.trying ? `Trying the ${esc(pointName(c.id))} version <em>in a safe copy</em>` : versionHead(c, v);
+  const head = r.trying ? `Trying the ${esc(pointName(c.id))} version in a safe copy` : versionHead(c, v);
   const ev = r.trying
     ? `<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Rebuilding it in a separate folder and running your check. Your real folder hasn’t changed.</span>`
     : `${badge(v, stampOnce(`ev:${c.id}:${v ?? ""}`))}<span>${esc(tr && tr.verdict === v && v !== "PASS" && v !== "FAIL" ? `${tr.reason} ` : "")}${esc(evidenceFor(c, v))}</span>`;
@@ -924,7 +927,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     ...(tr ? [`<button class="btn link" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>`] : []),
   ];
   return {
-    read: `<div class="tv-verdict" aria-live="polite">${meta}<h2 class="tv-head">${head}</h2><p class="tv-lede">${esc(title(c, authorOf(c)))}</p><div class="tv-ev">${ev}</div>
+    read: `<div class="tv-verdict">${meta}<h2 class="tv-head">${head}</h2><p class="tv-lede">${esc(title(c, authorOf(c)))}</p><div class="tv-ev">${ev}</div>
       ${r.find?.found === c.id ? `<p class="small muted">We checked ${esc(plural(r.find.tried.length, "save point"))}, newest first, each in a safe copy. This is the newest one that passed.</p>` : ""}</div>
     ${error}${warn}${opened}
     <div class="changed">${mosaic(c, prev)}</div>
@@ -1319,9 +1322,10 @@ function savePointBlock(c: TimelineEntry, p: ProjectEntry): string {
 
 function busyScrim(): string {
   if (!st.demoBusy) return "";
-  return `<div class="scrim ${once("scrim:demo")}" data-leave="demo"><div class="sheet"><h2>Building the demo</h2>
-    <div class="steplist"><div class="r"><span class="spin"></span><span>Making Marigold Tips, a small app with tests, then breaking it on purpose. The real engine checks its save points, newest first, to find the last one that works. Then you choose to go back to it.</span></div></div>
-    <p class="small muted">This takes a few seconds. It happens in a new temporary folder.</p></div></div>`;
+  return `<div class="scrim ${once("scrim:demo")}" data-leave="demo"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="demo-title" aria-describedby="demo-description" aria-busy="true">
+    <h2 id="demo-title">Building the demo…</h2>
+    <div class="steplist"><div class="r"><span class="spin" aria-hidden="true"></span><span id="demo-description">Making Marigold Tips in a temporary folder, then breaking it on purpose. The real engine checks each save point to find the newest one that passes. You choose whether to go back to it.</span></div></div>
+    <p class="small muted">Your projects are not touched.</p></div></div>`;
 }
 
 // Motion helpers. The window is redrawn from state, so these carry movement across redraws.
@@ -1387,7 +1391,7 @@ function applyFlash(): void {
 function focusKey(): string | null {
   const a = document.activeElement;
   if (!(a instanceof HTMLElement) || a === document.body || a.closest(".mount")) return null;
-  if (a.dataset.act) return `[data-act="${CSS.escape(a.dataset.act)}"]${a.dataset.id ? `[data-id="${CSS.escape(a.dataset.id)}"]` : ""}`;
+  if (a.dataset.act) return `[data-act="${CSS.escape(a.dataset.act)}"]${a.dataset.id ? `[data-id="${CSS.escape(a.dataset.id)}"]` : ""}${a.dataset.v ? `[data-v="${CSS.escape(a.dataset.v)}"]` : ""}`;
   if (a.dataset.model) return `[data-model="${CSS.escape(a.dataset.model)}"]`;
   if (a.classList.contains("knob")) return ".knob";
   return null;
@@ -1669,7 +1673,7 @@ function render(): void {
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    <div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" data-leave="toast" role="status">${esc(st.toast)}</div>` : ""}</div></div>`;
+    <div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" data-leave="toast">${esc(st.toast)}</div>` : ""}</div></div>`;
   seenOnce = drawOnce;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
@@ -1678,10 +1682,12 @@ function render(): void {
   applyCarry();
   applyFlash();
   applyEntrances(scene);
-  const tv = root.querySelector<HTMLElement>(".tv");
-  const again = focus ? root.querySelector<HTMLElement>(focus) : null;
-  if (again && !(again instanceof HTMLButtonElement && again.disabled)) again.focus({ preventScroll: true });
-  else if (tv && !tv.contains(document.activeElement)) tv.focus({ preventScroll: true });
+  dialogFocus.sync(root, focus);
+  const announcement = st.toast ?? (st.demoBusy ? "Building the demo…"
+    : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${st.check.result.reason}`
+      : st.check ? "Checking your project in a safe copy…"
+        : st.screen === "rewind" ? root.querySelector(".tv-head")?.textContent ?? "" : ""));
+  if (announcer.textContent !== announcement) announcer.textContent = announcement;
   placeLeaving(leaving);
 }
 
@@ -2071,6 +2077,17 @@ async function runDemo(): Promise<void> {
       st.rewind = { ...st.rewind, searched: true, find: r.result.findGood };
       render();
     }
+    // Recovery saves the broken state before it creates a branch. That new save point has no
+    // verdict yet: check it for real without delaying Review or guessing that it failed.
+    void bridge.call({ method: "verify", projectId: r.project.id, id: own.savedBefore }).then(async (checked) => {
+      if (!checked.ok) throw new ApiFailure(checked.error.message);
+      await refreshStatuses();
+      if (st.projectId === r.project.id) {
+        st.verifyResults.set(checked.data.checkpoint, checked.data);
+        await loadTimeline();
+        render();
+      }
+    }).catch((e: unknown) => toast(`The demo’s saved state could not be checked: ${msg(e)}`));
   } catch (e) {
     st.demoBusy = false;
     toast(msg(e));
@@ -2578,10 +2595,21 @@ function onKey(e: KeyboardEvent): void {
   const k = e.key.toLowerCase();
   const t = e.target;
   const typing = t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
+  if (dialogFocus.trapTab(e)) return;
   if (paletteKey(e)) return;
   if (st.keysSheet && (k === "escape" || k === "?")) {
     st.keysSheet = false;
     render();
+    return;
+  }
+  const modal = dialogFocus.current;
+  if (modal && !modal.matches(".tv, .rw-sheet")) {
+    if (k === "escape") {
+      e.preventDefault();
+      if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
+      else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
+      render();
+    }
     return;
   }
   if (mod && k === "k") return void (e.preventDefault(), openPalette());
@@ -2608,6 +2636,7 @@ function onKey(e: KeyboardEvent): void {
     e.preventDefault();
     return;
   }
+  if (modal) return;
   if (mod && e.shiftKey && k === "r") return void (e.preventDefault(), shortcut("rewind"));
   if (mod && e.shiftKey && k === "c") return void (e.preventDefault(), shortcut("compare"));
   if (mod && e.shiftKey && k === "t" && opts.onStrip) {
@@ -2693,6 +2722,14 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   const el = document.getElementById("root");
   if (!el) return;
   root = el;
+  // Keep this node outside the redraw tree so assistive technology observes text updates.
+  announcer = document.createElement("div");
+  announcer.id = "app-announcements";
+  announcer.className = "sr-only";
+  announcer.setAttribute("role", "status");
+  announcer.setAttribute("aria-live", "polite");
+  announcer.setAttribute("aria-atomic", "true");
+  document.body.append(announcer);
   const boot = await b.call({ method: "bootstrap" });
   if (!boot.ok) {
     root.textContent = boot.error.message;

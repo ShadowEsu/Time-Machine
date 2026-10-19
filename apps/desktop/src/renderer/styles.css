@@ -64,8 +64,8 @@ button, input, select { font: inherit; color: inherit; }
 .muted { color: var(--ink-3); }
 .small { font-size: 12px; }
 .sel-text { user-select: text; }
-h1, h2, h3, h4 { margin: 0; letter-spacing: -.015em; }
-p { margin: 0; }
+h1, h2, h3, h4 { margin: 0; letter-spacing: -.015em; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
 /* Shortcut hints are quiet but readable: ink-3 meets AA on every paper; on ink they keep the button's own color. */
 kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .btn.dark kbd, .pill kbd { color: inherit; opacity: .78; }
@@ -185,7 +185,7 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 
 /* Verdict badges: shape + word, color confirms */
 .vb { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: var(--r-sm); font-size: 12px; font-weight: 500; background: var(--card); color: var(--ink-3); white-space: nowrap; }
-.vb.lg { height: 28px; padding: 0 12px; font-size: 12px; font-family: var(--mono); letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+.vb.lg { height: 28px; padding: 0 12px; font-size: 12px; font-weight: 600; }
 .g { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
 .v-pass { background: var(--pass-bg); color: var(--pass-fg); } .v-pass .g, .g.v-pass { background: var(--pass-dot); box-shadow: none; }
 .v-fail { background: var(--fail-bg); color: var(--fail-fg); } .v-fail .g, .g.v-fail { background: var(--fail-dot); box-shadow: none; border-radius: 1.5px; transform: rotate(45deg); width: 7px; height: 7px; }
@@ -203,7 +203,7 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 /* Project page: one document column, at most 640 px, centred in the space between the rail and the right column. */
 .page.proj { padding: 0 0 64px; }
 .doc { max-width: 640px; margin: 0 auto; padding: 28px 32px 0; }
-.eyebrow { font: 500 11px/1.2 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.eyebrow { font: 500 12px/1.3 var(--font); color: var(--ink-3); }
 .hero { display: grid; gap: 0; justify-items: start; }
 .hero-e { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .hero-e .path { text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -262,7 +262,7 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 .chip .amark { width: 15px; height: 15px; font-size: 7.5px; border-radius: 4px; }
 .chip-slot:empty { display: none; }
 .said { margin-top: 9px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; font-size: 12.5px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); border-radius: var(--r-md); padding: 9px 12px; color: var(--ink); }
-.said b { font: 500 10.5px/18px var(--mono); color: var(--ink-3); letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+.said b { font: 500 12px/18px var(--font); color: var(--ink-3); white-space: nowrap; }
 .said.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .said.two > div { display: grid; gap: 2px; align-content: start; }
 .said.two > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
@@ -293,7 +293,7 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 .mn-l button:active:not([disabled]) { background: var(--press); }
 .mn-l button[disabled] { opacity: .4; }
 .kv { display: grid; gap: 6px; font-size: 12.5px; align-content: start; }
-.kv .h { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.kv .h { font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .kv .li { display: flex; gap: 8px; color: var(--ink-2); }
 .kv .li::before { content: "✓"; width: 12px; flex: none; color: var(--ink); }
 .kv.no .li::before { content: "○"; color: var(--ink-4); }
@@ -396,7 +396,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .scrim.enter .sheet { animation: pop .22s var(--ease); }
 @keyframes pop { from { transform: scale(.97); opacity: 0 } }
 @keyframes fade { from { opacity: 0 } }
-.sheet { width: min(560px, 100%); max-height: 100%; overflow: auto; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); padding: 22px; display: grid; gap: 14px; }
+.sheet { width: min(560px, 100%); max-height: 100%; overflow: auto; overscroll-behavior: contain; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); padding: 22px; display: grid; gap: 14px; }
 .sheet.wide { width: min(720px, 100%); gap: 16px; padding: 24px; }
 .sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .sheet-head .steps { margin-top: 10px; }
@@ -429,7 +429,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .pal-q { flex: none; height: 54px; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 0 20px; font-size: 16px; color: var(--ink); outline: none; user-select: text; }
 .pal-q::placeholder { color: var(--ink-4); }
 .pal-list { overflow: auto; padding: 6px; display: grid; align-content: start; }
-.pal-g { padding: 10px 12px 4px; font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.pal-g { padding: 10px 12px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .pal-i { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 12px; border: 0; border-radius: 9px; background: none; text-align: left; cursor: pointer; color: var(--ink); font-size: 13.5px; }
 .pal-i:hover { background: var(--sel); }
 .pal-i:active { background: var(--press); }
@@ -442,7 +442,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .pal-foot kbd, .ks kbd { display: inline-block; min-width: 18px; padding: 1px 5px; margin-right: 3px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--line-2); text-align: center; opacity: 1; color: var(--ink-2); }
 .ks { width: min(760px, 100%); }
 .ks-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
-.ks-h { margin: 12px 0 6px; font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.ks-h { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .ks-r { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; padding: 4px 0; font-size: 13px; color: var(--ink-2); }
 @media (max-width: 860px) { .ks-cols { grid-template-columns: 1fr; } }
 
@@ -480,7 +480,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .ov-card .ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .ov-card .ic.v-none { background: var(--card); }
 .ov-card .ic .g { width: 9px; height: 9px; }
-.ov-card .proj { font-size: 10.5px; font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.ov-card .proj { font-size: 12px; color: var(--ink-3); }
 .ov-card b { display: block; font-weight: 600; font-size: 13.5px; letter-spacing: -.01em; }
 .ov-card .s { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
 .ov-card .x { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 6px; border: 0; background: none; color: var(--ink-4); cursor: pointer; opacity: 0; transition: opacity .15s; }
@@ -548,7 +548,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .vb.v-checking { background: var(--card); color: var(--ink-2); }
 .vb.v-checking .g { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
 .will { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; color: var(--ink-2); }
-.will .h { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.will .h { font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .will ol { margin: 0; padding-left: 20px; display: grid; gap: 2px; }
 .will b { color: var(--ink); font-weight: 600; }
 .report { display: grid; gap: 12px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-md); }
@@ -558,8 +558,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 
 /* The dial module: save point detents around a knurled knob, the key below. */
 .dialmod { align-self: start; display: flex; flex-direction: column; align-items: center; padding: 16px 20px 18px; border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow-md); }
-.silk { align-self: stretch; display: flex; justify-content: space-between; font: 500 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
-.silk.hint { justify-content: center; gap: 14px; letter-spacing: .04em; }
+.silk { align-self: stretch; display: flex; justify-content: space-between; font: 500 12px/1 var(--font); color: var(--ink-3); }
+.silk.hint { justify-content: center; gap: 14px; }
 .dial { position: relative; width: 236px; height: 236px; margin: 22px 0 10px; touch-action: none; user-select: none; cursor: grab; }
 .dial.drag { cursor: grabbing; }
 .dial.still { cursor: default; }
@@ -663,3 +663,10 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .cmdrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
 .cmdrow > .small { grid-column: 1 / -1; }
 .field.hotkey { width: 220px; }
+
+/* Expand the controls themselves: adjacent hit areas never overlap. */
+.btn, .btn.link, .it, .it.ag, .pill, .cr-p, .seg button, .jump, .sec-b, .pal-i, .tv-x, .ov-card .x { min-height: 40px; }
+.tv-x, .ov-card .x { min-width: 40px; }
+.switch { box-sizing: content-box; border: 10px solid transparent; background-clip: padding-box; }
+.pal-q:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.meta, .day span, .pal-h, .tv-clock { font-variant-numeric: tabular-nums; }
