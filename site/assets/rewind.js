@@ -5,10 +5,14 @@
   var story = document.querySelector("[data-rewind]");
   if (!story) return;
   var dial = story.querySelector("[data-story-dial]");
-  var recover = story.querySelector("[data-story-recover]");
+  var recoverButtons = story.querySelectorAll("[data-story-recover]");
   var rewind = story.querySelector("[data-story-rewind]");
   var play = story.querySelector("[data-story-play]");
-  var points = story.querySelectorAll("[data-story-point]");
+  var app = story.querySelector(".rs-app");
+  var scene = story.querySelector(".rs-scene");
+  var views = story.querySelectorAll("[data-story-view]");
+  var appDetail = story.querySelector(".rs-app-detail");
+  var rendered = "";
   var status = story.querySelector("[data-story-status]");
   var media = matchMedia("(prefers-reduced-motion: reduce)");
   var checkpoints = [
@@ -19,6 +23,20 @@
     { id: "cp-0005", note: "Changed currency", verdict: "FAIL" },
     { id: "cp-0006", note: "Added a dependency", verdict: "FAIL" }
   ];
+  var appPoints = story.querySelector("[data-app-points]");
+  checkpoints.forEach(function (cp, index) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("data-story-point", String(index));
+    button.setAttribute("data-verdict", cp.verdict ? cp.verdict.toLowerCase() : "unchecked");
+    var label = document.createElement("span");
+    label.textContent = cp.note;
+    var verdict = document.createElement("small");
+    verdict.textContent = cp.verdict === "PASS" ? "Passed" : cp.verdict === "FAIL" ? "Failed" : "Not checked";
+    button.append(label, verdict);
+    appPoints.appendChild(button);
+  });
+  var points = story.querySelectorAll("[data-story-point]");
   var selected = 5;
   var recovered = false;
   var timer = 0;
@@ -29,6 +47,7 @@
 
   function text(selector, value) { story.querySelector(selector).textContent = value; }
   function word(cp) { return cp.verdict === "PASS" ? "tests passed" : cp.verdict === "FAIL" ? "tests failed" : "not checked"; }
+  function reduced() { return media.matches || document.documentElement.dataset.tier === "low"; }
   function positionHead() {
     var line = story.querySelector(".rs-screen-line");
     story.style.setProperty("--rs-head", ((selected / 5 - 1) * line.clientWidth) + "px");
@@ -41,7 +60,7 @@
     story.style.setProperty("--rs-angle", (-135 + selected * 54) + "deg");
     dial.setAttribute("aria-valuenow", String(selected + 1));
     dial.setAttribute("aria-valuetext", cp.id + ", " + cp.note + ", " + word(cp));
-    for (var i = 0; i < points.length; i++) points[i].setAttribute("aria-pressed", String(i === selected));
+    for (var i = 0; i < points.length; i++) points[i].setAttribute("aria-pressed", String(Number(points[i].getAttribute("data-story-point")) === selected));
     text("[data-story-id]", cp.id);
     text("[data-story-note]", cp.note);
     text("[data-story-verdict]", cp.verdict || "SAVED");
@@ -50,8 +69,23 @@
     text("[data-story-step]", recovered ? "3 / A separate copy" : setup ? "Before the change" : passed || !cp.verdict || selected < 5 ? "2 / Turn back" : "1 / The break");
     text("#rs-title", recovered ? "Bring it back.\nKeep your work." : setup ? "Your tests passed.\nThen the agent kept going." : passed ? "This version\npassed its tests." : !cp.verdict ? "Saved, but\nnot checked yet." : selected < 5 ? "Not this version.\nKeep turning back." : "It worked.\nThen it broke.");
     text("[data-story-description]", recovered ? "In the real app, the passing version comes back on a new branch, in a separate copy. Your current folder stays as it is." : setup ? "Dark mode is saved as cp-0003. Then more changes arrive, each with its own save point." : passed ? "You found cp-0003, the newest save point that passed in this demo. Bring it back as a separate copy." : !cp.verdict ? "This save point has no recorded check. Time Machine never calls an unchecked version working." : "This save point fails its tests. Turn back through the changes to find the newest one that passed.");
-    recover.disabled = !passed;
-    recover.firstChild.textContent = recovered ? "Start again " : "Bring back this version ";
+    recoverButtons.forEach(function (button) {
+      button.disabled = !passed;
+      button.firstChild.textContent = recovered ? "Start again " : "Bring back this version ";
+    });
+    text("[data-app-id]", cp.id);
+    text("[data-app-note]", recovered ? "Your separate copy is ready." : cp.note);
+    text("[data-app-verdict]", recovered ? "Recovery illustrated" : word(cp));
+    text("[data-app-check]", passed ? "The recorded check passed." : cp.verdict ? "The recorded check failed with exit code 1." : "No check recorded. No verdict assumed.");
+    text("[data-app-heading]", recovered ? "Your current folder is unchanged" : "Before you bring it back");
+    text("[data-app-summary]", recovered ? "In the real app, cp-0003 comes back in a separate copy on branch tm/recover/cp-0003." : passed ? "Bring cp-0003 back on a new branch, in a separate copy." : "Find a passing save point to review a recovery.");
+    text("#rs-help", app.hidden ? "Drag the dial, use its arrow keys, or pick a save point below." : "Choose a save point in the app. Review its check, then bring back the passing version.");
+    var nextRendered = selected + ":" + recovered;
+    if (!app.hidden && rendered !== nextRendered && !reduced()) {
+      appDetail.getAnimations().forEach(function (animation) { animation.cancel(); });
+      appDetail.animate([{ opacity: .35, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 240, easing: "cubic-bezier(.22, 1, .36, 1)" });
+    }
+    rendered = nextRendered;
     positionHead();
     if (announce) status.textContent = recovered ? "Illustration: cp-0003 is back on a new branch in a separate copy. The current folder stays untouched." : cp.id + ", " + cp.note + ", " + word(cp) + (passed ? ". Bring back this version is now available." : ".");
   }
@@ -72,7 +106,7 @@
     stop(false);
     interacted = true;
     recovered = false;
-    if (media.matches) { select(5, true); return; }
+    if (reduced()) { select(5, true); return; }
     running = true;
     play.textContent = "Pause the story";
     selected = 2;
@@ -88,13 +122,14 @@
   }
 
   for (var i = 0; i < points.length; i++) {
-    points[i].setAttribute("aria-label", checkpoints[i].id + ", " + checkpoints[i].note + ", " + word(checkpoints[i]));
+    var checkpoint = checkpoints[Number(points[i].getAttribute("data-story-point"))];
+    points[i].setAttribute("aria-label", checkpoint.id + ", " + checkpoint.note + ", " + word(checkpoint));
     points[i].addEventListener("click", function () { userSelect(Number(this.getAttribute("data-story-point"))); });
   }
   play.addEventListener("click", playStory);
   rewind.addEventListener("click", function () {
     stop(true);
-    if (media.matches || selected <= 2) return select(2, true);
+    if (reduced() || selected <= 2) return select(2, true);
     running = true;
     play.textContent = "Pause the story";
     function back() {
@@ -104,13 +139,13 @@
     }
     back();
   });
-  recover.addEventListener("click", function () {
+  recoverButtons.forEach(function (button) { button.addEventListener("click", function () {
     stop(true);
     if (recovered) return select(5, true);
     if (checkpoints[selected].verdict !== "PASS") return;
     recovered = true;
     draw(true, false);
-  });
+  }); });
   dial.addEventListener("keydown", function (e) {
     var step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
     if (step) userSelect(selected + step);
@@ -149,7 +184,32 @@
   dial.addEventListener("pointerup", endDrag);
   dial.addEventListener("pointercancel", endDrag);
   dial.addEventListener("lostpointercapture", function () { drag = null; });
-  media.addEventListener("change", function () { stop(false); draw(false, false); });
+  function setView(view) {
+    stop(true);
+    var isApp = view === "app";
+    app.hidden = !isApp;
+    scene.hidden = isApp;
+    story.dataset.view = view;
+    views.forEach(function (button) { button.setAttribute("aria-pressed", String(button.dataset.storyView === view)); });
+    draw(false, false);
+  }
+  views.forEach(function (button) { button.addEventListener("click", function () { setView(button.dataset.storyView); }); });
+  var openApp = document.querySelector("[data-open-app]");
+  openApp.addEventListener("click", function (event) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    setView("app");
+    if (location.hash !== "#rewind-demo") history.pushState(null, "", "#rewind-demo");
+    story.scrollIntoView({ block: "start", behavior: "instant" });
+    appPoints.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
+  });
+  openApp.hidden = false;
+  story.querySelector(".rs-views").hidden = false;
+  media.addEventListener("change", function () {
+    stop(false);
+    appDetail.getAnimations().forEach(function (animation) { animation.cancel(); });
+    draw(false, false);
+  });
   document.addEventListener("visibilitychange", function () { if (document.hidden) stop(false); });
   if ("ResizeObserver" in window) new ResizeObserver(positionHead).observe(story.querySelector(".rs-screen-line"));
   if ("IntersectionObserver" in window) {
