@@ -1,10 +1,14 @@
-# Supabase setup for the waitlist
+# Waitlist database setup
 
-This guide is for Preston. It takes about 10 minutes. You do not need to write code.
+This is done. Since 18 October 2026 the waitlist on https://time-machine-site.vercel.app saves signups. This page records how it is set up, so it can be checked or rebuilt.
 
-When you finish, the waitlist on https://time-machine-site.vercel.app saves signups. Each signup is saved as pending and unconfirmed. The site sends no email. Pending signups do not count in anyone's place in line, the total, or referral credit. How a signup becomes confirmed, and any future waitlist email, is not decided yet. See [Waitlist email](EMAIL_OPT_IN.md).
+Each signup is saved as pending and unconfirmed. The site sends no email. Pending signups do not count in anyone's place in line, the total, or referral credit. How a signup becomes confirmed, and any future waitlist email, is not decided yet. See [Waitlist email](EMAIL_OPT_IN.md).
 
-Until you finish, the form says the waitlist is not open yet and asks people to email you. It never pretends to save.
+## Where it lives
+
+- **Supabase project:** `jaymini-prod` (`wzgfjuxcprignwdlopvl`, us-west-1). Preston's free Supabase organization allows 2 projects and both are used, so Time Machine shares this one.
+- **Kept separate:** every Time Machine table and function is in its own schema, `tm_waitlist`. Nothing is in Jaymini's `public` schema.
+- **The key the site holds:** the project's anon key, in the Vercel setting `SUPABASE_KEY`. In `tm_waitlist` that key can only call three functions: save a pending signup, look up a place in line, and add a funnel count. It cannot read any table, and it gets nothing in `tm_waitlist` beyond those three functions. The service role key is not used by the site.
 
 ## What gets stored
 
@@ -12,35 +16,18 @@ Until you finish, the form says the waitlist is not open yet and asks people to 
 - **Funnel counts:** the event type (visit, share or copy), the page path, whether the visit came from a referral link, and the time. No email and no code.
 - **Never stored:** IP addresses, browser details, cookies, tokens.
 
-Only the site's server function can read or write any of this. The public key can do nothing.
+## 1. Create the schema and functions
 
-## 1. Create the Supabase project
-
-1. Go to https://supabase.com and sign in.
-2. Click **New project**.
-3. Pick your organization. Choose the **Free** plan.
-4. Name it `time-machine`.
-5. Make up a strong database password and save it in your password manager. You will not need it for this guide.
-6. For **Region**, pick a West US option (for example West US, North California).
-7. Click **Create new project**. Wait until it says the project is ready. This takes a minute or two.
-
-## 2. Create the tables
-
-1. In the left sidebar, click **SQL Editor**.
-2. Click **New query**.
-3. Copy the whole SQL block below, from the first line to the last. Paste it into the editor.
-4. Click **Run**.
-5. You should see "Success. No rows returned". Notices that say "already exists, skipping" or "does not exist, skipping" are fine.
-6. In the left sidebar, click **Table Editor**. You should see two tables: `waitlist` and `funnel_events`. Both are empty.
-
-The block is safe to run more than once. Running it again changes no signups.
-
-It is the three files `supabase/migrations/0001_waitlist.sql`, `supabase/migrations/0002_referrals_and_funnel.sql` and `supabase/migrations/0003_pending_signups.sql`, one after the other.
+Run this in the Supabase **SQL Editor** of the project. It is safe to run more than once and changes no signups. It is the four files in `supabase/migrations`, in order.
 
 ```sql
 -- Time Machine waitlist.
 -- Stores an email, the consent tick, and the page the person signed up from.
 -- No IP addresses, no user agents, nothing else.
+
+-- Everything lives in its own schema, so the waitlist can share a Supabase project without
+-- touching that project's public schema.
+create schema if not exists tm_waitlist;
 
 create table if not exists tm_waitlist.waitlist (
   id uuid primary key default gen_random_uuid(),
@@ -62,7 +49,6 @@ alter table tm_waitlist.waitlist enable row level security;
 
 revoke all on table tm_waitlist.waitlist from anon, authenticated;
 grant select, insert on table tm_waitlist.waitlist to service_role;
-
 -- Time Machine waitlist: referral codes, list position, and anonymous funnel counts.
 -- Needs 0001_waitlist.sql first. Safe to run twice.
 -- Adds to each signup: their own referral code, and the code (if any) that brought them.
@@ -231,7 +217,6 @@ grant execute on function tm_waitlist.waitlist_join(text, text, text) to service
 
 -- Ask the Supabase API to pick up the new functions and table now.
 notify pgrst, 'reload schema';
-
 -- Pending signups. Safe to run twice after 0001 and 0002.
 -- The site sends no email. A signup is saved as pending and unconfirmed.
 -- Only confirmed, subscribed rows count in positions, totals and referral credit.
@@ -374,45 +359,58 @@ grant execute on function tm_waitlist.waitlist_status(text) to service_role;
 
 -- Ask the Supabase API to pick up the changes now.
 notify pgrst, 'reload schema';
+-- API access through the anon key, limited to three functions.
+-- The site's server calls these with the project's anon key and the tm_waitlist profile.
+-- anon can run the functions and nothing else: no table reads, no table writes.
+-- The functions run as their owner (security definer) with an empty search_path.
+
+grant usage on schema tm_waitlist to anon, service_role;
+
+alter function tm_waitlist.waitlist_join_pending(text, text, text) security definer;
+alter function tm_waitlist.waitlist_status(text) security definer;
+
+-- One funnel count. Type and path are checked by the table's constraints.
+create or replace function tm_waitlist.funnel_event_add(p_type text, p_path text, p_via_ref boolean default false)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  insert into tm_waitlist.funnel_events (type, path, via_ref) values (p_type, p_path, coalesce(p_via_ref, false));
+$$;
+
+revoke all on function tm_waitlist.funnel_event_add(text, text, boolean) from public, anon, authenticated;
+revoke all on function tm_waitlist.waitlist_new_code() from public, anon, authenticated;
+
+grant execute on function tm_waitlist.waitlist_join_pending(text, text, text) to anon, service_role;
+grant execute on function tm_waitlist.waitlist_status(text) to anon, service_role;
+grant execute on function tm_waitlist.funnel_event_add(text, text, boolean) to anon, service_role;
+
+-- Tables and the view stay closed to anon and authenticated.
+revoke all on all tables in schema tm_waitlist from anon, authenticated;
+
+notify pgrst, 'reload schema';
 ```
 
-## 3. Copy two values from Supabase
+## 2. Let the API see the schema
 
-1. In the left sidebar, click the gear icon, **Project Settings**.
-2. Click **API**. On newer dashboards, the URL is under **Data API** and keys are under **API Keys**.
-3. Copy the **Project URL**. It looks like `https://abcdefghijklmnop.supabase.co`.
-4. Copy the **service_role** key. Click **Reveal** first. On newer dashboards it is on the **Legacy API keys** tab. A new secret key starting with `sb_secret_` also works.
+In the project, open **Project Settings**, **Data API**, and add `tm_waitlist` to **Exposed schemas** (keep `public` and `graphql_public`). Without this, the site gets an error when it saves.
 
-**Warning: the service_role key is a secret.** It can read and delete every signup. Never share it, never paste it in a chat, an email or a document, and never commit it to the repo. It goes in exactly one place: Vercel, in the next step.
+## 3. Vercel settings for time-machine-site
 
-## 4. Add the two values to Vercel
+Production and Preview:
 
-1. Go to https://vercel.com and open the project **time-machine-site**.
-2. Click **Settings**, then **Environment Variables**.
-3. Add the first variable:
-   - Key: `SUPABASE_URL`
-   - Value: the Project URL from step 3
-   - Environments: tick **Production** and **Preview**
-4. Click **Save**.
-5. Add the second variable:
-   - Key: `SUPABASE_KEY`
-   - Value: the service_role key from step 3
-   - Environments: tick **Production** and **Preview**
-   - If Vercel offers a **Sensitive** switch, turn it on.
-6. Click **Save**.
-7. Tell BOSS or your coding agent: "The Supabase variables are in Vercel. Please redeploy time-machine-site." The site only picks up new variables after a redeploy.
+- `SUPABASE_URL`: `https://wzgfjuxcprignwdlopvl.supabase.co`
+- `SUPABASE_KEY`: the project's anon key (Project Settings, API Keys, Legacy, `anon`)
 
-No email settings are needed. The site does not read any.
+Redeploy after changing either. The site sends every call with the `tm_waitlist` profile.
 
-## 5. Check it works
+## 4. Check it works
 
-1. Open https://time-machine-site.vercel.app/api/health in your browser.
-2. It should show `{"ok":true,"waitlist":true,"email":false}`. It never shows the key. `email:false` is on purpose: the site sends no email.
-3. If it shows `"waitlist":false`, a variable is missing, misspelled, or the URL does not start with `https://`. Fix it in Vercel and ask for another redeploy.
-4. Sign up on the live site with your own email. The form should say "Saved as pending and unconfirmed. No email has been sent."
-5. In Supabase, open **Table Editor**, then `waitlist`. Your row should be there with `confirmed_at` empty.
-
-The health check only looks at the settings. It does not prove the tables exist or the key works. Step 5 does. If the form says it could not save, the tables are missing or the key is wrong. Run step 2 again, check the key, and redeploy. The Vercel function log shows only a status code from Supabase, never an email or the key.
+1. Open https://time-machine-site.vercel.app/api/health. It should show `{"ok":true,"waitlist":true,"email":false}`.
+2. Sign up on the live site with a `+test` address. The form should say the signup is saved and pending.
+3. In the SQL Editor, run `select email, source, created_at from tm_waitlist.waitlist order by created_at desc limit 5;` and see the row. Delete test rows with the query in the next section.
 
 ## 6. Read your numbers
 
