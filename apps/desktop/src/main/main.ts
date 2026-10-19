@@ -62,6 +62,13 @@ function alive(win: BrowserWindow | null): win is BrowserWindow {
   return !!win && !win.isDestroyed();
 }
 
+function trayImage(state: Parameters<typeof trayIcon>[0]): Electron.NativeImage {
+  const icon = trayIcon(state);
+  const image = nativeImage.createFromBuffer(icon.png, { scaleFactor: 2 });
+  image.setTemplateImage(isMac && icon.template);
+  return image;
+}
+
 function send(e: AppEvent): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("tm:event", e);
 }
@@ -75,6 +82,7 @@ function createMainWindow(): BrowserWindow {
     show: false,
     title: "Time Machine",
     backgroundColor: "#fafafa",
+    icon: join(OUT, "icon.png"),
     ...(isMac ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 18, y: 18 }, vibrancy: "sidebar" as const } : {}),
     webPreferences: webPreferences("preload.cjs"),
   });
@@ -308,7 +316,7 @@ async function refreshTray(): Promise<void> {
   const agentIn = state.projects.find((p) => turnStart.has(p.id));
   const busyIn = state.projects.find((p) => engine.busy.has(p.id));
   const dot = dotState(trayVerdicts(statuses), !!agentIn || !!busyIn);
-  tray.setImage(nativeImage.createFromBuffer(trayIcon(dot), { scaleFactor: 2 }));
+  tray.setImage(trayImage(dot));
   const active = state.active();
   const lines: MenuItemConstructorOptions[] = statuses.map((s) => {
     const p = state.find(s.projectId);
@@ -358,7 +366,7 @@ async function trayAction(kind: "save" | "check"): Promise<void> {
 
 function createTray(): void {
   try {
-    tray = new Tray(nativeImage.createFromBuffer(trayIcon("none"), { scaleFactor: 2 }));
+    tray = new Tray(trayImage("none"));
     // macOS and Linux open the menu on click by themselves. Windows needs a nudge.
     if (process.platform === "win32") tray.on("click", () => tray?.popUpContextMenu());
     void refreshTray();
@@ -526,6 +534,8 @@ if (primary) void app.whenReady().then(async () => {
   // No window of this app needs the camera, microphone, notifications or anything else.
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, done) => done(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
+  if (isMac && !app.isPackaged) app.dock?.setIcon(join(OUT, "icon.png"));
+  app.setAboutPanelOptions({ applicationName: "Time Machine", applicationVersion: app.getVersion(), iconPath: join(OUT, "icon.png") });
   appMenu();
   // A call that throws (a full disk, a folder that went read only) answers like any other
   // failure, so the window never gets a rejected promise it does not expect.
