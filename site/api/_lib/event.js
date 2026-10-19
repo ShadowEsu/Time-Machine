@@ -37,10 +37,10 @@ export async function handleEvent(req, deps) {
 
   let res;
   try {
-    res = await deps.fetch(`${supabaseOrigin(deps.env)}/rest/v1/funnel_events`, {
+    res = await deps.fetch(`${supabaseOrigin(deps.env)}/rest/v1/rpc/funnel_event_add`, {
       method: "POST",
-      headers: { ...supabaseHeaders(deps.env), Prefer: "return=minimal" },
-      body: JSON.stringify({ type: data.type, path: data.path, via_ref: data.via === "ref" }),
+      headers: supabaseHeaders(deps.env),
+      body: JSON.stringify({ p_type: data.type, p_path: data.path, p_via_ref: data.via === "ref" }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch (err) {

@@ -6,7 +6,7 @@ import { ASK_CONSENT } from "./ask.js";
 const LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
 const VERCEL_APP = new RegExp(`^(?:${LABEL}\\.)+vercel\\.app$`);
 
-export const EXTERNAL_REFUSED = "Only Vercel pages and Google's Gemini terms open from the app.";
+export const EXTERNAL_REFUSED = "Only Vercel pages and Google’s Gemini terms open from the app.";
 
 /**
  * True for a Vercel deploy (https://*.vercel.app), a page on https://vercel.com, and Google's

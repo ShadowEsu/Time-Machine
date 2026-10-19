@@ -191,7 +191,7 @@ describe("Vercel deploy chips", () => {
     expect(html).toContain("1 other deploy came from Git commits that no save point recorded.");
     expect(html).not.toContain("<b>sam</b>");
     expect(unlinkedHtml(null, null)).toBe("");
-    expect(unlinkedHtml(null, "Vercel did not accept the token.")).toContain("Couldn't read deploys from Vercel. Vercel did not accept the token.");
+    expect(unlinkedHtml(null, "Vercel did not accept the token.")).toContain("Couldn’t read deploys from Vercel. Vercel did not accept the token.");
   });
 
   describe("renderDeployChips", () => {

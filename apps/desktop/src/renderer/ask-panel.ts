@@ -101,7 +101,7 @@ function consentCard(v: AskView): string {
     <h4>What is sent</h4>${list(ASK_CONSENT.sent, "ft-yes")}
     <h4>Never sent</h4>${list(ASK_CONSENT.neverSent, "ft-no")}
     <p>${esc(ASK_CONSENT.where)}</p>
-    <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google's Gemini API terms</button></p>
+    <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
     <p class="ft-muted">${esc(ASK_CONSENT.accuracy)} ${esc(ASK_CONSENT.off)}</p>
     ${v.hasKey ? "" : settingsPointer(v, "There is no Gemini API key on this Mac yet. Add your own key in Settings > Features before you ask.")}
     <button type="button" class="btn dark big" data-fa="on"${v.busy ? " disabled" : ""}>Turn on Ask for this project</button>
@@ -117,12 +117,12 @@ export function askPanelHtml(v: AskView): string {
   const bar = `<div class="ft-ask-bar"><span>On for this project</span><span class="ft-sp"></span><div class="ft-menu-wrap"><button type="button" class="btn ghost ft-menu-btn" data-fa="menu" aria-label="Ask menu" aria-haspopup="menu" aria-expanded="${v.menuOpen}">⋯</button>${
     v.menuOpen ? `<div class="ft-menu" role="menu"><button type="button" role="menuitem" data-fa="off">Turn off Ask for this project</button></div>` : ""
   }</div></div>`;
-  const intro = v.turns.length ? "" : `<p class="ft-intro">Ask a question about this project's save points. Gemini answers from the history only, and can be wrong.</p>`;
+  const intro = v.turns.length ? "" : `<p class="ft-intro">Ask a question about this project’s save points. Gemini answers from the history only, and can be wrong.</p>`;
   const noKey = v.hasKey ? "" : settingsPointer(v, "Add a Gemini API key in Settings > Features before you ask.");
   const disabled = v.busy || !v.hasKey ? " disabled" : "";
   return `${bar}
     <div class="ft-thread" aria-live="polite">${intro}${v.turns.map((t, k) => turnHtml(t, k, v.points)).join("")}${problem}${noKey}${suggestions(v)}</div>
-    <form class="ft-ask-in"><textarea data-keep="ask-q" maxlength="500" rows="2" placeholder="Ask about this project's history…" aria-label="Ask about this project's history"${disabled}></textarea><button type="submit" class="btn dark"${disabled}>Ask</button></form>
+    <form class="ft-ask-in"><textarea data-keep="ask-q" maxlength="500" rows="2" placeholder="Ask about this project’s history…" aria-label="Ask about this project’s history"${disabled}></textarea><button type="submit" class="btn dark"${disabled}>Ask</button></form>
     <p class="ft-ask-foot">Sent to Google Gemini with your own key. File contents and check logs are not read for Ask. Known secrets are filtered; do not include secrets in your question.</p>`;
 }
 
@@ -162,7 +162,7 @@ export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOp
       try {
         await loadPoints();
       } catch (e) {
-        v.problem = `Couldn't read the save points: ${errorText(e)}`;
+        v.problem = `Couldn’t read the save points: ${errorText(e)}`;
       }
       draw();
     }

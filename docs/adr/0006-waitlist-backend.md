@@ -8,7 +8,7 @@ Date: 15 October 2026. Status: accepted, pending founder setup. The code is buil
 - **One Vercel function**, `POST /api/waitlist` in `site/api/`, is the only writer. `GET /api/health` says whether the waitlist is set up and never shows a key.
 - **What is stored:** the email, the consent tick (must be true), the page the person signed up from, and the time. Nothing else. No IP address, no browser details, no cookies.
 - **Who can read it:** row level security is on with no policies. The `anon` and `authenticated` roles have no access. Only the service role key can insert or read.
-- **Where the key lives:** `SUPABASE_SERVICE_ROLE_KEY` is set only in the Vercel project's environment variables. It is never in the site files, a commit, a log or the browser.
+- **Where the key lives:** `SUPABASE_KEY` is set only in the Vercel project's environment variables. It is never in the site files, a commit, a log or the browser.
 - **Duplicates:** the email is stored lower case and trimmed, with a unique index. Signing up twice is a quiet success and stores one row.
 - **Logs:** the function logs only an upstream status code or error name. It never logs or echoes the email.
 - **No fake success:** without both settings, the function answers 503 and the form asks people to email preston@unvibe.site. It never says "You're on the list" unless Supabase accepted the row.
@@ -18,7 +18,7 @@ Date: 15 October 2026. Status: accepted, pending founder setup. The code is buil
 
 1. **Create a Supabase project** for Time Machine (for example `time-machine`). Keep it separate from Unvibe's.
 2. **Create the table.** In the SQL editor, paste all of `supabase/migrations/0001_waitlist.sql` and run it. Or run `supabase db push` after `supabase link`. The file is safe to run twice.
-3. **Add two settings in Vercel** for the project `time-machine-site`, under Settings, then Environment Variables: `SUPABASE_URL` (the Project URL) and `SUPABASE_SERVICE_ROLE_KEY` (the secret key). Then redeploy.
+3. **Add two settings in Vercel** for the project `time-machine-site`, under Settings, then Environment Variables: `SUPABASE_URL` (the Project URL) and `SUPABASE_KEY` (the secret key). Then redeploy.
 
 Check it: `/api/health` should return `{"ok":true,"waitlist":true}`. Then sign up with your own email and look for the row in Table Editor. Full steps are in `supabase/README.md`.
 
@@ -53,3 +53,4 @@ Export the table to CSV from Table Editor, or run `select email, source, created
 - **The site sends no email.** Founder decision: his existing email agents handle outreach. A confirmation or welcome flow needs his explicit approval of that exact flow first.
 - Places in line, totals and referral credit count only rows with `confirmed_at` set and `unsubscribed_at` empty. Nothing on the site confirms a row today, so nobody sees a place yet.
 - Also stored: a referral code per row, the code that brought the person (if any), and anonymous daily visit counts in `funnel_events`. Migrations 0002 and 0003; combined SQL in `docs/launch/SUPABASE_SETUP.md`.
+- **Shared project, separate schema (founder decision, 18 Oct).** The free Supabase organization was at its 2-project limit, so the waitlist lives in `jaymini-prod`, schema `tm_waitlist`. The site holds the anon key (`SUPABASE_KEY`), which can call only `waitlist_join_pending`, `waitlist_status` and `funnel_event_add` (security definer, empty search path) and cannot read any table. Cost: Time Machine depends on Jaymini's project staying active, and both share its limits. Migration path: run the same four migrations in a dedicated project, export `tm_waitlist.waitlist`, change two Vercel settings.

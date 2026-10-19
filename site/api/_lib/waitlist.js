@@ -16,8 +16,10 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export const reply = (status, body, headers = {}) => ({ status, headers, body });
 
 // Both variables present and the URL parses. Used by the handler and by /api/health.
+// SUPABASE_KEY is the project's anon key. It can only call the tm_waitlist functions granted to
+// anon (see 0004_api_access.sql), so the waitlist can share a Supabase project safely.
 export function isConfigured(env) {
-  return Boolean(env && env.SUPABASE_SERVICE_ROLE_KEY && supabaseOrigin(env));
+  return Boolean(env && env.SUPABASE_KEY && supabaseOrigin(env));
 }
 
 export function normalizeEmail(value) {
@@ -62,9 +64,16 @@ export function supabaseOrigin(env) {
   return base.origin;
 }
 
+// Every call goes to the tm_waitlist schema, never to the project's public schema.
 export function supabaseHeaders(env) {
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  return { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+  const key = env.SUPABASE_KEY;
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+    "Accept-Profile": "tm_waitlist",
+    "Content-Profile": "tm_waitlist",
+  };
 }
 
 // Reads a JSON object body of at most maxBytes. Returns { data } or { fail } with a ready reply.

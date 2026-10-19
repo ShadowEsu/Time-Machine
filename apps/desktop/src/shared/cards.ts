@@ -36,7 +36,7 @@ export function verdictCard(projectId: string, projectName: string, points: Card
       }
       return {
         ...base,
-        title: "This version doesn't pass its check.",
+        title: "This version doesn’t pass its check.",
         body: "No earlier save point has passed yet, so there is nothing proven to go back to.",
         primary: { label: "Show what failed", action: { kind: "history", projectId, target: newest.id } },
         secondary: null,
@@ -54,8 +54,8 @@ export function verdictCard(projectId: string, projectName: string, points: Card
     case "INCOMPLETE":
       return {
         ...base,
-        title: "Couldn't check the last change.",
-        body: "Something it needs was not saved. We won't call it working until we can check it.",
+        title: "Couldn’t check the last change.",
+        body: "Something it needs was not saved. We won’t call it working until we can check it.",
         primary: { label: "Show details", action: { kind: "history", projectId, target: newest.id } },
         secondary: null,
         hideAfterMs: INFO_MS,

@@ -161,7 +161,7 @@ const TITLES: Partial<{ [M in Method]: string }> = {
 };
 
 /** Shown instead of "Add these lines" when the hook command did not answer its version check. */
-const hookNotRunning = "This command does not run on this Mac yet, so we won't add it. Claude Code would fail at every prompt and nothing would be saved.";
+const hookNotRunning = "This command does not run on this Mac yet, so we won’t add it. Claude Code would fail at every prompt and nothing would be saved.";
 
 let bridge: TmBridge;
 let opts: StartOptions;
@@ -369,7 +369,7 @@ function sidebar(): string {
     .map((p) => {
       const s = st.statuses.get(p.id);
       const v = s?.newest?.verdict ?? null;
-      const label = s?.problem ? "Can't find it" : s?.newest ? verdictWord(v) : "No save points yet";
+      const label = s?.problem ? "Can’t find it" : s?.newest ? verdictWord(v) : "No save points yet";
       const age = s?.newest && !s.problem ? `<small title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(ago(s.newest.createdAt))}</small>` : "";
       return `<button class="it ${p.id === st.projectId && inProject ? "on" : ""}" data-act="project" data-id="${p.id}" title="${esc(`${p.name}: ${label}`)}">
         ${glyph(s?.problem ? "ERROR" : v)}<span class="nm">${esc(p.name)}</span><span class="sr-only">${esc(label)}</span>${age}</button>`;
@@ -514,7 +514,7 @@ function history(): string {
   const p = project();
   if (!p) return welcome();
   if (st.timelineError && !st.timeline) {
-    return `<div class="empty"><h2>We can't read ${esc(p.name)}</h2><p>${esc(st.timelineError)}</p><div class="row-btns"><button class="btn" data-act="reload">Try again</button><button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button></div></div>`;
+    return `<div class="empty"><h2>We can’t read ${esc(p.name)}</h2><p>${esc(st.timelineError)}</p><div class="row-btns"><button class="btn" data-act="reload">Try again</button><button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button></div></div>`;
   }
   const pts = points();
   const newest = pts.at(-1);
@@ -601,13 +601,13 @@ function verdictSentence(c: TimelineEntry): string {
     case "FAIL":
       return `It failed its check in a safe copy on this Mac${how}.`;
     case "INCOMPLETE":
-      return "We couldn't finish the check. We won't call it working until we can.";
+      return "We couldn’t finish the check. We won’t call it working until we can.";
     case "BLOCKED":
       return "The check needs something before it can run.";
     case "ERROR":
-      return "The check itself crashed. This doesn't mean the project is broken.";
+      return "The check itself crashed. This doesn’t mean the project is broken.";
     default:
-      return "Saved, but we don't know yet if it works.";
+      return "Saved, but we don’t know yet if it works.";
   }
 }
 
@@ -641,8 +641,8 @@ function detail(): string {
         ${isNewest ? "" : `<button class="btn link" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button>`}</div>
       <p class="small muted">A safe copy is a separate folder with this version in it. Your project is not touched.</p>
       ${opened}
-      <div class="kv"><span class="h">What's saved</span>${li(savedLines(c), "Nothing listed")}</div>
-      <div class="kv no"><span class="h">What's not saved</span>${li(notSavedLines(c), "Nothing listed")}</div>
+      <div class="kv"><span class="h">What’s saved</span>${li(savedLines(c), "Nothing listed")}</div>
+      <div class="kv no"><span class="h">What’s not saved</span>${li(notSavedLines(c), "Nothing listed")}</div>
       ${git}
       <button class="btn link small" data-act="inspector">Open in Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>
     </div>
@@ -672,7 +672,7 @@ function checkSheet(): string {
     const r = c.result;
     const lw = lastWorking();
     const head: { [V in Verdict]: string } = {
-      PASS: "It works.", FAIL: "It's broken.", INCOMPLETE: "We couldn't finish the check.", BLOCKED: "The check needs something first.", ERROR: "The check itself crashed.",
+      PASS: "It works.", FAIL: "It’s broken.", INCOMPLETE: "We couldn’t finish the check.", BLOCKED: "The check needs something first.", ERROR: "The check itself crashed.",
     };
     const extra =
       r.verdict === "FAIL" ? (lw ? ` The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}.` : " No earlier save point has passed yet.")
@@ -787,13 +787,13 @@ function evidenceFor(c: TimelineEntry, v: Verdict | null): string {
     case "FAIL":
       return `Failed its check${took}${same?.exitCode != null && st.settings.showGitDetails ? ` (exit code ${same.exitCode})` : ""}. ${where}${net}.`;
     case "INCOMPLETE":
-      return "We couldn't finish the check, so we won't call it working.";
+      return "We couldn’t finish the check, so we won’t call it working.";
     case "BLOCKED":
       return "The check needs something before it can run.";
     case "ERROR":
-      return "The check itself crashed. This doesn't mean the project is broken.";
+      return "The check itself crashed. This doesn’t mean the project is broken.";
     default:
-      return "Saved, not checked. We don't know yet if it works.";
+      return "Saved, not checked. We don’t know yet if it works.";
   }
 }
 
@@ -829,7 +829,7 @@ function tvAlt(act: string, label: string, key: string, keyLabel: string, disabl
 /** What a version is, said the way people say it. The verdict half is the italic accent. */
 function versionHead(c: TimelineEntry, v: Verdict | null): string {
   const rest: { [K in Verdict | "none"]: string } = {
-    PASS: "works.", FAIL: "is broken.", INCOMPLETE: "couldn't be checked.", BLOCKED: "needs something before it can be checked.", ERROR: "had a check that crashed.", none: "is not checked yet.",
+    PASS: "works.", FAIL: "is broken.", INCOMPLETE: "couldn’t be checked.", BLOCKED: "needs something before it can be checked.", ERROR: "had a check that crashed.", none: "is not checked yet.",
   };
   return `The ${esc(pointName(c.id))} version <em>${esc(rest[v ?? "none"])}</em>`;
 }
@@ -888,7 +888,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     const why =
       r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
         : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
-          : `We couldn't check every save point, so we won't call any of them working. ${last?.reason ?? ""}`;
+          : `We couldn’t check every save point, so we won’t call any of them working. ${last?.reason ?? ""}`;
     return {
       read: `<div class="tv-verdict"><h2 class="tv-head">No working version <em>found.</em></h2><div class="note warn">${esc(why)}</div></div>
       ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
@@ -902,10 +902,10 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   const proven = v === "PASS";
   const head = r.trying ? `Trying the ${esc(pointName(c.id))} version <em>in a safe copy</em>` : versionHead(c, v);
   const ev = r.trying
-    ? `<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Rebuilding it in a separate folder and running your check. Your real folder hasn't changed.</span>`
+    ? `<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Rebuilding it in a separate folder and running your check. Your real folder hasn’t changed.</span>`
     : `${badge(v, stampOnce(`ev:${c.id}:${v ?? ""}`))}<span>${esc(tr && tr.verdict === v && v !== "PASS" && v !== "FAIL" ? `${tr.reason} ` : "")}${esc(evidenceFor(c, v))}</span>`;
   const warn = r.trying || r.recovering ? ""
-    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn't confirm this version works. You can still go back to it, but it is not proven.</div>`
+    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn’t confirm this version works. You can still go back to it, but it is not proven.</div>`
       : !proven ? `<div class="note">No passing check is recorded for this version. Try it first: we open it in a safe copy and run your check.</div>` : "";
   const opened = r.openResult && r.openResult.id === c.id
     ? `<div class="note">A copy you can open is ready. Your folder was not touched.${git ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : "";
@@ -1119,7 +1119,7 @@ function agentsScreen(): string {
     partial: "Partly connected.",
     "not-connected": "Not connected.",
     unreadable: "Its .claude/settings.json is not plain JSON, so we left it alone.",
-    unavailable: "We can't read this project right now.",
+    unavailable: "We can’t read this project right now.",
   };
   const rows = st.agents
     ? st.agents.map((a) => {
@@ -1210,7 +1210,7 @@ function onboarding(): string {
   if (o.step === 1) {
     body = `<div><h1>Which project should we look after?</h1><p class="lede">Pick the folder of a project that uses Git. We only read the folder you pick.</p></div>
       <div class="panel"><div class="row-btns"><button class="btn dark" data-act="ob-choose" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Choose folder…"}</button>${o.working ? '<span class="spin"></span>' : ""}<span class="mono muted">${esc(o.path ?? "No folder chosen")}</span></div>
-      <p class="small muted">Setup starts when you pick it. We'll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
+      <p class="small muted">Setup starts when you pick it. We’ll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
       <div class="row-btns ob-acts">${o.path && o.error && !o.working ? '<button class="btn" data-act="ob-next1">Try again</button>' : ""}<button class="btn ghost" data-act="demo">Try the demo instead</button></div>`;
   } else if (o.step === 2 && o.project) {
     const detected = o.init?.verifyCommand ?? "";
@@ -1231,7 +1231,7 @@ function onboarding(): string {
         <p class="small muted">Checks run in a safe copy, never in your folder.${o.init?.network === "deny" ? " The internet is off during checks." : " The internet stays on during checks on this Mac, because no sandbox was found."}</p>
         <div class="row-btns"><button class="btn" data-act="ob-try" ${o.trying ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
           ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${esc(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
-        ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn't pass right now. That's OK. We'll save it as Broken, and the next version that passes becomes your first working save point.</div>` : ""}
+        ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn’t pass right now. That’s OK. We’ll save it as Broken, and the next version that passes becomes your first working save point.</div>` : ""}
       </div>
       <div class="row-btns ob-acts"><button class="btn dark" data-act="ob-next2" ${o.working || o.trying ? "disabled" : ""}>Continue</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
   } else if (o.step === 3 && o.project) {
@@ -1240,9 +1240,9 @@ function onboarding(): string {
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
         <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or from the menu bar.</div></span><span></span></label>
-        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code's settings for this project. You can also do this later from Agents.</div>
+        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code’s settings for this project. You can also do this later from Agents.</div>
           ${h ? hookLines(h) : ""}
-          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn't prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">recommended</span></div>
+          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn’t prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">recommended</span></div>
         <div class="opt"><span></span><span><div class="t">Every hour while files are changing</div><div class="d">Not built yet.</div></span><span class="planned">Planned</span></div>
       </div>
       <div class="row-btns ob-acts"><button class="btn dark" data-act="${a.primary.act}" ${o.working ? "disabled" : ""}>${o.working ? "Finishing…" : esc(a.primary.label)}</button>${a.skip ? `<button class="btn" data-act="ob-finish" ${o.working ? "disabled" : ""}>${esc(a.skip)}</button>` : ""}<button class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button></div>`;
@@ -1259,7 +1259,7 @@ function hookSheet(): string {
   const p = st.projects.find((x) => x.id === h.projectId);
   return `<div class="scrim ${once("scrim:hook")}" data-leave="hook"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Claude Code">
     <h2>Connect Claude Code to ${esc(p?.name ?? "this project")}?</h2>
-    <p>We'll add these lines to Claude Code's settings for this project and keep everything already there:</p>
+    <p>We’ll add these lines to Claude Code’s settings for this project and keep everything already there:</p>
     ${hookLines(h.preview)}
     <p class="small muted">Claude Code will then save before each prompt and before risky commands, and check after each turn. If a turn breaks a working version, Claude is told.</p>
     ${!h.preview.runs && !h.done ? `<div class="note bad">${esc(hookNotRunning)}</div>` : ""}${h.error ? `<div class="note bad">${esc(h.error)}</div>` : ""}${h.done ? `<div class="note">${esc(h.done)}</div>` : ""}
@@ -1440,7 +1440,7 @@ function paletteItems(): PaletteItem[] {
   );
   for (const x of st.projects) {
     const s = st.statuses.get(x.id);
-    items.push({ group: "Projects", label: x.name, hint: s?.problem ? "Can't find it" : verdictWord(s?.newest?.verdict ?? null), act: "project", id: x.id, verdict: s?.problem ? "ERROR" : (s?.newest?.verdict ?? null) });
+    items.push({ group: "Projects", label: x.name, hint: s?.problem ? "Can’t find it" : verdictWord(s?.newest?.verdict ?? null), act: "project", id: x.id, verdict: s?.problem ? "ERROR" : (s?.newest?.verdict ?? null) });
   }
   for (const c of [...pts].reverse().slice(0, 12)) {
     items.push({ group: "Save points", label: `${when(c.createdAt)} · ${title(c)}`, hint: verdictWord(c.verdict), act: "open", id: c.id, verdict: c.verdict });
@@ -2206,7 +2206,7 @@ async function obFinish(): Promise<void> {
     await refreshStatuses();
     await selectProject(id);
     const v = points().at(-1)?.verdict ?? null;
-    toast(v === "PASS" ? "You're set. Your newest save point passed its check." : v ? `You're set. Your newest save point is ${verdictWord(v).toLowerCase()}.` : "You're set. Your newest save point is saved, not checked. A tick turns green only after a check passes.");
+    toast(v === "PASS" ? "You’re set. Your newest save point passed its check." : v ? `You’re set. Your newest save point is ${verdictWord(v).toLowerCase()}.` : "You’re set. Your newest save point is saved, not checked. A tick turns green only after a check passes.");
   } catch (e) {
     o.error = msg(e);
     o.working = false;

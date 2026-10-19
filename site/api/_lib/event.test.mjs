@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { handleEvent, MAX_EVENT_BYTES } from "./event.js";
 
 // Synthetic data only.
-const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key-123" };
+const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_KEY: "fake-service-role-key-123" };
 const HOST = "timemachine.example.test";
 
 function request(body, overrides = {}) {
@@ -32,12 +32,12 @@ describe("event handler", () => {
     expect(res).toEqual({ status: 204, headers: {}, body: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe("https://fake-project.supabase.test/rest/v1/funnel_events");
+    expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/funnel_event_add");
     expect(init.method).toBe("POST");
-    expect(init.headers.apikey).toBe(ENV.SUPABASE_SERVICE_ROLE_KEY);
-    expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
-    expect(init.headers.Prefer).toBe("return=minimal");
-    expect(JSON.parse(init.body)).toEqual({ type: "visit", path: "/blog/first-post", via_ref: false });
+    expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
+    expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_KEY}`);
+    expect(init.headers["Content-Profile"]).toBe("tm_waitlist");
+    expect(JSON.parse(init.body)).toEqual({ p_type: "visit", p_path: "/blog/first-post", p_via_ref: false });
   });
 
   it("stores share and copy events, and the via ref flag", async () => {
@@ -45,14 +45,14 @@ describe("event handler", () => {
       const { fetch, deps } = setup();
       const res = await handleEvent(request({ type, path: "/", via: "ref" }), deps);
       expect(res.status).toBe(204);
-      expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ type, path: "/", via_ref: true });
+      expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ p_type: type, p_path: "/", p_via_ref: true });
     }
   });
 
   it("stores only type, path and the via flag, dropping anything else sent", async () => {
     const { fetch, deps } = setup();
     await handleEvent(request({ ...visit, email: "someone@example.test", code: "abc123xyz0", ua: "Bot" }), deps);
-    expect(Object.keys(JSON.parse(fetch.mock.calls[0][1].body)).sort()).toEqual(["path", "type", "via_ref"]);
+    expect(Object.keys(JSON.parse(fetch.mock.calls[0][1].body)).sort()).toEqual(["p_path", "p_type", "p_via_ref"]);
   });
 
   it("rejects unknown types without calling Supabase", async () => {
@@ -123,7 +123,7 @@ describe("event handler", () => {
   });
 
   it("returns not_configured when either variable is missing", async () => {
-    for (const env of [{}, { SUPABASE_URL: ENV.SUPABASE_URL }, { SUPABASE_SERVICE_ROLE_KEY: "k" }]) {
+    for (const env of [{}, { SUPABASE_URL: ENV.SUPABASE_URL }, { SUPABASE_KEY: "k" }]) {
       const { fetch, deps } = setup({ env });
       const res = await handleEvent(request(visit), deps);
       expect(res).toEqual({ status: 503, headers: {}, body: { ok: false, error: "not_configured" } });
@@ -133,9 +133,9 @@ describe("event handler", () => {
 
   it("returns 502 upstream on failure and never logs the key", async () => {
     const responses = [
-      () => new Response(`{"message":"${ENV.SUPABASE_SERVICE_ROLE_KEY}"}`, { status: 500 }),
+      () => new Response(`{"message":"${ENV.SUPABASE_KEY}"}`, { status: 500 }),
       () => {
-        throw new Error(`down ${ENV.SUPABASE_SERVICE_ROLE_KEY}`);
+        throw new Error(`down ${ENV.SUPABASE_KEY}`);
       },
     ];
     for (const response of responses) {
@@ -143,7 +143,7 @@ describe("event handler", () => {
       const res = await handleEvent(request(visit), deps);
       expect(res).toEqual({ status: 502, headers: {}, body: { ok: false, error: "upstream" } });
       expect(log).toHaveBeenCalled();
-      for (const args of log.mock.calls) expect(args.join(" ")).not.toContain(ENV.SUPABASE_SERVICE_ROLE_KEY);
+      for (const args of log.mock.calls) expect(args.join(" ")).not.toContain(ENV.SUPABASE_KEY);
     }
   });
 

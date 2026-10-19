@@ -40,7 +40,7 @@ In Supabase **Project Settings**, copy the Project URL and the service role key.
 | Name | Value |
 |---|---|
 | `SUPABASE_URL` | Supabase Project URL starting with `https://` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (secret) |
+| `SUPABASE_KEY` | Supabase service role key (secret) |
 
 Never put the secret key in source files, commits, docs or chats. Then tell BOSS or the coding agent: "The Supabase variables are in Vercel. Please redeploy time-machine-site." New variables need a redeploy.
 

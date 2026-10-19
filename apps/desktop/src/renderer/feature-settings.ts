@@ -44,7 +44,7 @@ function consentDetails(open: boolean): string {
     <h4>What is sent</h4>${list(ASK_CONSENT.sent)}
     <h4>Never sent</h4>${list(ASK_CONSENT.neverSent)}
     <p>${esc(ASK_CONSENT.where)}</p>
-    <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google's Gemini API terms</button></p>
+    <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
     <p>${esc(ASK_CONSENT.accuracy)}</p>
   </details>`;
 }
@@ -63,7 +63,7 @@ function vercelProjectRow(v: FeatureSettingsView): string {
     const how = `<span class="ft-muted">Not linked, so no deploys show on the timeline. Link the Vercel project this folder deploys to. Each deploy then shows next to the save point whose Git commit it was built from. Deploys are never matched by time.</span>`;
     if (!v.keys.vercel) body = `${how}<span class="ft-muted">Add a Vercel token above first.</span>`;
     else if (!v.options) body = `${how}<div class="row-btns"><button type="button" class="btn" data-fa="pick"${dis}>Choose a Vercel project</button></div>`;
-    else if (!v.options.length) body = `${how}<span class="ft-muted">This token can't see any Vercel projects.</span>`;
+    else if (!v.options.length) body = `${how}<span class="ft-muted">This token can’t see any Vercel projects.</span>`;
     else {
       body = `${how}<div class="row-btns"><select class="field" data-keep="vercel-project" aria-label="Vercel project"${dis}>${v.options
         .map((o, i) => `<option value="${i}">${esc(optionLabel(o))}</option>`)
@@ -76,7 +76,7 @@ function vercelProjectRow(v: FeatureSettingsView): string {
 /** The rows for one state. Pure, so it can be tested without a window. */
 export function featureSettingsHtml(v: FeatureSettingsView): string {
   if (v.phase === "loading") return `<span class="spin" role="status" aria-label="Loading"></span>`;
-  if (v.phase === "unavailable") return `<p class="ft-err" role="alert">${esc(v.problem ?? "Couldn't read the settings.")}</p><button type="button" class="btn" data-fa="reload">Try again</button>`;
+  if (v.phase === "unavailable") return `<p class="ft-err" role="alert">${esc(v.problem ?? "Couldn’t read the settings.")}</p><button type="button" class="btn" data-fa="reload">Try again</button>`;
   const dis = v.busy ? " disabled" : "";
   const status = v.problem ? `<p class="ft-err" role="alert">${esc(v.problem)}</p>` : v.status ? `<p class="ft-status" role="status">${esc(v.status)}</p>` : "";
   return `<div class="ft-settings">
