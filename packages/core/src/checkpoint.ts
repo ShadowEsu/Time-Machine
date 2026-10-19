@@ -60,8 +60,9 @@ function snapshotCommit(p: Project, cfg: ProjectConfig, id: string, head: string
   const index = { GIT_INDEX_FILE: join(tmp, "index") };
   try {
     git(p.root, p.env, head ? ["read-tree", head] : ["read-tree", "--empty"], index);
-    const excludes = cfg.config.files.map((f) => `:(exclude)${f}`);
-    git(p.root, p.env, ["add", "-u", "--", ".", ...excludes], index);
+    const pathspec = ["--", ".", ...cfg.config.files.map((f) => `:(exclude)${f}`)];
+    // With nothing tracked yet (no first commit, or an empty one), git add -u fails on the unmatched pathspec.
+    if (splitZ(git(p.root, p.env, ["ls-files", "-z", ...pathspec], index)).length) git(p.root, p.env, ["add", "-u", ...pathspec], index);
     // Edited tracked files that now hold a secret keep their last committed version.
     const changedPaths = head ? splitZ(git(p.root, p.env, ["diff-index", "--cached", "-z", "--name-only", head], index)) : splitZ(git(p.root, p.env, ["ls-files", "-z"], index));
     const secretTracked = changedPaths.filter((rel) => {

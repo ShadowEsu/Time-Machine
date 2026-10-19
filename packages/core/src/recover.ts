@@ -45,8 +45,11 @@ export async function recover(ctx: Ctx, id: string): Promise<RecoverResult> {
   const r = materialize(p, m, copyDir, { branch });
 
   const last = latestVerdicts(p).get(id) ?? null;
+  // Everything the save point could not bring back: secret values, edits and files kept out
+  // because they looked secret, ignored folders, and anything missing from the store.
   const secretLines = m.coverage.manual.filter((x) => x.startsWith("Secret values"));
-  const notRestored = [...secretLines, ...m.coverage.manual.filter((x) => x.includes("looks like it contains a secret")), ...m.coverage.missing, ...r.missing.map((f) => `${f} (its saved copy is missing)`), NOT_CAPTURED];
+  const otherManual = m.coverage.manual.filter((x) => !x.startsWith("Secret values") && x !== NOT_CAPTURED);
+  const notRestored = [...secretLines, ...otherManual, ...m.coverage.missing, ...r.missing.map((f) => `${f} (its saved copy is missing)`), NOT_CAPTURED];
   if (!secretLines.length) notRestored.unshift("Secret values: none were recorded");
   const manualSteps = [
     ...r.manual.map((s) => `${s} in the recovery copy.`),
@@ -176,7 +179,9 @@ export async function undoRecover(ctx: Ctx, opts: { id: string; branch: string; 
   const copy = trees.find((w) => w.dir === real(copyDir));
   if (copy && copy.branch !== ref) throw new TmError("usage", `${copyDir} is not the recovery copy for ${branch}, so it was left alone.`);
   if (!copy && existsSync(copyDir)) throw new TmError("usage", `${copyDir} is not a recovery copy Time Machine made, so it was left alone.`);
-  if (copy) {
+  // A copy the person already deleted by hand has no work left in it: Git only still lists it.
+  const removeCopy = copy !== undefined && existsSync(copyDir);
+  if (removeCopy) {
     const changed = changesInCopy(p, copyDir, m);
     if (changed.length) {
       const shown = changed.slice(0, 3).join(", ") + (changed.length > 3 ? ` and ${changed.length - 3} more` : "");
@@ -186,6 +191,6 @@ export async function undoRecover(ctx: Ctx, opts: { id: string; branch: string; 
   }
   gitTry(p.root, p.env, ["worktree", "prune"]);
   git(p.root, p.env, ["branch", "-D", branch]);
-  audit(p, "undo-recover", opts.id, `removed branch ${branch}${copy ? " and its recovery copy" : ""}`);
-  return { id: opts.id, removedBranch: branch, removedCopy: copy ? copyDir : null };
+  audit(p, "undo-recover", opts.id, `removed branch ${branch}${removeCopy ? " and its recovery copy" : ""}`);
+  return { id: opts.id, removedBranch: branch, removedCopy: removeCopy ? copyDir : null };
 }

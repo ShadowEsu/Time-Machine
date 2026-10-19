@@ -1,5 +1,5 @@
 // D04: undo a recovery. It removes only what the recovery made, and only while it is untouched.
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -42,6 +42,18 @@ describe("undoRecover", () => {
     await expect(tm.undoRecover(ctx, { id: r.id, branch: r.branch, copyDir: r.copyDir })).rejects.toThrow(/new commits/i);
     expect(hasBranch(ctx.cwd, r.branch)).toBe(true);
     expect(existsSync(r.copyDir)).toBe(true);
+  });
+
+  test("removes the branch when the person already deleted the recovery copy by hand", async () => {
+    const { dir, ctx } = await setupDemo();
+    const r = await tm.recover(ctx, "cp-0003");
+    rmSync(r.copyDir, { recursive: true, force: true });
+
+    const u = await tm.undoRecover(ctx, { id: r.id, branch: r.branch, copyDir: r.copyDir });
+
+    expect(u).toEqual({ id: "cp-0003", removedBranch: r.branch, removedCopy: null });
+    expect(hasBranch(dir, r.branch)).toBe(false);
+    expect(git(dir, "worktree", "list", "--porcelain")).not.toContain(r.copyDir);
   });
 
   test("only removes branches that a recovery of that save point made", async () => {
