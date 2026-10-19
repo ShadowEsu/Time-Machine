@@ -17,7 +17,9 @@
     origin: "This form only works on the Time Machine site.",
     upstream: "We couldn't save that just now. Please try again in a minute.",
     network: "We couldn't reach the server. Check your connection and try again.",
-    soon: "The waitlist opens soon. It is not saving emails yet. Email " + FOUNDER + " and Preston adds you by hand."
+    rateLimited: "The waitlist is busy. Please try again in a minute.",
+    soon: "The waitlist opens soon. It is not saving emails yet. Email " + FOUNDER + " and Preston adds you by hand.",
+    down: "Signups may not save right now. If yours fails, email " + FOUNDER + " and Preston adds you by hand."
   };
 
   // The API sits next to the assets folder, so blog pages and the home page hit the same URLs.
@@ -82,6 +84,7 @@
     if (status === 400 && error === "invalid_email") return MSG.invalidEmail;
     if (status === 400 && error === "consent_required") return MSG.consent;
     if (status === 400 || status === 413) return MSG.badRequest;
+    if (status === 429 && error === "rate_limited") return MSG.rateLimited;
     if (status === 403) return MSG.origin;
     return MSG.upstream;
   }
@@ -162,7 +165,7 @@
     });
   }
 
-  // Say up front when the list is not saving yet, so nobody is surprised after typing.
+  // Say up front when the list is not saving, so nobody is surprised after typing.
   var forms = document.querySelectorAll("form[data-waitlist]");
   for (var i = 0; i < forms.length; i++) wire(forms[i]);
   if (!isFile && forms.length) {
@@ -170,10 +173,12 @@
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (h) {
         // Only Supabase decides if signups are saved. The site sends no email, so h.email is not checked.
-        if (!h || h.waitlist !== false) return;
+        // A down database is still worth a try: the real answer to a signup replaces this line.
+        var text = !h ? null : h.waitlist === false ? MSG.soon : h.database === "unreachable" ? MSG.down : null;
+        if (!text) return;
         for (var j = 0; j < forms.length; j++) {
           var s = forms[j].querySelector("[data-waitlist-status]");
-          if (s && !s.getAttribute("data-state")) say(s, forms[j], "info", MSG.soon);
+          if (s && !s.getAttribute("data-state")) say(s, forms[j], "info", text);
         }
       }, function () {});
   }

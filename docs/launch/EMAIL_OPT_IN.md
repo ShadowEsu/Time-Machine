@@ -11,7 +11,7 @@ The site sends no email. This is a founder decision, not unfinished work.
 
 Pending signups do not count in anyone's place in line, in the total, or in referral credit. Only rows with `confirmed_at` set and `unsubscribed_at` empty count. No row is confirmed by the site today, and the site has no confirmation or unsubscribe links.
 
-`/api/health` answers `{"ok":true,"waitlist":true,"email":false}` once Supabase is set up. `email:false` is on purpose. It does not close the form. Only `waitlist:false` does.
+`/api/health` answers `{"ok":true,"waitlist":true,"database":"reachable","email":false}` once Supabase is set up and answering. `email:false` is on purpose. It does not close the form. Only `waitlist:false` says the list is not open; `database:"unreachable"` adds a "may not save right now" line but keeps the form working.
 
 No email service key is needed or read. `RESEND_API_KEY`, `WAITLIST_FROM` and `SITE_URL` are not used by the site.
 

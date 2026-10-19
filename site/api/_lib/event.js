@@ -1,7 +1,7 @@
 // Funnel event handler core. Pure: no Vercel, no globals. Fetch, env and log are injected.
 // Stores only the event type, the page path, a via-referral flag, and the time (set by Postgres).
 // No IP, no user agent, no cookies, no email, no referral code.
-import { isAllowedOrigin, isConfigured, readJsonObject, reply, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
+import { isAllowedOrigin, isConfigured, rateLimitReply, readJsonObject, reply, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
 
 export const MAX_EVENT_BYTES = 1024;
 const UPSTREAM_TIMEOUT_MS = 3000;
@@ -11,7 +11,7 @@ const PATH_RE = /^\/[A-Za-z0-9._~\/-]{0,199}$/;
 
 /**
  * @param {{ method: string, origin?: string|null, host?: string|null,
- *           contentLength?: string|null, readBody: () => Promise<string> }} req
+ *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void }} deps
  * @returns {Promise<{ status: number, headers: Record<string, string>, body: object|null }>}
@@ -47,6 +47,7 @@ export async function handleEvent(req, deps) {
     log(`event: upstream request failed (${err && err.name ? err.name : "Error"})`);
     return reply(502, { ok: false, error: "upstream" });
   }
+  if (res.status === 429) return rateLimitReply();
   if (!res.ok) {
     log(`event: upstream returned status ${res.status}`);
     return reply(502, { ok: false, error: "upstream" });

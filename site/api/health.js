@@ -1,10 +1,15 @@
-// GET /api/health. Says whether the waitlist is set up. Never returns secret values.
+// GET /api/health. Says whether the waitlist is set up and whether its database answers. Never returns secret values.
 // email is always false: the site sends no email. How email is handled later is not decided.
-import { isConfigured } from "./_lib/waitlist.js";
+// Normal page loads share a 30-second Vercel CDN answer instead of each probing the database.
+import { checkHealth } from "./_lib/health.js";
 
-export function GET() {
-  return new Response(JSON.stringify({ ok: true, waitlist: isConfigured(process.env), email: false }), {
+export async function GET() {
+  const body = await checkHealth({ env: process.env, fetch: globalThis.fetch, log: (message) => console.error(message) });
+  return new Response(JSON.stringify(body), {
     status: 200,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "public, max-age=0, s-maxage=30",
+    },
   });
 }

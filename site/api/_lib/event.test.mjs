@@ -131,6 +131,15 @@ describe("event handler", () => {
     }
   });
 
+  it("returns 429 without claiming a count was stored when the database is at capacity", async () => {
+    const { deps } = setup({ response: () => new Response('{"code":"PT429","message":"rate_limited"}', { status: 429 }) });
+    expect(await handleEvent(request(visit), deps)).toEqual({
+      status: 429,
+      headers: { "Retry-After": "60" },
+      body: { ok: false, error: "rate_limited" },
+    });
+  });
+
   it("returns 502 upstream on failure and never logs the key", async () => {
     const responses = [
       () => new Response(`{"message":"${ENV.SUPABASE_KEY}"}`, { status: 500 }),
