@@ -110,9 +110,10 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 .side { background: var(--side); border-right: 1px solid var(--line); padding: 46px 12px 14px; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; overflow-x: hidden; min-width: 0; -webkit-app-region: drag; }
 .side > * { -webkit-app-region: no-drag; }
 .side .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 14px; font: 500 15px/1 var(--serif); letter-spacing: -.01em; color: var(--ink-2); -webkit-app-region: drag; }
-.mark { width: 14px; height: 16px; position: relative; flex: none; }
-.mark::before { content: ""; position: absolute; left: 6px; top: 4px; width: 2px; height: 12px; background: var(--ink); border-radius: 1px; }
-.mark::after { content: ""; position: absolute; left: 1.5px; top: 0; width: 11px; height: 7px; background: var(--ink); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+/* The app icon in small: the website's orange playhead on the dark tile, as in the Dock (scripts/app-icon.mjs). */
+.mark { width: 20px; height: 20px; position: relative; flex: none; border-radius: 5px; background: linear-gradient(#1e1c19, #0c0b0a); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); forced-color-adjust: none; }
+.mark::before { content: ""; position: absolute; left: 9px; top: 6px; width: 2px; height: 11px; background: #ff791f; }
+.mark::after { content: ""; position: absolute; left: 6px; top: 3px; width: 8px; height: 7px; background: #ff791f; clip-path: polygon(0 0, 100% 0, 100% 37%, 62.5% 100%, 37.5% 100%, 0 37%); }
 .sec { font-size: 11px; color: var(--ink-3); font-weight: 500; padding: 14px 8px 6px; letter-spacing: .01em; }
 .sec-b { border: 0; background: none; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
 .sec-b:hover, .sec-b.on { color: var(--ink); }

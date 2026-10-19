@@ -1,8 +1,9 @@
 // Builds the Electron app into out/, or with --preview the browser preview into preview/dist/.
-import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { iconPng } from "./app-icon.mjs";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const coreSrc = resolve(here, "../../packages/core/src");
@@ -57,5 +58,7 @@ if (preview) {
   ]);
   for (const f of ["index.html", "overlay.html", "styles.css", "features.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
   cpSync(join(here, "src/renderer/fonts"), join(out, "fonts"), { recursive: true });
+  // Dock and About panel icon for unpackaged runs; the packaged app uses the .icns from package-local.
+  writeFileSync(join(out, "icon.png"), iconPng(512));
   console.log(`App built in ${out}.`);
 }

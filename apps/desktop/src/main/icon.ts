@@ -1,4 +1,4 @@
-// Draws the menu bar icon: the playhead glyph with a small verdict dot. No image files needed.
+// Draws the menu bar icon: the app's playhead glyph with a small verdict dot. No image files needed.
 import { deflateSync } from "node:zlib";
 import type { DotState } from "./rules.js";
 
@@ -37,12 +37,23 @@ function png(size: number, rgba: Buffer): Buffer {
 // Working is grey, never a verdict color: nothing has been proven yet.
 const COLORS: Record<DotState, [number, number, number]> = { pass: [34, 197, 94], fail: [239, 68, 68], none: [142, 142, 138], working: [142, 142, 138] };
 
-/** A 32 px image meant to be shown at 16 pt (scale factor 2). */
-export function trayIcon(state: DotState): Buffer {
+/** The menu bar image and whether macOS should draw it as a template (tinted for a light or dark menu bar). */
+export interface TrayImage {
+  png: Buffer;
+  template: boolean;
+}
+
+/**
+ * A 32 px image meant to be shown at 16 pt (scale factor 2). With no verdict to show, it is a
+ * black template image, so macOS draws it like every other menu bar item. A pass or fail dot
+ * keeps its color, so those images are not templates.
+ */
+export function trayIcon(state: DotState): TrayImage {
   const S = 32;
   const out = Buffer.alloc(S * S * 4);
-  const glyph: [number, number, number] = [120, 120, 118];
-  const dot = COLORS[state];
+  const template = state === "none" || state === "working";
+  const glyph: [number, number, number] = template ? [0, 0, 0] : [120, 120, 118];
+  const dot = template ? glyph : COLORS[state];
   const SS = 4;
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
@@ -52,16 +63,18 @@ export function trayIcon(state: DotState): Buffer {
         for (let sx = 0; sx < SS; sx++) {
           const px = x + (sx + 0.5) / SS;
           const py = y + (sy + 0.5) / SS;
-          // Playhead: a bar with a downward triangle head.
-          const bar = px >= 11 && px <= 13.5 && py >= 9 && py <= 29;
-          const tri = py >= 3 && py <= 10 && Math.abs(px - 12.25) <= (10 - py) * 0.75;
+          // Playhead, the same shape as the app icon: a bar under a head with a flat top,
+          // straight shoulders and slants that meet the bar.
+          const ax = Math.abs(px - 12.25);
+          const bar = ax <= 1.25 && py >= 9 && py <= 29;
+          const head = py >= 3 && py <= 10 && ax <= Math.min(5, 5 - (py - 6.5) * (3.75 / 3.5));
           // Verdict dot. Not checked yet is a hollow ring, never a filled color.
           const r = Math.hypot(px - 23, py - 22);
           // Working is an open 270 degree arc, the still frame of the spec's rotating arc.
           const ring = r <= 6 && r >= 3.8;
           const inDot = state === "none" ? ring : state === "working" ? ring && !(px > 23 && py < 22) : r <= 6;
           if (inDot) d++;
-          else if (bar || tri) g++;
+          else if (bar || head) g++;
         }
       }
       const i = (y * S + x) * 4;
@@ -74,5 +87,5 @@ export function trayIcon(state: DotState): Buffer {
       out[i + 3] = Math.round(a * 255);
     }
   }
-  return png(S, out);
+  return { png: png(S, out), template };
 }
