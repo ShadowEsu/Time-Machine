@@ -1,8 +1,10 @@
 # Publish `timetm` to npm (for Preston)
 
-The package is ready. Publishing is one command once your npm account exists. Agents never publish. Only you do.
+The package is ready. Publishing is one command once your npm account has two factor turned on. Agents never publish. Only you do.
 
-Checked on 17 October 2026 on this Mac: `npm pack` makes 4 files (`LICENSE`, `README.md`, `dist/tm.js`, `package.json`), 151.9 kB. Installed from that tarball in an empty folder with a fresh home folder, `tm --version` printed `0.1.0`, `tm --help` worked, and `npx timetm demo` ran the full rescue (cp-0003 PASS, recovery branch made).
+**Status on 19 October 2026: not published.** `timetm` is not on npm. The account exists (`npm login` as prestonsusanto worked), but `npm publish` returned E403 because two factor is not turned on for publishing. Turning it on (section 1, item 3) is the only blocker.
+
+Checked on 17 October 2026 on this Mac: `npm pack` makes 4 files (`LICENSE`, `README.md`, `dist/tm.js`, `package.json`), 151.9 kB. Installed from that tarball in an empty folder with a fresh home folder, `tm --version` printed `0.1.0`, `tm --help` worked, and `npx timetm demo` ran the full rescue (cp-0003 PASS, recovery branch made). Since 19 October, CI also runs the package check from step 3 on every push and pull request.
 
 ## 1. Make the npm account (once, about 5 minutes)
 
@@ -27,9 +29,12 @@ git pull
 pnpm install --frozen-lockfile
 pnpm test
 pnpm build
+node scripts/check-cli-package.mjs
 ```
 
 Every test must pass (2 are skipped on macOS; they run only on Linux).
+
+`scripts/check-cli-package.mjs` checks the package exactly as `npm publish` would ship it. It runs `npm pack` into a temporary folder and fails unless the tarball holds exactly these 4 files: `LICENSE`, `README.md`, `dist/tm.js`, `package.json`. It also fails if the packed name or version differs from `packages/cli/package.json`. Then it unpacks the tarball outside the repo, so there is no `node_modules` to fall back on, and runs the bundled `tm --version` (must print the package version) and `tm --help`. It prints `check-cli-package: timetm-0.1.0.tgz ok (...)` on success and removes its temporary folder either way. Do not publish if it fails.
 
 ## 4. Log in and look before you publish
 

@@ -6,7 +6,7 @@ Read-only audit, 2026-10-19 20:40 to 21:05 UTC. Nothing was changed: no billing,
 
 - **No measured charge anywhere.** No provider surface we could reach showed an invoice or a usage charge. Vercel says `costs_not_found`, the Gemini project has billing turned off, and GitHub Actions billable time is 0 ms. Dollar spend for Supabase and GitHub could not be read (see "Not measured").
 - **All hosting is shared and on free tiers.** Vercel `shadowesus-projects` is on the Hobby plan and is shared with Unvibe, Jaymini and other projects. Supabase `jaymini-prod` is in a Free org and is shared with Jaymini production. Time Machine's own share is small: about 2.5% of team requests this month (since the project appeared on 2026-10-18).
-- **Main cost risk is abuse, not current traffic.** `/api/event` and `/api/waitlist` have no rate limit and no Vercel Firewall config. Every accepted POST costs one function call plus one insert into a database that Jaymini production also uses.
+- **Main cost risk is abuse, not current traffic.** At audit time `/api/event` and `/api/waitlist` had no rate limit and no Vercel Firewall config. Every accepted POST costs one function call plus one insert into a database that Jaymini production also uses. Migration `0005` (in the repo, not yet applied live) adds global write caps inside the database; once applied, a full cap returns `429 rate_limited` instead of inserting. See "Code paths that can cost money".
 
 ## Measured usage
 
@@ -46,7 +46,7 @@ Read-only audit, 2026-10-19 20:40 to 21:05 UTC. Nothing was changed: no billing,
 | Gemini token counts | No inference was issued, by design. Monitoring gives request counts only | not available | AI Studio usage page for project `gen-lang-client-0763360198` |
 | Apple Developer Program | No account surface was available | unknown | Preston |
 
-Composio (live): the Vercel connection is `ACTIVE`, and `VERCEL_GET_TEAMS` now returns `shadowesus-projects`. This contradicts the 403 recorded in HANDOFF §3. All Composio Supabase and Stripe connections are `EXPIRED`. Usage data in this report came from the Vercel CLI login token and the Supabase PAT, both read-only.
+Composio (live): the Vercel connection is `ACTIVE`, and `VERCEL_GET_TEAMS` now returns `shadowesus-projects`. HANDOFF §3 used to record a 403 here; it has been updated. All Composio Supabase and Stripe connections are `EXPIRED`. Usage data in this report came from the Vercel CLI login token and the Supabase PAT, both read-only.
 
 ## Code paths that can cost money
 
@@ -59,8 +59,8 @@ Composio (live): the Vercel connection is `ACTIVE`, and `VERCEL_GET_TEAMS` now r
   - the anon key can call only three `security definer` functions
   - client `visit` events are sent once per path per session and are skipped under GPC/DNT
 
-  The `Origin` header can be forged by any non-browser client. Nothing limits how often one client can call.
-- **Amplification:** scripted POSTs to `/api/event` or `/api/waitlist` each add a row to `tm_waitlist` inside `jaymini-prod`. Neither table has a retention or row cap, and pending rows never expire. A fill attack would use the database space that Jaymini production shares on the free plan. `GET /api/waitlist?code=` has no Origin check, by design, and runs `waitlist_status`, which scans all confirmed rows. With 0 confirmed rows that costs almost nothing now, but the cost grows with list size.
+  The `Origin` header can be forged by any non-browser client. Nothing limits how often one client can call. Once migration `0005` is applied, the database caps all callers together, including direct PostgREST calls with the public anon key: new waitlist rows per minute and per hour, and event rows per minute. These caps are global, not per client, so one client can still use up the shared cap and block real signups for a while. At the time of writing a review fix to how `0005` counts toward its caps is in progress (it may switch to timestamp-only attempt caps); read the final migration for the exact rule.
+- **Amplification:** scripted POSTs to `/api/event` or `/api/waitlist` each add a row to `tm_waitlist` inside `jaymini-prod`. Live at audit time, neither table had a retention or row cap. Migration `0005`, once applied, bounds how fast rows can be added and removes event rows older than 90 days in small batches during later event writes. It sets no total row cap, and pending waitlist rows still never expire. A fill attack would use the database space that Jaymini production shares on the free plan, more slowly once `0005` is applied. `GET /api/waitlist?code=` has no Origin check, by design, and runs `waitlist_status`, which scans all confirmed rows. With 0 confirmed rows that costs almost nothing now, but the cost grows with list size.
 - **Mac app Ask:**
   - off by default (`features: { ask: false }` in `engine.ts:94`) and turned on per project after a consent card
   - uses the user's own key from env or Keychain
@@ -72,7 +72,7 @@ Composio (live): the Vercel connection is `ACTIVE`, and `VERCEL_GET_TEAMS` now r
 ## Risks and actions (no billing changes made)
 
 1. **Shared Hobby limits (team-wide).** The team already has a Blob block until 2026-10-28 (Unvibe store). A spike in any project counts against the same allowance that TM uses. Action: watch https://vercel.com/shadowesus-projects/~/usage. Whether to move off Hobby is Preston's call. Vercel's terms limit Hobby to non-commercial use [INFERENCE from Vercel docs; check before launch].
-2. **No rate limit on public POSTs.** Action (code or config, no billing change needed): add a Vercel Firewall rate-limit rule for `/api/*` if the plan supports it, plus a DB-side cap and retention for `funnel_events` and stale pending rows. Owner: web lane.
+2. **No rate limit on public POSTs (live at audit time).** Done in code, not yet live: migration `0005` adds the DB-side write caps and 90-day retention for `funnel_events`; the site API maps a full cap to `429`. Action: apply `0005` before deploying the API that maps 429. Still open: a Vercel Firewall rate-limit rule for `/api/*` if the plan supports it, and retention for stale pending rows. Owner: web lane.
 3. **Shared database.** TM writes go into Jaymini's production DB on a Free org. Data is isolated by schema, but capacity and egress are shared. Egress could not be measured.
 4. **Gemini.** No billing account is linked, so the key runs on the free tier. Free-tier data-use terms apply, and the consent text already says so. Rotating the previously leaked Google key is still Preston's task (brief).
 5. **Supabase org owner has `mfa_enabled: false`.** This is an account-safety risk for billing control.

@@ -1,6 +1,6 @@
 # Handoff notes for the next AI session
 
-Last updated: 17 October 2026. Written by the Claude Code session that ran from 15 to 17 October 2026.
+Last updated: 19 October 2026. First written by the Claude Code session that ran from 15 to 17 October 2026; see "Release 2026-10-19" for the latest pass.
 
 Read this file first, then `CLAUDE.md`, then `docs/BUILD_BRIEF.md`. This file is the full memory of what was decided, built, verified and left open. The repo is public, so this file holds no keys, tokens or personal account details. Where those exist, it says where they live on the founder's Mac.
 
@@ -73,7 +73,7 @@ Read this file first, then `CLAUDE.md`, then `docs/BUILD_BRIEF.md`. This file is
 - Sessions run as panes inside **herdr**. One supervisor session ("BOSS", pane `w1:p2`) assigns work and reads status. Prompts from BOSS are the founder's intent. Report to BOSS with `herdr agent prompt w1:p2 "<status>"`. Do not close panes you did not create. Never run `herdr server stop`.
 - **Models and routing are owned by the founder.** Never use `/model`, never write `modelRoles`, `retry.fallbackChains` or any routing setting at any scope, never redeem saved reset credits, never use Cursor accounts. Approved chain: Claude Opus 5.5 high, falling back to `openai-codex/gpt-6.1-sol:high`, and back. On quota limits, wait for natural resets. A session-only `retry.usageAwareFallback=true` was set in the old session at the founder's request; it was never saved.
 - The researcher session is free-models-only and isolated. Do not touch it.
-- **External side effects need founder approval** (deploys, publishing, sending email or messages, CRM writes). Composio CLI at `~/.local/bin/composio` has connected apps (GitHub, Gmail, Vercel `gdg-deploy`, Linear, HubSpot, Instagram, Mixpanel, Resend, Discord). Check live state with `composio connections list`. The Composio Vercel connection could NOT see the `shadowesus-projects` team (403), so Vercel work used the Vercel CLI login on the Mac instead.
+- **External side effects need founder approval** (deploys, publishing, sending email or messages, CRM writes). Composio CLI at `~/.local/bin/composio` has connected apps (GitHub, Gmail, Vercel `gdg-deploy`, Linear, HubSpot, Instagram, Mixpanel, Resend, Discord). Check live state with `composio connections list`. As of 19 October the Composio Vercel connection is active and sees the `shadowesus-projects` team (`VERCEL_GET_TEAMS`, see `docs/COST_AUDIT.md`). The earlier 403 is gone. Past Vercel work used the Vercel CLI login on the Mac. The Composio Supabase and Stripe connections were EXPIRED on 19 October.
 - **Gemini key for apps only:** `~/.config/preston-secrets/gemini-app.env`. A copy is in `apps/desktop/.env` (gitignored via `.env*`). Never print, log or commit it. Never use it for agent inference.
 - **Vercel CLI login** exists on the Mac (`~/Library/Application Support/com.vercel.cli/auth.json`). The session used it only to deploy and to read deployment metadata. The app must never read that file (ADR 0009 says so).
 - Repo rules in `CLAUDE.md` are binding: every bug fix starts with a failing test; TS strict, no `any`, Zod for every external input; never touch the user's working copy; never promise universal undo; secret values never stored; planned vs built always labelled; no em dashes in docs or site copy; banned claims: "guaranteed", "undo anything", "replays any app", "zero setup", "enterprise ready".
@@ -224,6 +224,17 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - **Browser proof:** `/tmp/tm-pw/app-demo-smoke.mjs` passed at 1440/1060/768/390/320, with motion and reduced motion. Keyboard entry/recovery, checked-versus-unchecked gating, synchronized views, playback cancellation, restart, low-tier instant actions and no-JS fallback passed. All 10 full-page axe WCAG 2.2 AA scans found 0 violations; no page errors or sideways scroll; form above the fold. The comparison table scrolls with arrow keys at 320. Screenshots reviewed in `/tmp/tm-pw/app-demo-local/`.
 - **Performance:** mobile LCP 1.26–1.40 s across three follow-up samples at 4× CPU, 1.6 Mbit/s and 150 ms latency. The initial sample taken alongside parallel browser and test work was 4.47 s (the next two were 1.29/1.31 s); do not call the local environment contention-free.
 
+### Release 2026-10-19 (integration branch `release/e2e-20261019`)
+- **CI** (6e3d941): every job now also runs `pnpm --filter @timetm/desktop build` and `node scripts/check-cli-package.mjs` after typecheck, test and build. The package check packs `packages/cli`, requires exactly `LICENSE`, `README.md`, `dist/tm.js` and `package.json`, unpacks the tarball outside the repo and runs `tm --version` and `tm --help` from it.
+- **Vitest 4.1.12** replaces 3.2.7, which pulled advisories through `@vitest/mocker` and `tinypool`. `pnpm audit` reports no known advisories.
+- **Core recovery fixes** (93db542, 98deb71, tests first): `recover` lists every coverage gap in `notRestored` (secret-looking tracked edits, secret files by name, ignored folders); `undoRecover` removes the branch when the recovery copy was deleted by hand; `checkpoint` works before the first commit; a failed recovery copy removes the `tm/recover` branch it just made; undo reads `git status` raw (a leading ` M` no longer turns `.env` into `env`) and accepts Time Machine's own rewrite of a tracked config file, while a real edit still blocks undo.
+- **Mac app** (d2c3064, 4777e48, 9f9e357): single instance (a second launch focuses the running app); on quit it unregisters shortcuts, closes the store watcher and stops a running check, removing its temporary copy; startup failure shows an error dialog and exits instead of leaving a windowless process; IPC failures are handled; an unreadable folder gets a clear error. App, Dock and menu bar icons are drawn from code by `apps/desktop/scripts/app-icon.mjs` (no image tools or network). `build.mjs` writes `out/icon.png`; `package-local.mjs` builds the `.icns`, sets version and copyright in `Info.plist` and fails if the bundle still has Electron's icon.
+- **Site API** (a9aff08): signup and event POSTs return `429 {"ok":false,"error":"rate_limited"}` with `Retry-After: 60` when the database cap is full; the form says the list is busy and keeps the typed email. `/api/health` adds `database`: `reachable`, `unreachable` or `not_configured`, from a cached read-only probe, so "configured" is never reported as "working". Oversized streaming bodies are cancelled before buffering.
+- **Migration 0005** (`supabase/migrations/0005_bounded_public_rpcs.sql`): global write caps inside the `tm_waitlist` RPCs (so direct PostgREST callers are bound too), strict event paths, and batched removal of event rows older than 90 days. Signatures and grants are unchanged; rollback SQL is in `supabase/README.md`. Written and exercised on PGlite only. Not applied to the live database by this pass. At 98deb71 the caps count stored rows; a review found that below the cap a row count can still reveal whether an email is already on the list, and a fix that may switch to timestamp-only attempt caps is in progress. Read the final `0005` on the branch before applying it.
+- **Docs:** `docs/COST_AUDIT.md` (read-only cost audit), `docs/launch/NPM_PUBLISH.md` (package check step).
+- **Verified at 98deb71:** `pnpm typecheck` passed; Vitest 24 files, 277 passed, 2 skipped; `pnpm audit` no known advisories. Not exercised in this pass: a native Electron smoke, a live database, a deploy, notarization.
+- **Release steps, in order:** (1) finish the 0005 review fix and re-run its tests; (2) apply 0005 before deploying the API that maps 429; (3) check `/api/health` reports `database: "reachable"`; (4) then follow "Release" in section 6.
+
 ---
 
 ## 6. Open work, in order (small items included)
@@ -235,9 +246,14 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 4. Keep test counts and status in `README.md`, `docs/PLAN.md`, `site/index.html`, `site/story.html`, `site/company.html` in sync.
 
 ### Blocked on the founder
-7. **npm publish of `timetm` 0.1.0.** One command away: `"private"` removed, MIT `LICENSE` in the package, repository/homepage/bugs/author set, README rewritten for npm. `npm pack`: 4 files, 151.9 kB; installed from the tarball in a clean temp dir with a fresh HOME, `tm --version` 0.1.0, `--help`, `npx timetm demo` all worked (17 Oct). Founder steps: `docs/launch/NPM_PUBLISH.md`. After publish, update every "not on npm yet" (site status line + FAQ, README, GUIDE, PLAN) and redeploy.
-8. **D08 signing and notarization** of the Mac app: needs an Apple Developer account and an adult signer (founder is a student; see `docs/legal/README.md`).
-9. **Waitlist backend:** the founder creates the Supabase project by following `docs/launch/SUPABASE_SETUP.md`, then a redeploy. Until then the form says the waitlist opens soon.
+7. **npm publish of `timetm` 0.1.0.** Not published; `timetm` is not on npm. Blocked only on the founder turning on npm two factor for publishing (last attempt: E403). One command away: `"private"` removed, MIT `LICENSE` in the package, repository/homepage/bugs/author set, README rewritten for npm. Before publishing run `node scripts/check-cli-package.mjs` (CI runs it too). `npm pack`: 4 files, 151.9 kB; installed from the tarball in a clean temp dir with a fresh HOME, `tm --version` 0.1.0, `--help`, `npx timetm demo` all worked (17 Oct). Founder steps: `docs/launch/NPM_PUBLISH.md`. After publish, update every "not on npm yet" (site status line + FAQ, README, GUIDE, PLAN) and redeploy.
+8. **D08 signing and notarization** of the Mac app: needs an Apple Developer account and an adult signer (founder is a student; see `docs/legal/README.md`). Until it is done, a downloaded `Time Machine.zip` is quarantined and Gatekeeper blocks the app. Five blockers, all open:
+   1. A Developer ID Application certificate, which needs a paid Apple Developer Program team. Today `package-local` signs with the self-signed "Time Machine Self Signed" identity.
+   2. A `notarytool` credential profile on the Mac (`xcrun notarytool store-credentials`, with an app-specific password or an App Store Connect API key). None exists.
+   3. A secure timestamp. `package-local.mjs` signs with `--timestamp=none`; notarization needs `--timestamp`.
+   4. The `com.apple.security.cs.disable-library-validation` entitlement in `apps/desktop/scripts/entitlements.local.plist`. It exists because a self-signed build has no Team ID. With a Developer ID build, either justify it or drop it.
+   5. Stapling. After notarization succeeds, `xcrun stapler staple` the app, then rebuild the ZIP from the stapled app.
+9. **Waitlist backend:** live since 19 Oct (see "Waitlist live"). Next: apply migration 0005 before deploying the API that maps 429 (see "Release 2026-10-19").
 10. **Vercel login protection:** off since 17 Oct (founder decision). The site is public on vercel.app.
 10b. **Waitlist emails (double opt-in + unsubscribe):** not built, nothing is emailed. Options for the founder in `docs/launch/EMAIL_OPT_IN.md` (Resend on unvibe.site, Resend on a new domain, or wait).
 11. **Domain** purchase, **lawyer review** of Terms and Privacy, **who signs for money**.
@@ -255,7 +271,7 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 
 ### Small leftovers worth remembering
 - `apps/desktop/preview-shots/` is gitignored; screenshots exist only on the Mac.
-- Test counts were updated everywhere on 17 Oct to 261 (259 on macOS, 2 Linux-only, all green in CI). Update every place listed in Release step 4 when the number changes.
+- Test counts: `README.md` and the site still say 267 tests (265 on macOS, 2 Linux-only). At 98deb71 Vitest reports 277 passed and 2 skipped, 279 in all. Update every place listed in Release step 4 once the count is final.
 - Ask uses Flash-Lite because the 3.8 Flash free tier hit its daily limit.
 - The Gemini key in use is temporary; when it changes, update `apps/desktop/.env` (gitignored) only.
 - `docs/HANDOFF.md` (this file) should be updated at the end of every session.
