@@ -33,6 +33,7 @@ body.home pre { font-variant-numeric: tabular-nums; }
 .hero { display: grid; justify-items: center; max-width: 760px; margin: 0 auto; text-align: center; }
 .badge { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 22px; font-size: 13px; color: var(--ink-2); }
 .badge code { color: var(--ink); }
+.badge a { color: inherit; text-underline-offset: 3px; }
 .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--works-dot); box-shadow: 0 0 0 3px rgba(34, 197, 94, .2); }
 .hero h1 { margin: 0; font: 360 clamp(40px, 1.4rem + 4.6vw, 78px)/1.02 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.025em; text-wrap: balance; }
 .sub { max-width: 52ch; margin: 20px 0 0; color: var(--ink-2); font-size: clamp(16px, .95rem + .2vw, 18px); line-height: 1.55; }
@@ -355,6 +356,17 @@ nav.ft-col a:hover { color: var(--ink); }
 .cmp-note { max-width: 1000px; margin: 12px auto 0; color: var(--ink-3); font-size: 13px; text-align: center; }
 .cmp-note a { color: inherit; }
 
+/* Try it now: install commands that scroll inside their own box, a copy button and two plain facts. */
+.install { min-width: 0; }
+.install-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--ink); font-weight: 500; font-size: 15px; }
+.install-h .tag-s { margin-left: 0; }
+.term-block pre.term-scroll { white-space: pre; overflow-wrap: normal; }
+.install-note { margin: 12px 0 0; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
+.install-note code, .facts code { color: var(--ink); overflow-wrap: anywhere; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(24px, 4vw, 48px); max-width: 760px; margin: 32px auto 0; padding: 0; list-style: none; }
+.facts li { padding: 18px 0 0; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 15.5px; line-height: 1.6; }
+.facts b { display: block; margin-bottom: 6px; color: var(--ink); font-weight: 500; }
+
 @media (max-width: 1020px) {
   .ft-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
@@ -364,6 +376,7 @@ nav.ft-col a:hover { color: var(--ink); }
   .story-row, .story-row.flip { grid-template-columns: minmax(0, 1fr); gap: 22px; }
   .story-row.flip .story-text { order: 0; }
   .words { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 20px; }
 }
 @media (max-width: 600px) {
   .stage { padding-top: 96px; }

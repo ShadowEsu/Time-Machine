@@ -250,6 +250,11 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 .tag-dev { box-shadow: inset 0 0 0 1px var(--ink-2); color: var(--ink); }
 .tag-plan { border: 1px dashed var(--ink-3); color: var(--ink-2); }
 
+/* Copy button under a block of commands (copy.js shows the button and fills the status). */
+.copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+.copy-row .btn[hidden] { display: none; }
+.copy-status { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.4; }
+
 /* Verdict pills: word plus dot, never colour alone. */
 .pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; font: 500 11.5px/1 var(--font-body); white-space: nowrap; }
 .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }

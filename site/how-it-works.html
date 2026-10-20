@@ -277,7 +277,18 @@ Saved first cp-0007
         <pre class="term"><span class="p">$ </span>claude mcp add timemachine -- tm mcp</pre>
         <p class="txt">Seven tools: <code>checkpoint</code>, <code>timeline</code>, <code>diff</code>, <code>verify</code>, <code>find_good</code>, <code>recover</code> and <code>log</code>. Same engine, same answers.</p>
         <h4>Install <span class="tag tag-plan" style="margin-left:8px">Not on npm yet</span></h4>
-        <p class="txt">Build from source today with Node 22 or newer, pnpm and Git. The package will be <code>timetm</code>, and the command is <code>tm</code>. <code>npx timetm init</code> does not work yet.</p>
+        <div data-copy-box>
+          <pre id="install-cmds" class="term term-scroll" tabindex="0" role="region" aria-label="Install commands" translate="no">git clone https://github.com/ShadowEsu/Time-Machine.git
+cd Time-Machine
+pnpm install &amp;&amp; pnpm build
+npm install -g ./packages/cli
+tm demo</pre>
+          <div class="copy-row">
+            <button class="btn btn-ghost btn-sm" type="button" data-copy="install-cmds" hidden>Copy</button>
+            <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
+          </div>
+        </div>
+        <p class="txt">Needs Node 22 or newer and Git. No pnpm? Run <code>npm install -g pnpm</code> first. The package will be <code>timetm</code>, and the command is <code>tm</code>. <code>npx timetm init</code> does not work yet.</p>
       </article>
     </div>
   </div>
@@ -352,5 +363,6 @@ Saved first cp-0007
 <script src="assets/motion.js" defer></script>
 <script src="assets/pages.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
+<script src="assets/copy.js" defer></script>
 </body>
 </html>
