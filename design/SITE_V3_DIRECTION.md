@@ -140,3 +140,16 @@ Not checked yet: Safari and Firefox, a real phone, and frame timing on a real lo
 2. Whether the 9 act scroll story stays on the home page or moves to its own page.
 3. The accent colour. It changes WEBSITE_SPEC 9.0, which says colour is for verdicts only.
 4. The FAQ wording. Every answer needs a person to approve it before it goes live.
+
+## 10. Premium home refinement (20 Oct)
+
+Preston asked for Linear, Vercel and Raycast level craft on the home page, using real content only. What changed and why:
+
+- **One container and one scale.** `site/assets/home.css` sets `--container` 1200 px, `--inline` side padding, `--section-y` rhythm and five type steps (`--t-display`, `--t-h2`, `--t-h3`, `--t-lead`, `--t-cap`). Every block uses them.
+- **Hero.** Left aligned. A pill badge, the serif claim at up to 104 px, then the lead and the waitlist form side by side. The real recording starts inside the first screen at 1440 x 900.
+- **Product, not a picture of one.** The 39 second recording sits in a bezel next to a chapter rail. The seven chapters come from the real caption file. Clicking one seeks and plays (`site/assets/recording.js`), the current chapter gets `aria-current` and a thin ember progress line. The rail is also the transcript, so the separate `details` was removed.
+- **Sticky header** with page links and a hairline that fades in on scroll (scroll timeline, with a static fallback).
+- **Sections.** Title left, lead right on wide screens; a hairline centred in the gap between blocks; raised panels for the three steps; install commands beside the two facts; the docs quote beside its meaning; the four app words in one row.
+- **Colour.** Ember `#ff8a3d` (from the icon) is used twice: the light behind the recording and playback progress. Green and red still mean Works and Broken only.
+- **Motion.** One entrance after the opening screen: badge, then lead and form, then the recording. The lead paragraph is the LCP element, so its block only moves and never starts invisible. Reduced motion shows everything at once.
+- **Not added:** logos, metrics, testimonials or any claim not already on the site.
