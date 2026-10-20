@@ -1,19 +1,23 @@
-// Local Mac artifact only. No Developer ID, notarization, publishing or installation.
+// Local Mac artifact by default: self-signed, no notarization, publishing or installation.
+// Opt-in Apple release: TM_SIGN_IDENTITY (Developer ID Application) and TM_NOTARY_PROFILE, or package:release.
 import { spawnSync } from "node:child_process";
 import { closeSync, cpSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { iconIcns } from "./app-icon.mjs";
-import { ensureSigningIdentity } from "./setup-signing.mjs";
+import { developerIdIdentity, ensureSigningIdentity } from "./setup-signing.mjs";
+import { checkNotary, codesignArgs, finishSteps, signingConfig } from "./signing-plan.mjs";
 
 const here = dirname(dirname(fileURLToPath(import.meta.url)));
 const release = join(here, "release");
 const app = join(release, "Time Machine.app");
 const zip = join(release, "Time Machine.zip");
-const entitlements = join(here, "scripts/entitlements.local.plist");
 const bundleId = "dev.timetm.desktop";
-const identity = ensureSigningIdentity();
+const config = signingConfig(process.env, { release: process.argv.includes("--release") });
+// Look up the identity before the slow build, so a missing certificate fails at once.
+const identity = config.mode === "local" ? ensureSigningIdentity() : developerIdIdentity(config.identity);
+const signer = config.mode === "local" ? { mode: "local", fingerprint: identity.fingerprint, keychain: identity.keychain } : { mode: "developer-id", fingerprint: identity.fingerprint };
 const meta = JSON.parse(readFileSync(join(here, "package.json"), "utf8"));
 const copyright = readFileSync(join(here, "../../LICENSE"), "utf8").match(/^Copyright .+$/m)?.[0];
 if (!copyright) throw new Error("No copyright line in LICENSE");
@@ -63,8 +67,7 @@ try {
     }
   }
   walk(built);
-  const sign = (path, executable) => run("codesign", ["--force", "--sign", identity.fingerprint, "--keychain", identity.keychain, "--options", "runtime", "--timestamp=none",
-    ...(executable ? ["--entitlements", entitlements] : []), path]);
+  const sign = (path, executable) => run("codesign", codesignArgs(signer, path, executable));
   for (const path of code) sign(path, path.includes("/Contents/MacOS/") || path.endsWith("/chrome_crashpad_handler"));
   for (const path of bundles) sign(path, path.endsWith(".app"));
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", built]);
@@ -72,9 +75,23 @@ try {
   // Replaces only this script's named local artifacts, never another installed app.
   rmSync(app, { recursive: true, force: true });
   renameSync(built, app);
-  rmSync(zip, { force: true });
-  run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, zip]);
-  console.log(`Local self-signed build: ${app}\nZIP: ${zip}\nCertificate SHA-256: ${identity.sha256}\nNot signed or notarized by Apple. Gatekeeper may reject it; use the README's first-open instructions only for a build from the official repository.`);
+  for (const step of finishSteps({ app, zip, notaryProfile: config.mode === "local" ? undefined : config.notaryProfile })) {
+    if (step.remove) rmSync(step.remove, { force: true });
+    else if (step.run) run(...step.run);
+    else {
+      const [command, args] = step.notarize;
+      const r = spawnSync(command, args, { cwd: here, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
+      if (r.stdout) console.log(r.stdout.trim());
+      console.log(`Notarization accepted: ${checkNotary(r.stdout ?? "", r.error ? undefined : r.status, step.profile)}`);
+    }
+  }
+  if (config.mode === "local") {
+    console.log(`Local self-signed build: ${app}\nZIP: ${zip}\nCertificate SHA-256: ${identity.sha256}\nNot signed or notarized by Apple. Gatekeeper may reject it; use the README's first-open instructions only for a build from the official repository.`);
+  } else if (config.notaryProfile) {
+    console.log(`Developer ID build, notarized and stapled: ${app}\nZIP of the stapled app: ${zip}\nSigned by: ${identity.name}`);
+  } else {
+    console.log(`Developer ID build: ${app}\nZIP: ${zip}\nSigned by: ${identity.name}\nNot notarized. Gatekeeper blocks a downloaded copy until it is. Set TM_NOTARY_PROFILE or run package:release.`);
+  }
 } finally {
   rmSync(temp, { recursive: true, force: true });
 }

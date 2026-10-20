@@ -1,10 +1,12 @@
 // A local identity, not Apple Developer ID. Keep the encrypted key and p12 outside the checkout.
+// developerIdIdentity only looks up an Apple-issued identity the owner installed. It creates nothing.
 import { createPrivateKey, randomBytes, X509Certificate } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { pickIdentity } from "./signing-plan.mjs";
 
 const name = "Time Machine Self Signed";
 const directory = join(homedir(), ".timemachine-signing");
@@ -68,6 +70,13 @@ export function ensureSigningIdentity() {
   const identities = run("security", ["find-identity", "-v", "-p", "codesigning", keychain]);
   if (!identities.includes(fingerprint)) throw new Error("The saved certificate is not a valid code-signing identity in the dedicated keychain.");
   return { name, fingerprint, sha256: certificate.fingerprint256, keychain };
+}
+
+// Finds a Developer ID Application identity in the user's keychain search list. Throws if it is
+// missing, ambiguous or not Developer ID.
+export function developerIdIdentity(requested) {
+  if (process.platform !== "darwin") throw new Error("Developer ID signing needs macOS.");
+  return pickIdentity(run("security", ["find-identity", "-v", "-p", "codesigning"]), requested);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

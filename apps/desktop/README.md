@@ -23,6 +23,7 @@ Other scripts, run from the root with `pnpm --filter @timetm/desktop <script>`:
 | `typecheck` | Type check the main process and the window code |
 | `signing:setup` | Create or reuse the local self-signed identity on this Mac |
 | `package:local` | Build, stage, package and self-sign `release/Time Machine.app`, then zip it |
+| `package:release` | Same build, signed with a Developer ID, notarized, stapled and zipped again. Needs `TM_SIGN_IDENTITY` and `TM_NOTARY_PROFILE` (see [Before Apple notarization](#before-apple-notarization)). Not run yet |
 | `smoke:native` | Exercise the packaged app with isolated synthetic data: demo verification, focus, announcements and safe recovery (run `package:local` first) |
 
 ## Running an unsigned build
@@ -72,13 +73,29 @@ The packaged `.app` launched through its own executable with isolated HOME, TM_H
 
 ## Before Apple notarization
 
-Five things block a notarized build. All are open. Until they are done, a downloaded ZIP is Gatekeeper blocked.
+Five things block a notarized build. Items 1 and 2 are owner actions and still open. Items 3 to 5 are handled by `package:release` once 1 and 2 exist. That path has not run yet: there is no Developer ID certificate or notary profile on any Mac we use, so it is checked only by unit tests of its argument lists (`test/signing.test.ts`). Until it runs, a downloaded ZIP is Gatekeeper blocked.
 
-1. **Developer ID certificate.** A Developer ID Application certificate needs a paid Apple Developer Program team. Today `package:local` signs with the self-signed "Time Machine Self Signed" identity.
-2. **Notary credentials.** A `notarytool` credential profile on the signing Mac (`xcrun notarytool store-credentials`, with an app-specific password or an App Store Connect API key). None exists.
-3. **Secure timestamp.** `scripts/package-local.mjs` signs with `--timestamp=none`. Notarization needs a secure timestamp (`--timestamp`).
-4. **Library validation entitlement.** `scripts/entitlements.local.plist` sets `com.apple.security.cs.disable-library-validation` because a self-signed build has no Apple Team ID. For a Developer ID build, justify it or drop it.
-5. **Stapling.** After notarization succeeds, run `xcrun stapler staple` on the app, then rebuild the ZIP from the stapled app.
+1. **Developer ID certificate (open).** A Developer ID Application certificate needs a paid Apple Developer Program team. Today `package:local` signs with the self-signed "Time Machine Self Signed" identity.
+2. **Notary credentials (open).** A `notarytool` credential profile on the signing Mac (`xcrun notarytool store-credentials`, with an app-specific password or an App Store Connect API key). None exists.
+3. **Secure timestamp (handled by `package:release`).** The default build still signs with `--timestamp=none`. A Developer ID build signs every item with `--timestamp` and hardened runtime.
+4. **Library validation entitlement (handled by `package:release`).** A Developer ID build uses `scripts/entitlements.release.plist`, which keeps only `com.apple.security.cs.allow-jit`. Electron's V8 needs JIT under hardened runtime. It drops `com.apple.security.cs.disable-library-validation`: every nested framework and helper carries the same Team ID, so library validation can stay on. The default build keeps `entitlements.local.plist`, because a self-signed build has no Team ID.
+5. **Stapling (handled by `package:release`).** After Apple returns Accepted, the script staples the app, then rebuilds the ZIP from the stapled app.
+
+Once 1 and 2 exist, on the signing Mac:
+
+1. Install the Developer ID Application certificate with its private key in the login keychain, plus Apple's intermediate certificate. `security find-identity -v -p codesigning` must list it.
+2. Store the notary credentials once: `xcrun notarytool store-credentials tm-notary --apple-id <id> --team-id <TEAMID>` (it asks for an app-specific password), or use `--key`, `--key-id` and `--issuer` for an API key.
+3. Run:
+
+   ```sh
+   TM_SIGN_IDENTITY="Developer ID Application: <Name> (<TEAMID>)" TM_NOTARY_PROFILE=tm-notary pnpm --filter @timetm/desktop package:release
+   ```
+
+`TM_SIGN_IDENTITY` may also be the identity's SHA-1 hash. `package:release` refuses to start unless both variables are set. The script looks up the identity before building and stops if it is missing, ambiguous or not Developer ID. It signs, verifies, zips with `ditto`, then runs `xcrun notarytool submit <zip> --keychain-profile <profile> --wait`. Anything but Accepted stops the build and prints `xcrun notarytool log <id> --keychain-profile <profile>`. Then it runs `xcrun stapler staple` on the app, zips the stapled app again, and checks it with `codesign --verify --deep --strict --verbose=2` and `spctl --assess --type execute -vv`.
+
+With no variables, `package:local` runs exactly the same commands as before. Setting only `TM_SIGN_IDENTITY` makes a Developer ID signed build without notarization. Apple allows 75 notarizations a day.
+
+Not yet known, and to check on the first real run: whether any Electron helper needs more than `allow-jit` without the library validation exception. Launch the stapled app and run `pnpm --filter @timetm/desktop smoke:native` before shipping it.
 
 ## What is built
 
