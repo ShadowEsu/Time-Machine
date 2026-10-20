@@ -393,7 +393,7 @@ revoke all on all tables in schema tm_waitlist from anon, authenticated;
 notify pgrst, 'reload schema';
 ```
 
-Then run [`supabase/migrations/0005_bounded_public_rpcs.sql`](../../supabase/migrations/0005_bounded_public_rpcs.sql) to bound the public writers: 60 new signups/minute, 1,000/hour, 300 events/minute, strict event paths and batched removal of event rows older than 90 days. The caps are global, enforced inside the RPCs even for direct PostgREST callers, and return `429 rate_limited` when full. Signatures and grants stay the same. Review the [rollback SQL](../../supabase/README.md#public-rpc-limits-and-rollback) before applying.
+Then run [`supabase/migrations/0005_bounded_public_rpcs.sql`](../../supabase/migrations/0005_bounded_public_rpcs.sql) to bound the public writers: 60 signup calls/minute, 1,000/hour, 300 events/minute, strict event paths and batched removal of event rows older than 90 days. The caps are global, enforced inside the RPCs even for direct PostgREST callers, and return `429 rate_limited` when full. New and duplicate emails count the same, so the cap reveals nothing about who signed up. Signatures and grants stay the same. Review the [rollback SQL](../../supabase/README.md#public-rpc-limits-and-rollback) before applying.
 
 ## 2. Let the API see the schema
 

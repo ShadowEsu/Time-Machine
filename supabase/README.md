@@ -10,7 +10,7 @@ For click-by-click setup and the combined SQL, see [Supabase setup](../docs/laun
 - `GET /api/waitlist?code=CODE` returns `ok`, `position`, `referrals` and `total` for confirmed, subscribed rows only. Pending, unsubscribed or unknown codes return `404`. Codes are 10 lowercase letters or digits. The site has no page that shows a code or a place in line yet, because signups stay pending.
 - `POST /api/event` counts visits, shares and link copies. The site sends only visits today; it has no share or copy button yet.
 - `GET /api/health` returns `{"ok":true,"waitlist":<bool>,"database":"reachable"|"unreachable"|"not_configured","email":false}`. `waitlist` is true when both Supabase settings are present. `database` is `reachable` only when a read-only `waitlist_status` call with a code that matches nobody just worked. Vercel's CDN keeps each answer for 30 seconds. `email` is always false.
-- When the database's global write cap is full, signup and event POSTs return `429 {"ok":false,"error":"rate_limited"}` with `Retry-After: 60`. The form says the list is busy and keeps the typed email. This applies equally to new and duplicate emails, so the cap cannot reveal who is on the list.
+- When the database's global write cap is full, signup and event POSTs return `429 {"ok":false,"error":"rate_limited"}` with `Retry-After: 60`. The form says the list is busy and keeps the typed email. The signup cap counts calls, not saved rows. A duplicate email uses a slot exactly like a new one, so the cap cannot reveal who is on the list.
 
 Only confirmed, subscribed rows count in positions and totals. Only confirmed, subscribed friends earn referral credit. Order: more confirmed friends first, then earlier signup time. The site does not confirm anyone today, and a signup gets no code back, so referral credit and places in line are planned, not live. How a signup becomes confirmed is not decided.
 
@@ -75,11 +75,11 @@ Replace the synthetic example address only in the SQL editor, never in a committ
 
 ## Public RPC limits and rollback
 
-`0005` permits at most 60 new waitlist rows in a rolling minute and 1,000 in a rolling hour, and 300 event rows in a rolling minute. These are global caps with no IP address or identifier storage. An advisory transaction lock makes the count-and-insert atomic across API instances and direct PostgREST callers. The indexed counts stop at the cap; they never scan unbounded result sets. Attackers can still exhaust the shared cap and temporarily block legitimate signups; these limits bound storage growth, not all denial-of-service or compute cost.
+`0005` permits at most 60 signup calls in a rolling minute and 1,000 in a rolling hour, and 300 event rows in a rolling minute. Signup calls are counted in `waitlist_join_attempts`, which holds only an id and a time. New and duplicate emails each cost one call, so the cap is no membership test. A call refused with 429 records nothing. Each accepted call removes at most 500 attempt times older than one hour. These are global caps with no email, IP address or identifier in the attempt table. An advisory transaction lock makes the count-and-insert atomic across API instances and direct PostgREST callers. The indexed counts stop at the cap; they never scan unbounded result sets. Attackers can still exhaust the shared cap and temporarily block legitimate signups; these limits bound storage growth, not all denial-of-service or compute cost.
 
 Events only accept `visit`, `share` or `copy`, and a path matching `^/[A-Za-z0-9._~/-]{0,199}$`: no queries, fragments, email addresses or referral codes in a query. The path constraint is `NOT VALID` to leave historical rows alone while enforcing new writes. Each accepted event removes at most 500 event rows older than 90 days using the time index. This is opportunistic retention, not a hard deletion deadline when the site is inactive.
 
-Emergency rollback restores the pre-`0005` writers and removes the new path constraint. It intentionally keeps the harmless time indexes, never changes grants, and never touches another schema. Review before applying: it reopens the unbounded public write surface.
+Emergency rollback restores the pre-`0005` writers, removes the new path constraint and drops the attempt table. It intentionally keeps the harmless event time index, never changes grants, and never touches another schema. Review before applying: it reopens the unbounded public write surface.
 
 ```sql
 begin;
@@ -101,6 +101,7 @@ as $$
   insert into tm_waitlist.funnel_events (type, path, via_ref)
   values (p_type, p_path, coalesce(p_via_ref, false));
 $$;
+drop table if exists tm_waitlist.waitlist_join_attempts;
 notify pgrst, 'reload schema';
 commit;
 ```

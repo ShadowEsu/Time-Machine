@@ -1,10 +1,23 @@
 -- Bound the public RPC surface, including callers that bypass the website API.
 -- Apply after 0004. Touches only tm_waitlist objects; no new service, IP or browser identifier.
--- Limits count stored rows, not requests. At capacity every caller (including duplicates) gets 429,
--- so the cap cannot turn into an email membership probe. Otherwise duplicates are quiet pending success.
+-- Signup limits count calls, not stored rows. A duplicate email uses a slot exactly like a new one,
+-- so neither the cap nor its 429 can reveal whether an email is already on the list.
 
-create index if not exists waitlist_created_at_idx on tm_waitlist.waitlist (created_at);
+-- One timestamp per accepted signup call. No email, IP, source or code: nothing that names a person.
+create table if not exists tm_waitlist.waitlist_join_attempts (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now()
+);
+
+comment on table tm_waitlist.waitlist_join_attempts is
+  'One timestamp per accepted signup call, kept about an hour to enforce the signup cap. No personal data.';
+
+create index if not exists waitlist_join_attempts_created_at_idx on tm_waitlist.waitlist_join_attempts (created_at);
 create index if not exists funnel_events_created_at_idx on tm_waitlist.funnel_events (created_at);
+
+-- Row level security on, and no policies at all. Only the security definer function writes here.
+alter table tm_waitlist.waitlist_join_attempts enable row level security;
+revoke all on table tm_waitlist.waitlist_join_attempts from public, anon, authenticated;
 
 -- NOT VALID keeps historical rows untouched, while enforcing the rule on every new write.
 -- The existing type constraint already restricts events to visit/share/copy.
@@ -27,24 +40,35 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(17524576, 1);
   v_now := clock_timestamp();
 
-  -- LIMIT bounds each indexed count even if privileged imports exceed these limits.
+  -- Check before any write: the PT429 exception rolls back the whole call, so a refused call
+  -- records nothing and cannot keep the window full by itself. LIMIT bounds each indexed count.
   if (select count(*) from (
-        select 1 from tm_waitlist.waitlist w where w.created_at >= v_now - interval '1 minute' limit 60
+        select 1 from tm_waitlist.waitlist_join_attempts a where a.created_at >= v_now - interval '1 minute' limit 60
       ) recent) >= 60
      or (select count(*) from (
-        select 1 from tm_waitlist.waitlist w where w.created_at >= v_now - interval '1 hour' limit 1000
+        select 1 from tm_waitlist.waitlist_join_attempts a where a.created_at >= v_now - interval '1 hour' limit 1000
       ) recent) >= 1000 then
     raise exception using errcode = 'PT429', message = 'rate_limited';
   end if;
 
-  -- Use the post-lock time, not the transaction start time, for the rolling window.
-  insert into tm_waitlist.waitlist (email, consent, source, referred_by, created_at)
+  -- Every accepted call costs one slot, whether or not the email is new.
+  insert into tm_waitlist.waitlist_join_attempts (created_at) values (v_now);
+
+  -- Bounded, indexed cleanup. Attempts older than the hourly window are never counted again.
+  delete from tm_waitlist.waitlist_join_attempts a
+  using (
+    select old.id from tm_waitlist.waitlist_join_attempts old
+    where old.created_at < v_now - interval '1 hour'
+    order by old.created_at limit 500
+  ) expired
+  where a.id = expired.id;
+
+  insert into tm_waitlist.waitlist (email, consent, source, referred_by)
   values (
     p_email,
     true,
     p_source,
-    (select w.ref_code from tm_waitlist.waitlist w where p_ref ~ '^[a-z0-9]{10}$' and w.ref_code = p_ref),
-    v_now
+    (select w.ref_code from tm_waitlist.waitlist w where p_ref ~ '^[a-z0-9]{10}$' and w.ref_code = p_ref)
   )
   on conflict (email_normalized) do nothing;
   return query select true;
