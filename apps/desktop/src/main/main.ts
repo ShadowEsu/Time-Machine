@@ -526,7 +526,7 @@ if (primary) void app.whenReady().then(async () => {
   engine = new Engine(
     state,
     {
-      candidates: hookCandidates({ override: process.env.TM_HOOK_COMMAND, nodePath: process.execPath, cliScript: join(OUT, "tm.mjs"), version: __TM_CLI_VERSION__ }),
+      candidates: hookCandidates({ override: process.env.TM_HOOK_COMMAND, packaged: app.isPackaged, nodePath: process.execPath, cliScript: join(OUT, "tm.mjs"), version: __TM_CLI_VERSION__ }),
       version: __TM_CLI_VERSION__,
     },
     { credentials, fetch: globalThis.fetch },

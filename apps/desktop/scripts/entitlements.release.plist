@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Developer ID builds only (package:release). Electron's V8 uses JIT, which hardened runtime
+       blocks without this key. No unsigned executable memory exception is needed. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <!-- No disable-library-validation here. Every nested framework and helper is signed with the
+       same Developer ID Team ID, so library validation can stay on. -->
+</dict>
+</plist>

@@ -23,6 +23,7 @@ Other scripts, run from the root with `pnpm --filter @timetm/desktop <script>`:
 | `typecheck` | Type check the main process and the window code |
 | `signing:setup` | Create or reuse the local self-signed identity on this Mac |
 | `package:local` | Build, stage, package and self-sign `release/Time Machine.app`, then zip it |
+| `package:release` | Same build, signed with a Developer ID, notarized, stapled and zipped again. Needs `TM_SIGN_IDENTITY` and `TM_NOTARY_PROFILE` (see [Before Apple notarization](#before-apple-notarization)). Not run yet |
 | `smoke:native` | Exercise the packaged app with isolated synthetic data: demo verification, focus, announcements and safe recovery (run `package:local` first) |
 
 ## Running an unsigned build
@@ -72,19 +73,35 @@ The packaged `.app` launched through its own executable with isolated HOME, TM_H
 
 ## Before Apple notarization
 
-Five things block a notarized build. All are open. Until they are done, a downloaded ZIP is Gatekeeper blocked.
+Five things block a notarized build. Items 1 and 2 are owner actions and still open. Items 3 to 5 are handled by `package:release` once 1 and 2 exist. That path has not run yet: there is no Developer ID certificate or notary profile on any Mac we use, so it is checked only by unit tests of its argument lists (`test/signing.test.ts`). Until it runs, a downloaded ZIP is Gatekeeper blocked.
 
-1. **Developer ID certificate.** A Developer ID Application certificate needs a paid Apple Developer Program team. Today `package:local` signs with the self-signed "Time Machine Self Signed" identity.
-2. **Notary credentials.** A `notarytool` credential profile on the signing Mac (`xcrun notarytool store-credentials`, with an app-specific password or an App Store Connect API key). None exists.
-3. **Secure timestamp.** `scripts/package-local.mjs` signs with `--timestamp=none`. Notarization needs a secure timestamp (`--timestamp`).
-4. **Library validation entitlement.** `scripts/entitlements.local.plist` sets `com.apple.security.cs.disable-library-validation` because a self-signed build has no Apple Team ID. For a Developer ID build, justify it or drop it.
-5. **Stapling.** After notarization succeeds, run `xcrun stapler staple` on the app, then rebuild the ZIP from the stapled app.
+1. **Developer ID certificate (open).** A Developer ID Application certificate needs a paid Apple Developer Program team. Today `package:local` signs with the self-signed "Time Machine Self Signed" identity.
+2. **Notary credentials (open).** A `notarytool` credential profile on the signing Mac (`xcrun notarytool store-credentials`, with an app-specific password or an App Store Connect API key). None exists.
+3. **Secure timestamp (handled by `package:release`).** The default build still signs with `--timestamp=none`. A Developer ID build signs every item with `--timestamp` and hardened runtime.
+4. **Library validation entitlement (handled by `package:release`).** A Developer ID build uses `scripts/entitlements.release.plist`, which keeps only `com.apple.security.cs.allow-jit`. Electron's V8 needs JIT under hardened runtime. It drops `com.apple.security.cs.disable-library-validation`: every nested framework and helper carries the same Team ID, so library validation can stay on. The default build keeps `entitlements.local.plist`, because a self-signed build has no Team ID.
+5. **Stapling (handled by `package:release`).** After Apple returns Accepted, the script staples the app, then rebuilds the ZIP from the stapled app.
+
+Once 1 and 2 exist, on the signing Mac:
+
+1. Install the Developer ID Application certificate with its private key in the login keychain, plus Apple's intermediate certificate. `security find-identity -v -p codesigning` must list it.
+2. Store the notary credentials once: `xcrun notarytool store-credentials tm-notary --apple-id <id> --team-id <TEAMID>` (it asks for an app-specific password), or use `--key`, `--key-id` and `--issuer` for an API key.
+3. Run:
+
+   ```sh
+   TM_SIGN_IDENTITY="Developer ID Application: <Name> (<TEAMID>)" TM_NOTARY_PROFILE=tm-notary pnpm --filter @timetm/desktop package:release
+   ```
+
+`TM_SIGN_IDENTITY` may also be the identity's SHA-1 hash. `package:release` refuses to start unless both variables are set. The script looks up the identity before building and stops if it is missing, ambiguous or not Developer ID. It signs, verifies, zips with `ditto`, then runs `xcrun notarytool submit <zip> --keychain-profile <profile> --wait`. Anything but Accepted stops the build and prints `xcrun notarytool log <id> --keychain-profile <profile>`. Then it runs `xcrun stapler staple` on the app, zips the stapled app again, and checks it with `codesign --verify --deep --strict --verbose=2` and `spctl --assess --type execute -vv`.
+
+With no variables, `package:local` runs exactly the same commands as before. Setting only `TM_SIGN_IDENTITY` makes a Developer ID signed build without notarization. Apple allows 75 notarizations a day.
+
+Not yet known, and to check on the first real run: whether any Electron helper needs more than `allow-jit` without the library validation exception. Launch the stapled app and run `pnpm --filter @timetm/desktop smoke:native` before shipping it.
 
 ## What is built
 
 - **Onboarding (D01):** three named steps, one click each. Pick a project folder: setup starts as soon as you pick it, adds `timemachine.yml` (`init`) and makes the first save point. It says "Saved, not checked" until a check runs. Choose the check: the one `init` found is already picked, with a quiet line for the install step that runs first when there is one ("Installs first with npm ci …"). Try it now is optional; changing it uses `setCheck`. Choose when to save: "Connect Claude Code and finish" adds the hook lines (shown first in plain words, the exact lines on request) and finishes, and "Skip, finish without it" finishes without them. If the lines cannot be prepared, or the command does not run on this Mac, Finish is the only button and the step says why. Each step's buttons stay in view on short windows.
 - **Try the demo:** the first button on the welcome screen. The real engine builds Marigold Tips in a temporary folder, breaks it and finds the newest passing save point. The app undoes the engine’s recovery branch and copy, then opens Review with one Go back button. It also checks the state saved before that recovery in the background. Leaving Review shows Broken only after that real check fails, not an assumed verdict. Done lists what came back, what did not and what needs to be done by hand.
-- **Claude Code hook command:** the build bundles the `tm` CLI into `out/tm.mjs`, and the hooks call it with the app's own Node as quoted absolute paths: `ELECTRON_RUN_AS_NODE=1 '<Electron>' '<out/tm.mjs>'`. If that does not answer, the fallback is `npx -y timetm@<version>`, pinned to the CLI version, never the bare package name. `TM_HOOK_COMMAND` overrides both. Before adding any line the app runs `<command> --version` and adds nothing unless it answers with this version. Settings says "connected" only when the lines are there and the command runs, and "connected, but the command does not run yet" when the lines are there but it does not answer. The paths point into this checkout, so moving or deleting it stops the hooks until you connect again.
+- **Claude Code hook command:** the build bundles the `tm` CLI into `out/tm.mjs`, and the hooks call it with the app's own Node as quoted absolute paths: `ELECTRON_RUN_AS_NODE=1 '<Electron>' '<out/tm.mjs>'`. If that does not answer, the fallback is `npx -y timetm@<version>`, pinned to the CLI version, never the bare package name. `TM_HOOK_COMMAND` overrides both when the app runs from source. A packaged app ignores it. Before adding any line the app runs `<command> --version` and adds nothing unless it answers with this version. Settings says "connected" only when the lines are there and the command runs, and "connected, but the command does not run yet" when the lines are there but it does not answer. The paths point into this checkout, so moving or deleting it stops the hooks until you connect again.
 - **Window frame:** a rail with Projects (a verdict glyph and how long ago each last saved), Add project, the Agents list (Claude Code with its real state, Codex, Gemini CLI and Cursor marked Planned), then Storage (space used) and Settings. A toolbar with a breadcrumb ("marigold-tips / History"), a "Back to now" pill whenever you are looking at the past (Compare, or an older save point, `⌘↑`), "Jump to…" (`⌘K`), Ask (`⌘J`) and a ⋯ menu with the other project actions and the Inspector. `?` shows every shortcut that works today. Toasts sit over the bottom of the rail, so they never cover the journal.
 - **Project page (D02):** a status sentence in upright Newsreader, one filled primary button and at most one quiet text link. Broken with a known passing save point offers Go back and See what changed; without one it offers Find the last working version. Works offers Save now and Check it works; Not checked yet offers Check it works. A summary explains what does not come back. The ruler and journal show recorded verdicts, timestamps, authors, changes and check evidence. Automatic saves fold into groups. Save point IDs, commits and isolation names appear only with Show Git details on.
 - **Entry detail (D03):** clicking an entry opens it in the right column when the window is at least 1100 points wide, so the page keeps its status sentence beside it. Narrower windows show it as a full sheet over the page instead of covering half of it. `Esc` closes it. The title, author and verdict, the verdict in a sentence, an "Agent said / We ran" box side by side (the hook records what the agent was asked, not its reply, so Agent said is labelled as not recorded yet and planned; an agent's claim is never shown as a check), one primary action (Go back to this version when it works, otherwise Check it works), Open a safe copy (explained under it) and Compare with now, What's saved and What's not saved, and the Inspector.

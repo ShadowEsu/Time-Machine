@@ -11,8 +11,12 @@ import { fileURLToPath } from "node:url";
 const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), "../packages/cli");
 const pkg = JSON.parse(readFileSync(join(cliDir, "package.json"), "utf8"));
 const expected = ["LICENSE", "README.md", "dist/tm.js", "package.json"];
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const work = mkdtempSync(join(tmpdir(), "tm-pack-"));
+// Node only runs npm.cmd through a shell (CVE-2024-27980). The shell joins the arguments
+// as they are, so the temp folder is quoted in case the user name has a space.
+const npmPack = process.platform === "win32"
+  ? () => execFileSync("npm.cmd", ["pack", "--json", "--pack-destination", `"${work}"`], { cwd: cliDir, encoding: "utf8", shell: true })
+  : () => execFileSync("npm", ["pack", "--json", "--pack-destination", work], { cwd: cliDir, encoding: "utf8" });
 
 const fail = (message) => {
   console.error(`check-cli-package: ${message}`);
@@ -20,7 +24,7 @@ const fail = (message) => {
 };
 
 try {
-  const [packed] = JSON.parse(execFileSync(npm, ["pack", "--json", "--pack-destination", work], { cwd: cliDir, encoding: "utf8" }));
+  const [packed] = JSON.parse(npmPack());
   const files = packed.files.map((f) => f.path).sort();
   if (packed.name !== pkg.name || packed.version !== pkg.version) fail(`packed ${packed.name}@${packed.version}, expected ${pkg.name}@${pkg.version}`);
   if (files.join("\n") !== expected.join("\n")) fail(`tarball files are [${files.join(", ")}], expected [${expected.join(", ")}]`);

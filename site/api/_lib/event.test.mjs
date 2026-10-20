@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { POST } from "../event.js";
 import { handleEvent, MAX_EVENT_BYTES } from "./event.js";
 
 // Synthetic data only.
@@ -119,6 +120,29 @@ describe("event handler", () => {
       const res = await handleEvent(request(visit, { origin }), deps);
       expect(res).toEqual({ status: 403, headers: {}, body: { ok: false, error: "forbidden_origin" } });
       expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it("compares Origin with the Host header and ignores x-forwarded-host", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    vi.stubEnv("SUPABASE_URL", "");
+    try {
+      const send = (origin) =>
+        POST(new Request(`https://${HOST}/api/event`, {
+          method: "POST",
+          headers: { host: HOST, origin, "x-forwarded-host": "evil.example.test", "content-type": "application/json" },
+          body: JSON.stringify(visit),
+        }));
+      const spoofed = await send("https://evil.example.test");
+      expect(spoofed.status).toBe(403);
+      expect(await spoofed.json()).toEqual({ ok: false, error: "forbidden_origin" });
+      const same = await send(`https://${HOST}`);
+      expect(same.status).not.toBe(403);
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
     }
   });
 

@@ -11,6 +11,7 @@
     "preview:build": "node scripts/build.mjs --preview",
     "signing:setup": "node scripts/setup-signing.mjs",
     "package:local": "node scripts/package-local.mjs",
+    "package:release": "node scripts/package-local.mjs --release",
     "smoke:native": "node scripts/smoke-native.mjs",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json"
   },

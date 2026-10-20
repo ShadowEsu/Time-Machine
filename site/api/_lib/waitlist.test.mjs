@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { POST } from "../waitlist.js";
 import { handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody } from "./waitlist.js";
 
 // Synthetic data only.
@@ -156,6 +157,29 @@ describe("waitlist handler", () => {
     expect(isAllowedOrigin("http://localhost:4173", HOST)).toBe(true);
     expect(isAllowedOrigin("http://127.0.0.1:3000", HOST)).toBe(true);
     expect(isAllowedOrigin(`https://${HOST}`, HOST)).toBe(true);
+  });
+
+  it("compares Origin with the Host header and ignores x-forwarded-host", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    vi.stubEnv("SUPABASE_URL", "");
+    try {
+      const send = (origin) =>
+        POST(new Request(`https://${HOST}/api/waitlist`, {
+          method: "POST",
+          headers: { host: HOST, origin, "x-forwarded-host": "evil.example.test", "content-type": "application/json" },
+          body: JSON.stringify(good),
+        }));
+      const spoofed = await send("https://evil.example.test");
+      expect(spoofed.status).toBe(403);
+      expect(await spoofed.json()).toEqual({ ok: false, error: "forbidden_origin" });
+      const same = await send(`https://${HOST}`);
+      expect(same.status).not.toBe(403);
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("returns not_configured when either variable is missing", async () => {
