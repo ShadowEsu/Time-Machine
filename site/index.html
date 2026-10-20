@@ -56,8 +56,35 @@
         <p class="wl-status" id="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
         <p class="wl-privacy">Joining means one email when Time Machine is ready, nothing else. We store your email and the page you joined from. <a href="privacy.html">Privacy (draft)</a></p>
       </form>
+      <a class="hero-watch" href="#app-recording">Watch a real recovery</a>
       <a class="hero-demo" href="#rewind-demo" data-open-app hidden>Try the app demo <span aria-hidden="true">↗</span></a>
     </div>
+
+    <section class="recording" id="app-recording" aria-labelledby="recording-h">
+      <div class="recording-head">
+        <h2 id="recording-h">From broken to a working copy.</h2>
+        <p>The real Mac app. A synthetic project. No simulated check results.</p>
+      </div>
+      <figure class="recording-player">
+        <video controls playsinline preload="none" width="1280" height="800"
+          poster="assets/demo/recovery-poster.jpg" aria-label="Time Machine Mac app recovery demonstration"
+          aria-describedby="recording-caption">
+          <source src="assets/demo/recovery.mp4" type="video/mp4">
+          <track kind="captions" src="assets/demo/recovery.en.vtt" srclang="en" label="English" default>
+          Your browser cannot play this video. Read the transcript below.
+        </video>
+        <figcaption id="recording-caption">Checks run locally. Recovery creates a separate copy. Your current folder stays unchanged.</figcaption>
+      </figure>
+      <details class="recording-transcript">
+        <summary>Read the video transcript</summary>
+        <ol>
+          <li>The bundled Marigold Tips project has a failed check. Its history separates versions that passed, failed and have not been checked.</li>
+          <li>Choose the last version that passed. The review shows the checked save point, the files that return and the things that do not.</li>
+          <li>Press Go back. Time Machine saves the current version and creates a local recovery branch and a separate recovery copy.</li>
+          <li>The recovery report shows the copy is ready. The original project folder and branch stay unchanged. Database contents, secret values and deployed changes do not come back.</li>
+        </ol>
+      </details>
+    </section>
 
     <figure id="rewind-demo" class="rewind-story" data-rewind data-phase="broken" aria-labelledby="rs-title" aria-describedby="rs-caption">
       <div class="rs-views" role="group" aria-label="Demo view" hidden>
@@ -192,7 +219,7 @@ tm demo</pre>
           <h3 data-type>It tells you when something broke</h3>
           <p>Every change gets a save point. The app shows plainly which ones work and which are broken, and the last one that worked.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="834"><img src="assets/img/app-broken.jpg" width="1600" height="1000" loading="lazy" decoding="async" alt="The project page says Broken since 9:54 AM. The last version that works is from 9:54 AM, Added dark mode. A button: Go back to the 9:54 AM version. Below it, what does not come back and a list of save points, each marked Works or Broken."></picture><figcaption>Real screen, demo project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="900"><img src="assets/img/app-broken.jpg" width="1600" height="885" loading="lazy" decoding="async" alt="The Mac app shows a failed check, the last save point that passed, a Go back button, recovery limits and a history of checked versions."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
       <li class="story-row flip" data-reveal>
         <div class="story-text">
@@ -200,7 +227,7 @@ tm demo</pre>
           <h3 data-type>Turn the dial back</h3>
           <p>Pick the last version that works. Before anything happens, you see what comes back and what does not, like passwords or your database.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="976"><img src="assets/img/app-review-wide.jpg" width="1600" height="718" loading="lazy" decoding="async" alt="The review screen: the 9:54 AM version works. Comes back: code and one saved file. Does not come back: secret values and database contents. A dial of save points and a Go back button."></picture><figcaption>Real screen, demo project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="1100"><img src="assets/img/app-review-wide.jpg" width="1600" height="885" loading="lazy" decoding="async" alt="The recovery review shows the save point that passed, files that return, secret values and database contents that do not, and the dial with its Go back button."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
       <li class="story-row" data-reveal>
         <div class="story-text">
@@ -208,7 +235,7 @@ tm demo</pre>
           <h3 data-type>Press Go back. Your work is safe.</h3>
           <p>The good version comes back as a separate copy. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="616"><img src="assets/img/app-done.jpg" width="1600" height="1000" loading="lazy" decoding="async" alt="The done screen: the 9:54 AM version is back on a new branch, with a recovery copy next to the project. What came back, what did not, and things to do by hand."></picture><figcaption>Real screen, demo project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="786"><img src="assets/img/app-done.jpg" width="1600" height="885" loading="lazy" decoding="async" alt="The recovery report shows a separate copy is ready on a new local branch, what returned, and remaining manual steps. The original folder was not switched."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
     </ol>
   </section>

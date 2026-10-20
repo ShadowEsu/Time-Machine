@@ -265,3 +265,39 @@ The `concepts/shots/` PNGs are 1280 by 800, device scale 1. Each concept has Wor
 Naming: `app-v3-{a|b}-{works|broken|done}-{light|dark}.png`.
 
 Playwright opened each HTML from `file://`, waited for embedded fonts, and captured each state. It listened for page errors, console warnings/errors, failed requests and network requests. The two-click Broken → confirmation → Rewind done flow was also exercised. No whole test suite, app build or website change is part of this assignment. The concepts do not establish real engine correctness, integration readiness or accessibility conformance.
+
+## 20 October: production refinement
+
+Preston rejected the app's visual finish. The current screenshots show a warm,
+low-separation rail, an automatically open Ask consent panel and persistent
+scrollbars competing with the history. The next production pass keeps the
+working recovery model, not the concept's material palette.
+
+**Direction: a quiet recovery instrument.** Neutral paper `#F8F8F6`, white
+surface `#FFFFFF`, graphite rail `#F0F0ED`, ink `#202020`, secondary ink `#555550`
+and hairline `#E4E4DF`. Dark surfaces use `#171717`, `#202020` and `#131313`.
+Green and red remain check evidence only. The existing orange app icon stays
+the brand mark. Controls, pins and citations use ink rather than mulberry.
+
+Newsreader carries the status and recovery headline. Inter carries history
+titles, dates, controls and explanations. Geist Mono is reserved for commands
+and file paths, not every caption. One document column leads; Ask is summoned
+with its visible button or keyboard shortcut. On smaller windows it overlays
+instead of squeezing the record. Recovery keeps the dial as its one expressive
+object, with a direct button and timeline as equal input routes.
+
+Psychology is a hypothesis, not a claim of measured retention. The existing
+free-researcher landing report and the supplied ethical-attention guides
+support reducing uncertainty with a real demo, one clear action and evidence
+beside a consequential decision. The reference sources above support quiet
+navigation and progressive disclosure. None proves these colors cause trust.
+Do not add urgency, fake social proof, fake progress or engagement reminders.
+Success means choosing the right checked version and understanding that the
+current folder, database and deployment have not been restored.
+
+The website will show a real Electron recording on the synthetic bundled
+project, with controls, captions and a transcript. No autoplay. Screenshots
+must match the refined app. Verify light/dark, keyboard access, reduced motion,
+short/narrow app windows and the site at 1440, 390 and 320 px. These runtime
+checks establish presentation and behavior, not human comprehension; moderated
+user testing remains unperformed.

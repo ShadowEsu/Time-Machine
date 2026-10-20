@@ -1,0 +1,29 @@
+WEBVTT
+
+1
+00:00:00.144 --> 00:00:03.649
+The real Mac app, using its synthetic Marigold Tips project.
+
+2
+00:00:03.649 --> 00:00:08.888
+The latest check failed. Earlier save points keep their own verdicts.
+
+3
+00:00:08.888 --> 00:00:12.893
+Choose the last version that passed its check.
+
+4
+00:00:12.893 --> 00:00:23.012
+Review what comes back, and what does not: secrets, databases and deployments.
+
+5
+00:00:23.012 --> 00:00:28.013
+Time Machine saves the current version, then creates a separate recovery copy.
+
+6
+00:00:28.013 --> 00:00:34.023
+The copy is ready on a new local branch. The original folder stays unchanged.
+
+7
+00:00:34.023 --> 00:00:39.039
+Database contents, secret values and deployed changes do not come back.

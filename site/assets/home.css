@@ -40,6 +40,27 @@ body.home pre { font-variant-numeric: tabular-nums; }
 .wl-hero .wl-privacy { text-align: center; }
 .wl-hero .wl-privacy a { color: inherit; }
 
+/* Actual product proof precedes the illustrative instrument. Native controls,
+   no autoplay and no video bytes until the visitor chooses to watch. */
+.hero-watch { display: inline-flex; align-items: center; min-height: 44px; margin-top: 10px; color: var(--ink); font-size: 14px; text-underline-offset: 5px; }
+.recording { max-width: 1040px; margin: 52px auto 0; scroll-margin-top: 24px; }
+.recording-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px 32px; margin-bottom: 20px; }
+.recording-head h2 { margin: 0; font: 400 clamp(26px, 2.5vw, 36px)/1.15 var(--font-display); letter-spacing: -.02em; }
+.recording-head p { max-width: 38ch; margin: 0; color: var(--ink-3); font-size: 13px; line-height: 1.6; }
+.recording-player { margin: 0; }
+.recording-player video { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; border-radius: 12px; background: #171717; outline: 1px solid var(--line-2); outline-offset: -1px; }
+.recording-player video:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.recording-player figcaption { margin-top: 14px; max-width: 72ch; color: var(--ink-3); font-size: 13px; line-height: 1.6; }
+.recording-transcript { margin-top: 8px; color: var(--ink-2); font-size: 14px; line-height: 1.7; }
+.recording-transcript summary { display: list-item; width: fit-content; min-height: 44px; padding: 10px 0; cursor: pointer; }
+.recording-transcript ol { max-width: 74ch; margin: 8px 0 0; padding-left: 22px; }
+.recording-transcript li + li { margin-top: 10px; }
+@media (max-width: 760px) {
+  .recording { margin-top: 36px; }
+  .recording-head { display: grid; gap: 10px; }
+  .recording-player video { border-radius: 8px; }
+}
+
 /* Three cards, like product tiles. */
 .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; max-width: 1080px; margin: 76px auto 0; padding: 0; list-style: none; }
 .card { display: flex; flex-direction: column; gap: 10px; min-height: 300px; padding: 26px; border-radius: 28px; background: #000; box-shadow: inset 0 0 0 1px var(--line); }

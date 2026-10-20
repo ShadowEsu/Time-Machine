@@ -84,3 +84,33 @@ Observed `PASS all rows`: eight pages at 1440 px, home and How it works at 390/3
 
 Keyboard testing then caught an introduced mobile comparison issue: at maximum scroll the sticky row heading covered the start of the final column (`stickyRight: 161`, `lastColumnLeft: 81.984375`). A failing geometry assertion is recorded in `table-before.json`. Mobile comparison columns now fit the space beside the sticky heading. After the fix, the same keyboard scenario reached maximum scroll with `stickyRight: 161`, `lastColumnLeft: 161`, assertion PASS and document overflow 0 (`table-after.json`, `local/table-scrolled-320-after.png`).
 The website refinement uses the existing Time Machine icon and self-hosted typography, neutral charcoal/white controls, tighter section rhythm, a labelled sideways-scrolling comparison with sticky row headings, and full-height footer lettering. It does not copy Claude or Unvibe assets. Local geometry evidence in `local-report.json`: document overflow 0, header overflow 0, footer lettering inside its footer at 1440, 390 and 320 px. Screenshots: `local/{home,table,footer,install}-{1440,390,320}.png`.
+
+## Quiet-instrument refinement
+
+The follow-on `polish/quiet-instrument-20261020` pass uses neutral light/dark surfaces, a smaller sans-serif navigation hierarchy, quieter borders and shadows, and a history-first initial view. Ask remains available from its visible button and shortcut rather than occupying a permanent column. Consent wording and recovery exclusions remain intact. `design/APP_V3_DIRECTION.md` records the rationale and distinguishes design hypotheses from user research.
+
+The actual source-built Electron app was rehearsed with an isolated synthetic Marigold Tips project. Thirteen axe WCAG AA rows passed with zero violations, horizontal overflow or renderer errors:
+
+- Broken at 1600 × 885, 1280 × 800 and 960 × 640, each in light and dark.
+- Ask opened at 1280 × 800.
+- Recovery review and completed recovery at 1280 × 800 light and 960 × 640 light/dark.
+
+The requested 1600 × 1000 window was clamped by the Mac display to 1600 × 885; the report records the actual viewport, not the requested size. Recovery created a separate local branch while the original project's branch, HEAD and working-tree status stayed unchanged.
+
+The first rehearsal caught two genuine accessibility regressions before acceptance. Muted light-theme text measured 4.36:1 on the sidebar and 4.12:1 on a selected surface; the shared caption token is now darker. At the minimum window size the recovery-limits pane scrolled without keyboard access; that labelled region is now focusable. The source-native smoke includes focus and Page Down assertions for this boundary. Failing-before reports and passing screenshots are retained in the release evidence.
+
+The updated full source-native smoke also exited 0, including the new minimum-window focus/Page Down scenario, nested-dialog focus return, recovery, source preservation, single-copy behavior, installed hook turns and shutdown cleanup. Evidence: `/var/folders/94/v27f7lmn4fjb1lvsswc4dk0c0000gn/T/tm-native-smoke-cLc1KZ`.
+
+### Real recovery recording
+
+`site/assets/demo/recovery.mp4` records the real Electron app from Broken through checked review to a completed recovery. The bundled project is synthetic; checks and recovery are real. The recording asserts the original project's branch, HEAD and working-tree status remain unchanged. It contains no inference, personal project or API credential.
+
+`ffprobe` reports H.264, 1280 × 800, yuv420p, 30 fps, 39.033 seconds, 603,523 bytes and no audio stream. The site provides seven English caption cues, a text transcript and native playback controls. It uses `preload="none"` and no autoplay. The poster and all refreshed story images come from this source-app acceptance run, not a website reconstruction.
+
+### Responsive recording-site acceptance
+
+Local playback passed at 1440, 768, 390 and 320 px. In each fresh browser context the MP4 was not requested before play; after play its current time advanced, seven caption cues loaded in `showing` mode, and no media error occurred. Keyboard activation opened the transcript. The footer wordmark stayed inside its footer, the comparison's final mobile column remained readable beside its sticky heading, and document overflow and renderer errors were zero.
+
+The WCAG AA pass again reported `PASS all rows`: eight pages at 1440 px, home and How it works at 390/320 px, plus home with normal motion. Every row had zero axe violations. A direct managed-browser inspection at 390 px also exercised the native play button and transcript; clicking the middle of the video itself did not start playback, while the visible native play control did.
+
+Three cold mobile LCP samples on the local server, using 150 ms latency, 1.6 Mbps download and 4× CPU slowdown, were 1,940, 1,704 and 1,856 ms. These are local measurements, not production-network evidence.

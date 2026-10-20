@@ -1044,7 +1044,7 @@ function timeView(): string {
       <button class="btn ghost" data-act="tv-exit" data-key="esc" ${r.recovering ? "disabled" : ""}>Back to now<kbd>Esc</kbd></button>
     </header>
     <div class="tv-body">
-      <section class="tv-read" aria-label="Selected save point">${pane.read}</section>
+      <section class="tv-read" aria-label="Selected save point" tabindex="0">${pane.read}</section>
       ${dialModule(pts, cur, still, pane.key, pane.alts)}
     </div>
     ${tvRuler(r, pts, cur)}
@@ -2739,7 +2739,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "history" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
     compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false,
-    askOpen: window.innerWidth >= 1100, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
+    askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, isolation: null, cleanup: null, hotkeyDraft: null, hotkeyActive: boot.data.hotkeyActive,
     hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
