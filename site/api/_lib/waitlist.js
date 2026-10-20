@@ -76,6 +76,33 @@ export function supabaseHeaders(env) {
   };
 }
 
+class BodyTooLarge extends Error {}
+
+// Stop reading at the limit even when a streaming request has no Content-Length.
+// Checking request.text() afterwards would already have buffered the entire attacker-controlled body.
+export async function readRequestBody(request, maxBytes) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        // Do not wait for the sender to finish before replying with 413.
+        void reader.cancel().catch(() => {});
+        throw new BodyTooLarge();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 // Reads a JSON object body of at most maxBytes. Returns { data } or { fail } with a ready reply.
 export async function readJsonObject(req, maxBytes) {
   const declared = Number(req.contentLength);
@@ -84,9 +111,11 @@ export async function readJsonObject(req, maxBytes) {
   }
   let text;
   try {
-    text = await req.readBody();
-  } catch {
-    return { fail: reply(400, { ok: false, error: "bad_request" }) };
+    text = await req.readBody(maxBytes);
+  } catch (err) {
+    return { fail: err instanceof BodyTooLarge
+      ? reply(413, { ok: false, error: "too_large" })
+      : reply(400, { ok: false, error: "bad_request" }) };
   }
   if (typeof text !== "string") return { fail: reply(400, { ok: false, error: "bad_request" }) };
   if (new TextEncoder().encode(text).length > maxBytes) {
@@ -105,9 +134,11 @@ export async function readJsonObject(req, maxBytes) {
 }
 
 const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+const RATE_LIMITED = Symbol("rate_limited");
+export const rateLimitReply = () => reply(429, { ok: false, error: "rate_limited" }, { "Retry-After": "60" });
 
-// Calls a Postgres function through PostgREST. Returns the parsed rows array, or null after logging
-// a safe line. Logs only an error name or status code: upstream messages can quote the email back.
+// Calls a Postgres function through PostgREST. Returns the parsed rows array, RATE_LIMITED,
+// or null after a safe log line. Upstream messages can quote the email back, so they are never logged.
 async function callRpc(name, args, deps, log) {
   let res;
   try {
@@ -121,6 +152,7 @@ async function callRpc(name, args, deps, log) {
     log("waitlist: upstream request failed");
     return null;
   }
+  if (res.status === 429) return RATE_LIMITED;
   if (!res.ok) {
     log(`waitlist: upstream returned status ${res.status}`);
     return null;
@@ -141,7 +173,7 @@ async function callRpc(name, args, deps, log) {
 /**
  * POST saves a pending signup. GET ?code= looks up a confirmed place in the list.
  * @param {{ method: string, origin?: string|null, host?: string|null, code?: string|null,
- *           contentLength?: string|null, readBody: () => Promise<string> }} req
+ *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void }} deps
  * @returns {Promise<{ status: number, headers: Record<string, string>, body: object }>}
@@ -175,6 +207,7 @@ export async function handleWaitlist(req, deps) {
   // A badly shaped ref is dropped here. An unknown or own code is dropped in SQL. Neither blocks the signup.
   const ref = typeof data.ref === "string" && CODE_RE.test(data.ref) ? data.ref : null;
   const rows = await callRpc("waitlist_join_pending", { p_email: email, p_source: cleanSource(data.source), p_ref: ref }, deps, log);
+  if (rows === RATE_LIMITED) return rateLimitReply();
   if (!rows) return reply(502, { ok: false, error: "upstream" });
   if (rows[0]?.saved !== true) {
     log("waitlist: upstream returned an unexpected shape");
@@ -192,6 +225,7 @@ async function handleStatus(req, deps, log) {
   if (!isConfigured(deps.env)) return reply(503, { ok: false, error: "not_configured" });
 
   const rows = await callRpc("waitlist_status", { p_code: code }, deps, log);
+  if (rows === RATE_LIMITED) return rateLimitReply();
   if (!rows) return reply(502, { ok: false, error: "upstream" });
   if (rows.length === 0) return reply(404, { ok: false, error: "not_found" });
   const { position, referrals, total } = rows[0] ?? {};

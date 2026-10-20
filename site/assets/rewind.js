@@ -123,7 +123,7 @@
 
   for (var i = 0; i < points.length; i++) {
     var checkpoint = checkpoints[Number(points[i].getAttribute("data-story-point"))];
-    points[i].setAttribute("aria-label", checkpoint.id + ", " + checkpoint.note + ", " + word(checkpoint));
+    points[i].setAttribute("aria-label", points[i].textContent.trim() + ", " + checkpoint.id + ", " + checkpoint.note + ", " + word(checkpoint));
     points[i].addEventListener("click", function () { userSelect(Number(this.getAttribute("data-story-point"))); });
   }
   play.addEventListener("click", playStory);

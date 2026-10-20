@@ -32,7 +32,7 @@ This build is not signed or notarized by Apple yet. macOS warns the first time y
 - In Finder, Control-click the app, choose Open, then choose Open again.
 - Or open System Settings, then Privacy & Security, scroll to the message about the app and click Open Anyway.
 
-Only do this for a build you got from the official GitHub repository, [ShadowEsu/Time-Machine](https://github.com/ShadowEsu/Time-Machine). Apple Developer ID signing and notarization are planned (D08). The welcome screen says this is not signed or notarized by Apple.
+Only do this for a build you got from the official GitHub repository, [ShadowEsu/Time-Machine](https://github.com/ShadowEsu/Time-Machine). Apple Developer ID signing and notarization are planned (D08). Until then, a downloaded `Time Machine.zip` is quarantined and Gatekeeper blocks the app; see [Before Apple notarization](#before-apple-notarization). The welcome screen says this is not signed or notarized by Apple.
 
 ## Local self-signed Mac package
 
@@ -47,6 +47,8 @@ pnpm --filter @timetm/desktop package:local
 The script builds `out/`, copies only that output and a minimal `package.json` to a temporary staging folder, and uses the exact `@electron/packager@19.0.1` and Electron version in this package. It does not package this checkout, `node_modules`, the store or signing material. The bundled engine and CLI are already in `out/`. The CLI stays unpacked because hooks run it through a real filesystem path.
 
 Output is `apps/desktop/release/Time Machine.app` and `apps/desktop/release/Time Machine.zip`. The script replaces only these two local artifacts. It does not install in `/Applications`, publish, enroll with Apple or notarize anything. The app keeps bundle ID `dev.timetm.desktop`; helper IDs stay under it.
+
+The app icon is drawn from code by `scripts/app-icon.mjs` (no image tools, fonts or network; same input, same bytes). `build.mjs` writes `out/icon.png` for unpackaged runs. `package:local` builds the `.icns`, sets the version and copyright in `Info.plist`, and fails if the bundle still carries Electron's icon. To look at every size: `node apps/desktop/scripts/app-icon.mjs <dir>`.
 
 `signing:setup` runs automatically when packaging. It makes **Time Machine Self Signed** once, in a dedicated `~/.timemachine-signing/signing.keychain-db`. Future builds unlock and reuse it. The same directory holds an encrypted private key (`private-key.pem`), certificate (`certificate.pem`), encrypted PKCS#12 backup (`identity.p12`) and password file (`password`). Its permissions are 0700, with files 0600. Back up the whole directory privately. Never commit or share it. Losing it means losing this signing identity. Setup resumes incomplete steps without replacing an existing key or certificate.
 
@@ -67,6 +69,16 @@ The first command must pass. The last is expected to reject this non-Apple-trust
 Exercised locally on 17 October 2026 (Apple silicon): two full packages reused the same certificate and had identical designated requirements. `codesign --verify --deep --strict` passed on the final app. Hardened runtime was present. `spctl` rejected it (exit 3), as expected for this signer.
 
 The packaged `.app` launched through its own executable with isolated HOME, TM_HOME and userData. The real-engine demo reached a passing version and made `tm/recover/cp-0003` in two clicks. The synthetic project kept the same branch, HEAD and working-tree status before and after recovery. The result showed what was not restored. No renderer page errors were observed. Evidence and screenshots: `/tmp/tm-pw/app-selfsigned/`. This did not exercise a quarantined download, Finder's first-open warning or privacy grant persistence.
+
+## Before Apple notarization
+
+Five things block a notarized build. All are open. Until they are done, a downloaded ZIP is Gatekeeper blocked.
+
+1. **Developer ID certificate.** A Developer ID Application certificate needs a paid Apple Developer Program team. Today `package:local` signs with the self-signed "Time Machine Self Signed" identity.
+2. **Notary credentials.** A `notarytool` credential profile on the signing Mac (`xcrun notarytool store-credentials`, with an app-specific password or an App Store Connect API key). None exists.
+3. **Secure timestamp.** `scripts/package-local.mjs` signs with `--timestamp=none`. Notarization needs a secure timestamp (`--timestamp`).
+4. **Library validation entitlement.** `scripts/entitlements.local.plist` sets `com.apple.security.cs.disable-library-validation` because a self-signed build has no Apple Team ID. For a Developer ID build, justify it or drop it.
+5. **Stapling.** After notarization succeeds, run `xcrun stapler staple` on the app, then rebuild the ZIP from the stapled app.
 
 ## What is built
 
@@ -156,5 +168,5 @@ src/preload/    The two narrow bridges (app window, overlay), contextIsolation a
 src/renderer/   Window code and styles, plain TypeScript and CSS
 src/shared/     IPC contract with Zod schemas, plain words, card copy, tm command mapping
 preview/        Browser preview entry and the in-memory demo engine
-scripts/        esbuild build script
+scripts/        esbuild build, app icon, local signing and packaging, native smoke
 ```

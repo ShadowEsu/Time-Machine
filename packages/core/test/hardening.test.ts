@@ -45,6 +45,18 @@ describe("security review fixes", () => {
     expect(r.checkpoint.coverage.manual.join("\n")).toContain("config/app.json");
   });
 
+  test("H2b a recovery of that save point lists the edit it could not bring back", async () => {
+    const { dir, ctx } = await setupDemo();
+    write(dir, "config/app.json", `{"key":"${FAKE_SECRET}"}\n`);
+    write(dir, ".npmrc", `//registry.npmjs.org/:_authToken=npm_${"a1B2".repeat(9)}\n`);
+    const r = await tm.checkpoint(ctx, { note: "secret in tracked file" });
+    const rec = await tm.recover(ctx, r.checkpoint.id);
+    const notRestored = rec.notRestored.join("\n");
+    expect(notRestored).toContain("config/app.json has uncommitted changes");
+    expect(notRestored).toContain(".npmrc is a secrets file by name");
+    expect(readFileSync(rec.reportPath, "utf8")).toContain("config/app.json has uncommitted changes");
+  });
+
   test("H3 secret files are skipped by name and by common patterns", async () => {
     const { dir, ctx } = await setupDemo();
     write(dir, ".env.local", "DB_PASSWORD=correct-horse-battery-staple\n");
@@ -171,5 +183,27 @@ describe("security review fixes", () => {
   test("H13 open --dir inside the project is refused", async () => {
     const { dir, ctx } = await setupDemo();
     await expect(tm.open(ctx, "cp-0001", { dir: "inside" })).rejects.toThrow(/inside the project/);
+  });
+});
+
+describe("repositories with nothing committed yet", () => {
+  test.each([["no first commit"], ["an empty first commit"]])("save, check and recover work with %s, and leave the folder alone", async (kind) => {
+    const root = tempDir("unborn");
+    const dir = join(root, "app");
+    mkdirSync(dir);
+    git(dir, "init", "-q", "-b", "main");
+    if (kind === "an empty first commit") git(dir, "commit", "-q", "--allow-empty", "-m", "init");
+    write(dir, "a.txt", "hello\n");
+    writeConfig(dir, { command: "test -f a.txt" });
+    const ctx: tm.Ctx = { cwd: dir, env: { ...process.env, TM_HOME: join(root, "store") } };
+    const status = git(dir, "status", "--porcelain");
+
+    const cp = await tm.checkpoint(ctx, { note: kind });
+    expect((await tm.verify(ctx, cp.checkpoint.id)).verdict).toBe("PASS");
+    const r = await tm.recover(ctx, cp.checkpoint.id);
+
+    expect(readFileSync(join(r.copyDir, "a.txt"), "utf8")).toBe("hello\n");
+    expect(git(dir, "status", "--porcelain")).toBe(status);
+    expect(git(dir, "symbolic-ref", "HEAD")).toBe("refs/heads/main");
   });
 });

@@ -484,11 +484,13 @@
 
   /* ---------- small things that play once ---------- */
   const vs = $(".vs"), testsN = $("#testsN");
+  // The count lives in the HTML only, so the animation can never end on a stale number.
+  const testsTotal = testsN.textContent.trim();
   if ("IntersectionObserver" in window) {
     let countRaf = 0;
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (!e.isIntersecting) {
-        if (e.target === testsN && countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = "228"; io.unobserve(testsN); }
+        if (e.target === testsN && countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = testsTotal; io.unobserve(testsN); }
         return;
       }
       if (e.target === vs) { vs.classList.add("in"); io.unobserve(vs); }
@@ -497,9 +499,9 @@
         const t0 = performance.now();
         const step = (now) => {
           const k = clamp((now - t0) / 1100);
-          testsN.textContent = String(Math.round(228 * (1 - Math.pow(1 - k, 3))));
+          testsN.textContent = String(Math.round(Number(testsTotal) * (1 - Math.pow(1 - k, 3))));
           if (k < 1 && !document.hidden) countRaf = requestAnimationFrame(step);
-          else { countRaf = 0; testsN.textContent = "228"; io.unobserve(testsN); }
+          else { countRaf = 0; testsN.textContent = testsTotal; io.unobserve(testsN); }
         };
         countRaf = requestAnimationFrame(step);
       }
@@ -513,7 +515,7 @@
     if (document.hidden) {
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
-      if (countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = "228"; }
+      if (countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = testsTotal; }
     } else req();
   });
   addEventListener("resize", () => { measure(); lastProof = -1; ladderP = -1; req(); });

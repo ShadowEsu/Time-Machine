@@ -20,12 +20,12 @@ Date: 15 October 2026. Status: accepted, pending founder setup. The code is buil
 2. **Create the table.** In the SQL editor, paste all of `supabase/migrations/0001_waitlist.sql` and run it. Or run `supabase db push` after `supabase link`. The file is safe to run twice.
 3. **Add two settings in Vercel** for the project `time-machine-site`, under Settings, then Environment Variables: `SUPABASE_URL` (the Project URL) and `SUPABASE_KEY` (the secret key). Then redeploy.
 
-Check it: `/api/health` should return `{"ok":true,"waitlist":true}`. Then sign up with your own email and look for the row in Table Editor. Full steps are in `supabase/README.md`.
+Check it: `/api/health` should return `{"ok":true,"waitlist":true,"database":"reachable","email":false}` (see the 19 October addendum). Then sign up with your own email and look for the row in `tm_waitlist.waitlist`. Full steps are in `supabase/README.md`.
 
 ## Deleting data
 
-- **One person:** run `delete from public.waitlist where email_normalized = lower(trim('person@example.com'));` in the SQL editor.
-- **Everyone:** run `truncate public.waitlist;`, or delete the Supabase project.
+- **One person:** run `delete from tm_waitlist.waitlist where email_normalized = lower(trim('person@example.com'));` in the SQL editor.
+- **Everyone:** run `truncate tm_waitlist.waitlist;`. Do not delete the Supabase project: it is the shared `jaymini-prod` project (see the 18 October addendum).
 - **Stop collecting:** remove the two Vercel settings and redeploy. The form goes back to asking people to email the founder.
 
 The Privacy draft (`docs/legal/PRIVACY.md`) keeps waitlist emails until the person unsubscribes, or until 6 months after launch if they do not sign up.
@@ -45,7 +45,7 @@ The Privacy draft (`docs/legal/PRIVACY.md`) keeps waitlist emails until the pers
 
 ## Migration path
 
-Export the table to CSV from Table Editor, or run `select email, source, created_at from public.waitlist order by created_at;`. Any Postgres or email tool can take that file. The function makes one REST insert, so moving to another store means changing one URL and one header.
+Export the table to CSV from Table Editor, or run `select email, source, created_at from tm_waitlist.waitlist order by created_at;`. Any Postgres or email tool can take that file. The function makes one REST call, so moving to another store means changing one URL and one header.
 
 ## Addendum, 18 October 2026
 
@@ -54,3 +54,9 @@ Export the table to CSV from Table Editor, or run `select email, source, created
 - Places in line, totals and referral credit count only rows with `confirmed_at` set and `unsubscribed_at` empty. Nothing on the site confirms a row today, so nobody sees a place yet.
 - Also stored: a referral code per row, the code that brought the person (if any), and anonymous daily visit counts in `funnel_events`. Migrations 0002 and 0003; combined SQL in `docs/launch/SUPABASE_SETUP.md`.
 - **Shared project, separate schema (founder decision, 18 Oct).** The free Supabase organization was at its 2-project limit, so the waitlist lives in `jaymini-prod`, schema `tm_waitlist`. The site holds the anon key (`SUPABASE_KEY`), which can call only `waitlist_join_pending`, `waitlist_status` and `funnel_event_add` (security definer, empty search path) and cannot read any table. Cost: Time Machine depends on Jaymini's project staying active, and both share its limits. Migration path: run the same four migrations in a dedicated project, export `tm_waitlist.waitlist`, change two Vercel settings.
+
+## Addendum, 19 October 2026
+
+- `/api/health` used to say `waitlist: true` whenever both settings were present, even if the key was wrong or the project was paused. It now also reports `database`: `reachable` only after a read-only `waitlist_status` call with a code that matches nobody succeeds, else `unreachable` or `not_configured`. Normal page loads share a 30-second Vercel CDN answer instead of each probing the database. The forms show a "may not save right now" line when `database` is `unreachable`; a real signup answer still replaces it.
+- Built today: pending signups only. A signup gets no code back, so the site has no share link, place in line or referral credit yet. `waitlist_status` and the stored referral columns wait for a confirmation flow that is not decided.
+- Migration `0005_bounded_public_rpcs.sql` bounds the public writers inside the database: 60 signup calls/minute, 1,000/hour and 300 events/minute, with serialized indexed counts and HTTP 429 at capacity. Signup calls are counted as bare timestamps, so a duplicate email costs the same slot as a new one and the cap is no membership test. The site keeps the email and shows a retry message. Direct RPC event callers get the same strict type/path checks as the API, and each accepted event removes at most 500 event rows older than 90 days. No new service or IP tracking. Rollback SQL is in `supabase/README.md`.

@@ -1,7 +1,7 @@
 // Real packaged-app regression, macOS only. Run package:local first. No network or real projects.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,11 +9,12 @@ import { _electron as electron } from "playwright-core";
 
 const work = mkdtempSync(join(tmpdir(), "tm-native-smoke-"));
 for (const part of ["home", "tmp", "userData"]) mkdirSync(join(work, part));
-const app = await electron.launch({
-  executablePath: resolve(dirname(fileURLToPath(import.meta.url)), "../release/Time Machine.app/Contents/MacOS/Time Machine"),
-  args: [],
-  env: { ...process.env, HOME: join(work, "home"), TM_HOME: join(work, "store"), TMPDIR: join(work, "tmp"), TM_DESKTOP_USER_DATA: join(work, "userData"), TM_DESKTOP_TEST: "1" },
-});
+const executablePath = resolve(dirname(fileURLToPath(import.meta.url)), "../release/Time Machine.app/Contents/MacOS/Time Machine");
+// Keys and a hook command from this shell must not reach the app: the run stays offline and isolated.
+const env = { ...process.env, HOME: join(work, "home"), TM_HOME: join(work, "store"), TMPDIR: join(work, "tmp"), TM_DESKTOP_USER_DATA: join(work, "userData"), TM_DESKTOP_TEST: "1" };
+for (const name of ["GEMINI_API_KEY", "VERCEL_TOKEN", "TM_HOOK_COMMAND"]) delete env[name];
+const app = await electron.launch({ executablePath, args: [], env });
+let closed = false;
 try {
   const page = await app.firstWindow();
   const errors = [];
@@ -62,7 +63,46 @@ try {
   assert.match(await page.locator("#app-announcements").innerText(), /is back/);
   assert.deepEqual(errors, []);
   await page.screenshot({ path: join(work, "recovery.png") });
-  console.log(`PASS: demo Broken state, modal focus, nested focus return, persistent announcements, recovery and untouched source. Evidence: ${work}`);
-} finally {
+
+  // A second launch with the same data hands over to the running copy and exits.
+  const second = spawnSync(executablePath, [], { env, timeout: 30000 });
+  assert.equal(second.status, 0, `A second copy must exit at once (status ${second.status}, signal ${second.signal})`);
+  assert(!page.isClosed(), "The first copy must keep running");
+
+  // A save point made from the terminal shows up in the open window by itself, without a reload.
+  await page.keyboard.press("Escape");
+  writeFileSync(join(projects[0].path, "terminal-note.txt"), "saved from the terminal\n");
+  const cli = resolve(dirname(fileURLToPath(import.meta.url)), "../../../packages/cli/dist/tm.js");
+  const made = JSON.parse(execFileSync(process.execPath, [cli, "checkpoint", "-m", "Saved from the terminal", "--json"], { cwd: projects[0].path, env, encoding: "utf8" }));
+  const liveId = made.checkpoint.id;
+  await page.waitForSelector(`#e-${liveId}`, { timeout: 15000 });
+  assert.match(await page.locator(`#e-${liveId}`).innerText(), /Saved from the terminal/);
+  await page.screenshot({ path: join(work, "live-update.png") });
+
+  // Quitting while a check runs stops the check and removes its temporary copy.
+  const slow = `sleep ${4000 + Math.floor(Math.random() * 900)}`;
+  const running = () => {
+    try {
+      return execFileSync("pgrep", ["-f", slow], { encoding: "utf8" }).trim();
+    } catch {
+      return "";
+    }
+  };
+  const call = c => page.evaluate(c => window.tm.call(c), c);
+  assert((await call({ method: "setCheck", projectId: projects[0].id, command: slow })).ok);
+  const saved = await call({ method: "checkpoint", projectId: projects[0].id, note: "Smoke: slow check" });
+  assert(saved.ok, JSON.stringify(saved));
+  void call({ method: "verify", projectId: projects[0].id, id: saved.data.checkpoint.id }).catch(() => {});
+  for (let i = 0; i < 100 && !running(); i++) await new Promise(r => setTimeout(r, 100));
+  assert(running(), "The slow check must start");
+  closed = true;
   await app.close();
+  for (let i = 0; i < 40 && running(); i++) await new Promise(r => setTimeout(r, 100));
+  const left = running();
+  if (left) execFileSync("pkill", ["-f", slow]);
+  assert.equal(left, "", "Quitting must stop a running check");
+  assert.deepEqual(readdirSync(join(work, "tmp")).filter(n => n.startsWith("tm-verify-")), [], "Quitting must remove the check's temporary copy");
+  console.log(`PASS: demo Broken state, modal focus, nested focus return, persistent announcements, recovery, untouched source, single copy, terminal save point shown live, and no check left after quit. Evidence: ${work}`);
+} finally {
+  if (!closed) await app.close();
 }

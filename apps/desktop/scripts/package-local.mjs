@@ -4,6 +4,7 @@ import { closeSync, cpSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFil
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { iconIcns } from "./app-icon.mjs";
 import { ensureSigningIdentity } from "./setup-signing.mjs";
 
 const here = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -14,6 +15,8 @@ const entitlements = join(here, "scripts/entitlements.local.plist");
 const bundleId = "dev.timetm.desktop";
 const identity = ensureSigningIdentity();
 const meta = JSON.parse(readFileSync(join(here, "package.json"), "utf8"));
+const copyright = readFileSync(join(here, "../../LICENSE"), "utf8").match(/^Copyright .+$/m)?.[0];
+if (!copyright) throw new Error("No copyright line in LICENSE");
 
 function run(command, args) {
   const r = spawnSync(command, args, { cwd: here, encoding: "utf8", stdio: "inherit" });
@@ -27,11 +30,21 @@ try {
   mkdirSync(stage);
   cpSync(join(here, "out"), join(stage, "out"), { recursive: true });
   writeFileSync(join(stage, "package.json"), JSON.stringify({ name: "timetm-desktop", productName: "Time Machine", version: meta.version, main: "out/main.cjs", license: "MIT" }));
+  // Dock, Finder and About icon, drawn by app-icon.mjs. Without it the app shows Electron's icon.
+  const icon = iconIcns();
+  const iconPath = join(temp, "Time Machine.icns");
+  writeFileSync(iconPath, icon);
   // Exact tool and Electron versions. Only bundled output and minimal metadata go into the app.
   // Do not use asar: the bundled CLI is run by Electron's Node through an absolute filesystem path.
   run("pnpm", ["dlx", "@electron/packager@19.0.1", stage, "Time Machine", "--platform=darwin", `--arch=${process.arch}`, `--electron-version=${meta.devDependencies.electron}`,
-    `--app-bundle-id=${bundleId}`, `--helper-bundle-id=${bundleId}.helper`, "--app-category-type=public.app-category.developer-tools", "--darwin-dark-mode-support", "--no-asar", "--no-prune", `--out=${join(temp, "packed")}`]);
+    `--app-bundle-id=${bundleId}`, `--helper-bundle-id=${bundleId}.helper`, "--app-category-type=public.app-category.developer-tools", "--darwin-dark-mode-support", "--no-asar", "--no-prune",
+    `--icon=${iconPath}`, `--app-version=${meta.version}`, `--build-version=${meta.version}`, `--app-copyright=${copyright}. MIT License.`, `--out=${join(temp, "packed")}`]);
   const built = join(temp, "packed", `Time Machine-darwin-${process.arch}`, "Time Machine.app");
+  // The bundle must name our icon in Info.plist and carry exactly these bytes.
+  const plist = spawnSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(built, "Contents/Info.plist")], { encoding: "utf8" });
+  const iconFile = plist.status === 0 ? plist.stdout.trim() : "";
+  const bundled = iconFile && join(built, "Contents/Resources", iconFile.endsWith(".icns") ? iconFile : `${iconFile}.icns`);
+  if (!bundled || !readFileSync(bundled).equals(icon)) throw new Error(`The app bundle does not use the Time Machine icon (CFBundleIconFile: ${iconFile || "missing"}).`);
   const code = [];
   const bundles = [];
   const magic = new Set([0xfeedface, 0xcefaedfe, 0xfeedfacf, 0xcffaedfe, 0xcafebabe, 0xbebafeca, 0xcafebabf, 0xbfbafeca]);

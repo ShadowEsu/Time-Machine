@@ -1,7 +1,7 @@
 // Runs validated calls against the one engine, @timetm/core. The CLI calls the same
 // functions, so the app and the CLI can never disagree.
 import { randomUUID } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, opendirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import * as tm from "@timetm/core";
@@ -87,6 +87,13 @@ export class Engine {
 
   async addProject(path: string, demo = false): Promise<ProjectEntry> {
     if (!existsSync(path) || !statSync(path).isDirectory()) throw new tm.TmError("usage", "That folder does not exist.");
+    // Without this, a folder macOS keeps from the app (Documents, Desktop, an external disk) or
+    // one with no read permission would be reported as "not inside a Git repository".
+    try {
+      opendirSync(path).closeSync();
+    } catch {
+      throw new tm.TmError("usage", `Time Machine can't read ${path}. Allow Time Machine in System Settings, Privacy & Security, Files and Folders, or check the folder's permissions, then try again.`);
+    }
     // The engine resolves the Git root, so the app and the CLI agree on which project this is.
     const root = (await tm.timeline({ cwd: path, env: process.env })).project;
     const existing = this.state.projects.find((p) => p.path === root);

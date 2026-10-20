@@ -5,7 +5,7 @@ import { checkpoint, NOT_CAPTURED } from "./checkpoint.js";
 import { TmError } from "./errors.js";
 import type { Manifest } from "./manifest.js";
 import { git, gitTry, short, splitZ } from "./git.js";
-import { checkRef, materialize } from "./materialize.js";
+import { checkRef, materialize, type Materialized } from "./materialize.js";
 import { resolveProject, type Project } from "./project.js";
 import { ensureStore, readManifest, sha256, stamp } from "./store.js";
 import type { Ctx, RecoverResult, UndoRecoverResult } from "./types.js";
@@ -42,11 +42,28 @@ export async function recover(ctx: Ctx, id: string): Promise<RecoverResult> {
   const branch = freeBranch(p, `tm/recover/${id}`);
   git(p.root, p.env, ["branch", branch, m.git.snapshot]);
   const copyDir = freeDir(join(dirname(p.root), `${basename(p.root)}-recovered-${id}`));
-  const r = materialize(p, m, copyDir, { branch });
+  let r: Materialized;
+  try {
+    r = materialize(p, m, copyDir, { branch });
+  } catch (e) {
+    // The copy could not be built and materialize already removed it. Remove the branch this
+    // attempt made too, only while no worktree has it and it still points where it was made.
+    // Best effort: if Git cannot list worktrees, the branch stays and the reason the copy failed is reported.
+    try {
+      gitTry(p.root, p.env, ["worktree", "prune"]);
+      if (!worktrees(p).some((w) => w.branch === `refs/heads/${branch}`)) gitTry(p.root, p.env, ["update-ref", "-d", `refs/heads/${branch}`, m.git.snapshot]);
+    } catch {
+      // keep the original error
+    }
+    throw e;
+  }
 
   const last = latestVerdicts(p).get(id) ?? null;
+  // Everything the save point could not bring back: secret values, edits and files kept out
+  // because they looked secret, ignored folders, and anything missing from the store.
   const secretLines = m.coverage.manual.filter((x) => x.startsWith("Secret values"));
-  const notRestored = [...secretLines, ...m.coverage.manual.filter((x) => x.includes("looks like it contains a secret")), ...m.coverage.missing, ...r.missing.map((f) => `${f} (its saved copy is missing)`), NOT_CAPTURED];
+  const otherManual = m.coverage.manual.filter((x) => !x.startsWith("Secret values") && x !== NOT_CAPTURED);
+  const notRestored = [...secretLines, ...otherManual, ...m.coverage.missing, ...r.missing.map((f) => `${f} (its saved copy is missing)`), NOT_CAPTURED];
   if (!secretLines.length) notRestored.unshift("Secret values: none were recorded");
   const manualSteps = [
     ...r.manual.map((s) => `${s} in the recovery copy.`),
@@ -125,7 +142,10 @@ function changesInCopy(p: Project, copyDir: string, m: Manifest): string[] {
     const plain = c.keys.filter((k) => k.kind === "plain" && k.value !== undefined);
     if (plain.length) written.set(c.file, sha256(plain.map((k) => `${k.name}=${k.value ?? ""}`).join("\n") + "\n"));
   }
-  const fields = splitZ(git(copyDir, p.env, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]));
+  // Raw output: trimming would eat the leading space of the first " M path" entry.
+  const st = gitTry(copyDir, p.env, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]);
+  if (st.code !== 0) throw new TmError("internal", `git status failed: ${st.stderr.trim()}`);
+  const fields = splitZ(st.stdout);
   const changed: string[] = [];
   // Ignored files (an install, a build) are named by their top folder, first, not one by one.
   const ignoredDirs: string[] = [];
@@ -134,7 +154,8 @@ function changesInCopy(p: Project, copyDir: string, m: Manifest): string[] {
     const xy = f.slice(0, 2);
     const path = f.slice(3);
     if (/[RC]/.test(xy)) i++; // a rename or copy carries its old path next
-    if (xy === "??" || xy === "!!") {
+    // Files Time Machine wrote, including a tracked config file it rewrote with the plain values.
+    if (xy === "??" || xy === "!!" || xy === " M") {
       const want = written.get(path);
       try {
         if (want && sha256(readFileSync(join(copyDir, path))) === want) continue;
@@ -176,7 +197,9 @@ export async function undoRecover(ctx: Ctx, opts: { id: string; branch: string; 
   const copy = trees.find((w) => w.dir === real(copyDir));
   if (copy && copy.branch !== ref) throw new TmError("usage", `${copyDir} is not the recovery copy for ${branch}, so it was left alone.`);
   if (!copy && existsSync(copyDir)) throw new TmError("usage", `${copyDir} is not a recovery copy Time Machine made, so it was left alone.`);
-  if (copy) {
+  // A copy the person already deleted by hand has no work left in it: Git only still lists it.
+  const removeCopy = copy !== undefined && existsSync(copyDir);
+  if (removeCopy) {
     const changed = changesInCopy(p, copyDir, m);
     if (changed.length) {
       const shown = changed.slice(0, 3).join(", ") + (changed.length > 3 ? ` and ${changed.length - 3} more` : "");
@@ -186,6 +209,6 @@ export async function undoRecover(ctx: Ctx, opts: { id: string; branch: string; 
   }
   gitTry(p.root, p.env, ["worktree", "prune"]);
   git(p.root, p.env, ["branch", "-D", branch]);
-  audit(p, "undo-recover", opts.id, `removed branch ${branch}${copy ? " and its recovery copy" : ""}`);
-  return { id: opts.id, removedBranch: branch, removedCopy: copy ? copyDir : null };
+  audit(p, "undo-recover", opts.id, `removed branch ${branch}${removeCopy ? " and its recovery copy" : ""}`);
+  return { id: opts.id, removedBranch: branch, removedCopy: removeCopy ? copyDir : null };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES } from "./waitlist.js";
+import { handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody } from "./waitlist.js";
 
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
@@ -169,6 +169,37 @@ describe("waitlist handler", () => {
       expect(isConfigured(env)).toBe(false);
     }
     expect(isConfigured(ENV)).toBe(true);
+  });
+
+  it("stops a body without Content-Length at the byte limit instead of buffering it all", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_BODY_BYTES + 1));
+        // The sender never finishes. The handler must cancel and reply without waiting for EOF.
+      },
+      cancel,
+    });
+    const { fetch, deps } = setup();
+    const req = request("", {
+      contentLength: null,
+      readBody: (maxBytes) => readRequestBody({ body }, maxBytes),
+    });
+    const result = await handleWaitlist(req, deps);
+    expect(result.status).toBe(413);
+    expect(result.body).toEqual({ ok: false, error: "too_large" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns a retryable 429 instead of false success or a generic database error at capacity", async () => {
+    const { deps } = setup({ response: () => json({ code: "PT429", message: "rate_limited" }, 429) });
+    const result = await handleWaitlist(request(good), deps);
+    expect(result).toEqual({
+      status: 429,
+      headers: { "Retry-After": "60" },
+      body: { ok: false, error: "rate_limited" },
+    });
   });
 
   it("returns 502 upstream when Supabase fails or is unreachable", async () => {

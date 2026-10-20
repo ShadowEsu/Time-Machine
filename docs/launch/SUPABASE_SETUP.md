@@ -18,7 +18,7 @@ Each signup is saved as pending and unconfirmed. The site sends no email. Pendin
 
 ## 1. Create the schema and functions
 
-Run this in the Supabase **SQL Editor** of the project. It is safe to run more than once and changes no signups. It is the four files in `supabase/migrations`, in order.
+Run this in the Supabase **SQL Editor** of the project. It is safe to run more than once and changes no signups. This block combines migrations `0001` through `0004`; apply `0005` separately as described below.
 
 ```sql
 -- Time Machine waitlist.
@@ -393,6 +393,8 @@ revoke all on all tables in schema tm_waitlist from anon, authenticated;
 notify pgrst, 'reload schema';
 ```
 
+Then run [`supabase/migrations/0005_bounded_public_rpcs.sql`](../../supabase/migrations/0005_bounded_public_rpcs.sql) to bound the public writers: 60 signup calls/minute, 1,000/hour, 300 events/minute, strict event paths and batched removal of event rows older than 90 days. The caps are global, enforced inside the RPCs even for direct PostgREST callers, and return `429 rate_limited` when full. New and duplicate emails count the same, so the cap reveals nothing about who signed up. Signatures and grants stay the same. Review the [rollback SQL](../../supabase/README.md#public-rpc-limits-and-rollback) before applying.
+
 ## 2. Let the API see the schema
 
 In the project, open **Project Settings**, **Data API**, and add `tm_waitlist` to **Exposed schemas** (keep `public` and `graphql_public`). Without this, the site gets an error when it saves.
@@ -408,7 +410,7 @@ Redeploy after changing either. The site sends every call with the `tm_waitlist`
 
 ## 4. Check it works
 
-1. Open https://time-machine-site.vercel.app/api/health. It should show `{"ok":true,"waitlist":true,"email":false}`.
+1. Open https://time-machine-site.vercel.app/api/health. It should show `{"ok":true,"waitlist":true,"database":"reachable","email":false}`. `database` comes from a real read-only call and can lag up to 30 seconds behind (CDN cache). `unreachable` means a wrong key, a missing grant or a paused project.
 2. Sign up on the live site with a `+test` address. The form should say the signup is saved and pending.
 3. In the SQL Editor, run `select email, source, created_at from tm_waitlist.waitlist order by created_at desc limit 5;` and see the row. Delete test rows with the query in the next section.
 

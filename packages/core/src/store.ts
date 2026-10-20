@@ -1,7 +1,9 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
+import { hostname } from "node:os";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { z } from "zod";
 import { TmError } from "./errors.js";
 import { ManifestSchema, type Manifest } from "./manifest.js";
 import type { Project } from "./project.js";
@@ -150,28 +152,109 @@ export function readJsonl(path: string): unknown[] {
     });
 }
 
+const LOCK_MAX_AGE_MS = 120_000;
+
+/** Written to lock/owner right after the lock is taken, so a waiter can tell a crashed holder from a busy one. */
+const LockOwnerSchema = z.object({ pid: z.number().int().positive(), host: z.string(), token: z.string().min(1) });
+
+function readLockOwner(dir: string): z.infer<typeof LockOwnerSchema> | undefined {
+  try {
+    const r = LockOwnerSchema.safeParse(JSON.parse(readFileSync(join(dir, "owner"), "utf8")));
+    return r.success ? r.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // EPERM: the process exists but belongs to someone else.
+    return (e as NodeJS.ErrnoException).code !== "ESRCH";
+  }
+}
+
+/**
+ * Whether a lock may be taken over, and the owner token seen at the time.
+ * Only a holder on this machine whose process is gone is taken over at once. A lock with no owner
+ * file (an older version, or a crash before the owner was written) or from another machine waits
+ * out the two minute rule.
+ */
+function staleLock(dir: string): { token: string | undefined } | undefined {
+  const owner = readLockOwner(dir);
+  if (owner && owner.host === hostname() && !pidAlive(owner.pid)) return { token: owner.token };
+  try {
+    if (Date.now() - statSync(dir).mtimeMs > LOCK_MAX_AGE_MS) return { token: owner?.token };
+  } catch {
+    // The lock went away between calls.
+  }
+  return undefined;
+}
+
+/**
+ * Removes a stale lock without racing other waiters: move it aside first, then delete it only if it is
+ * still the stale lock we looked at. If another command took the lock in between, put it back.
+ */
+function reclaimStaleLock(lock: string): void {
+  const seen = staleLock(lock);
+  if (!seen) return;
+  const aside = `${lock}.stale-${randomBytes(8).toString("hex")}`;
+  try {
+    renameSync(lock, aside);
+  } catch {
+    return; // Someone else moved or removed it first.
+  }
+  const moved = staleLock(aside);
+  if (moved && moved.token === seen.token) {
+    rmSync(aside, { recursive: true, force: true });
+    return;
+  }
+  try {
+    renameSync(aside, lock);
+  } catch {
+    // Another command took the lock in this tiny window, so the one we moved cannot go back. Its holder
+    // will not find its token on release and leaves the new lock alone; drop the moved copy so it does not pile up.
+    rmSync(aside, { recursive: true, force: true });
+  }
+}
+
 /** A simple cross-process lock so two checkpoints never take the same ID. */
 export async function withLock<T>(p: Project, fn: () => Promise<T>): Promise<T> {
   const lock = join(p.store, "lock");
+  const token = randomBytes(16).toString("hex");
   const deadline = Date.now() + 30_000;
   for (;;) {
-    try {
-      mkdirSync(lock);
-      break;
-    } catch {
-      try {
-        if (Date.now() - statSync(lock).mtimeMs > 120_000) rmSync(lock, { recursive: true, force: true });
-      } catch {
-        // The lock went away between calls. Try again.
-      }
-      if (Date.now() > deadline) throw new TmError("internal", "Another Time Machine command is still saving. Try again in a moment.");
-      await new Promise((r) => setTimeout(r, 50));
-    }
+    if (takeLock(lock, token)) break;
+    reclaimStaleLock(lock);
+    if (Date.now() > deadline) throw new TmError("internal", "Another Time Machine command is still saving. Try again in a moment.");
+    await new Promise((r) => setTimeout(r, 50));
   }
   try {
     return await fn();
   } finally {
+    // If the lock was taken over while we ran, it is someone else's now. Leave it.
+    if (readLockOwner(lock)?.token === token) rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+function takeLock(lock: string, token: string): boolean {
+  try {
+    mkdirSync(lock);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw e;
+  }
+  try {
+    writeFileSync(join(lock, "owner"), JSON.stringify({ pid: process.pid, host: hostname(), token }), { flag: "wx" });
+    return true;
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    // A waiter moved our fresh folder aside, or put an older lock back over it. We do not hold the lock.
+    if (code === "ENOENT" || code === "EEXIST") return false;
     rmSync(lock, { recursive: true, force: true });
+    throw e;
   }
 }
 
