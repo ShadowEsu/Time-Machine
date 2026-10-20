@@ -15,10 +15,11 @@ Each signup is saved as pending and unconfirmed. The site sends no email. Pendin
 - **Each signup:** the email, the consent tick, the page they signed up from, the time, their own referral code, the referral code that brought them (if any), and confirmation and unsubscribe times. Both times stay empty for a site signup.
 - **Funnel counts:** the event type (visit, share or copy), the page path, whether the visit came from a referral link, and the time. No email and no code.
 - **Never stored:** IP addresses, browser details, cookies, tokens.
+- **Abuse controls:** a code derived from the IP using HMAC, the endpoint bucket and the time. Only the last hour counts. Older codes are removed in batches during later accepted requests, not on a schedule. No raw IP reaches Supabase.
 
 ## 1. Create the schema and functions
 
-Run this in the Supabase **SQL Editor** of the project. It is safe to run more than once and changes no signups. This block combines migrations `0001` through `0004`; apply `0005` separately as described below.
+Run this in the Supabase **SQL Editor** of the project. This block combines migrations `0001` through `0004`; then apply `0005` and `0006` separately as described below. On a database already running `0006`, do not rerun older migrations because they recreate obsolete function signatures.
 
 ```sql
 -- Time Machine waitlist.
@@ -394,6 +395,11 @@ notify pgrst, 'reload schema';
 ```
 
 Then run [`supabase/migrations/0005_bounded_public_rpcs.sql`](../../supabase/migrations/0005_bounded_public_rpcs.sql) to bound the public writers: 60 signup calls/minute, 1,000/hour, 300 events/minute, strict event paths and batched removal of event rows older than 90 days. The caps are global, enforced inside the RPCs even for direct PostgREST callers, and return `429 rate_limited` when full. New and duplicate emails count the same, so the cap reveals nothing about who signed up. Signatures and grants stay the same. Review the [rollback SQL](../../supabase/README.md#public-rpc-limits-and-rollback) before applying.
+
+Next run [`supabase/migrations/0006_per_client_limits.sql`](../../supabase/migrations/0006_per_client_limits.sql) **before** deploying the site API that sends `p_client`. Per client: 5 signup calls/minute and 20/hour, 30 status lookups/minute, 60 events/minute. The API derives a 22-character HMAC code from Vercel's client IP using `SUPABASE_KEY`; it sends only that code to Supabase. New and duplicate signups use the same quota. Over quota returns `429 rate_limited` with `Retry-After: 60`. Counts and inserts run under transaction advisory locks. The `client_calls` table has RLS enabled and no public grants.
+
+The new optional parameter lets the old API keep working during rollout. A missing IP skips the per-client bucket. Direct PostgREST callers can omit or forge the parameter; the global `0005` caps still bind them. Unkeyed health lookups remain read-only. To roll back the API, redeploy its previous version and keep `0006` installed. See [RPC limits and rollback](../../supabase/README.md#public-rpc-limits-and-rollback).
+
 
 ## 2. Let the API see the schema
 

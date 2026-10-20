@@ -1,7 +1,8 @@
 // Funnel event handler core. Pure: no Vercel, no globals. Fetch, env and log are injected.
 // Stores only the event type, the page path, a via-referral flag, and the time (set by Postgres).
-// No IP, no user agent, no cookies, no email, no referral code.
-import { isAllowedOrigin, isConfigured, rateLimitReply, readJsonObject, reply, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
+// No IP, no user agent, no cookies, no email, no referral code. A one-way per-client code goes to the
+// database rate limit only (see 0006_per_client_limits.sql), never into funnel_events.
+import { clientId, isAllowedOrigin, isConfigured, rateLimitReply, readJsonObject, reply, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
 
 export const MAX_EVENT_BYTES = 1024;
 const UPSTREAM_TIMEOUT_MS = 3000;
@@ -10,7 +11,7 @@ const TYPES = new Set(["visit", "share", "copy"]);
 const PATH_RE = /^\/[A-Za-z0-9._~\/-]{0,199}$/;
 
 /**
- * @param {{ method: string, origin?: string|null, host?: string|null,
+ * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null,
  *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void }} deps
@@ -40,7 +41,12 @@ export async function handleEvent(req, deps) {
     res = await deps.fetch(`${supabaseOrigin(deps.env)}/rest/v1/rpc/funnel_event_add`, {
       method: "POST",
       headers: supabaseHeaders(deps.env),
-      body: JSON.stringify({ p_type: data.type, p_path: data.path, p_via_ref: data.via === "ref" }),
+      body: JSON.stringify({
+        p_type: data.type,
+        p_path: data.path,
+        p_via_ref: data.via === "ref",
+        p_client: clientId(req.ip, deps.env.SUPABASE_KEY),
+      }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch (err) {

@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "../waitlist.js";
-import { handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody } from "./waitlist.js";
+import { clientId, clientIp, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody } from "./waitlist.js";
 
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
 const NORMALIZED = "synthetic.person+tm@example.test";
 const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_KEY: "fake-service-role-key-123" };
 const HOST = "timemachine.example.test";
+// Documentation addresses only (RFC 5737, RFC 3849).
+const IP = "203.0.113.7";
+const OTHER_IP = "198.51.100.23";
 
 function request(body, overrides = {}) {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -45,7 +48,7 @@ describe("waitlist handler", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_KEY}`);
-    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null });
+    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null, p_client: null });
   });
 
   it("passes a well formed ref code to Supabase", async () => {
@@ -303,7 +306,7 @@ describe("waitlist status lookup", () => {
     expect(url).toBe("https://fake-project.supabase.test/rest/v1/rpc/waitlist_status");
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
-    expect(JSON.parse(init.body)).toEqual({ p_code: CODE });
+    expect(JSON.parse(init.body)).toEqual({ p_code: CODE, p_client: null });
   });
 
   it("works without an Origin header, because browsers omit it on same origin GET", async () => {
@@ -350,4 +353,55 @@ describe("waitlist status lookup", () => {
       for (const args of log.mock.calls) expect(args.join(" ")).not.toContain(ENV.SUPABASE_KEY);
     }
   });
+
+  it("maps a database rate limit on the lookup to the same retryable 429", async () => {
+    const { deps } = setup({ response: () => json({ code: "PT429", message: "rate_limited" }, 429) });
+    const res = await handleWaitlist(statusRequest(CODE, { ip: IP }), deps);
+    expect(res).toEqual({ status: 429, headers: { "Retry-After": "60" }, body: { ok: false, error: "rate_limited" } });
+  });
+});
+
+describe("per-client code", () => {
+  it("is stable for one IP, differs per IP and per key, and is 22 base64url characters", () => {
+    const a = clientId(IP, ENV.SUPABASE_KEY);
+    expect(a).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(clientId(IP, ENV.SUPABASE_KEY)).toBe(a);
+    expect(clientId(OTHER_IP, ENV.SUPABASE_KEY)).not.toBe(a);
+    expect(clientId("2001:db8::1", ENV.SUPABASE_KEY)).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(clientId(IP, "another-fake-key")).not.toBe(a);
+  });
+
+  it("is null when there is no IP", () => {
+    for (const ip of [null, undefined, ""]) expect(clientId(ip, ENV.SUPABASE_KEY)).toBeNull();
+  });
+
+  it("takes the first x-forwarded-for entry, then x-real-ip, else null", () => {
+    expect(clientIp(` ${IP} , 10.0.0.1`, OTHER_IP)).toBe(IP);
+    expect(clientIp(IP, null)).toBe(IP);
+    expect(clientIp(null, ` ${OTHER_IP} `)).toBe(OTHER_IP);
+    expect(clientIp(" , 10.0.0.1", OTHER_IP)).toBe(OTHER_IP);
+    expect(clientIp("", "")).toBeNull();
+    expect(clientIp(null, null)).toBeNull();
+  });
+
+  it("never forwards the visitor's IP to the database", async () => {
+    const fetch = vi.fn(async () => joined());
+    vi.stubGlobal("fetch", fetch);
+    vi.stubEnv("SUPABASE_URL", ENV.SUPABASE_URL);
+    vi.stubEnv("SUPABASE_KEY", ENV.SUPABASE_KEY);
+    try {
+      const res = await POST(new Request(`https://${HOST}/api/waitlist`, {
+        method: "POST",
+        headers: { host: HOST, origin: `https://${HOST}`, "x-forwarded-for": `${IP}, 10.0.0.1`, "content-type": "application/json" },
+        body: JSON.stringify(good),
+      }));
+      expect(res.status).toBe(200);
+      const [url, init] = fetch.mock.calls[0];
+      expect(`${url} ${init.body} ${JSON.stringify(init.headers)}`).not.toContain(IP);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
 });
