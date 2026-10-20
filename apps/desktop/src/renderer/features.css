@@ -12,9 +12,9 @@
 .ft-menu button:hover, .ft-menu button:focus-visible { background: var(--sel); outline: none; }
 
 .ft-thread { flex: 1; min-height: 0; overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
-.ft-intro { font: 400 15px/1.5 var(--serif); color: var(--ink-3); }
-.ft-q { align-self: flex-end; max-width: 88%; font: 400 15px/1.4 var(--serif); color: var(--ink); background: var(--accent-bg, var(--card)); border-radius: 14px 14px 4px 14px; padding: 9px 13px; overflow-wrap: anywhere; }
-.ft-a { font: 400 15px/1.55 var(--serif); color: var(--ink-2); overflow-wrap: anywhere; animation: ft-rise .4s var(--ease) both; }
+.ft-intro { font: 400 13px/1.6 var(--font); color: var(--ink-3); }
+.ft-q { align-self: flex-end; max-width: 88%; font: 400 13px/1.5 var(--font); color: var(--ink); background: var(--accent-bg, var(--card)); border-radius: 14px 14px 4px 14px; padding: 10px 14px; overflow-wrap: anywhere; }
+.ft-a { font: 400 13px/1.65 var(--font); color: var(--ink-2); overflow-wrap: anywhere; animation: ft-rise .4s var(--ease) both; }
 .ft-a p + p { margin-top: 10px; }
 .ft-a.ft-cant { color: var(--ink-3); font-style: italic; }
 .ft-wait { display: flex; align-items: center; gap: 9px; color: var(--ink-3); font-style: italic; }
@@ -31,12 +31,12 @@
 .ft-sugg button:hover { border-color: var(--accent, var(--ink-3)); color: var(--accent, var(--ink)); }
 .ft-ask-in { margin: 0 14px 6px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--paper); padding: 8px 8px 8px 12px; display: flex; align-items: flex-end; gap: 8px; }
 .ft-ask-in:focus-within { border-color: var(--accent, var(--ink)); }
-.ft-ask-in textarea { flex: 1; resize: none; border: 0; background: none; outline: none; font: 400 14px/1.4 var(--serif); color: var(--ink); min-height: 40px; user-select: text; }
+.ft-ask-in textarea { flex: 1; min-width: 0; resize: none; border: 0; background: none; outline: none; font: 400 13px/1.5 var(--font); color: var(--ink); min-height: 40px; user-select: text; }
 .ft-ask-in textarea::placeholder { color: var(--ink-3); }
 .ft-ask-foot { padding: 0 18px 12px; font-size: 11px; color: var(--ink-3); }
 
 /* Ask off: the consent card. */
-.ft-consent { display: grid; gap: 10px; padding: 18px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.ft-consent { display: grid; gap: 12px; padding: 4px 0 16px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
 .ft-consent h3 { font: 400 22px/1.15 var(--serif); color: var(--ink); letter-spacing: -.01em; }
 .ft-consent h4, .ft-details h4 { font: 500 12px/1.2 var(--font); color: var(--ink-3); margin-top: 4px; }
 .ft-consent ul, .ft-details ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }

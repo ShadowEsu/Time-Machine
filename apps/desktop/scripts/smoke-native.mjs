@@ -55,6 +55,18 @@ try {
   await page.waitForSelector(".pal-q");
   await page.keyboard.press("Escape");
   assert(await modalContainsFocus(), "Closing a nested dialog must return to Rewind");
+  // At the minimum window size, keyboard users must be able to read every recovery limit.
+  const windowSize = await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    const size = win.getContentSize();
+    win.setContentSize(960, 640);
+    return size;
+  });
+  await page.locator(".tv-read").focus();
+  assert(await page.locator(".tv-read").evaluate(el => el === document.activeElement), "Recovery limits must be keyboard-focusable");
+  await page.keyboard.press("PageDown");
+  await page.waitForFunction(() => document.querySelector(".tv-read")?.scrollTop > 0);
+  await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setContentSize(size[0], size[1]), windowSize);
   await page.click(".dm-key .key");
   await page.waitForFunction(() => document.querySelector(".tv-head")?.textContent?.includes("is back"));
   assert.deepEqual([git("branch", "--show-current"), git("rev-parse", "HEAD"), git("status", "--porcelain")], before);
