@@ -1,10 +1,12 @@
 // Waitlist handler core. Pure: no Vercel, no globals. Fetch, env and log are injected.
-// Rules: never log or echo the email, never echo secrets, never fake success.
+// Rules: never log or echo the email, never echo secrets, never fake success, never send or log the IP.
+import { createHmac } from "node:crypto";
 
 export const MAX_BODY_BYTES = 2048;
 export const MAX_EMAIL_LENGTH = 254;
 const MAX_SOURCE_LENGTH = 200;
 const UPSTREAM_TIMEOUT_MS = 8000;
+const CLIENT_ID_LENGTH = 22;
 
 // Referral codes: exactly 10 characters from a to z and 0 to 9. Made in SQL, see 0002_referrals_and_funnel.sql.
 const CODE_RE = /^[a-z0-9]{10}$/;
@@ -20,6 +22,22 @@ export const reply = (status, body, headers = {}) => ({ status, headers, body })
 // anon (see 0004_api_access.sql), so the waitlist can share a Supabase project safely.
 export function isConfigured(env) {
   return Boolean(env && env.SUPABASE_KEY && supabaseOrigin(env));
+}
+
+// The caller's IP. Vercel overwrites x-forwarded-for with the real client IP, so its first entry is
+// trusted; x-real-ip is the fallback. Null when neither is present.
+export function clientIp(forwardedFor, realIp) {
+  const first = typeof forwardedFor === "string" ? forwardedFor.split(",")[0].trim() : "";
+  if (first) return first;
+  const real = typeof realIp === "string" ? realIp.trim() : "";
+  return real || null;
+}
+
+// One-way per-client code for the database rate limits (see 0006_per_client_limits.sql). The IP is
+// never sent or stored; the code changes when the key rotates. Null without an IP: only global caps apply.
+export function clientId(ip, key) {
+  if (!ip || !key) return null;
+  return createHmac("sha256", key).update(`tm-client-v1:${ip}`).digest("base64url").slice(0, CLIENT_ID_LENGTH);
 }
 
 export function normalizeEmail(value) {
@@ -172,7 +190,7 @@ async function callRpc(name, args, deps, log) {
 
 /**
  * POST saves a pending signup. GET ?code= looks up a confirmed place in the list.
- * @param {{ method: string, origin?: string|null, host?: string|null, code?: string|null,
+ * @param {{ method: string, origin?: string|null, host?: string|null, code?: string|null, ip?: string|null,
  *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void }} deps
@@ -206,7 +224,12 @@ export async function handleWaitlist(req, deps) {
 
   // A badly shaped ref is dropped here. An unknown or own code is dropped in SQL. Neither blocks the signup.
   const ref = typeof data.ref === "string" && CODE_RE.test(data.ref) ? data.ref : null;
-  const rows = await callRpc("waitlist_join_pending", { p_email: email, p_source: cleanSource(data.source), p_ref: ref }, deps, log);
+  const rows = await callRpc(
+    "waitlist_join_pending",
+    { p_email: email, p_source: cleanSource(data.source), p_ref: ref, p_client: clientId(req.ip, deps.env.SUPABASE_KEY) },
+    deps,
+    log,
+  );
   if (rows === RATE_LIMITED) return rateLimitReply();
   if (!rows) return reply(502, { ok: false, error: "upstream" });
   if (rows[0]?.saved !== true) {
@@ -224,7 +247,7 @@ async function handleStatus(req, deps, log) {
   if (typeof code !== "string" || !CODE_RE.test(code)) return reply(400, { ok: false, error: "invalid_code" });
   if (!isConfigured(deps.env)) return reply(503, { ok: false, error: "not_configured" });
 
-  const rows = await callRpc("waitlist_status", { p_code: code }, deps, log);
+  const rows = await callRpc("waitlist_status", { p_code: code, p_client: clientId(req.ip, deps.env.SUPABASE_KEY) }, deps, log);
   if (rows === RATE_LIMITED) return rateLimitReply();
   if (!rows) return reply(502, { ok: false, error: "upstream" });
   if (rows.length === 0) return reply(404, { ok: false, error: "not_found" });

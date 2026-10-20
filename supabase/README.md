@@ -10,7 +10,7 @@ For click-by-click setup and the combined SQL, see [Supabase setup](../docs/laun
 - `GET /api/waitlist?code=CODE` returns `ok`, `position`, `referrals` and `total` for confirmed, subscribed rows only. Pending, unsubscribed or unknown codes return `404`. Codes are 10 lowercase letters or digits. The site has no page that shows a code or a place in line yet, because signups stay pending.
 - `POST /api/event` counts visits, shares and link copies. The site sends only visits today; it has no share or copy button yet.
 - `GET /api/health` returns `{"ok":true,"waitlist":<bool>,"database":"reachable"|"unreachable"|"not_configured","email":false}`. `waitlist` is true when both Supabase settings are present. `database` is `reachable` only when a read-only `waitlist_status` call with a code that matches nobody just worked. Vercel's CDN keeps each answer for 30 seconds. `email` is always false.
-- When the database's global write cap is full, signup and event POSTs return `429 {"ok":false,"error":"rate_limited"}` with `Retry-After: 60`. The form says the list is busy and keeps the typed email. The signup cap counts calls, not saved rows. A duplicate email uses a slot exactly like a new one, so the cap cannot reveal who is on the list.
+- When a database cap is full, the endpoint returns `429 {"ok":false,"error":"rate_limited"}` with `Retry-After: 60`. Per client: signup 5/minute and 20/hour, status lookup 30/minute, event 60/minute. The form keeps the typed email. Signup caps count calls, not saved rows: duplicate and new emails each use a slot.
 
 Only confirmed, subscribed rows count in positions and totals. Only confirmed, subscribed friends earn referral credit. Order: more confirmed friends first, then earlier signup time. The site does not confirm anyone today, and a signup gets no code back, so referral credit and places in line are planned, not live. How a signup becomes confirmed is not decided.
 
@@ -20,9 +20,11 @@ One row per normalized email: email, consent, source page, signup time, the pers
 
 The `funnel_events` table stores event type, page path, a referral flag and the time. It holds no email or referral code. Neither table stores IP addresses, browser details or cookies. The `funnel_daily` view reports daily visits, raw signups (pending included), confirmations, unsubscribes, shares and copies.
 
+`client_calls` stores a 22-character HMAC code derived from the client IP, the endpoint bucket and the time. The API uses Vercel's overwritten `x-forwarded-for` header, falling back to `x-real-ip`; the raw IP never goes to Supabase. The server-side `SUPABASE_KEY` keys the HMAC. Only the last hour counts. Later accepted keyed calls, signups and events remove up to 500 older rows at a time. This is opportunistic cleanup, not a scheduled deletion deadline. Unkeyed health lookups stay read-only.
+
 Row level security is on with no policies. The `anon` and `authenticated` roles cannot read or write the tables or the view. `anon` can run three security definer functions and nothing else: `waitlist_join_pending`, `waitlist_status` and `funnel_event_add` (see `0004_api_access.sql`). The site calls them with the project's anon key, kept in Vercel as `SUPABASE_KEY`. The anon key is public by design, so anyone holding it can call these functions directly. Migration `0005` enforces write caps, event types and strict plain paths inside the database, not just the site API.
 
-## 1. Apply migrations 0001 to 0005
+## 1. Apply migrations 0001 to 0006
 
 In Supabase **SQL Editor**, paste these files in order and click **Run**:
 
@@ -31,8 +33,9 @@ In Supabase **SQL Editor**, paste these files in order and click **Run**:
 3. `supabase/migrations/0003_pending_signups.sql`
 4. `supabase/migrations/0004_api_access.sql`
 5. `supabase/migrations/0005_bounded_public_rpcs.sql`
+6. `supabase/migrations/0006_per_client_limits.sql`
 
-The combined block in the click-by-click guide covers `0001` through `0004`; then apply `0005` separately. The files are safe to run twice. `0003` replaces the instant place-in-line signup from `0002` with pending signups. It also removes a never deployed email draft if a local database has it.
+The combined block in the click-by-click guide covers `0001` through `0004`; then apply `0005` and `0006` separately, in that order. Apply `0006` before deploying the API that sends `p_client`. Its optional trailing parameter keeps the previous API working during deployment. `0006` is safe to reapply. Do not rerun older migrations after `0006`: they would recreate obsolete RPC signatures.
 
 With the Supabase CLI: `supabase link --project-ref <your-project-ref>`, then `supabase db push`.
 
@@ -77,11 +80,23 @@ Replace the synthetic example address only in the SQL editor, never in a committ
 
 `0005` permits at most 60 signup calls in a rolling minute and 1,000 in a rolling hour, and 300 event rows in a rolling minute. Signup calls are counted in `waitlist_join_attempts`, which holds only an id and a time. New and duplicate emails each cost one call, so the cap is no membership test. A call refused with 429 records nothing. Each accepted call removes at most 500 attempt times older than one hour. These are global caps with no email, IP address or identifier in the attempt table. An advisory transaction lock makes the count-and-insert atomic across API instances and direct PostgREST callers. The indexed counts stop at the cap; they never scan unbounded result sets. Attackers can still exhaust the shared cap and temporarily block legitimate signups; these limits bound storage growth, not all denial-of-service or compute cost.
 
+`0006` adds database-backed per-client buckets. Advisory locks serialize count-and-insert. The API supplies the HMAC code; missing IP headers supply null. Direct PostgREST callers with the public anon key can omit or spoof `p_client`, so the global caps still protect writes but the per-client buckets do not authenticate direct callers. Invalid API payloads are rejected before the database and do not consume a bucket. A rejected database call writes nothing.
+
+To roll back the API after `0006`, redeploy the previous API and leave the database migration in place. Old calls omit `p_client` and still work. Do not run the pre-`0005` SQL below with `0006` installed; that would create ambiguous overloads.
+
+
 Events only accept `visit`, `share` or `copy`, and a path matching `^/[A-Za-z0-9._~/-]{0,199}$`: no queries, fragments, email addresses or referral codes in a query. The path constraint is `NOT VALID` to leave historical rows alone while enforcing new writes. Each accepted event removes at most 500 event rows older than 90 days using the time index. This is opportunistic retention, not a hard deletion deadline when the site is inactive.
 
 Emergency rollback restores the pre-`0005` writers, removes the new path constraint and drops the attempt table. It intentionally keeps the harmless event time index, never changes grants, and never touches another schema. Review before applying: it reopens the unbounded public write surface.
 
 ```sql
+do $$
+begin
+  if to_regprocedure('tm_waitlist.waitlist_join_pending(text,text,text,text)') is not null then
+    raise exception '0006 is installed. Roll back the API only; keep the compatible database signatures.';
+  end if;
+end;
+$$;
 begin;
 alter table tm_waitlist.funnel_events drop constraint if exists funnel_events_path_format;
 create or replace function tm_waitlist.waitlist_join_pending(p_email text, p_source text default null, p_ref text default null)

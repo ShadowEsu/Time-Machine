@@ -5,6 +5,8 @@ import { handleEvent, MAX_EVENT_BYTES } from "./event.js";
 // Synthetic data only.
 const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_KEY: "fake-service-role-key-123" };
 const HOST = "timemachine.example.test";
+// Documentation address only (RFC 5737).
+const IP = "203.0.113.7";
 
 function request(body, overrides = {}) {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -38,7 +40,7 @@ describe("event handler", () => {
     expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_KEY}`);
     expect(init.headers["Content-Profile"]).toBe("tm_waitlist");
-    expect(JSON.parse(init.body)).toEqual({ p_type: "visit", p_path: "/blog/first-post", p_via_ref: false });
+    expect(JSON.parse(init.body)).toEqual({ p_type: "visit", p_path: "/blog/first-post", p_via_ref: false, p_client: null });
   });
 
   it("stores share and copy events, and the via ref flag", async () => {
@@ -46,14 +48,34 @@ describe("event handler", () => {
       const { fetch, deps } = setup();
       const res = await handleEvent(request({ type, path: "/", via: "ref" }), deps);
       expect(res.status).toBe(204);
-      expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ p_type: type, p_path: "/", p_via_ref: true });
+      expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ p_type: type, p_path: "/", p_via_ref: true, p_client: null });
     }
   });
 
   it("stores only type, path and the via flag, dropping anything else sent", async () => {
     const { fetch, deps } = setup();
     await handleEvent(request({ ...visit, email: "someone@example.test", code: "abc123xyz0", ua: "Bot" }), deps);
-    expect(Object.keys(JSON.parse(fetch.mock.calls[0][1].body)).sort()).toEqual(["p_path", "p_type", "p_via_ref"]);
+    expect(Object.keys(JSON.parse(fetch.mock.calls[0][1].body)).sort()).toEqual(["p_client", "p_path", "p_type", "p_via_ref"]);
+  });
+
+  it("never forwards the visitor's IP to the database", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    vi.stubEnv("SUPABASE_URL", ENV.SUPABASE_URL);
+    vi.stubEnv("SUPABASE_KEY", ENV.SUPABASE_KEY);
+    try {
+      const res = await POST(new Request(`https://${HOST}/api/event`, {
+        method: "POST",
+        headers: { host: HOST, origin: `https://${HOST}`, "x-forwarded-for": IP, "content-type": "application/json" },
+        body: JSON.stringify(visit),
+      }));
+      expect(res.status).toBe(204);
+      const [url, init] = fetch.mock.calls[0];
+      expect(`${url} ${init.body} ${JSON.stringify(init.headers)}`).not.toContain(IP);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("rejects unknown types without calling Supabase", async () => {
