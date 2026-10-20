@@ -1,6 +1,6 @@
 /* Time Machine site: fonts, tokens, base type, header, footer and shared parts.
-   Every page links this file first. Look: design/SITE_V3_DIRECTION.md, concept A "Editorial".
-   Warm paper, Newsreader display, Inter body, Geist Mono labels. One ink-blue accent, used rarely.
+   Every page links this file first. Look: design/SITE_V3_DIRECTION.md, current monochrome update.
+   Paper and charcoal, Newsreader display, Inter body, Geist Mono labels. Neutral controls and links.
    Green and red mean Works and Broken and nothing else. Motion uses transform and opacity only. */
 
 /* Fonts, self hosted. Licences (SIL OFL 1.1) sit next to the files in assets/fonts/.
@@ -52,9 +52,9 @@
   --max-text: 640px;
   --top-h: 64px;
 
-  --paper: #f3efe5;
-  --card: #fbf9f4;
-  --mist: #ebe5d6;
+  --paper: #f5f4f0;
+  --card: #ffffff;
+  --mist: #eaeae7;
   --hairline: #e0d9c8;
   --line: rgba(21, 19, 15, .12);
   --line-2: rgba(21, 19, 15, .24);
@@ -65,13 +65,12 @@
   --glass: rgba(251, 249, 244, .94);
   --glass-line: rgba(21, 19, 15, .12);
 
-  /* The one accent: ink blue. Primary buttons, italic headline words, section numbers, the focus ring.
-     Never next to green or red in a way that reads as a verdict. */
-  --accent: #1d3bb8;
-  --accent-ink: #142a86;
-  --accent-tint: #e3e7f6;
-  --accent-btn: #1d3bb8;
-  --accent-btn-hover: #142a86;
+  /* Neutral navigation and controls; verdict colours remain meaningful. */
+  --accent: #242424;
+  --accent-ink: #101010;
+  --accent-tint: #e5e5e2;
+  --accent-btn: #242424;
+  --accent-btn-hover: #101010;
   --on-accent: #ffffff;
 
   /* Verdicts: the only meaningful colour on the site. */
@@ -104,11 +103,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0f0e0c; --card: #181714; --mist: #1d1b18; --hairline: #2d2a25;
+    --paper: #101010; --card: #1a1a1a; --mist: #242424; --hairline: #303030;
     --line: rgba(255, 255, 255, .1); --line-2: rgba(255, 255, 255, .2);
-    --ink: #f3f0e8; --ink-2: #d0cbc0; --ink-3: #a29d92; --ink-4: #6b665d;
-    --glass: rgba(24, 23, 20, .94); --glass-line: rgba(255, 255, 255, .12);
-    --accent: #9fb0ff; --accent-ink: #c3cdff; --accent-tint: #1b2244; --accent-btn: #3651d6; --accent-btn-hover: #4862e6; --on-accent: #ffffff;
+    --ink: #f5f4f0; --ink-2: #d0d0ca; --ink-3: #a5a5a0; --ink-4: #6b6b68;
+    --glass: rgba(26, 26, 26, .94); --glass-line: rgba(255, 255, 255, .12);
+    --accent: #f5f4f0; --accent-ink: #ffffff; --accent-tint: #303030; --accent-btn: #f5f4f0; --accent-btn-hover: #d0d0ca; --on-accent: #101010;
     --works-fg: #4ade80; --works-bg: #0f2a1a; --works-dot: #22c55e;
     --broken-fg: #f87171; --broken-bg: #2e1212; --broken-dot: #ef4444;
     --couldnt-fg: #facc15; --couldnt-bg: #2b2208; --couldnt-dot: #eab308;
@@ -120,11 +119,11 @@
   }
 }
 :root[data-theme="dark"] {
-  --paper: #0f0e0c; --card: #181714; --mist: #1d1b18; --hairline: #2d2a25;
+  --paper: #101010; --card: #1a1a1a; --mist: #242424; --hairline: #303030;
   --line: rgba(255, 255, 255, .1); --line-2: rgba(255, 255, 255, .2);
-  --ink: #f3f0e8; --ink-2: #d0cbc0; --ink-3: #a29d92; --ink-4: #6b665d;
-  --glass: rgba(24, 23, 20, .94); --glass-line: rgba(255, 255, 255, .12);
-  --accent: #9fb0ff; --accent-ink: #c3cdff; --accent-tint: #1b2244; --accent-btn: #3651d6; --accent-btn-hover: #4862e6; --on-accent: #ffffff;
+  --ink: #f5f4f0; --ink-2: #d0d0ca; --ink-3: #a5a5a0; --ink-4: #6b6b68;
+  --glass: rgba(26, 26, 26, .94); --glass-line: rgba(255, 255, 255, .12);
+  --accent: #f5f4f0; --accent-ink: #ffffff; --accent-tint: #303030; --accent-btn: #f5f4f0; --accent-btn-hover: #d0d0ca; --on-accent: #101010;
   --works-fg: #4ade80; --works-bg: #0f2a1a; --works-dot: #22c55e;
   --broken-fg: #f87171; --broken-bg: #2e1212; --broken-dot: #ef4444;
   --couldnt-fg: #facc15; --couldnt-bg: #2b2208; --couldnt-dot: #eab308;
@@ -190,8 +189,8 @@ em { font-style: italic; }
 }
 .btn[disabled] { opacity: .5; cursor: default; transform: none; }
 .btn-sm { min-height: 44px; padding: 0 18px; font-size: 14.5px; }
-.btn-warm { background: #ff791f; color: #211307; border-color: transparent; }
-@media (hover: hover) and (pointer: fine) { .btn-warm:hover { background: #ff963f; color: #211307; } }
+.btn-warm { background: var(--accent-btn); color: var(--on-accent); border-color: transparent; }
+@media (hover: hover) and (pointer: fine) { .btn-warm:hover { background: var(--accent-btn-hover); color: var(--on-accent); } }
 section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 :root:not(.js) [data-sound], :root:not(.js) [data-ambient], :root:not(.js) [data-dev] { display: none; }
 
@@ -305,7 +304,7 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 .tw-c { opacity: 0; }
 .tw-c.on, .tw-done .tw-c { opacity: 1; }
 .tw-caret { position: relative; }
-.tw-caret::after { content: ""; position: absolute; top: .1em; bottom: .06em; right: -.1em; width: max(2px, .06em); background: #ff791f; animation: tw-blink .9s steps(1) infinite; }
+.tw-caret::after { content: ""; position: absolute; top: .1em; bottom: .06em; right: -.1em; width: max(2px, .06em); background: var(--accent); animation: tw-blink .9s steps(1) infinite; }
 @keyframes tw-blink { 50% { opacity: 0; } }
 .tw-term .tl { visibility: hidden; }
 .tw-term .tl.on { visibility: visible; }
@@ -323,9 +322,9 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 @media (hover: hover) and (pointer: fine) {
   .foot nav a:hover { color: var(--ink); text-decoration: underline; }
 }
-.giant { margin: clamp(32px, 6vw, 72px) 0 0; font: 300 clamp(64px, 15.4vw, 236px)/.86 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.04em; color: var(--ink); white-space: nowrap; text-align: center; transform: translateY(.07em); user-select: none; }
+.giant { margin: clamp(32px, 6vw, 72px) 0 0; padding: .08em .06em .18em; font: 300 clamp(64px, 13vw, 200px)/1.05 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.04em; color: var(--ink); white-space: nowrap; text-align: center; user-select: none; }
 .giant span:last-child { font-style: italic; color: var(--accent); }
-@media (max-width: 640px) { .giant { font-size: 25vw; white-space: normal; line-height: .82; } .giant span { display: block; } .foot nav { gap: 0 16px; } }
+@media (max-width: 640px) { .giant { font-size: 23vw; white-space: normal; line-height: 1.05; } .giant span { display: block; } .foot nav { gap: 0 16px; } }
 
 /* Legal pages */
 .legal .draftbar { position: sticky; top: 0; z-index: 5; background: var(--ink); color: var(--paper); text-align: center; padding: 10px 16px; font: 500 12.5px/1.4 var(--font-mono); letter-spacing: .06em; }

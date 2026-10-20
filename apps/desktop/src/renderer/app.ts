@@ -119,7 +119,7 @@ interface State {
   unfolded: Set<string>;
   /** A journal entry briefly tinted after a citation brought it into view. */
   lit: string | null;
-  /** The time of the newest "agent-turn ended" audit line per project, read on the Agents page. */
+  /** The time of the newest "agent-turn ended" audit line per project, refreshed with sidebar state. */
   lastTurn: Map<string, string>;
   /** Deploy chip HTML per save point id, from the deploys module. Empty when nothing is linked. */
   deployChips: Map<string, string>;
@@ -218,7 +218,7 @@ function lastWorking(): TimelineEntry | null {
 
 /** Project verdicts and agent states for the sidebar. Both are niceties: a failure leaves the screens working. */
 async function refreshStatuses(): Promise<void> {
-  const [statuses, agents] = await Promise.all([bridge.call({ method: "statuses" }), bridge.call({ method: "agents" })]);
+  const [statuses, agents] = await Promise.all([bridge.call({ method: "statuses" }), bridge.call({ method: "agents" }), loadLastTurns()]);
   if (statuses.ok) st.statuses = new Map(statuses.data.map((s) => [s.projectId, s]));
   if (agents.ok) st.agents = agents.data;
 }

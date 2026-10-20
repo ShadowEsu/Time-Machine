@@ -1,6 +1,6 @@
 # Site v3 direction
 
-Status: the founder chose concept A, "Editorial", which settles open decisions 1 and 3 below (concept A, ink blue). It is built in `site/` (October 2026). The home page is the editorial page with the hero device (`site/assets/device.js`, `device.css`). For decision 2, the 9 act scroll story moved to its own page, `site/story.html` (`story.js`, `story.css`), linked as "Watch the story", as section 4 suggests. The founder can still move it back. Decision 4, the FAQ wording, is still open, so the FAQ is labelled Draft.
+Status (20 October 2026): Preston requested a Claude-inspired black-and-white refinement, using Unvibe as a quality reference. The live direction is now charcoal and off-white, with neutral controls and the existing Time Machine icon in the header. Newsreader, Inter, the interactive rewind instrument and honest product copy remain. The comparison has larger type, stronger rules and a sticky first column on phones; it scrolls within its labelled region. Section spacing is tighter and footer wordmarks have full line-height and padding rather than a cropped baseline. Shared pages retain light/dark appearance with neutral accents. Verdict colours still mean Works/Broken. The concept material below records the earlier editorial exploration, not current colour requirements.
 
 Concepts: `design/concepts/site-v3-a.html` (editorial) and `design/concepts/site-v3-b.html` (instrument). Shared parts are in `design/concepts/site-v3-assets/`. Screenshots at 1440x900 and 390x844 are in `design/concepts/shots/site-v3-*`.
 
