@@ -124,7 +124,7 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 - `setCheck` refuses a symlinked or hard-linked `timemachine.yml` (test first). Commit 0bcc3ac.
 - Agent attribution: each save point records `agent: { name, prompt? }`. Prompts go through secret screening; hidden when they hold a current project secret value or a `scheme://user:pass@` URL. Only the hooks can attribute to Claude Code; `--trigger claude-code*` from the CLI is refused (exit 64).
 - `undoRecover`: removes a recovery branch and copy only if untouched. Never removes save points.
-- `hookStatus`, `probeHookCommand`, pinned hook fallback `npx -y timetm@<version>` (the review found `npx -y timetm` pointed at an unowned npm name: a supply chain risk).
+- `hookStatus`, `probeHookCommand`, pinned hook fallback `npx -y timetm@<version>` (the review found `npx -y timetm` pointed at an unowned npm name: a supply chain risk). 20 Oct: `tm hook install` without a matching `tm` on PATH now writes `'<node>' '<realpath of the running tm.js>'`, shell quoted. The pinned npx command is used only when tm itself runs from the npx cache (`/_npx/`). README install is now `npm install -g ./packages/cli`.
 - `cleanStore`: removes only superseded check logs, only the files the preview showed.
 - Coverage lists files `.gitignore` skips.
 - Save points expose recorded Git HEAD (for Vercel matching). Commit 96ddf25.

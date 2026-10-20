@@ -31,7 +31,7 @@ Until the first npm release, build from source (below).
 | `tm recover cp-0003` | Saves your current state first, then makes branch `tm/recover/cp-0003` and a recovery copy |
 | `tm log` | Shows the append-only audit log |
 | `tm demo` | Builds a small broken project and rescues it, so you can watch the whole thing in a minute |
-| `tm hook install` | Adds Claude Code hooks: a save point before each prompt and risky command, and a check when Claude stops that tells it if a working state just broke. The hooks call `tm` when this same version is on your PATH, otherwise `npx -y timetm@<version>`, pinned to this exact version. That fallback does not run until `timetm` is on npm |
+| `tm hook install` | Adds Claude Code hooks: a save point before each prompt and risky command, and a check when Claude stops that tells it if a working state just broke. The hooks call `tm` when this same version is on your PATH. Otherwise they call this `tm` by its absolute path, and it prints that command. Run from `npx`, they call `npx -y timetm@<version>`, pinned to this exact version |
 | `tm mcp` | An MCP server so agents can save, check, find and recover through the same engine |
 
 Every command takes `--json`. Human and JSON output come from the same result.

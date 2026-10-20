@@ -69,7 +69,7 @@ export async function recover(ctx: Ctx, id: string): Promise<RecoverResult> {
     ...r.manual.map((s) => `${s} in the recovery copy.`),
     ...r.missing.map((f) => `Recreate ${f} by hand.`),
     `Review the recovery copy at ${copyDir}.`,
-    `To use it in your main folder: git worktree remove "${copyDir}", then git switch ${branch}`,
+    "Keep working in the recovery copy. Review and commit the restored files you want to keep before moving or removing it.",
   ];
 
   const lastLine = last ? `Last check: ${last.verdict} (${last.isolation} mode) at ${last.at}.` : "Last check: not checked yet. Run tm verify before you rely on it.";

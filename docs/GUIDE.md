@@ -30,15 +30,14 @@ pnpm build
 node packages/cli/dist/tm.js --help
 ```
 
-To run `tm` from any folder, link it onto your PATH:
+To run `tm` from any folder, install it globally from this folder:
 
 ```sh
-chmod +x packages/cli/dist/tm.js
-ln -s "$PWD/packages/cli/dist/tm.js" ~/.local/bin/tm
+npm install -g ./packages/cli
 tm --version
 ```
 
-The agent hooks and the MCP server call `tm` by name, so they need this link.
+The global `tm` points at this folder, so keep the folder. The MCP server is added as `tm mcp`, so it needs `tm` on your PATH.
 
 ## 3. Two minute tour
 
@@ -150,7 +149,7 @@ Manual steps
   Set PORT in .env in the recovery copy.
   Set STRIPE_SECRET_KEY in .env in the recovery copy.
   Review the recovery copy at /home/you/my-app-recovered-cp-0003.
-  To use it in your main folder: git worktree remove "/home/you/my-app-recovered-cp-0003", then git switch tm/recover/cp-0003
+  Keep working in the recovery copy. Review and commit the restored files you want to keep before moving or removing it.
 Report: /home/you/.timemachine/projects/9f2c41d07a3be815/reports/recover-cp-0003-2026-10-15T10-45-12-004Z.md
 ```
 
@@ -292,7 +291,7 @@ This adds hooks to the project's `.claude/settings.json`. Your existing settings
 
 Hooks never block the agent because of their own errors. Prompt text and the risky command in a save point's note are hidden when they look like a secret, hold a current secret value from your config files such as `.env`, or have a URL with a user and password in it.
 
-The hooks call `tm hook prompt`, `tm hook pre-bash` and `tm hook stop`. You do not run these yourself. If a `tm` that is this same version is on your PATH, the hooks call `tm`. Otherwise they call `npx -y timetm@<version>`, pinned to the exact version that installed them. Until `timetm` is on npm, that fallback does not run, so put your built `tm` on your PATH before `tm hook install`.
+The hooks call `tm hook prompt`, `tm hook pre-bash` and `tm hook stop`. You do not run these yourself. If a `tm` that is this same version is on your PATH, the hooks call `tm`. Otherwise they call the `tm` that ran `tm hook install`, by its absolute path, with the same Node. `tm hook install` prints the command. If you move or delete that folder, run `tm hook install` again. Only a `tm` run through `npx` makes the hooks call `npx -y timetm@<version>`, pinned to the exact version that installed them.
 
 ### MCP server
 
@@ -318,12 +317,7 @@ claude mcp add timemachine -- tm mcp
 
 **"There are no checkpoints yet."** Run `tm checkpoint` first.
 
-**How do I use the recovery in my main folder?** Remove the recovery copy, then switch:
-
-```sh
-git worktree remove "/home/you/my-app-recovered-cp-0003"
-git switch tm/recover/cp-0003
-```
+**How do I keep using the recovered version?** Keep working in the recovery copy. Saved files that were uncommitted may still be uncommitted there. Review and commit only the restored files you want to keep before moving or removing the copy. Switching to the recovery branch alone does not restore those uncommitted files.
 
 **`tm open` left a folder behind.** That copy is yours to inspect. Remove it with `git worktree remove <path>`.
 

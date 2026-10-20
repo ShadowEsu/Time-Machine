@@ -52,9 +52,11 @@ npx timetm demo
 ```sh
 git clone https://github.com/ShadowEsu/Time-Machine.git && cd Time-Machine
 pnpm install && pnpm build
-alias tm="node $PWD/packages/cli/dist/tm.js"
+npm install -g ./packages/cli
 tm demo
 ```
+
+No pnpm? Run `npm install -g pnpm` first. The global `tm` points at this folder, so keep the folder.
 
 ## Your own project in four commands
 

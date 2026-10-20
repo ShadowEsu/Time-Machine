@@ -1,6 +1,6 @@
 // Pure decisions for the menu bar dot, the corner card, the agent pill and where windows go.
 // No Electron imports, so they are unit tested in apps/desktop/test.
-import { npxHookCommand } from "@timetm/core";
+import { npxHookCommand, shellQuote as quote } from "@timetm/core";
 import type { ProjectStatus, Verdict } from "../shared/api.js";
 
 export type DotState = "pass" | "fail" | "none" | "working";
@@ -67,8 +67,6 @@ export function dotState(newest: (Verdict | null)[], working: boolean): DotState
 export function trayVerdicts(statuses: ProjectStatus[]): (Verdict | null)[] {
   return statuses.map((s) => (s.problem ? null : (s.newest?.verdict ?? null)));
 }
-
-const quote = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`;
 
 /**
  * The commands the Claude Code hooks could call, best first. TM_HOOK_COMMAND wins on its own,

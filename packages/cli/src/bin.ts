@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { fileURLToPath } from "node:url";
 import { runInterruptCleanups } from "@timetm/core";
 import { main } from "./main.js";
 
@@ -17,4 +18,6 @@ process.exitCode = await main(process.argv.slice(2), {
   stderr: (s) => process.stderr.write(s),
   isTTY: Boolean(process.stdout.isTTY),
   stdin: process.stdin,
+  // This file itself: in the bundle that is dist/tm.js, also when run through an npm bin symlink or npx.
+  script: fileURLToPath(import.meta.url),
 });

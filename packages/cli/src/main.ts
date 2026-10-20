@@ -1,6 +1,7 @@
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
@@ -13,6 +14,8 @@ export interface Io {
   isTTY: boolean;
   /** Standard input, for hooks and the MCP server. */
   stdin?: NodeJS.ReadableStream;
+  /** Path of the CLI file that is running. `tm hook install` points the hooks at it. */
+  script?: string;
 }
 
 export { VERSION };
@@ -23,12 +26,21 @@ async function readAll(input: NodeJS.ReadableStream): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** The command hooks call: `tm` when it is on PATH, otherwise npx pinned to this exact version. */
-function hookCommand(env: NodeJS.ProcessEnv): string {
-  if (env.TM_HOOK_COMMAND) return env.TM_HOOK_COMMAND;
+/**
+ * The command hooks call, best first: TM_HOOK_COMMAND, then `tm` on PATH when it is this exact version,
+ * then this CLI file by its absolute path with this Node, then npx pinned to this version when running from the npx cache.
+ * `absolute` is true when the command points at a file on disk.
+ */
+function hookCommand(io: Io): { command: string; absolute: boolean } {
+  if (io.env.TM_HOOK_COMMAND) return { command: io.env.TM_HOOK_COMMAND, absolute: false };
   // Only use a `tm` on PATH if it is really this tool, not some other program named tm.
-  const r = spawnSync("tm", ["--version"], { env, encoding: "utf8", timeout: 5000 });
-  return r.status === 0 && r.stdout.trim() === VERSION ? "tm" : tm.npxHookCommand(VERSION);
+  const r = spawnSync("tm", ["--version"], { env: io.env, encoding: "utf8", timeout: 5000 });
+  if (r.status === 0 && r.stdout.trim() === VERSION) return { command: "tm", absolute: false };
+  if (!io.script) throw new tm.TmError("usage", "Could not tell where this tm is. Set TM_HOOK_COMMAND to the command the hooks should run.");
+  // A global npm install runs tm through a symlink, so follow it to the real file.
+  const script = realpathSync(io.script);
+  if (/[/\\]_npx[/\\]/.test(script)) return { command: tm.npxHookCommand(VERSION), absolute: false };
+  return { command: `${tm.shellQuote(process.execPath)} ${tm.shellQuote(script)}`, absolute: true };
 }
 
 const HELP = `tm: save points for your project, checked with your own tests.
@@ -168,7 +180,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "hook": {
         const event = args[0] ?? "";
         if (event === "install") {
-          const r = await tm.hookInstall(ctx, { command: hookCommand(io.env) });
+          const hook = hookCommand(io);
+          const r = { ...(await tm.hookInstall(ctx, { command: hook.command })), ...hook };
           print(r, fmtHookInstall(r));
           return 0;
         }
