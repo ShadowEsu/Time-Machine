@@ -8,7 +8,9 @@ async function handle(request) {
     {
       method: request.method,
       origin: request.headers.get("origin"),
-      host: request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host,
+      // Vercel sets host to the domain the client asked for. Its docs only promise to overwrite a
+      // client-sent x-forwarded-for, not x-forwarded-host, so x-forwarded-host is never trusted here.
+      host: request.headers.get("host"),
       contentLength: request.headers.get("content-length"),
       readBody: (maxBytes) => readRequestBody(request, maxBytes),
     },
