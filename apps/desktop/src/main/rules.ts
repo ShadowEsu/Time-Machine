@@ -71,12 +71,13 @@ export function trayVerdicts(statuses: ProjectStatus[]): (Verdict | null)[] {
 const quote = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`;
 
 /**
- * The commands the Claude Code hooks could call, best first. TM_HOOK_COMMAND wins on its own.
+ * The commands the Claude Code hooks could call, best first. TM_HOOK_COMMAND wins on its own,
+ * but only in a development build: a packaged app ignores it.
  * Then the CLI this app can run itself, as quoted absolute paths with the app's own Node
  * (Electron run as Node). Last, npx with the version pinned, never the bare package name.
  */
-export function hookCandidates(o: { override: string | undefined; nodePath: string; cliScript: string | null; version: string }): string[] {
-  if (o.override) return [o.override];
+export function hookCandidates(o: { override: string | undefined; packaged: boolean; nodePath: string; cliScript: string | null; version: string }): string[] {
+  if (o.override && !o.packaged) return [o.override];
   const own = o.cliScript ? [`ELECTRON_RUN_AS_NODE=1 ${quote(o.nodePath)} ${quote(o.cliScript)}`] : [];
   return [...own, npxHookCommand(o.version)];
 }
