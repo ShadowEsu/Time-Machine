@@ -1,12 +1,24 @@
 // D04: undo a recovery. It removes only what the recovery made, and only while it is untouched.
-import { chmodSync, existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
 import { git, write } from "../../../fixtures/demo/build.ts";
-import { setupDemo, snapshotState } from "../../../fixtures/demo/setup.ts";
+import { setupDemo, snapshotState, tempDir } from "../../../fixtures/demo/setup.ts";
 
 const hasBranch = (dir: string, b: string): boolean => git(dir, "branch", "--list", b).trim() !== "";
+
+/** Breaks every saved file in the store, so a recovery copy cannot be built. */
+function corruptStore(ctx: tm.Ctx): void {
+  const objects = join(tm.storeDirFor(ctx), "objects");
+  for (const sub of readdirSync(objects)) {
+    for (const f of readdirSync(join(objects, sub))) {
+      chmodSync(join(objects, sub, f), 0o644);
+      writeFileSync(join(objects, sub, f), "not gzip");
+    }
+  }
+}
 
 describe("undoRecover", () => {
   test("removes the recovery branch and copy, keeps every save point, and never touches the folder", async () => {
@@ -79,17 +91,31 @@ describe("undoRecover", () => {
     const { dir, ctx } = await setupDemo();
     write(dir, "notes.txt", "not in Git\n");
     const cp = await tm.checkpoint(ctx, { note: "with a saved file" });
-    const objects = join(tm.storeDirFor(ctx), "objects");
-    for (const sub of readdirSync(objects)) {
-      for (const f of readdirSync(join(objects, sub))) {
-        chmodSync(join(objects, sub, f), 0o644);
-        writeFileSync(join(objects, sub, f), "not gzip");
-      }
-    }
+    corruptStore(ctx);
 
     await expect(tm.recover(ctx, cp.checkpoint.id)).rejects.toThrow(/integrity/);
 
     expect(git(dir, "branch", "--list", "tm/recover/*")).toBe("");
+    expect(git(dir, "worktree", "list", "--porcelain")).not.toContain("-recovered-");
+    expect(git(dir, "symbolic-ref", "HEAD")).toBe("refs/heads/main");
+  });
+
+  // A Git that cannot list worktrees (older than 2.36 has no -z) must not hide why the copy failed.
+  test.runIf(process.platform !== "win32")("a failed recovery reports why the copy failed even when its cleanup cannot finish", async () => {
+    const { dir, ctx } = await setupDemo();
+    write(dir, "notes.txt", "not in Git\n");
+    const cp = await tm.checkpoint(ctx, { note: "with a saved file" });
+    corruptStore(ctx);
+    const bin = join(tempDir("git-shim"), "bin");
+    mkdirSync(bin);
+    const realGit = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+    const shim = `#!/bin/sh\ncase " $* " in *" worktree list "*) echo "error: unknown switch" >&2; exit 129;; esac\nexec "${realGit}" "$@"\n`;
+    writeFileSync(join(bin, "git"), shim, { mode: 0o755 });
+    const env = ctx.env ?? process.env;
+    const shimmed: tm.Ctx = { ...ctx, env: { ...env, PATH: `${bin}:${env.PATH ?? ""}` } };
+
+    await expect(tm.recover(shimmed, cp.checkpoint.id)).rejects.toThrow(/integrity/);
+
     expect(git(dir, "worktree", "list", "--porcelain")).not.toContain("-recovered-");
     expect(git(dir, "symbolic-ref", "HEAD")).toBe("refs/heads/main");
   });

@@ -48,8 +48,13 @@ export async function recover(ctx: Ctx, id: string): Promise<RecoverResult> {
   } catch (e) {
     // The copy could not be built and materialize already removed it. Remove the branch this
     // attempt made too, only while no worktree has it and it still points where it was made.
-    gitTry(p.root, p.env, ["worktree", "prune"]);
-    if (!worktrees(p).some((w) => w.branch === `refs/heads/${branch}`)) gitTry(p.root, p.env, ["update-ref", "-d", `refs/heads/${branch}`, m.git.snapshot]);
+    // Best effort: if Git cannot list worktrees, the branch stays and the reason the copy failed is reported.
+    try {
+      gitTry(p.root, p.env, ["worktree", "prune"]);
+      if (!worktrees(p).some((w) => w.branch === `refs/heads/${branch}`)) gitTry(p.root, p.env, ["update-ref", "-d", `refs/heads/${branch}`, m.git.snapshot]);
+    } catch {
+      // keep the original error
+    }
     throw e;
   }
 
