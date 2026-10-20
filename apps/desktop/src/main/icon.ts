@@ -43,17 +43,32 @@ export interface TrayImage {
   template: boolean;
 }
 
+/** Colors for the playhead glyph and the verdict dot, and whether the image is a template. */
+export interface TrayColors {
+  template: boolean;
+  glyph: [number, number, number];
+  dot: [number, number, number];
+}
+
+// Mid grey reads on a light or a dark bar. Linux and Windows do not tint template images.
+const GREY: [number, number, number] = [120, 120, 118];
+
 /**
- * A 32 px image meant to be shown at 16 pt (scale factor 2). With no verdict to show, it is a
- * black template image, so macOS draws it like every other menu bar item. A pass or fail dot
- * keeps its color, so those images are not templates.
+ * With no verdict to show, macOS gets a black template image, so it draws it like every other
+ * menu bar item. Other systems draw the image as is, so they get grey. A pass or fail dot keeps
+ * its color, so those images are never templates.
  */
-export function trayIcon(state: DotState): TrayImage {
+export function trayColors(state: DotState, platform: NodeJS.Platform): TrayColors {
+  const idle = state === "none" || state === "working";
+  if (idle && platform === "darwin") return { template: true, glyph: [0, 0, 0], dot: [0, 0, 0] };
+  return { template: false, glyph: GREY, dot: idle ? GREY : COLORS[state] };
+}
+
+/** A 32 px image meant to be shown at 16 pt (scale factor 2). */
+export function trayIcon(state: DotState, platform: NodeJS.Platform = process.platform): TrayImage {
   const S = 32;
   const out = Buffer.alloc(S * S * 4);
-  const template = state === "none" || state === "working";
-  const glyph: [number, number, number] = template ? [0, 0, 0] : [120, 120, 118];
-  const dot = template ? glyph : COLORS[state];
+  const { template, glyph, dot } = trayColors(state, platform);
   const SS = 4;
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {

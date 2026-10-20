@@ -13,6 +13,7 @@ import { verdictCard } from "../src/shared/cards.ts";
 import { pointTitle, when } from "../src/shared/format.ts";
 import { projectStatus } from "../src/renderer/status.ts";
 import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
+import { trayColors } from "../src/main/icon.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
 
@@ -246,6 +247,19 @@ describe("menu bar dot", () => {
     expect(dotState(trayVerdicts([ok]), false)).toBe("pass");
     expect(dotState(trayVerdicts([ok, moved]), false)).toBe("none");
     expect(dotState(trayVerdicts([ok, empty]), false)).toBe("none");
+  });
+
+  test("the idle glyph is a black template on macOS and a grey that shows on any bar elsewhere", () => {
+    for (const state of ["none", "working"] as const) {
+      expect(trayColors(state, "darwin")).toEqual({ template: true, glyph: [0, 0, 0], dot: [0, 0, 0] });
+      for (const platform of ["linux", "win32"] as const) {
+        expect(trayColors(state, platform)).toEqual({ template: false, glyph: [120, 120, 118], dot: [120, 120, 118] });
+      }
+    }
+    for (const platform of ["darwin", "linux", "win32"] as const) {
+      expect(trayColors("pass", platform)).toEqual({ template: false, glyph: [120, 120, 118], dot: [34, 197, 94] });
+      expect(trayColors("fail", platform)).toEqual({ template: false, glyph: [120, 120, 118], dot: [239, 68, 68] });
+    }
   });
 });
 
