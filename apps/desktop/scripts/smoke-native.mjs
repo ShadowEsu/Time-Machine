@@ -79,6 +79,30 @@ try {
   assert.match(await page.locator(`#e-${liveId}`).innerText(), /Saved from the terminal/);
   await page.screenshot({ path: join(work, "live-update.png") });
 
+  // A Claude Code turn from another process shows up live: working while it runs, then its save point.
+  // The hook lines run `<tm> hook prompt` and `<tm> hook stop` in the project with Claude Code's JSON on stdin.
+  const hook = (event, payload) => execFileSync(process.execPath, [cli, "hook", event], { cwd: projects[0].path, env, input: JSON.stringify({ session_id: "smoke-session", cwd: projects[0].path, ...payload }), encoding: "utf8", timeout: 120000 });
+  hook("prompt", { hook_event_name: "UserPromptSubmit", prompt: "Add a tip slider" });
+  const agentWorking = () => page.evaluate(() => ({
+    pill: !!document.querySelector(".side .it.ag .breath"),
+    hero: document.querySelector(".hero-p")?.textContent?.includes("Claude Code is working now") ?? false,
+  }));
+  await page.waitForFunction(() => !!document.querySelector(".side .it.ag .breath") && !!document.querySelector(".hero-p")?.textContent?.includes("Claude Code is working now"), null, { timeout: 15000 });
+  // The agent edits a file during its turn, so the stop hook saves a new point instead of reusing the last one.
+  writeFileSync(join(projects[0].path, "src/slider.js"), "export const slider = { min: 0, max: 30 };\n");
+  // Every save point after the break holds the broken rounding, so the check fails and no earlier PASS is the newest checked one: exit 0.
+  hook("stop", { hook_event_name: "Stop", stop_hook_active: false });
+  const turn = JSON.parse(execFileSync(process.execPath, [cli, "timeline", "--json"], { cwd: projects[0].path, env, encoding: "utf8" })).checkpoints.at(-1);
+  assert.equal(turn.trigger, "claude-code:stop");
+  assert.deepEqual(turn.agent, { name: "Claude Code", prompt: "Add a tip slider" });
+  assert.equal(turn.verdict, "FAIL");
+  await page.waitForFunction(id => !!document.querySelector(`#e-${id} .meta .vb.v-fail`) && !document.querySelector(".side .it.ag .breath"), turn.id, { timeout: 15000 });
+  assert.equal(await page.locator(`#e-${turn.id} .e-t`).innerText(), "Add a tip slider");
+  assert.match(await page.locator(`#e-${turn.id} .meta .chip`).innerText(), /Claude Code/);
+  assert.deepEqual(await agentWorking(), { pill: false, hero: false }, "The working state must clear when the turn ends");
+  assert.deepEqual(errors, []);
+  await page.screenshot({ path: join(work, "agent-live.png") });
+
   // Quitting while a check runs stops the check and removes its temporary copy.
   const slow = `sleep ${4000 + Math.floor(Math.random() * 900)}`;
   const running = () => {
@@ -102,7 +126,7 @@ try {
   if (left) execFileSync("pkill", ["-f", slow]);
   assert.equal(left, "", "Quitting must stop a running check");
   assert.deepEqual(readdirSync(join(work, "tmp")).filter(n => n.startsWith("tm-verify-")), [], "Quitting must remove the check's temporary copy");
-  console.log(`PASS: demo Broken state, modal focus, nested focus return, persistent announcements, recovery, untouched source, single copy, terminal save point shown live, and no check left after quit. Evidence: ${work}`);
+  console.log(`PASS: demo Broken state, modal focus, nested focus return, persistent announcements, recovery, untouched source, single copy, terminal save point shown live, Claude Code turn shown live (working, then its checked save point), and no check left after quit. Evidence: ${work}`);
 } finally {
   if (!closed) await app.close();
 }
