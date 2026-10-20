@@ -1,7 +1,7 @@
 // Real packaged-app regression, macOS only. Run package:local first. No network or real projects.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -69,6 +69,16 @@ try {
   assert.equal(second.status, 0, `A second copy must exit at once (status ${second.status}, signal ${second.signal})`);
   assert(!page.isClosed(), "The first copy must keep running");
 
+  // A save point made from the terminal shows up in the open window by itself, without a reload.
+  await page.keyboard.press("Escape");
+  writeFileSync(join(projects[0].path, "terminal-note.txt"), "saved from the terminal\n");
+  const cli = resolve(dirname(fileURLToPath(import.meta.url)), "../../../packages/cli/dist/tm.js");
+  const made = JSON.parse(execFileSync(process.execPath, [cli, "checkpoint", "-m", "Saved from the terminal", "--json"], { cwd: projects[0].path, env, encoding: "utf8" }));
+  const liveId = made.checkpoint.id;
+  await page.waitForSelector(`#e-${liveId}`, { timeout: 15000 });
+  assert.match(await page.locator(`#e-${liveId}`).innerText(), /Saved from the terminal/);
+  await page.screenshot({ path: join(work, "live-update.png") });
+
   // Quitting while a check runs stops the check and removes its temporary copy.
   const slow = `sleep ${4000 + Math.floor(Math.random() * 900)}`;
   const running = () => {
@@ -92,7 +102,7 @@ try {
   if (left) execFileSync("pkill", ["-f", slow]);
   assert.equal(left, "", "Quitting must stop a running check");
   assert.deepEqual(readdirSync(join(work, "tmp")).filter(n => n.startsWith("tm-verify-")), [], "Quitting must remove the check's temporary copy");
-  console.log(`PASS: demo Broken state, modal focus, nested focus return, persistent announcements, recovery, untouched source, single copy, and no check left after quit. Evidence: ${work}`);
+  console.log(`PASS: demo Broken state, modal focus, nested focus return, persistent announcements, recovery, untouched source, single copy, terminal save point shown live, and no check left after quit. Evidence: ${work}`);
 } finally {
   if (!closed) await app.close();
 }
