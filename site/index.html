@@ -43,7 +43,7 @@
 <main id="main" tabindex="-1">
   <section class="stage" aria-labelledby="hero-h">
     <div class="hero">
-      <p class="badge"><span class="dot" aria-hidden="true"></span>Early access. The <code translate="no">tm</code> CLI works today.</p>
+      <p class="badge"><span class="dot" aria-hidden="true"></span>Early access. <a href="#try">The <code translate="no">tm</code> CLI works today.</a></p>
       <h1 id="hero-h" data-type data-type-now>Get back the version<br>that passed your tests.</h1>
       <p class="sub"><span translate="no">Time Machine</span> saves your project before Claude Code acts, checks each save point with your own tests, and brings back the newest one that passes.</p>
       <form id="waitlist" class="wl wl-hero" data-waitlist novalidate>
@@ -153,6 +153,32 @@
     </figure>
   </section>
 
+  <section class="block" id="try" aria-labelledby="try-h">
+    <div class="block-head">
+      <p class="eyebrow">Try it now</p>
+      <h2 id="try-h" data-type>Run the demo on your own computer.</h2>
+      <p class="lead">The Mac app is still in development. The <code translate="no">tm</code> CLI works today on macOS and Linux. Build it from source, then run the demo.</p>
+    </div>
+    <div class="term-block install" data-copy-box data-reveal>
+      <p class="install-h">Install from source <span class="tag-s">Not on npm yet</span></p>
+      <pre id="install-cmds" class="term-scroll" tabindex="0" role="region" aria-label="Install commands" translate="no">git clone https://github.com/ShadowEsu/Time-Machine.git
+cd Time-Machine
+pnpm install &amp;&amp; pnpm build
+npm install -g ./packages/cli
+tm demo</pre>
+      <div class="copy-row">
+        <button class="btn btn-ghost btn-sm" type="button" data-copy="install-cmds" hidden>Copy</button>
+        <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
+      </div>
+      <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
+      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched.</p>
+    </div>
+    <ul class="facts" data-reveal>
+      <li><b>Save points stay on your computer, in <code translate="no">~/.timemachine</code>. Nothing is uploaded.</b> The optional Ask feature in the Mac app sends a short summary to Google only after you turn it on.</li>
+      <li><b>Time Machine is not a backup and not a replacement for Git.</b> Keep committing, and keep a disk backup.</li>
+    </ul>
+  </section>
+
   <section class="block" aria-labelledby="plain-h">
     <div class="block-head">
       <p class="eyebrow">For people who don’t write code</p>
@@ -197,7 +223,7 @@
       <li class="card">
         <p class="card-k">1</p>
         <h3>Save</h3>
-        <p class="card-t">Before each prompt and before risky shell commands.</p>
+        <p class="card-t">Before each Claude Code prompt and before risky shell commands, even when nothing is committed yet.</p>
         <p class="card-d">Claude Code’s own rewind skips files changed by Bash. Time Machine saves first, outside your project folder, with a Git bundle.</p>
         <p class="card-f"><span class="ok">Built</span> Claude Code hooks</p>
       </li>
@@ -351,5 +377,6 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 <script src="assets/motion.js" defer></script>
 <script src="assets/rewind.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
+<script src="assets/copy.js" defer></script>
 </body>
 </html>
