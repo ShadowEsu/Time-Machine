@@ -36,6 +36,26 @@ describe("C15 Claude Code hooks", () => {
     expect(commands).toContain("tm hook pre-bash");
   });
 
+  test("reconnecting replaces obsolete Time Machine hooks without deleting another tool's hooks", async () => {
+    const { dir, ctx } = await setupDemo();
+    await tm.hookInstall(ctx, { command: "npx -y timetm@0.1.0" });
+    const path = join(dir, ".claude/settings.json");
+    const settings = JSON.parse(readFileSync(path, "utf8")) as { hooks: Record<string, { hooks: { command: string }[] }[]> };
+    settings.hooks.Stop![0]!.hooks.push({ command: "echo mine" });
+    writeFileSync(path, JSON.stringify(settings));
+    const old = "'/usr/local/bin/node' '/old folder/cli/dist/tm.js'";
+    const current = "'/usr/local/bin/node' '/new folder/cli/dist/tm.js'";
+    await tm.hookInstall(ctx, { command: old });
+    await tm.hookInstall(ctx, { command: current });
+    await tm.hookInstall(ctx, { command: current });
+    const result = JSON.parse(readFileSync(path, "utf8")) as typeof settings;
+    for (const [event, suffix] of [["UserPromptSubmit", "prompt"], ["PreToolUse", "pre-bash"], ["Stop", "stop"]]) {
+      const commands = result.hooks[event!]!.flatMap(group => group.hooks.map(hook => hook.command));
+      expect(commands.filter(command => command.endsWith(` hook ${suffix}`))).toEqual([`${current} hook ${suffix}`]);
+    }
+    expect(result.hooks.Stop!.flatMap(group => group.hooks.map(hook => hook.command))).toContain("echo mine");
+  });
+
   test("a risky shell command gets a save point first, a safe one does not", async () => {
     const { dir, ctx } = await setupDemo();
     write(dir, "draft.txt", "unsaved work\n");

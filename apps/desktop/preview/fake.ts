@@ -345,7 +345,7 @@ export class FakeEngine implements TmBridge {
           lastVerdict: target.entry.verdict,
           restored: [`Code at commit ${target.entry.commit.slice(0, 7)}`, ...target.entry.coverage.restorable.slice(1)],
           notRestored: [SECRETS, NOT_CAPTURED],
-          manualSteps: ["Set PORT in .env in the recovery copy.", "Set STRIPE_SECRET_KEY in .env in the recovery copy.", `Review the recovery copy at ${copyDir}.`, `To use it in your main folder: git worktree remove "${copyDir}", then git switch ${branch}`],
+          manualSteps: ["Set PORT in .env in the recovery copy.", "Set STRIPE_SECRET_KEY in .env in the recovery copy.", `Review the recovery copy at ${copyDir}.`, "Keep working in the recovery copy. Review and commit the restored files you want to keep before moving or removing it."],
           pushed: false,
         };
         this.lastRecover = r;

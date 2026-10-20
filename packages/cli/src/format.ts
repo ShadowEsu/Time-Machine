@@ -143,11 +143,13 @@ export function fmtDemo(r: DemoResult, s: Style): string {
   ].join("\n");
 }
 
-export function fmtHookInstall(r: HookInstallResult): string {
+export function fmtHookInstall(r: HookInstallResult & { command: string; absolute: boolean }): string {
   return [
     r.added.length ? `Added Claude Code hooks to ${r.settingsPath}: ${r.added.join(", ")}` : `Claude Code hooks were already in ${r.settingsPath}`,
     "  Before each prompt and before risky shell commands, a checkpoint is saved if anything changed.",
     "  When Claude stops, the newest checkpoint is checked. If it passed before and fails now, Claude is told which checkpoint last worked.",
+    `The hooks run: ${r.command}`,
+    ...(r.absolute ? ["  If you move or delete this folder, run tm hook install again."] : []),
     "Claude Code runs project hooks only after you trust the folder.",
     "For the MCP server too: claude mcp add timemachine -- tm mcp",
   ].join("\n");

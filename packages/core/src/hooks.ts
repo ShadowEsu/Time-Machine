@@ -154,7 +154,12 @@ function wantedHooks(command: string): { event: string; matcher?: string; entry:
   ];
 }
 
-/** Adds the hooks to .claude/settings.json in the project, keeping everything already there. */
+// Recognize only command forms Time Machine has installed. Other tools' hooks stay untouched.
+// A shell-quoted word can contain an apostrophe encoded as '\''.
+const quotedWord = "'(?:[^']|'\\\\'')*'";
+const installedCommand = new RegExp(`^(?:tm|npx -y timetm(?:@[\\w.-]+)?|(?:ELECTRON_RUN_AS_NODE=1 )?${quotedWord} '(?:[^']|'\\\\'')*[/\\\\](?:tm\\.js|cli\\.cjs)') hook (?:prompt|pre-bash|stop)$`);
+
+/** Installs or reconnects our hooks, preserving other tools' hooks and project settings. */
 export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<HookInstallResult> {
   const p = resolveProject(ctx);
   const settingsPath = join(p.root, ".claude", "settings.json");
@@ -174,8 +179,20 @@ export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<
   const added: string[] = [];
   const alreadyPresent: string[] = [];
   for (const w of wantedHooks(opts.command)) {
-    const groups = hooks[w.event] ?? [];
-    const exists = groups.some((g) => g.hooks.some((h) => h.command === w.entry.command));
+    let exists = false;
+    const groups = (hooks[w.event] ?? []).flatMap(group => {
+      if (group.matcher !== w.matcher) return [group];
+      const entries = group.hooks.filter(entry => {
+        if (entry.command === w.entry.command) {
+          if (exists) return false;
+          exists = true;
+          return true;
+        }
+        return !entry.command || !installedCommand.test(entry.command);
+      });
+      return entries.length ? [{ ...group, hooks: entries }] : [];
+    });
+    hooks[w.event] = groups;
     if (exists) {
       alreadyPresent.push(w.event);
       continue;
@@ -211,6 +228,11 @@ export interface HookStatusResult {
 /** The hook command when no installed tm is found: npx, pinned to one exact version. */
 export function npxHookCommand(version: string): string {
   return `npx -y timetm@${version}`;
+}
+
+/** Quotes one word for /bin/sh, so paths with spaces or quotes stay one argument. */
+export function shellQuote(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
 /** Runs `<command> --version` in a shell, the way Claude Code runs hooks. True only when it prints `version`. */
