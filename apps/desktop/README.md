@@ -13,6 +13,8 @@ pnpm app
 
 `pnpm app` downloads the Electron binary the first time, builds the app into `apps/desktop/out/` and opens it. Node 22.12 or newer is needed.
 
+The Claude Code sidebar refreshes its last completed turn from the real audit log alongside project and connection status. You do not need to visit Agents first to see when the turn ended. The native smoke installs real hook lines and checks that the sidebar updates after an external hook process finishes.
+
 Other scripts, run from the root with `pnpm --filter @timetm/desktop <script>`:
 
 | Script | What it does |

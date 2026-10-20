@@ -7,7 +7,7 @@
 <meta name="description" content="Time Machine saves your project before an AI coding agent acts, runs your own tests on each save point in a separate copy, and brings back the newest one that passes.">
 <link rel="canonical" href="https://time-machine-site.vercel.app/">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#050506">
+<meta name="theme-color" content="#101010">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Time Machine">
 <meta property="og:url" content="https://time-machine-site.vercel.app/">
@@ -36,7 +36,7 @@
 </div>
 
 <header class="bar">
-  <a class="bar-brand" href="index.html" aria-current="page" translate="no">Time Machine</a>
+  <a class="bar-brand" href="index.html" aria-current="page" translate="no"><img src="assets/img/icon.png" width="30" height="30" alt="">Time Machine</a>
   <a class="bar-cta" href="#waitlist">Join the waitlist</a>
 </header>
 
@@ -278,7 +278,8 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <h2 id="cmp-h" data-type>How it compares with what you have</h2>
       <p class="lead">Your agent’s rewind and Git each cover part of the problem. Time Machine adds the check and the safe way back.</p>
     </div>
-    <div class="cmp-wrap" tabindex="0" role="region" aria-label="Compare Claude Code rewind, Git and Time Machine">
+    <p class="cmp-note" id="cmp-scroll-hint">Scroll the table sideways or use the arrow keys to compare all three.</p>
+    <div class="cmp-wrap" tabindex="0" role="region" aria-label="Compare Claude Code rewind, Git and Time Machine" aria-describedby="cmp-scroll-hint">
       <table class="cmp">
         <caption class="sr-only">What Claude Code’s rewind, Git and Time Machine each do</caption>
         <thead><tr><th scope="col"><span class="sr-only">Capability</span></th><th scope="col">Claude Code rewind</th><th scope="col">Git</th><th scope="col" class="tm" translate="no">Time Machine</th></tr></thead>

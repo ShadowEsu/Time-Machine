@@ -81,6 +81,8 @@ try {
 
   // A Claude Code turn from another process shows up live: working while it runs, then its save point.
   // The hook lines run `<tm> hook prompt` and `<tm> hook stop` in the project with Claude Code's JSON on stdin.
+  const installed = await page.evaluate(projectId => window.tm.call({ method: "hookInstall", projectId }), projects[0].id);
+  assert(installed.ok, `The app's own bundled hook command must install: ${JSON.stringify(installed)}`);
   const hook = (event, payload) => execFileSync(process.execPath, [cli, "hook", event], { cwd: projects[0].path, env, input: JSON.stringify({ session_id: "smoke-session", cwd: projects[0].path, ...payload }), encoding: "utf8", timeout: 120000 });
   hook("prompt", { hook_event_name: "UserPromptSubmit", prompt: "Add a tip slider" });
   const agentWorking = () => page.evaluate(() => ({
@@ -100,6 +102,7 @@ try {
   assert.equal(await page.locator(`#e-${turn.id} .e-t`).innerText(), "Add a tip slider");
   assert.match(await page.locator(`#e-${turn.id} .meta .chip`).innerText(), /Claude Code/);
   assert.deepEqual(await agentWorking(), { pill: false, hero: false }, "The working state must clear when the turn ends");
+  await page.waitForFunction(() => document.querySelector(".side .it.ag")?.getAttribute("title")?.includes("Last turn ended"), null, { timeout: 15000 });
   assert.deepEqual(errors, []);
   await page.screenshot({ path: join(work, "agent-live.png") });
 

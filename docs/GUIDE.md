@@ -333,7 +333,7 @@ claude mcp add timemachine -- tm mcp
 
 These are planned. None of them work today.
 
-- **Mac app** with Save now, Check it works and Rewind buttons, a History screen and a menu bar status dot.
+- **Signed Mac download.** The Mac app works from source today with Save now, Check it works and Rewind. Run `pnpm app` from the cloned repository. Apple signing and notarization are not ready.
 - **Container isolation** with Docker, OrbStack or Apple `container`, labeled as stronger than host mode.
 - **Dependency cache**, so checks do not reinstall packages every time.
 - **npm package** `timetm`, with `npx timetm init`.
