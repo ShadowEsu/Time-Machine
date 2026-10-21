@@ -147,9 +147,19 @@ Preston asked for Linear, Vercel and Raycast level craft on the home page, using
 
 - **One container and one scale.** `site/assets/home.css` sets `--container` 1200 px, `--inline` side padding, `--section-y` rhythm and five type steps (`--t-display`, `--t-h2`, `--t-h3`, `--t-lead`, `--t-cap`). Every block uses them.
 - **Hero.** Left aligned. A pill badge, the serif claim at up to 104 px, then the lead and the waitlist form side by side. The real recording starts inside the first screen at 1440 x 900.
-- **Product, not a picture of one.** The 39 second recording sits in a bezel next to a chapter rail. The seven chapters come from the real caption file. Clicking one seeks and plays (`site/assets/recording.js`), the current chapter gets `aria-current` and a thin ember progress line. The rail is also the transcript, so the separate `details` was removed.
+- **Product, not a picture of one.** The recording sits in a bezel next to a chapter rail. The chapters come from the real caption file. Clicking one seeks and plays (`site/assets/recording.js`), the current chapter gets `aria-current` and a thin progress line. The rail is also the transcript, so the separate `details` was removed.
 - **Sticky header** with page links and a hairline that fades in on scroll (scroll timeline, with a static fallback).
 - **Sections.** Title left, lead right on wide screens; a hairline centred in the gap between blocks; raised panels for the three steps; install commands beside the two facts; the docs quote beside its meaning; the four app words in one row.
-- **Colour.** Ember `#ff8a3d` (from the icon) is used twice: the light behind the recording and playback progress. Green and red still mean Works and Broken only.
+- **Colour.** Superseded by section 11.
 - **Motion.** One entrance after the opening screen: badge, then lead and form, then the recording. The lead paragraph is the LCP element, so its block only moves and never starts invisible. Reduced motion shows everything at once.
 - **Not added:** logos, metrics, testimonials or any claim not already on the site.
+
+## 11. Warm dark, everywhere (21 Oct)
+
+Preston asked for the whole site to be dark, warm and closer to Claude and Anthropic, with nothing light, and for a better demo video from the real app.
+
+- **One theme.** `site/assets/site.css` holds a single warm dark token set for every page, with no light branch and `color-scheme: dark`: charcoal `#1a1918`, card `#24231f`, ivory text `#faf9f5`, secondary `#d6d3c8` and `#a8a59a` (7.1:1 on the page). Every page has one `theme-color` of `#1a1918`.
+- **Clay is the main action.** `#d97757` with dark text (5.9:1) for primary buttons and the header CTA, and as a small accent: the glow behind the recording, the playback line, the dial pointer. Links and focus stay ivory. Green and red still mean Works and Broken only.
+- **Devices are graphite.** The rewind instrument on home, the loop device on How it works and the 3D unit on the story page are black-anodised charcoal with ivory engraving instead of aluminium.
+- **Real screens are dark.** The Mac app now opens in dark for new installs, so the recording and the three story screenshots show the dark app.
+- **The recording.** 68 seconds from the packaged Mac app on a synthetic project: three checked save points, a Claude Code turn sent through the real hooks (the edit itself is scripted, and the page says so), the live Broken state, Review with its limits, and recovery to a new branch. The chapter list is generated from the caption file. Wide screens get 1920 px, others 1280 px.

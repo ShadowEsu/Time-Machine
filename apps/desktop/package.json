@@ -13,7 +13,9 @@
     "package:local": "node scripts/package-local.mjs",
     "package:release": "node scripts/package-local.mjs --release",
     "smoke:native": "node scripts/smoke-native.mjs",
-    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json"
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
+    "demo:record": "node scripts/record-demo.mjs",
+    "demo:encode": "node scripts/encode-demo.mjs && node scripts/demo-chapters.mjs"
   },
   "devDependencies": {
     "@timetm/core": "workspace:*",

@@ -76,15 +76,16 @@
 
     <section class="recording" id="app-recording" aria-labelledby="recording-h">
       <div class="recording-head">
-        <h2 id="recording-h">From broken to a working copy.</h2>
-        <p>The real Mac app on a synthetic project. 39 seconds, captions, no sound. No simulated check results.</p>
+        <h2 id="recording-h">Broken, then back, in the real app.</h2>
+        <p>The real Mac app on a synthetic project. The Claude Code edit is scripted. The hooks, save points, checks and recovery are real. 68 seconds, captions, no sound.</p>
       </div>
       <div class="recording-stage">
         <figure class="recording-player">
           <video controls playsinline preload="none" width="1280" height="800"
             poster="assets/demo/recovery-poster.jpg" aria-label="Time Machine Mac app recovery demonstration"
             aria-describedby="recording-caption">
-            <source src="assets/demo/recovery.mp4" type="video/mp4">
+            <source src="assets/demo/recovery.mp4" type="video/mp4" media="(min-width: 1100px)">
+            <source src="assets/demo/recovery-1280.mp4" type="video/mp4">
             <track kind="captions" src="assets/demo/recovery.en.vtt" srclang="en" label="English" default>
             Your browser cannot play this video. Read the transcript next to it.
           </video>
@@ -93,13 +94,14 @@
         <div class="recording-chapters">
           <h3 id="chapters-h">Chapters and transcript</h3>
           <ol aria-labelledby="chapters-h" data-chapters>
-            <li><button type="button" data-seek="0.144" data-end="3.649"><span class="ch-t"><span class="sr-only">Play from </span>0:00</span><span class="ch-x">The real Mac app, using its synthetic Marigold Tips project.</span></button></li>
-            <li><button type="button" data-seek="3.649" data-end="8.888"><span class="ch-t"><span class="sr-only">Play from </span>0:04</span><span class="ch-x">The latest check failed. Earlier save points keep their own verdicts.</span></button></li>
-            <li><button type="button" data-seek="8.888" data-end="12.893"><span class="ch-t"><span class="sr-only">Play from </span>0:09</span><span class="ch-x">Choose the last version that passed its check.</span></button></li>
-            <li><button type="button" data-seek="12.893" data-end="23.012"><span class="ch-t"><span class="sr-only">Play from </span>0:13</span><span class="ch-x">Review what comes back, and what does not: secrets, databases and deployments.</span></button></li>
-            <li><button type="button" data-seek="23.012" data-end="28.013"><span class="ch-t"><span class="sr-only">Play from </span>0:23</span><span class="ch-x">Time Machine saves the current version, then creates a separate recovery copy.</span></button></li>
-            <li><button type="button" data-seek="28.013" data-end="34.023"><span class="ch-t"><span class="sr-only">Play from </span>0:28</span><span class="ch-x">The copy is ready on a new local branch. The original folder stays unchanged.</span></button></li>
-            <li><button type="button" data-seek="34.023" data-end="39.039"><span class="ch-t"><span class="sr-only">Play from </span>0:34</span><span class="ch-x">Database contents, secret values and deployed changes do not come back.</span></button></li>
+            <li><button type="button" data-seek="0.589" data-end="11.174"><span class="ch-t"><span class="sr-only">Play from </span>0:00</span><span class="ch-x">Marigold Tips, a synthetic project. Every save point was checked with its own tests.</span></button></li>
+            <li><button type="button" data-seek="11.174" data-end="20.233"><span class="ch-t"><span class="sr-only">Play from </span>0:11</span><span class="ch-x">A Claude Code turn starts. Time Machine saves the project first.</span></button></li>
+            <li><button type="button" data-seek="20.233" data-end="24.848"><span class="ch-t"><span class="sr-only">Play from </span>0:20</span><span class="ch-x">The turn ends. Its save point is checked in a safe copy.</span></button></li>
+            <li><button type="button" data-seek="24.848" data-end="35.661"><span class="ch-t"><span class="sr-only">Play from </span>0:24</span><span class="ch-x">Broken. The app says since when, and names the last version that works.</span></button></li>
+            <li><button type="button" data-seek="35.661" data-end="44.862"><span class="ch-t"><span class="sr-only">Play from </span>0:35</span><span class="ch-x">Go back. First, review what comes back and what does not.</span></button></li>
+            <li><button type="button" data-seek="44.862" data-end="51.306"><span class="ch-t"><span class="sr-only">Play from </span>0:44</span><span class="ch-x">Secret values and anything outside the project do not come back. It says so first.</span></button></li>
+            <li><button type="button" data-seek="51.306" data-end="58.424"><span class="ch-t"><span class="sr-only">Play from </span>0:51</span><span class="ch-x">Bring it back. It lands as a separate copy on a new branch.</span></button></li>
+            <li><button type="button" data-seek="58.424" data-end="67.658"><span class="ch-t"><span class="sr-only">Play from </span>0:58</span><span class="ch-x">The working version is back. Your folder was not touched.</span></button></li>
           </ol>
         </div>
       </div>
@@ -238,7 +240,7 @@ tm demo</pre>
           <h3 data-type>It tells you when something broke</h3>
           <p>Every change gets a save point. The app shows plainly which ones work and which are broken, and the last one that worked.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="900"><img src="assets/img/app-broken.jpg" width="1600" height="885" loading="lazy" decoding="async" alt="The Mac app shows a failed check, the last save point that passed, a Go back button, recovery limits and a history of checked versions."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="900"><img src="assets/img/app-broken.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The Mac app shows a failed check, the last save point that passed, a Go back button, recovery limits and a history of checked versions."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
       <li class="story-row flip" data-reveal>
         <div class="story-text">
@@ -246,7 +248,7 @@ tm demo</pre>
           <h3 data-type>Turn the dial back</h3>
           <p>Pick the last version that works. Before anything happens, you see what comes back and what does not, like passwords or your database.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="1100"><img src="assets/img/app-review-wide.jpg" width="1600" height="885" loading="lazy" decoding="async" alt="The recovery review shows the save point that passed, files that return, secret values and database contents that do not, and the dial with its Go back button."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="1100"><img src="assets/img/app-review-wide.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The recovery review shows the save point that passed, files that return, secret values and database contents that do not, and the dial with its Go back button."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
       <li class="story-row" data-reveal>
         <div class="story-text">
@@ -254,7 +256,7 @@ tm demo</pre>
           <h3 data-type>Press Go back. Your work is safe.</h3>
           <p>The good version comes back as a separate copy. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="786"><img src="assets/img/app-done.jpg" width="1600" height="885" loading="lazy" decoding="async" alt="The recovery report shows a separate copy is ready on a new local branch, what returned, and remaining manual steps. The original folder was not switched."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="786"><img src="assets/img/app-done.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The recovery report shows a separate copy is ready on a new local branch, what returned, and remaining manual steps. The original folder was not switched."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
     </ol>
   </section>
