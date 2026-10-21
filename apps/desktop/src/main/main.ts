@@ -81,7 +81,8 @@ function createMainWindow(): BrowserWindow {
     minHeight: 640,
     show: false,
     title: "Time Machine",
-    backgroundColor: "#fafafa",
+    // The splash is dark in every theme, so the window's first paint is too.
+    backgroundColor: "#141413",
     icon: join(OUT, "icon.png"),
     ...(isMac ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 18, y: 18 }, vibrancy: "sidebar" as const } : {}),
     webPreferences: webPreferences("preload.cjs"),

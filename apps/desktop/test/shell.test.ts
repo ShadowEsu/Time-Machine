@@ -22,7 +22,7 @@ describe("settings", () => {
     expect(SettingsSchema.parse({})).toEqual({
       showGitDetails: false,
       overlayCards: true,
-      theme: "system",
+      theme: "dark",
       onboarded: false,
       simpleRewind: false,
       hotkey: "Control+Alt+T",
@@ -31,7 +31,7 @@ describe("settings", () => {
   });
 
   test("settings saved by an older version keep their values and gain the new defaults", () => {
-    const old = { showGitDetails: true, overlayCards: false, theme: "dark", onboarded: true, simpleRewind: false };
+    const old = { showGitDetails: true, overlayCards: false, theme: "system", onboarded: true, simpleRewind: false };
     expect(SettingsSchema.parse(old)).toMatchObject({ ...old, hotkey: "Control+Alt+T", agentPill: true });
   });
 
