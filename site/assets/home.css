@@ -30,7 +30,10 @@ body.home {
 body.home a, body.home button, body.home summary { touch-action: manipulation; }
 body.home p, body.home dd, body.home li { text-wrap: pretty; }
 body.home pre { font-variant-numeric: tabular-nums; }
-body.home section[id], body.home h2[id] { scroll-margin-top: calc(var(--bar-h) + 16px); }
+/* The bar is sticky, so every in-page jump and focus scroll stops below it.
+   home.css loads only on the home page, so this rule stays local to it. */
+html { scroll-padding-top: calc(64px + 16px); }
+body.home section[id], body.home h2[id] { scroll-margin-top: 0; }
 
 /* Top bar: sticky, translucent, a hairline once the page moves. */
 .bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 24px; height: var(--bar-h); padding: 0 var(--inline);
@@ -93,7 +96,7 @@ body.home section[id], body.home h2[id] { scroll-margin-top: calc(var(--bar-h) +
 .recording { position: relative; margin-top: clamp(40px, 5vw, 72px); }
 .recording::before { content: ""; position: absolute; z-index: -1; left: 8%; right: 8%; top: 12%; height: 70%; pointer-events: none; filter: blur(40px);
   background: radial-gradient(50% 50% at 50% 50%, rgba(255, 138, 61, .16), transparent 70%); }
-.recording-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; margin-bottom: 16px; padding: 0 4px; }
+.recording-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; margin-bottom: 16px; }
 .recording-head h2 { margin: 0; font: 400 clamp(22px, 1rem + .8vw, 28px)/1.2 var(--font-display); letter-spacing: -.015em; }
 .recording-head p { max-width: 52ch; margin: 0; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.55; }
 .recording-stage { display: grid; grid-template-columns: minmax(0, 1fr) 316px; gap: 12px; padding: 12px; border-radius: 24px;
@@ -199,7 +202,7 @@ nav.ft-col a:hover { color: var(--ink); }
 
 /* The home instrument reuses the story page's aluminium, layered case and knurled dial,
    without loading its fixed nine-act scroll rig. One finite story; no ambient loop. */
-.rewind-story { --rs-duration: 650ms; --rs-fast: 240ms; --rs-ease: cubic-bezier(.22, 1, .36, 1); --rs-angle: 135deg; --rs-color: #f87171; display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); align-items: center; gap: 0 28px; max-width: 1120px; margin: 60px auto 0; padding: 30px 28px 18px; border-top: 1px solid var(--line-2); }
+.rewind-story { --rs-duration: 650ms; --rs-fast: 240ms; --rs-ease: cubic-bezier(.22, 1, .36, 1); --rs-angle: 135deg; --rs-color: #f87171; display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); align-items: center; gap: 0 clamp(28px, 4vw, 64px); margin: clamp(64px, 8vw, 112px) 0 0; padding: clamp(40px, 5vw, 72px) 0 0; border-top: 1px solid var(--line); }
 .rs-copy { position: relative; z-index: 2; padding-bottom: 28px; }
 .rs-step { color: var(--accent); font-size: 14px; margin: 0 0 18px; }
 .rs-copy h2 { margin: 0; min-height: 2.1em; font: 400 clamp(32px, 3.2vw, 46px)/1.05 var(--font-display); letter-spacing: -.025em; text-wrap: balance; white-space: pre-line; }
