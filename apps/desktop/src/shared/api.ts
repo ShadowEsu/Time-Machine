@@ -63,7 +63,8 @@ export const DEFAULT_HOTKEY = "Control+Alt+T";
 export const SettingsSchema = z.strictObject({
   showGitDetails: z.boolean().default(false),
   overlayCards: z.boolean().default(true),
-  theme: ThemeSchema.default("system"),
+  /** New installs open dark. A saved choice, including System or Light, is kept. */
+  theme: ThemeSchema.default("dark"),
   onboarded: z.boolean().default(false),
   /** Use the plain step by step sheet instead of the Time View. Reduce motion turns it on by itself. */
   simpleRewind: z.boolean().default(false),

@@ -486,8 +486,8 @@
   const vs = $(".vs"), testsN = $("#testsN");
   // The count lives in the HTML only, so the animation can never end on a stale number.
   const testsTotal = testsN.textContent.trim();
+  let countRaf = 0;
   if ("IntersectionObserver" in window) {
-    let countRaf = 0;
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (!e.isIntersecting) {
         if (e.target === testsN && countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = testsTotal; io.unobserve(testsN); }
