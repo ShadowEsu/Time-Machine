@@ -36,6 +36,7 @@
     <a href="story.html">The story</a>
     <a href="blog/index.html">Blog</a>
     <a href="#pricing">Pay once</a>
+    <a href="account.html">Sign in</a>
   </nav>
   <a class="bar-cta" href="#waitlist">Join the waitlist</a>
 </header>
@@ -202,7 +203,7 @@ tm demo</pre>
         <button class="btn btn-ghost btn-sm" type="button" data-copy="ui-cmd" hidden>Copy</button>
         <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
       </div>
-      <p class="install-note"><code translate="no">tm ui</code> opens the web app in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. Free for up to 3 projects. <a href="#pricing">Pay once for unlimited projects</a>.</p>
+      <p class="install-note"><code translate="no">tm ui</code> opens the web app in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. The first time, it asks for your license key; <code translate="no">tm license &lt;key&gt;</code> also works. <a href="#pricing">Pay once for the key</a>.</p>
     </div>
     <div class="try-side">
       <div class="agent-setup" data-copy-box>
@@ -311,20 +312,21 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <div class="back-col">
         <p class="back-h">Comes back</p>
         <ul>
-          <li><b>Your code, with uncommitted edits.</b> The commit is made from your working tree, so edits you had not committed are in it. <code translate="no">Code: commit a1b2c3d on main, including 4 uncommitted changes</code></li>
-          <li><b>Files not in Git.</b> New files you had not added yet, up to a size limit you set. <code translate="no">Files: 3 files not in Git</code></li>
-          <li><b>Config, by key name.</b> Keys you allowlist come back with their values. Every other key comes back as its name and a fingerprint, so you can tell what changed without the value ever being stored. <code translate="no">Config: 6 keys in .env (1 saved, 5 name only)</code></li>
-          <li><b>Lockfile digests and runtime versions.</b> A digest of each lockfile, the Node version, and a digest of environment files such as a Dockerfile, so you can tell when the environment moved. <code translate="no">Dependencies: package-lock.json</code> <code translate="no">Environment: node 22.22.0</code></li>
-          <li><b>A Git bundle in the store.</b> Kept in <code translate="no">~/.timemachine</code>, so the save point survives the project folder being deleted.</li>
+          <li><b>Your code, with uncommitted edits.</b> The commit is made from your working tree, so edits you had not committed yet are in it. <code class="line" translate="no">Code at commit a1b2c3d</code></li>
+          <li><b>Files not in Git.</b> New files you had not added yet, up to a size limit you set. <code class="line" translate="no">3 saved files</code></li>
+          <li><b>Config, by key name.</b> Keys you allowlist come back with their values. Every other key is kept as its name and a fingerprint, so you can tell what changed without the value ever being stored. <code class="line" translate="no">Config: PORT</code></li>
+          <li><b>Lockfiles.</b> <code translate="no">package-lock.json</code>, <code translate="no">pnpm-lock.yaml</code>, <code translate="no">yarn.lock</code>, <code translate="no">Cargo.lock</code> and similar, even when your .gitignore skips them, checked byte for byte against their recorded digests. <code class="line" translate="no">Dependencies: package-lock.json</code></li>
+          <li><b>Environment definition files.</b> <code translate="no">Dockerfile</code>, <code translate="no">docker-compose.yml</code>, <code translate="no">.nvmrc</code>, <code translate="no">.tool-versions</code>, <code translate="no">.devcontainer/devcontainer.json</code> and similar, also when ignored, also checked against their digests. <code class="line" translate="no">Environment definition: Dockerfile, .nvmrc</code></li>
+          <li><b>A Git bundle in the store.</b> Kept in <code translate="no">~/.timemachine</code>, so the save point survives the project folder being deleted. Runtime versions such as Node and Git are recorded and shown in a compare, not restored.</li>
         </ul>
       </div>
       <div class="back-col">
         <p class="back-h">Does not come back</p>
         <ul>
-          <li><b>Secret values.</b> Never stored, not even on your own computer. The report names the keys you set again by hand. <code translate="no">Secret values in .env: STRIPE_SECRET_KEY</code></li>
-          <li><b>Files that look like secrets.</b> An edited tracked file that looks like it holds a secret keeps its last committed version instead. A file named like a secrets file is not saved. <code translate="no">.env.local is a secrets file by name, so it was not saved</code></li>
-          <li><b>Files your .gitignore skips.</b> Folders like <code translate="no">node_modules</code> or build output, unless you ask for them. <code translate="no">Files your .gitignore skips were not saved: dist</code></li>
-          <li><b>Database contents, deployed versions and external services.</b> Emails sent, payments made, anything on a server. <code translate="no">Databases, deployed versions and external services are not captured</code></li>
+          <li><b>Secret values.</b> Never stored, not even on your own computer. The report names the keys you set again by hand. <code class="line" translate="no">Secret values in .env: STRIPE_SECRET_KEY</code></li>
+          <li><b>Files that look like secrets.</b> An edited tracked file that looks like it holds a secret keeps its last committed version instead. A file named like a secrets file is not saved. <code class="line" translate="no">.env.local is a secrets file by name, so it was not saved</code></li>
+          <li><b>Files your .gitignore skips.</b> Folders like <code translate="no">node_modules</code> or build output, unless you ask for them. <code class="line" translate="no">Files your .gitignore skips were not saved: dist</code></li>
+          <li><b>Database contents, deployed versions and external services.</b> Emails sent, payments made, anything on a server. <code class="line" translate="no">Databases, deployed versions and external services are not captured</code></li>
         </ul>
       </div>
     </div>
@@ -374,35 +376,28 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
   <section class="block" id="pricing" aria-labelledby="pricing-h">
     <div class="block-head">
       <h2 id="pricing-h">Pay once</h2>
-      <p class="lead">The CLI is free and MIT licensed. The web app is free for up to 3 projects. One payment of $50 unlocks unlimited projects. No subscription, no account.</p>
+      <p class="lead">The web app needs a license key to open. One payment, one key, yours for good. No subscription.</p>
     </div>
     <div class="plans">
-      <div class="plan">
-        <p class="plan-k">Free</p>
-        <p class="plan-price">$0</p>
-        <ul>
-          <li>The <code translate="no">tm</code> CLI under the MIT license: save points, checks, find-good, recover, Claude Code hooks and the MCP server.</li>
-          <li>Unlimited projects in the CLI.</li>
-          <li>Every restore. Restores are never behind the paywall.</li>
-          <li>The web app, <code translate="no">tm ui</code>, with up to 3 projects.</li>
-        </ul>
-        <a class="btn btn-ghost" href="#try">Install from source</a>
-      </div>
       <div class="plan plan-paid">
-        <p class="plan-k">Web app</p>
+        <p class="plan-k">The web app</p>
         <p class="plan-price">$50 <span>once</span></p>
         <ul>
-          <li>Unlimited projects in the web app.</li>
+          <li>The web app on any number of your own computers and projects.</li>
           <li>Updates while we ship them.</li>
-          <li>A key that works offline. No account.</li>
+          <li>A key verified offline, on your computer.</li>
+          <li>No subscription.</li>
           <li>Refund within 14 days by email. <a href="terms.html#license">Terms (draft)</a></li>
         </ul>
         <button class="btn btn-warm" type="button" data-buy disabled>Buy once for $50</button>
         <p class="plan-status" data-buy-status role="status" aria-live="polite"></p>
         <noscript><p class="plan-status">Checkout needs JavaScript. Email preston@unvibe.site instead.</p></noscript>
       </div>
+      <div class="plan-aside">
+        <p class="plan-note"><b>Why pay once.</b> No subscription to cancel, no password to keep. The web app runs on your computer, and so does the key. Already bought it? <a href="account.html">Sign in</a> to see your key again.</p>
+        <p class="plan-note">The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way. Save points, checks, find-good, recover, the Claude Code hooks and the MCP server never need a key, and restores are never behind the paywall.</p>
+      </div>
     </div>
-    <p class="plan-note"><b>Why pay once.</b> No subscription to cancel, no account to protect. The web app runs on your computer, and so does the key.</p>
   </section>
 
   <section class="block" aria-labelledby="words-h">
@@ -442,8 +437,8 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <p class="ft-mail"><a href="mailto:preston@unvibe.site">preston@unvibe.site</a></p>
       <dl class="ft-status">
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
-        <div><dt>Web app</dt><dd><code translate="no">tm ui</code>. Works from source. Free for up to 3 projects.</dd></div>
-        <div><dt>Price</dt><dd>$50 once for unlimited web app projects. Checkout is not open yet.</dd></div>
+        <div><dt>Web app</dt><dd><code translate="no">tm ui</code>. Works from source. Needs a license key.</dd></div>
+        <div><dt>Price</dt><dd>$50 once. Checkout is not open yet.</dd></div>
         <div><dt>Tests</dt><dd><span class="num">365</span> automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
         <div><dt>License</dt><dd>MIT. <a href="https://github.com/ShadowEsu/Time-Machine" rel="noopener">Source on GitHub</a></dd></div>
       </dl>
@@ -473,8 +468,8 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <details><summary>Why not the agent’s own rewind?</summary><p>Claude Code’s docs say checkpointing does not track files changed by Bash commands. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Read the Claude Code docs</a></p></details>
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
       <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; Preston writes to the list himself when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
-      <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and there is no account.</p></details>
-      <details><summary>What does the $50 buy?</summary><p>Unlimited projects in the web app, and updates while we ship them. One payment, no subscription, no account. The CLI stays free and MIT licensed, and every restore stays free. Checkout is not open yet, so nothing is for sale today.</p></details>
+      <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and nothing on it needs a password.</p></details>
+      <details><summary>What does the $50 buy?</summary><p>The license key the web app needs to open, for any number of your own computers and projects, with updates while we ship them. One payment, no subscription. <code translate="no">tm ui</code> asks for the key the first time; <code translate="no">tm license &lt;key&gt;</code> also works. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall. Checkout is not open yet, so nothing is for sale today.</p></details>
     </div>
 
     <nav class="ft-col" aria-label="Footer">
@@ -486,6 +481,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <li><a href="company.html">Company</a></li>
         <li><a href="blog/index.html">Blog</a></li>
         <li><a href="#pricing">Pay once</a></li>
+        <li><a href="account.html">Sign in</a></li>
         <li><a href="changelog.html">Changelog</a></li>
         <li><a href="privacy.html">Privacy (draft)</a></li>
         <li><a href="terms.html">Terms (draft)</a></li>

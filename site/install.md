@@ -6,7 +6,7 @@ These steps are for a person or a coding agent such as Claude Code. Run them in 
 
 ## Before you start
 
-- macOS or Linux. The `tm` CLI works on both. `tm ui` is tested on macOS so far.
+- macOS or Linux. The `tm` CLI and the web app (`tm ui`) work on both.
 - Node 22 or newer, and Git.
 - A Git project with a check command, such as `npm test`.
 - The CLI is not on npm yet. Install it from source as shown below.
@@ -64,9 +64,21 @@ If a project also has hooks from `tm hook install`, the plugin steps aside there
 tm ui
 ```
 
-This opens Time Machine in your browser. The server runs on your own computer at `127.0.0.1`, so your project is never uploaded. Keep the terminal open while you use it. Ctrl+C stops it.
+This opens the Time Machine web app in your browser. The server runs on your own computer at `127.0.0.1`, so your project is never uploaded. Nothing is hosted and there is no account. Keep the terminal open while you use it. Ctrl+C stops it.
 
 Open the full address that `tm ui` prints. It includes a private session key. Do not share it.
+
+The web app needs a one-time $50 license key to open. It asks for the key the first time. Checkout is not open yet. The `tm` command line tool is open source (MIT) and never needs a key.
+
+## 5. Enter your license key
+
+If you bought a key, enter it once per computer, either when `tm ui` asks for it or with:
+
+```sh
+tm license <key>
+```
+
+Or open `tm ui`, go to Settings, then License, and paste the key. The key works offline. The CLI never needs a key, and restores are never behind the paywall.
 
 ## Everyday commands
 
@@ -74,6 +86,8 @@ Open the full address that `tm ui` prints. It includes a private session key. Do
 tm checkpoint -m "works"   # save now
 tm find-good               # check save points, newest first, each in a fresh copy
 tm recover cp-0001         # bring one back on a new branch, tm/recover/cp-0001
+tm ui                      # the web app, in your browser, on this computer
+tm license <key>           # enter the web app license key
 ```
 
 ## Limits

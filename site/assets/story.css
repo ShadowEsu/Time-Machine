@@ -41,7 +41,7 @@ body.is-night .top { --paper: var(--night-paper); --mist: #22201d; --accent: var
 }
 .hud-acts { pointer-events: none; }
 .hud-n { font-weight: 650; font-variant-numeric: tabular-nums; }
-.hud-of { opacity: .45; }
+.hud-of { opacity: .7; }
 .hud-t { min-width: 9.5em; opacity: .85; }
 .hud-bar { display: inline-flex; gap: 3px; }
 .hud-bar i { width: 14px; height: 3px; border-radius: 2px; background: currentColor; opacity: .18; transform-origin: 0 50%; transition: opacity .3s; }
@@ -203,7 +203,7 @@ main { position: relative; }
 .vs-bar span { position: relative; font: 13px/1.3 var(--mono); color: var(--ink); }
 .vs-row:first-child .vs-bar span { margin-left: calc(36% - 4px); }
 
-/* Mac app window */
+/* App window */
 .app { display: grid; grid-template-columns: minmax(260px, .7fr) 1.6fr; gap: clamp(28px, 5vw, 72px); align-items: center; margin-top: clamp(96px, 14vh, 160px); }
 .app-h { margin: 0 0 18px; font: 340 clamp(36px, 3.6vw, 58px)/1 var(--serif); font-variation-settings: "opsz" 72; letter-spacing: -.03em; }
 .app-fig { margin: 0; }
@@ -214,11 +214,11 @@ main { position: relative; }
 .app-win img { width: 100%; height: auto; }
 .app-fig figcaption { margin-top: 14px; font: 12px/1.5 var(--mono); color: var(--ink-3); }
 
-/* ladder */
-.a-ladder { z-index: 4; background-color: var(--paper); }
-.a-ladder .stage { display: grid; grid-template-columns: minmax(300px, .8fr) 1.6fr; align-items: center; gap: 4vw; padding: 40px var(--gut) 0; }
-.ld-copy .hx { font-size: clamp(56px, 7vw, 120px); }
-.ld-copy .sub { max-width: 34ch; }
+/* pay once */
+.a-pay { padding: 18vh 0 16vh; border-top: 1px solid var(--line); }
+.a-pay .spec-head { margin-bottom: 0; }
+.a-pay .sub + .sub { margin-top: 16px; }
+.a-pay .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 32px 0 0; }
 
 /* end */
 .a-end { padding: 22vh 0 14vh; border-top: 1px solid var(--line); }
@@ -378,7 +378,6 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .tl-row { display: none; }
 }
 @media (max-width: 1100px) {
-  .a-ladder .stage { grid-template-columns: 1fr; align-content: center; gap: 28px; }
   .app { grid-template-columns: 1fr; }
 }
 
@@ -459,9 +458,7 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .vs-bar span { font-size: 11.5px; }
   .app-bar span { margin-right: 0; }
 
-  .a-ladder .stage { padding: 70px 16px 20px; gap: 22px; }
-  .ld-copy .hx { margin-bottom: 8px; font-size: 52px; }
-  .ld-copy .sub { margin: 0; font-size: 15.5px; }
+  .a-pay { padding: 12vh 0 10vh; }
 
   .a-end { padding: 14vh 0 10vh; }
   .end-grid { grid-template-columns: 1fr; gap: 64px; }

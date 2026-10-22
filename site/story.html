@@ -21,7 +21,6 @@
 <link rel="preload" href="assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/story.css">
-<link rel="stylesheet" href="assets/ladder.css">
 <script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
 </head>
 <body class="story">
@@ -35,6 +34,7 @@
       <a href="security.html">Security</a>
       <a href="company.html">Company</a>
       <a href="blog/index.html">Blog</a>
+      <a href="account.html">Sign in</a>
     </nav>
     <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
   </div>
@@ -139,7 +139,7 @@
 </section>
 
 <!-- ACT 2. The promise -->
-<section class="act a-promise" data-act="1" data-title="The promise" style="--h:180" aria-labelledby="promise-h">
+<section class="act a-promise" data-act="1" data-title="The promise" style="--h:180" role="region" aria-labelledby="promise-h">
   <div class="stage">
     <div class="copy">
       <p class="kick r" data-r=".02 .12">What it does</p>
@@ -275,12 +275,12 @@
         </dl>
       </div>
       <div class="spec-col">
-        <p class="spec-k"><span class="tag tag-dev">In development</span></p>
-        <dl class="spec-list"><dt>Mac app</dt><dd>The same engine, with a timeline you can see. Not signed or shipped yet.</dd></dl>
+        <p class="spec-k"><span class="tag tag-now">Built</span></p>
+        <dl class="spec-list"><dt>Web app</dt><dd><code>tm ui</code>. The same engine, with a timeline you can see, in your browser on your own computer. Needs the one-time license key.</dd></dl>
         <p class="spec-k"><span class="tag tag-plan">Not on npm yet</span></p>
         <dl class="spec-list"><dt>The <code>tm</code> CLI</dt><dd>Join the waitlist and we write to you when it is on npm.</dd></dl>
         <p class="spec-k"><span class="tag tag-plan">Planned</span></p>
-        <dl class="spec-list"><dt>The Ladder</dt><dd>Pricing. Nothing is for sale yet.</dd></dl>
+        <dl class="spec-list"><dt>Pay once</dt><dd>$50 one time for the web app key. Checkout is not open yet.</dd></dl>
         <div class="tests alu">
           <p class="tests-n" id="testsN">365</p>
           <p class="tests-l">automated tests. 363 pass on macOS. 2 run only on Linux. Both pass in CI.</p>
@@ -295,54 +295,30 @@
 
     <div class="app" aria-labelledby="app-h">
       <div class="app-copy">
-        <p class="spec-k"><span class="tag tag-dev">Mac app, in development</span></p>
+        <p class="spec-k"><span class="tag tag-now">The web app, built</span></p>
         <h3 class="app-h" id="app-h">The same engine.<br><span class="dim">A timeline you can see.</span></h3>
         <p class="sub">Every save point with its verdict, what was saved and what was not. One button to find the last working version.</p>
       </div>
       <figure class="app-fig">
         <div class="app-win">
           <div class="app-bar" aria-hidden="true"><i></i><i></i><i></i><span>Time Machine</span></div>
-          <img src="assets/img/app-01-status-broken-dark.jpg" width="1280" height="800" loading="lazy" decoding="async" alt="The real Time Machine Mac app on the synthetic Marigold Tips project. The latest save point failed its check. A Go back button leads to the earlier version that passed. History shows each save point's own verdict.">
+          <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. The newest save point failed its check. A Rewind button leads to the earlier version that passed. The history shows each save point's own verdict.">
         </div>
-        <figcaption>Real source-built Mac app on a synthetic project. In development, not Apple-signed or available to download.</figcaption>
+        <figcaption>Real web app screen on a synthetic project, opened with <code>tm ui</code> from a source install.</figcaption>
       </figure>
     </div>
   </div>
 </section>
 
-<!-- ACT 8. The Ladder -->
-<section class="act a-ladder" id="pricing" data-act="7" data-title="The Ladder" style="--h:220" aria-labelledby="ladder-h">
-  <div class="stage">
-    <div class="ld-copy">
-      <p class="kick">Pricing <span class="tag tag-plan">Planned. Nothing is for sale yet.</span></p>
-      <h2 class="hx" id="ladder-h">The Ladder.</h2>
-      <p class="sub">Pro is planned at $9 a month and gets cheaper the longer you stay: $8 from month 7, $7 from month 13, and a $6 floor. Slide the months.</p>
-    </div>
-    <div class="ld-panel">
-      <div class="ld-face alu">
-        <div class="ld-top">
-          <div class="ld-read">
-            <span class="silk">per month</span>
-            <div class="ld-price" aria-hidden="true"><span class="ld-cur">$</span><span class="ld-dig" id="ldDig"><b>9</b><b>8</b><b>7</b><b>6</b></span></div>
-            <span class="ld-step" id="ldStep">Start</span>
-          </div>
-          <div class="ld-graph" aria-hidden="true">
-            <svg class="ld-stairs" viewBox="0 0 600 200" preserveAspectRatio="none"><path class="ld-path-bg" d="M0 20 H124 V73 H248 V126 H497 V180 H600"/></svg>
-            <div class="ld-ink"><div class="ld-ink-in"><svg class="ld-stairs" viewBox="0 0 600 200" preserveAspectRatio="none"><path class="ld-path" d="M0 20 H124 V73 H248 V126 H497 V180 H600"/></svg></div></div>
-            <span class="ld-puck"></span>
-            <div class="ld-marks"><span style="--m:0">$9</span><span style="--m:.207">$8 · month 7</span><span style="--m:.414">$7 · month 13</span><span style="--m:.828" class="ld-last">$6 floor · month 25</span></div>
-          </div>
-        </div>
-        <div class="ld-fader">
-          <div class="ld-track"><div class="ld-ticks"></div></div>
-          <div class="ld-thumb" id="ldThumb" role="slider" tabindex="0" aria-label="Months subscribed" aria-valuemin="1" aria-valuemax="30" aria-valuenow="1" aria-valuetext="Month 1, $9 a month"><i></i></div>
-          <div class="ld-month"><span class="silk">month</span><span class="ld-mn" id="ldMn">01</span></div>
-        </div>
-        <div class="ld-free">
-          <div class="ld-free-key" aria-hidden="true"><span class="cap"><span class="rw-glyph"><i></i><i></i></span></span></div>
-          <p><b>Restores are never paywalled.</b> Getting back to a version that works never needs a paid plan. The CLI is free. Students pay half of every step.</p>
-        </div>
-      </div>
+<!-- ACT 8. Pay once -->
+<section class="act a-pay plain" id="pricing" data-act="7" data-title="Pay once" aria-labelledby="pay-h">
+  <div class="wrap">
+    <div class="spec-head">
+      <p class="kick">Pricing <span class="tag tag-plan">Checkout not open yet</span></p>
+      <h2 class="hx" id="pay-h">Pay once.<br><span class="dim">$50, yours for good.</span></h2>
+      <p class="sub">The web app needs a license key to open. One payment covers any number of your own computers and projects, with updates while we ship them. No subscription. Refund within 14 days by email.</p>
+      <p class="sub">The <code>tm</code> command line tool is open source (MIT) and stays that way. Restores are never behind the paywall.</p>
+      <p class="btn-row"><a class="btn btn-primary" href="index.html#pricing">See the price</a> <a class="btn btn-ghost" href="account.html">Sign in</a></p>
     </div>
   </div>
 </section>
@@ -391,6 +367,7 @@
         <a href="changelog.html">Changelog</a>
         <a href="terms.html">Terms (draft)</a>
         <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html">Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>

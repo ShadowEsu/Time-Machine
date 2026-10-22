@@ -34,6 +34,7 @@
       <a href="security.html">Security</a>
       <a href="company.html" aria-current="page">Company</a>
       <a href="blog/index.html">Blog</a>
+      <a href="account.html">Sign in</a>
     </nav>
     <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
   </div>
@@ -128,10 +129,9 @@
       <li><span><b>Checks in a separate copy</b><span class="d">With the network off when a sandbox exists, and BLOCKED when that cannot be enforced.</span></span><span class="tag tag-now">Built</span></li>
       <li><span><b>Tests</b><span class="d">365 automated tests, passing in CI on macOS and Linux with Node 22 and 24. Also tested on a real open source project, sindresorhus/slugify.</span></span><span class="tag tag-now">Built</span></li>
       <li><span><b>npm package</b><span class="d"><code>timetm</code>, command <code>tm</code>. Build from source until then.</span></span><span class="tag tag-plan">Not published yet</span></li>
-      <li><span><b>Browser app</b><span class="d"><code>tm ui</code> opens the same app screens in your browser, served from your own computer. Tested on macOS.</span></span><span class="tag tag-now">Built</span></li>
-      <li><span><b>Mac app</b><span class="d">History, save point detail, Rewind and Compare, on the same engine. Not signed or shipped yet.</span></span><span class="tag tag-dev">In development</span></li>
+      <li><span><b>Web app</b><span class="d"><code>tm ui</code> opens the app in your browser, served from your own computer. History, save point detail, Rewind and Compare, on the same engine. Needs the one-time license key.</span></span><span class="tag tag-now">Built</span></li>
       <li><span><b>Action connector for Claude and ChatGPT</b><span class="d">Version 2. Record what agents do in apps like Gmail and Slack, and reverse only what can honestly be reversed. Not available.</span></span><span class="tag tag-plan">Planned</span></li>
-      <li><span><b>The Ladder pricing</b><span class="d">A Pro plan that gets cheaper the longer you stay. The CLI stays free. Restores are never paywalled. Nothing is for sale yet.</span></span><span class="tag tag-plan">Planned</span></li>
+      <li><span><b>Pay once</b><span class="d">$50 one time for the web app key, any number of your own computers and projects, with updates while we ship them. No subscription. The <code>tm</code> command line tool is open source (MIT) and stays that way. Restores are never paywalled.</span></span><span class="tag tag-plan">Checkout not open yet</span></li>
     </ul>
   </div>
 </section>
@@ -146,7 +146,7 @@
       <p class="txt">That is the whole idea of Time Machine, so the codebase lives by it. Before a fix, there is a test that shows the bug. The fix is done when that test passes and nothing else broke.</p>
       <p class="txt">Two independent reviews of the engine found 17 bugs. Every one was fixed test first. The reviews also changed the design: verdicts are now bound to the exact save point they were made for, a store inside the project is refused, and restores never write through a symbolic link.</p>
       <ul class="facts" style="margin-top:28px">
-        <li><b>One engine.</b> The CLI, the hooks, the MCP server and the Mac app call the same code, so they never disagree.</li>
+        <li><b>One engine.</b> The CLI, the hooks, the MCP server and the web app call the same code, so they never disagree.</li>
         <li><b>Decisions are written down</b> as short records with the choice, the alternatives and the cost.</li>
         <li><b>Planned is labelled Planned,</b> on this site, in the docs and in the help text.</li>
         <li><b>Synthetic data only.</b> No real customer data in tests, logs or examples.</li>
@@ -165,7 +165,7 @@
       <div class="g-track" style="--now:.3" aria-hidden="true"><span class="g-base"></span><span class="g-post done" style="--x:.1667"></span><span class="g-post" style="--x:.5"></span><span class="g-post" style="--x:.8333"></span><span class="g-fill"></span><span class="g-now"><span>Now</span></span></div>
       <div class="g-keys">
         <button class="g-key" type="button" data-step aria-pressed="false"><span class="silk-n">Gate 1</span><b>Engine and CLI</b><span class="tag tag-now">Done</span></button>
-        <button class="g-key" type="button" data-step aria-pressed="true"><span class="silk-n">Gate 2 · next</span><b>Mac app</b><span class="tag tag-dev">In development</span></button>
+        <button class="g-key" type="button" data-step aria-pressed="true"><span class="silk-n">Gate 2 · now</span><b>Web app</b><span class="tag tag-now">Built from source</span></button>
         <button class="g-key" type="button" data-step aria-pressed="false"><span class="silk-n">Gate 3</span><b>Action connector</b><span class="tag tag-plan">Planned</span></button>
       </div>
       <div class="g-panes" aria-live="polite">
@@ -175,9 +175,9 @@
           <p><b>Status:</b> met. 365 automated tests pass in CI on macOS and Linux. Publishing <code>timetm</code> to npm is the last step.</p>
         </div>
         <div class="g-pane" data-pane>
-          <p class="k">Gate 2 · Mac app</p>
-          <p><b>Done when:</b> someone who does not use a terminal can go back to the last working version with one button, on the same engine as the CLI, in a signed Mac app.</p>
-          <p><b>Status:</b> in development. Not signed or shipped yet. The screens run in a preview with demo data.</p>
+          <p class="k">Gate 2 · Web app</p>
+          <p><b>Done when:</b> someone who does not use a terminal can go back to the last working version with one button, on the same engine as the CLI, in the web app.</p>
+          <p><b>Status:</b> built. <code>tm ui</code> opens the web app from a source install and runs on your computer. Still to do: publish <code>timetm</code> to npm, and open checkout for the $50 key.</p>
         </div>
         <div class="g-pane" data-pane hidden>
           <p class="k">Gate 3 · Action connector</p>
@@ -196,8 +196,8 @@
       <p class="sub rv" style="--d:1">The CLI works. Turning it into something people can trust with their projects takes four things that time alone cannot buy.</p>
     </div>
     <ul class="raise rv">
-      <li><b>Full time building.</b><span>Focused time on the engine and the Mac app, instead of fitting it around other work.</span></li>
-      <li><b>A signed Mac app.</b><span>Shipping a signed, notarized Mac app needs the Apple Developer Program.</span></li>
+      <li><b>Full time building.</b><span>Focused time on the engine and the web app, instead of fitting it around other work.</span></li>
+      <li><b>Shipping the web app.</b><span>Publishing to npm, opening checkout, and support and updates for people who pay once.</span></li>
       <li><b>An outside security review.</b><span>A tool that touches your code should be checked by someone other than the person who wrote it.</span></li>
       <li><b>Support for design partners.</b><span>Time and help for the first builders who use it on real projects and tell us where it breaks.</span></li>
     </ul>
@@ -255,6 +255,7 @@
         <a href="changelog.html">Changelog</a>
         <a href="terms.html">Terms (draft)</a>
         <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html">Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>

@@ -5,8 +5,6 @@
 body.home {
   /* Colours come from site.css (warm charcoal and ivory). Home adds one raised surface. */
   --raised: #201f1c;
-  /* Clay, the main-action colour, also lights the product. */
-  --ember: var(--clay);
   /* Type scale: display, section title, step title, lead, body, caption. */
   --t-display: clamp(40px, 1.25rem + 3.4vw, 72px);
   --t-h2: clamp(34px, 1.2rem + 3vw, 64px);
@@ -424,13 +422,17 @@ nav.ft-col a:hover { color: var(--ink); }
 .back ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .back li { padding: 16px 0; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 16px; line-height: 1.55; }
 .back li b { display: block; margin-bottom: 4px; color: var(--ink); font-weight: 500; }
-.back li code, .back-note code { display: block; width: fit-content; max-width: 100%; margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: var(--term-bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--term-ink); font: 400 12.5px/1.5 var(--font-mono); overflow-wrap: anywhere; }
-.back li code + code { margin-top: 6px; }
+.back li code { color: var(--ink); overflow-wrap: anywhere; }
+/* The last code in each item is the line from a real report. */
+.back li code.line, .back-note code { display: block; width: fit-content; max-width: 100%; margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: var(--term-bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--term-ink); font: 400 12.5px/1.5 var(--font-mono); }
 .back-note { max-width: 70ch; margin: 32px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.55; }
 @media (max-width: 760px) { .back { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
 
-/* Pay once: two plain columns, the paid one raised. The button is wired by buy.js. */
-.plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* Pay once: one plan, raised, and the two honest notes beside it. The button is wired by buy.js. */
+.plans { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 32px clamp(32px, 6vw, 96px); align-items: start; }
+.plan-aside { display: grid; gap: 20px; }
+.plan-aside .plan-note { margin: 0; }
+.plan-aside a { color: var(--ink); }
 .plan { display: flex; flex-direction: column; gap: 10px; padding: 28px; border-radius: 20px; background: linear-gradient(180deg, #24231f, #1f1e1b); box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(250, 249, 245, .06); }
 .plan-paid { box-shadow: inset 0 0 0 1px rgba(217, 119, 87, .45), inset 0 1px 0 rgba(250, 249, 245, .06); }
 .plan-k { margin: 0; color: var(--ink-3); font: 500 var(--t-cap)/1.4 var(--font-body); }
@@ -447,7 +449,8 @@ nav.ft-col a:hover { color: var(--ink); }
 .plan-status a { color: var(--ink); }
 .plan-note { max-width: 70ch; margin: 28px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.55; }
 .plan-note b { color: var(--ink); font-weight: 500; }
-@media (max-width: 760px) { .plans { grid-template-columns: minmax(0, 1fr); } .plan { padding: 22px; } }
+@media (max-width: 900px) { .plans { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .plan { padding: 22px; } }
 
 /* Comparison table: scrolls sideways inside its own box on phones, never the page. */
 .cmp-wrap { margin: 0; overflow-x: auto; border-radius: 16px; border: 1px solid var(--line); background: #201f1c; scrollbar-color: var(--ink-3) var(--card); }
@@ -481,7 +484,8 @@ nav.ft-col a:hover { color: var(--ink); }
 .term-block pre.term-scroll { white-space: pre; overflow-wrap: normal; }
 .install-note { max-width: 62ch; margin: 14px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.6; }
 .install-note code, .facts code { color: var(--ink); overflow-wrap: anywhere; }
-.install-ui { margin-top: 28px; }
+.install-ui { grid-column: 1; margin-top: 28px; }
+#try .try-side { grid-column: 2; grid-row: 2 / span 2; }
 .try-side { display: grid; gap: 40px; min-width: 0; }
 .agent-setup { padding: 22px 24px 18px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
 .agent-setup-h { margin: 0; color: var(--ink); font-weight: 500; font-size: 16px; }
@@ -503,6 +507,7 @@ nav.ft-col a:hover { color: var(--ink); }
   .block-head .lead { grid-column: 1; grid-row: auto; margin-top: 20px; }
   .why h2 { grid-row: auto; }
   #try > .block-head { grid-column: 1; }
+  #try .install-ui, #try .try-side { grid-column: 1; grid-row: auto; }
   .try-side { margin-top: 40px; }
 }
 @media (max-width: 860px) {

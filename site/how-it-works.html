@@ -34,6 +34,7 @@
       <a href="security.html">Security</a>
       <a href="company.html">Company</a>
       <a href="blog/index.html">Blog</a>
+      <a href="account.html">Sign in</a>
     </nav>
     <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
   </div>
@@ -204,7 +205,7 @@ Saved first cp-0007
             <tr><td><span class="pill pill-none">ERROR</span></td><td data-l="Exit code"><span class="code">4</span></td><td data-l="In the app">Check crashed</td><td data-l="Meaning">The check crashed, timed out, or the save point failed its integrity check.</td><td data-l="What to do">Raise <code>verify.timeoutSeconds</code>, check the command is installed, or pick another save point.</td></tr>
           </tbody>
         </table>
-        <p class="cap-note"><code>find-good</code> keeps going past FAIL, INCOMPLETE and ERROR. It stops at the first PASS, or at BLOCKED. Other commands exit 0 on success and 4 on an error. Usage errors exit 64, so they never look like INCOMPLETE. The app words are for the Mac app, in development.</p>
+        <p class="cap-note"><code>find-good</code> keeps going past FAIL, INCOMPLETE and ERROR. It stops at the first PASS, or at BLOCKED. Other commands exit 0 on success and 4 on an error. Usage errors exit 64, so they never look like INCOMPLETE. The app words are what the web app shows.</p>
       </div>
       <div class="v-side rv" style="--d:1">
         <div class="mod" data-stepper data-rows="#vt tbody tr" role="group" aria-label="Exit code readout">
@@ -235,25 +236,25 @@ Saved first cp-0007
   <div class="wrap">
     <div class="sec-h">
       <div class="rv"><p class="k"><span class="n">04</span> Two ways in</p><h2 class="hx2" id="paths-h">One engine.<br>Two ways in.</h2></div>
-      <p class="sub rv" style="--d:1">The Mac app and the command line call the same engine. They can never disagree about what works.</p>
+      <p class="sub rv" style="--d:1">The web app and the command line call the same engine. They can never disagree about what works.</p>
     </div>
     <div class="paths">
       <article class="card path rv" id="builders">
-        <span class="tag tag-dev">In development. Not shipped</span>
+        <span class="tag tag-now">Built. Open with <code>tm ui</code></span>
         <h3>For builders</h3>
-        <p class="txt">You build with Claude Code, Cursor or another agent, and you would rather not live in a terminal. The Mac app puts the same loop behind plain buttons.</p>
+        <p class="txt">You build with Claude Code, Cursor or another agent, and you would rather not live in a terminal. The web app puts the same loop behind plain buttons. It runs on your computer, in your browser. Nothing is hosted.</p>
         <ul>
           <li>A history of save points, each marked Works, Broken or Not checked yet.</li>
           <li>Save point detail, with what was saved and what was not.</li>
           <li>Rewind and Compare, on the same engine as the CLI.</li>
-          <li>A calm menu bar dot. No badges, no streaks.</li>
+          <li>$50 once for the license key, any number of your own computers and projects. The CLI stays open source (MIT), and restores are never behind the paywall.</li>
         </ul>
         <div class="shot">
           <picture>
-            <img src="assets/img/app-01-status-broken-dark.jpg" width="1280" height="800" loading="lazy" decoding="async" alt="The real Time Machine Mac app on the synthetic Marigold Tips project. The latest save point failed its check. A Go back button leads to the earlier version that passed. History shows each save point's own verdict.">
+            <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. The newest save point failed its check. A Rewind button leads to the earlier version that passed. The history shows each save point's own verdict.">
           </picture>
         </div>
-        <p class="cap-note">Real source-built Mac app on a synthetic project. In development, not Apple-signed or available to download.</p>
+        <p class="cap-note">Real web app screen on a synthetic project, opened with <code>tm ui</code> from a source install.</p>
       </article>
       <article class="card path rv" id="developers" style="--d:1">
         <span class="tag tag-now">Built</span>
@@ -351,6 +352,7 @@ tm demo</pre>
         <a href="changelog.html">Changelog</a>
         <a href="terms.html">Terms (draft)</a>
         <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html">Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>

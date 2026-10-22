@@ -456,3 +456,35 @@
 :root[data-tier="low"] .mod { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 0 0 1px rgba(255, 255, 255, .04), 0 6px 0 -1px #0b0a09; }
 :root[data-tier="low"] .mod.tilt { transition: none; }
 :root[data-tier="low"] .card, :root[data-tier="low"] .ledger > div, :root[data-tier="low"] .inc, :root[data-tier="low"] .g-pane { box-shadow: inset 0 0 0 1px var(--line); }
+
+/* ---------- the page Stripe sends a buyer back to ---------- */
+.thanks .license-status { margin: 24px 0 0; color: var(--ink-2); line-height: 1.5; }
+.thanks .license-status:empty { display: none; }
+.thanks .license-status[data-state] { padding: 12px 14px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.thanks .license-status[data-state="error"] { color: var(--ink); }
+.thanks .license-status a { color: var(--ink); font-weight: 600; }
+.thanks .license { margin: 24px 0 0; padding: 20px 22px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.thanks .license[hidden] { display: none; }
+.thanks .license-h { margin: 0 0 10px; color: var(--ink-3); font-size: 14px; font-weight: 500; }
+.thanks .license-key { display: block; padding: 14px 16px; border-radius: 10px; background: var(--term-bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--term-ink); font: 500 15px/1.6 var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+/* ---------- sign in to see a key again ---------- */
+.account .license-status[data-state="info"], .account .license-status[data-state="pending"] { color: var(--ink-2); }
+.account-form { margin: 24px 0 0; }
+.account-form[hidden], .account-keys[hidden] { display: none; }
+.account-form label { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 500; color: var(--ink); }
+.account-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.account-row input { flex: 1; min-width: 200px; height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); font: 16px var(--font-body); }
+.account-row input::placeholder { color: var(--ink-3); }
+.account-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.account-row input[aria-invalid="true"] { border-color: var(--broken-dot); }
+.account-form .btn-ghost { margin-top: 14px; }
+.account-sent { margin: 0 0 16px; color: var(--ink-2); line-height: 1.5; overflow-wrap: anywhere; }
+.account-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 24px; }
+.account-head h2 { margin: 0; }
+.account-head h2:focus { outline: none; }
+.account-who { margin: 0; color: var(--ink-3); font-size: 15px; overflow-wrap: anywhere; }
+.account-head .btn { margin-left: auto; }
+.account .license + .license { margin-top: 12px; }
+.account-none { margin: 20px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); line-height: 1.5; }
+.account-help { margin-top: 32px; color: var(--ink-2); }
+.account-help a { color: var(--ink); }
