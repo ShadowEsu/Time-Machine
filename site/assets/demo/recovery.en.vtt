@@ -1,33 +1,66 @@
 WEBVTT
 
 1
-00:00:00.589 --> 00:00:11.174
-Marigold Tips, a synthetic project. Every save point was checked with its own tests.
+00:00:00.589 --> 00:00:04.600
+Marigold Tips, a synthetic project.
 
 2
-00:00:11.174 --> 00:00:20.233
-A Claude Code turn starts. Time Machine saves the project first.
+00:00:04.600 --> 00:00:11.174
+Every save point was checked
+with its own tests.
 
 3
-00:00:20.233 --> 00:00:24.848
-The turn ends. Its save point is checked in a safe copy.
+00:00:11.174 --> 00:00:15.000
+A Claude Code turn starts.
 
 4
-00:00:24.848 --> 00:00:35.661
-Broken. The app says since when, and names the last version that works.
+00:00:15.000 --> 00:00:20.233
+Time Machine saves the project first.
 
 5
-00:00:35.661 --> 00:00:44.862
-Go back. First, review what comes back and what does not.
+00:00:20.233 --> 00:00:24.848
+The turn ends. Its save point
+is checked in a safe copy.
 
 6
-00:00:44.862 --> 00:00:51.306
-Secret values and anything outside the project do not come back. It says so first.
+00:00:24.848 --> 00:00:29.500
+Broken. The app says since when,
 
 7
-00:00:51.306 --> 00:00:58.424
-Bring it back. It lands as a separate copy on a new branch.
+00:00:29.500 --> 00:00:35.661
+and names the last version that works.
 
 8
-00:00:58.424 --> 00:01:07.658
-The working version is back. Your folder was not touched.
+00:00:35.661 --> 00:00:38.500
+Go back.
+
+9
+00:00:38.500 --> 00:00:44.862
+First, review what comes back
+and what does not.
+
+10
+00:00:44.862 --> 00:00:49.300
+Secret values and anything outside
+the project do not come back.
+
+11
+00:00:49.300 --> 00:00:51.306
+It says so first.
+
+12
+00:00:51.306 --> 00:00:53.500
+Bring it back.
+
+13
+00:00:53.500 --> 00:00:58.424
+It lands as a separate copy
+on a new branch.
+
+14
+00:00:58.424 --> 00:01:02.500
+The working version is back.
+
+15
+00:01:02.500 --> 00:01:07.658
+Your folder was not touched.

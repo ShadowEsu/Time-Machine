@@ -1,6 +1,6 @@
 /* The real recovery recording: chapters next to the video.
-   Each chapter is one caption cue, so the list is also the full transcript.
-   Pressing a chapter plays the video from that cue and, when the video is out of
+   Each chapter holds the caption text for its stretch of video (one to two short cues),
+   so the list is also the full transcript. Pressing a chapter plays the video from its start and, when the video is out of
    sight (the chapters sit below it on phones), scrolls it into view under the
    sticky bar. While it plays, the current chapter is marked with aria-current and
    a thin bar shows progress through it.
