@@ -436,7 +436,7 @@
 .legal .foot .giant { margin: clamp(32px, 6vw, 72px) 0 0; }
 .legal .draft-tag { vertical-align: middle; margin-left: 10px; }
 /* Phones: the header and the draft bar scroll away, so nothing sticky covers the text. */
-@media (max-width: 760px) { .legal header.top:has(.top-in) { position: relative; top: 0; } .legal .draftbar { position: static; } }
+@media (max-width: 860px) { .legal header.top:has(.top-in) { position: relative; top: 0; } .legal .draftbar { position: static; } }
 
 /* ---------- motion ---------- */
 @media (max-width: 960px) { .mod.tilt { --rx: 6deg; --ry: 0deg; } }

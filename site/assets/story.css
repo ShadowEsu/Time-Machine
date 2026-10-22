@@ -27,7 +27,7 @@
 /* ---------- header on this page: floats over the story ---------- */
 .story .top { position: fixed; left: 0; right: 0; top: 0; transition: background-color .4s, box-shadow .4s; }
 body.is-night .top { --paper: var(--night-paper); --mist: #22201d; --accent: var(--night-accent); }
-@media (max-width: 760px) {
+@media (max-width: 860px) {
   .story .top { position: absolute; }
 }
 

@@ -147,10 +147,9 @@ code { font-size: .92em; }
 em { font-style: italic; }
 ::selection { background: var(--accent-tint); }
 
-/* Brand mark: a rewind triangle on ink. Never a clock. */
+/* Brand: the product's own mark, the same image on every page. */
 .brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; font-size: 15px; letter-spacing: -.015em; text-decoration: none; color: var(--ink); }
-.mark { width: 24px; height: 24px; border-radius: 7px; background: var(--ink); display: grid; place-items: center; flex: none; }
-.mark i { display: block; width: 9px; height: 10px; margin-left: -1px; background: var(--paper); clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+.brand img { flex: none; width: 28px; height: 28px; border-radius: 7px; }
 
 /* Buttons */
 .btn {
@@ -175,9 +174,9 @@ em { font-style: italic; }
 section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 :root:not(.js) [data-sound], :root:not(.js) [data-ambient], :root:not(.js) [data-dev] { display: none; }
 
-/* Header. Markup:
-   header.top > .wrap.top-in > a.brand, nav.nav (4 links), a.btn.btn-primary.btn-sm.top-cta
-   Mark the current page's link with aria-current="page". */
+/* Header, the same on every page. Markup:
+   header.top > .wrap.top-in > a.brand (img + name), nav.nav (How it works, Security, The story, Company),
+   a.top-signin (Sign in), a.btn.btn-ghost.btn-sm.top-cta. Mark the current page's link with aria-current="page". */
 .top {
   position: sticky; top: 0; z-index: 50;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
@@ -192,17 +191,28 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 }
 .nav a:active { background: var(--mist); color: var(--ink); }
 .nav a[aria-current="page"] { color: var(--ink); background: var(--mist); }
+/* Sign in: a quiet text link before the button, a full 44 px target at every width. */
+.top-signin { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-radius: 999px; color: var(--ink-2); font-size: 14.5px; text-decoration: none; transition: background .2s, color .2s; }
+@media (hover: hover) and (pointer: fine) { .top-signin:hover { background: var(--mist); color: var(--ink); } }
+.top-signin[aria-current="page"] { color: var(--ink); }
 .top-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none; }
 .top-progress i { display: block; height: 100%; background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); opacity: .6; }
-/* Phones: two rows, brand and button, then the four links. Not sticky, so stories get the full screen. */
-@media (max-width: 760px) {
+/* Narrower screens: two rows, brand, Sign in and button, then the four links. Not sticky, so stories get the full screen. */
+@media (max-width: 860px) {
   .top { position: relative; }
   .top-in { flex-wrap: wrap; padding-top: 6px; padding-bottom: 2px; }
   .nav { order: 3; width: 100%; justify-content: space-between; margin: 0 -10px; width: calc(100% + 20px); font-size: 14px; }
   .nav a { padding: 0 10px; }
   .top-progress { display: none; }
 }
-@media (max-width: 370px) { .nav a { padding: 0 7px; font-size: 13.5px; } .top .brand { font-size: 14px; } .top-cta { padding: 0 14px; font-size: 13.5px; } }
+@media (max-width: 420px) {
+  .top-in { column-gap: 8px; }
+  .top .brand { gap: 8px; font-size: 14px; }
+  .top-signin { padding: 0 8px; font-size: 13.5px; }
+  .top-cta { padding: 0 14px; font-size: 13.5px; }
+}
+/* The smallest phones keep the mark and drop the visible name; the link is still named "Time Machine". */
+@media (max-width: 370px) { .nav a { padding: 0 7px; font-size: 13.5px; } .top .brand { font-size: 0; gap: 0; } }
 @media (prefers-reduced-transparency: reduce) { .top { background: var(--paper); } }
 
 /* Shared type */
