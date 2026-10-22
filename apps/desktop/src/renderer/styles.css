@@ -201,8 +201,9 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 @keyframes breathe { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
 @keyframes spin { to { transform: rotate(360deg) } }
 .spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink-5); border-top-color: var(--ink); animation: spin .9s linear infinite; flex: none; display: inline-block; }
-.stamp { animation: stamp .45s cubic-bezier(.34,1.56,.64,1); }
-@keyframes stamp { 0% { transform: scale(.7); opacity: 0 } 70% { transform: scale(1.07); opacity: 1 } 100% { transform: none } }
+/* A new verdict settles in once. No overshoot: a verdict is a fact, not a celebration. */
+.stamp { animation: stamp .24s var(--ease); }
+@keyframes stamp { from { transform: scale(.94); opacity: 0 } to { transform: none; opacity: 1 } }
 
 /* A single reading measure leaves room for real history, not a permanent assistant. */
 .page.proj { padding: 0 0 64px; }
@@ -334,6 +335,8 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 .note { font-size: 12.5px; color: var(--ink-2); padding: 10px 12px; border-radius: 10px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); }
 .note.warn { background: var(--amber-bg); color: var(--amber-fg); box-shadow: none; }
 .note.bad { background: var(--fail-bg); color: var(--fail-fg); box-shadow: none; }
+.note.tip { display: flex; align-items: flex-start; gap: 12px; }
+.note.tip p { margin: 0; flex: 1; line-height: 1.5; }
 .opt { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 10px; cursor: pointer; box-shadow: inset 0 0 0 1px var(--line); }
 .opt.on { box-shadow: inset 0 0 0 1.5px var(--ink); }
 label.opt:hover { background: color-mix(in srgb, var(--sel) 60%, transparent); }

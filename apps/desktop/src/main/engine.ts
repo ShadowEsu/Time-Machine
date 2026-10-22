@@ -32,6 +32,8 @@ export class Engine {
   /** Projects with an engine action running right now. */
   readonly busy = new Map<string, string>();
   private readonly queues = new Map<string, Promise<unknown>>();
+  /** The running check or search per project, so Stop can end it. */
+  private readonly stops = new Map<string, AbortController>();
   /** Vercel deploys, read only (ADR 0009). */
   private readonly vercel = new Vercel({ token: () => this.services.credentials.get("vercel"), fetch: (url, init) => this.services.fetch(url, init) });
 
@@ -67,6 +69,15 @@ export class Engine {
     });
     this.queues.set(projectId, next);
     return next;
+  }
+
+  /** Runs `fn` with a signal that `stopCheck` aborts. One stoppable action per project at a time, as `serial` keeps it. */
+  private stoppable<T>(projectId: string, fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const c = new AbortController();
+    this.stops.set(projectId, c);
+    return fn(c.signal).finally(() => {
+      if (this.stops.get(projectId) === c) this.stops.delete(projectId);
+    });
   }
 
   async status(p: ProjectEntry): Promise<ProjectStatus> {
@@ -224,6 +235,12 @@ export class Engine {
         return { configured: this.services.credentials.status()[call.name] };
       case "vercelProjects":
         return this.vercel.projects();
+      case "stopCheck": {
+        // Never queued behind the check it stops. False when nothing was running.
+        const c = this.stops.get(call.projectId);
+        c?.abort();
+        return !!c;
+      }
       default:
         break;
     }
@@ -255,11 +272,11 @@ export class Engine {
           tm.checkpoint(ctx, { note: call.note?.trim() || "Saved from the app", trigger: "app", skipIfUnchanged: call.ifChanged ?? false }),
         );
       case "verify":
-        return this.serial(p.id, "Checking", async () => {
-          const r = await tm.verify(ctx, call.id);
+        return this.serial(p.id, "Checking", () => this.stoppable(p.id, async (signal) => {
+          const r = await tm.verify(ctx, call.id, { signal });
           if (r.log) this.allowedPaths.add(r.log);
           return r;
-        });
+        }));
       case "open":
         return this.serial(p.id, "Making a safe copy", async () => {
           const r = await tm.open(ctx, call.id);
@@ -267,7 +284,7 @@ export class Engine {
           return r;
         });
       case "findGood":
-        return this.serial(p.id, "Finding the last working version", () => tm.findGood(ctx));
+        return this.serial(p.id, "Finding the last working version", () => this.stoppable(p.id, (signal) => tm.findGood(ctx, { signal })));
       case "recover":
         return this.serial(p.id, "Preparing the recovery branch", async () => {
           const r = await tm.recover(ctx, call.id);

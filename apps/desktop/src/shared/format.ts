@@ -85,6 +85,20 @@ export function pointWhen(c: Stamped, peers: readonly Stamped[], now = new Date(
   return `${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} ${time}`;
 }
 
+/** Where a picked check came from, in plain words. `created` is false when timemachine.yml already existed. */
+export function checkSource(command: string, created: boolean): string {
+  if (!command) return "";
+  if (!created) return "From your timemachine.yml.";
+  const from: Record<string, string> = {
+    "npm test": "From the test script in package.json.",
+    "npm run build": "From the build script in package.json. There is no test script.",
+    "cargo test": "From Cargo.toml.",
+    "go test ./...": "From go.mod.",
+    pytest: "From pyproject.toml or pytest.ini.",
+  };
+  return from[command] ?? "";
+}
+
 export function dayLabel(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "Unknown day";

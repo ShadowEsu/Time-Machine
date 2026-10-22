@@ -151,6 +151,20 @@ describe("security review fixes", () => {
     expect(v.durationMs).toBeLessThan(5000);
   });
 
+  test("H15 a stopped check ends at once, keeps the verdict the save point had, and stops find-good", async () => {
+    const { dir, ctx } = await setupDemo();
+    writeConfig(dir, { command: "exit 0" });
+    expect((await tm.verify(ctx, "cp-0003")).verdict).toBe("PASS");
+    writeConfig(dir, { command: "sleep 30", timeoutSeconds: 60 });
+    const stopSoon = (): AbortSignal => AbortSignal.timeout(400);
+    const v = await tm.verify(ctx, "cp-0003", { signal: stopSoon() });
+    expect(v).toMatchObject({ verdict: "INCOMPLETE", stopped: true });
+    expect(v.durationMs).toBeLessThan(5000);
+    expect((await tm.timeline(ctx)).checkpoints.find((c) => c.id === "cp-0003")?.verdict).toBe("PASS");
+    const f = await tm.findGood(ctx, { signal: stopSoon() });
+    expect(f).toMatchObject({ verdict: "INCOMPLETE", found: null, stopped: true, tried: [] });
+  });
+
   test("H14 setup and check keep proxy and certificate settings, and a failed setup is INCOMPLETE", async () => {
     const { dir, ctx } = await setupDemo();
     writeConfig(dir, { setup: 'test -n "$HTTPS_PROXY" && test -n "$npm_config_registry"', command: 'test -n "$NODE_EXTRA_CA_CERTS"' });

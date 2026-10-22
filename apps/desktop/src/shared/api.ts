@@ -72,6 +72,8 @@ export const SettingsSchema = z.strictObject({
   hotkey: HotkeySchema.nullable().default(DEFAULT_HOTKEY),
   /** The small "Claude Code is working" pill while an agent turn is in progress. */
   agentPill: z.boolean().default(true),
+  /** The one-time tip that explains the verdict words, shown with the first verdict until it is hidden. */
+  verdictTipSeen: z.boolean().default(false),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -84,6 +86,7 @@ export const SettingsPatchSchema = z.strictObject({
   simpleRewind: z.boolean().optional(),
   hotkey: HotkeySchema.nullable().optional(),
   agentPill: z.boolean().optional(),
+  verdictTipSeen: z.boolean().optional(),
 });
 
 /** A Vercel project linked to a Time Machine project. The ids go into API URLs, so only safe characters. */
@@ -142,6 +145,7 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("open"), projectId: ProjectId, id: CheckpointId }),
   z.strictObject({ method: z.literal("verify"), projectId: ProjectId, id: CheckpointId }),
   z.strictObject({ method: z.literal("findGood"), projectId: ProjectId }),
+  z.strictObject({ method: z.literal("stopCheck"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("recover"), projectId: ProjectId, id: CheckpointId }),
   z.strictObject({ method: z.literal("undoRecover"), projectId: ProjectId, id: CheckpointId, branch: z.string().regex(/^tm\/recover\/cp-\d{4,}(-\d+)?$/), copyDir: AbsPath }),
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
@@ -306,6 +310,8 @@ export interface Results {
   open: OpenResult;
   verify: VerifyResult;
   findGood: FindGoodResult;
+  /** True when a running check or search was stopped. */
+  stopCheck: boolean;
   recover: RecoverResult;
   undoRecover: UndoRecoverResult;
   log: LogResult;

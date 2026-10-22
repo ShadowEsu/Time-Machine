@@ -90,7 +90,8 @@ export class FakeEngine implements TmBridge {
   /** "new" starts with no project. Adding the sample folder makes this true. */
   private added = true;
   private seed: Point | null = null;
-  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false, hotkey: "Control+Alt+T", agentPill: true };
+  private stopping = false;
+  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false, hotkey: "Control+Alt+T", agentPill: true, verdictTipSeen: false };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null } };
   /** Whether each key is set. The preview never holds a real key. */
   private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
@@ -321,14 +322,20 @@ export class FakeEngine implements TmBridge {
         return this.verify(call.id);
       case "findGood": {
         const tried: FindGoodResult["tried"] = [];
+        this.stopping = false;
         for (const p of [...this.points].reverse()) {
           const v = await this.verify(p.entry.id);
+          if (this.stopping) return { verdict: "INCOMPLETE", found: null, tried, stopped: true };
           tried.push({ id: v.checkpoint, verdict: v.verdict, reason: v.reason });
           this.emit({ type: "progress", projectId: PROJECT_ID, checkpoint: v.checkpoint, verdict: v.verdict });
           if (v.verdict === "PASS") return { verdict: "PASS", found: v.checkpoint, tried };
         }
         return { verdict: "FAIL", found: null, tried };
       }
+      case "stopCheck":
+        // The preview stops a search after the check in progress; single checks are short enough to finish.
+        this.stopping = true;
+        return true;
       case "recover": {
         await wait(900);
         const target = this.find(call.id);

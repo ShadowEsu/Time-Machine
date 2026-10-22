@@ -53,7 +53,12 @@ function judge(r: TimedResult, timeoutSeconds: number): { verdict: Verdict; reas
   return { verdict: "FAIL", reason: `The check failed with exit code ${r.code}.` };
 }
 
-export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
+/** Options for a check. Aborting `signal` stops it: nothing is recorded, and the save point keeps the verdict it had. */
+export interface VerifyOptions {
+  signal?: AbortSignal;
+}
+
+export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): Promise<VerifyResult> {
   const p = resolveProject(ctx);
   const { config: cfg } = loadConfig(p.root);
   ensureStore(p);
@@ -80,6 +85,14 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
     audit(p, "verify", target, verdict);
     return r;
   };
+  // A check the user stopped proves nothing, so it never overwrites the verdict the save point had.
+  const stopped = (log: string | null = null): VerifyResult => {
+    audit(p, "verify-stopped", target, "INCOMPLETE");
+    return {
+      at: new Date().toISOString(), checkpoint: target, verdict: "INCOMPLETE", isolation: "host", network: { policy, enforcedBy: sandbox?.name ?? null },
+      command, durationMs: Date.now() - started, exitCode: null, reason: "You stopped the check before it finished.", log, stopped: true,
+    };
+  };
 
   let manifest: Manifest | null = null;
   try {
@@ -88,6 +101,7 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
     if (e instanceof TmError && e.kind === "integrity") return finish("ERROR", e.message);
     throw e;
   }
+  if (opts.signal?.aborted) return stopped();
   if (!cfg.verify.command.trim()) return finish("BLOCKED", "No check is set up. Add verify.command to timemachine.yml, for example npm test.");
   if (policy === "deny" && !sandbox) {
     return finish("BLOCKED", "The network is set to deny, but no sandbox is available to enforce it, so the check did not run. Install bubblewrap (Linux), or set verify.network to allow in timemachine.yml.");
@@ -119,8 +133,12 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
     // Setup (for example npm ci) may need the network to install dependencies, so it runs
     // outside the sandbox. Only the check itself runs under the network policy.
     if (cfg.verify.setup.trim()) {
-      const s = await runWithTimeout("/bin/sh", ["-c", cfg.verify.setup], { cwd: dir, env, timeoutMs: deadline - Date.now() });
+      const s = await runWithTimeout("/bin/sh", ["-c", cfg.verify.setup], { cwd: dir, env, timeoutMs: deadline - Date.now(), signal: opts.signal });
       log += `$ ${cfg.verify.setup}\n${s.output}\n`;
+      if (s.stopped) {
+        writeFileSync(logPath, redact(log, secrets));
+        return stopped(logPath);
+      }
       const judged = judge(s, cfg.verify.timeoutSeconds);
       if (judged.verdict !== "PASS") {
         writeFileSync(logPath, redact(log, secrets));
@@ -131,9 +149,10 @@ export async function verify(ctx: Ctx, id?: string): Promise<VerifyResult> {
       }
     }
     const [file, args] = sandbox ? sandbox.wrap(cfg.verify.command) : ["/bin/sh", ["-c", cfg.verify.command]];
-    const r = await runWithTimeout(file, args, { cwd: dir, env, timeoutMs: Math.max(1, deadline - Date.now()) });
+    const r = await runWithTimeout(file, args, { cwd: dir, env, timeoutMs: Math.max(1, deadline - Date.now()), signal: opts.signal });
     log += `$ ${cfg.verify.command}\n${r.output}`;
     writeFileSync(logPath, redact(log, secrets));
+    if (r.stopped) return stopped(logPath);
     const { verdict, reason } = judge(r, cfg.verify.timeoutSeconds);
     return finish(verdict, reason, r.code, logPath);
   } finally {

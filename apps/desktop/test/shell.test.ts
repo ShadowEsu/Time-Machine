@@ -27,12 +27,13 @@ describe("settings", () => {
       simpleRewind: false,
       hotkey: "Control+Alt+T",
       agentPill: true,
+      verdictTipSeen: false,
     });
   });
 
   test("settings saved by an older version keep their values and gain the new defaults", () => {
     const old = { showGitDetails: true, overlayCards: false, theme: "system", onboarded: true, simpleRewind: false };
-    expect(SettingsSchema.parse(old)).toMatchObject({ ...old, hotkey: "Control+Alt+T", agentPill: true });
+    expect(SettingsSchema.parse(old)).toMatchObject({ ...old, hotkey: "Control+Alt+T", agentPill: true, verdictTipSeen: false });
   });
 
   test("the hotkey needs two modifiers and never takes copy, paste, undo, quit or typing", () => {

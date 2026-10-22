@@ -17,6 +17,8 @@ export interface TimedResult {
   code: number | null;
   signal: string | null;
   timedOut: boolean;
+  /** True when the caller's signal stopped the command. */
+  stopped: boolean;
   output: string;
   spawnError: string | null;
 }
@@ -26,15 +28,17 @@ const MAX_OUTPUT = 1024 * 1024;
 /**
  * Runs a command in its own process group. Resolves when the command exits, then kills
  * anything it left running in the background, so a stray child cannot hold the check open.
+ * Aborting `signal` kills the whole group, the same way a timeout does.
  */
 export function runWithTimeout(
   file: string,
   args: string[],
-  opts: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number },
+  opts: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal },
 ): Promise<TimedResult> {
   return new Promise((resolve) => {
     let output = "";
     let timedOut = false;
+    let stopped = false;
     let settled = false;
     const child = spawn(file, args, { cwd: opts.cwd, env: opts.env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
     const killGroup = (): void => {
@@ -54,12 +58,19 @@ export function runWithTimeout(
       timedOut = true;
       killGroup();
     }, Math.max(1, opts.timeoutMs));
-    const settle = (r: Omit<TimedResult, "timedOut" | "output">): void => {
+    const stop = (): void => {
+      stopped = true;
+      killGroup();
+    };
+    opts.signal?.addEventListener("abort", stop, { once: true });
+    if (opts.signal?.aborted) stop();
+    const settle = (r: Omit<TimedResult, "timedOut" | "stopped" | "output">): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      opts.signal?.removeEventListener("abort", stop);
       dispose();
-      resolve({ ...r, timedOut, output: output.slice(0, MAX_OUTPUT) });
+      resolve({ ...r, timedOut, stopped, output: output.slice(0, MAX_OUTPUT) });
     };
     child.on("error", (e) => settle({ code: 127, signal: null, spawnError: e.message }));
     child.on("exit", (code, signal) => {
