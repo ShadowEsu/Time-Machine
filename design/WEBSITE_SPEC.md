@@ -536,10 +536,8 @@ The honesty section. Mist background, generous whitespace, no illustration excep
 ### 4.9 Founder story
 
 - **Eyebrow:** WHY THIS EXISTS
-- **Headline:** Built by a 17 year old who kept losing work.
 - **Layout:** a narrow text column (620 px), a small square photo of the founder at their desk (real, optional), a handwritten-free signature line in Inter.
 - **Draft copy** (bracketed parts must be filled with true details by the founder; nothing invented):
-  > I'm [first name]. I'm 17, and I build almost everything with coding agents.
   >
   > [One true sentence about the moment it went wrong: what the agent did, what it cost.]
   >
