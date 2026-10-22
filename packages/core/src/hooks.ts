@@ -26,7 +26,8 @@ const RISKY: RegExp[] = [
   new RegExp(`${GIT}checkout\\s+\\.(?:\\s|$)`),
   new RegExp(`${GIT}switch\\b.*\\s(?:-f\\b|--force\\b|--discard-changes\\b)`),
   new RegExp(`${GIT}restore\\s+(?!--staged\\b)`),
-  new RegExp(`${GIT}clean\\s+(?:\\S+\\s+)*(?:-[a-zA-Z]*f|--force)\\b`),
+  // Any short flag group with f (-f, -fd, -xfd, -ffdx) or --force. A dry run (-n, --dry-run) alone is not risky.
+  new RegExp(`${GIT}clean\\s+(?:\\S+\\s+)*(?:-[a-zA-Z]*f[a-zA-Z]*|--force)\\b`),
   new RegExp(`${GIT}push\\s+.*(?:--force\\b|-f\\b|--force-with-lease\\b)`),
   new RegExp(`${GIT}stash\\s+(?:drop|clear)\\b`),
   new RegExp(`${GIT}branch\\s+.*-D\\b`),

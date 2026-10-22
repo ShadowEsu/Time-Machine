@@ -149,8 +149,8 @@ describe("second review fixes", () => {
   });
 
   test("R6 risky command detection covers common destructive forms", () => {
-    const risky = ["rm -R dir", "rm --recursive --force dir", "rm -rf src", "sudo rm -rf x", "git checkout -f", "git checkout HEAD -- src", "git checkout main -- .", "git switch -f main", "git switch --discard-changes main", "git -C . reset --hard", "git -c a=b reset --hard", "git clean --force -d", "git worktree remove --force ../x", "npm test && git reset --hard HEAD~1"];
-    const safe = ["ls -la", "git status", "git checkout -b feature", "git switch main", "npm test", "git diff -- src"];
+    const risky = ["rm -R dir", "rm --recursive --force dir", "rm -rf src", "sudo rm -rf x", "git checkout -f", "git checkout HEAD -- src", "git checkout main -- .", "git switch -f main", "git switch --discard-changes main", "git -C . reset --hard", "git -c a=b reset --hard", "git clean --force -d", "git clean -f", "git clean -fd", "git clean -df", "git clean -fdx", "git clean -xfd", "git clean -ffdx", "git clean -d -f src", "git worktree remove --force ../x", "npm test && git reset --hard HEAD~1"];
+    const safe = ["ls -la", "git status", "git checkout -b feature", "git switch main", "npm test", "git diff -- src", "git clean -n", "git clean --dry-run", "git clean -nd", "git clean -dnx"];
     for (const c of risky) expect(tm.isRisky(c), c).toBe(true);
     for (const c of safe) expect(tm.isRisky(c), c).toBe(false);
   });
