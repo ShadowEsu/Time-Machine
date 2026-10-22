@@ -186,6 +186,10 @@ export interface ProjectStatus {
 }
 
 export interface Bootstrap {
+  /** Absent in older desktop and preview bridges. Browser mode uses the same local engine. */
+  runtime?: "browser" | "desktop";
+  /** True only for a private local preview that bundled the provider marks. Public builds never set it. */
+  localBrandMarks?: boolean;
   platform: string;
   settings: Settings;
   projects: ProjectEntry[];

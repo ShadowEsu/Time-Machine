@@ -1,6 +1,14 @@
-# Time Machine for Mac (desktop app)
+# Time Machine app: browser and Mac
 
-Phase B of the build brief: D01 to D07. The app is a window, a menu bar item and a small overlay on top of the same engine the `tm` command uses (`@timetm/core`). The app and the CLI call the same functions and read the same store (`$TM_HOME`, otherwise `~/.timemachine`), so they never disagree.
+The shared renderer serves both the local browser app (`tm ui`) and the Mac app. Both call the same `@timetm/core` engine and read the same checkpoint store (`$TM_HOME`, otherwise `~/.timemachine`). The browser app does not require Electron or Apple signing. The Mac app adds a menu-bar item, native folder picker, overlays and a global hotkey.
+
+## Use real projects in the browser
+
+Build the workspace with `pnpm install && pnpm build`, then run `node packages/cli/dist/tm.js ui` (or `tm ui` after installing the CLI). This opens a private local session at `127.0.0.1`; the full address includes a session key and should not be shared. Keep its terminal open. Ctrl+C stops the server.
+
+The browser app accepts a full local Git folder path instead of a native folder picker. It saves, checks, compares and recovers real projects. Claude Code hook and CLI activity updates the page live. `--no-open` skips launching a browser; `--port N` sets the port.
+
+Browser-only differences: no menu-bar item, system-wide shortcut or desktop overlay; optional online features read credentials from the server environment instead of writing plaintext keys. Mac-specific settings remain available in the Mac app. The synthetic-data static preview described below is separate from `tm ui`.
 
 ## Run it on a Mac
 

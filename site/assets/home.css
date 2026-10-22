@@ -162,6 +162,16 @@ nav.ft-col a { display: inline-flex; align-items: center; min-height: 40px; colo
 nav.ft-col a:hover { color: var(--ink); }
 .tag-s { margin-left: 6px; padding: 2px 7px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-2); font: 500 11px/1 var(--font-mono); color: var(--ink-3); }
 .tag-s.ok { color: var(--works-fg); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, .3); }
+/* Compatibility, not a customer wall: one quiet list with explicit support status. */
+.ft-col .agent-support { gap: 10px; margin-bottom: 16px; }
+/* Provider marks are a private localhost preview only (assets/agent-preview.js); public pages list names. */
+.agent-support.with-marks li { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 8px; align-items: center; }
+.agent-support.with-marks .agent-mark { grid-row: span 2; }
+.agent-mark { display: grid; place-items: center; width: 40px; height: 40px; padding: 8px; }
+.agent-mark img { display: block; width: 24px; height: 24px; object-fit: contain; }
+.agent-support-name { display: block; color: var(--ink); font-size: 14px; }
+.agent-support-status { display: block; color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+.ft-grid .agent-support-note { margin: 0 0 20px; color: var(--ink-3); font-size: 13px; line-height: 1.6; }
 .ft-faq details { border-top: 1px solid var(--line); }
 .ft-faq details:last-child { border-bottom: 1px solid var(--line); }
 .ft-faq summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; color: var(--ink); cursor: pointer; list-style: none; }

@@ -17,6 +17,8 @@ export interface FeatureSettingsView {
   /** A plain sentence about what just happened. */
   status: string | null;
   problem: string | null;
+  /** Browser credentials are inherited from the tm ui process, never persisted from a form. */
+  runtime?: "browser" | "desktop";
 }
 
 const KEY_LABEL: Record<CredentialName, string> = { gemini: "Gemini API key", vercel: "Vercel token" };
@@ -27,6 +29,11 @@ function keyRow(v: FeatureSettingsView, name: CredentialName, help: string): str
   const set = v.keys[name];
   const dis = v.busy ? " disabled" : "";
   const label = KEY_LABEL[name];
+  if (v.runtime === "browser") return `<div class="setrow"><span class="l">${label}</span><div class="ft-stack">
+    <div class="ft-keystate">${set ? "Available from the local server environment." : "Not set in the local server environment."}</div>
+    <p class="ft-muted">Set <span class="mono">${ENV_NAME[name]}</span> in the environment of the terminal that launches <span class="mono">tm ui</span>, then restart it. The browser cannot save or remove credentials. Never paste a secret into a command you share.</p>
+    <span class="ft-muted">${help}</span>
+  </div></div>`;
   return `<div class="setrow"><span class="l">${label}</span><div class="ft-stack">
     <div class="ft-keystate">${set ? `<i class="ft-dot on" aria-hidden="true"></i>Set on this Mac. Used for every project.` : `<i class="ft-dot" aria-hidden="true"></i>Not set.`}</div>
     <form class="row-btns" data-key-form="${name}">
@@ -61,7 +68,7 @@ function vercelProjectRow(v: FeatureSettingsView): string {
       <div class="row-btns"><button type="button" class="btn" data-fa="unlink"${dis}>Unlink</button></div>`;
   } else {
     const how = `<span class="ft-muted">Not linked, so no deploys show on the timeline. Link the Vercel project this folder deploys to. Each deploy then shows next to the save point whose Git commit it was built from. Deploys are never matched by time.</span>`;
-    if (!v.keys.vercel) body = `${how}<span class="ft-muted">Add a Vercel token above first.</span>`;
+    if (!v.keys.vercel) body = `${how}<span class="ft-muted">${v.runtime === "browser" ? "Set VERCEL_TOKEN in the tm ui environment first, then restart it." : "Add a Vercel token above first."}</span>`;
     else if (!v.options) body = `${how}<div class="row-btns"><button type="button" class="btn" data-fa="pick"${dis}>Choose a Vercel project</button></div>`;
     else if (!v.options.length) body = `${how}<span class="ft-muted">This token can’t see any Vercel projects.</span>`;
     else {
@@ -86,7 +93,7 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
       ${consentDetails(!v.ask)}
       <span class="ft-muted">${esc(ASK_CONSENT.off)}</span>
     </div></div>
-    ${keyRow(v, "gemini", "Your own key from Google AI Studio. Questions go from this Mac straight to Google.")}
+    ${keyRow(v, "gemini", `Your own key from Google AI Studio. Questions go from ${v.runtime === "browser" ? "this computer" : "this Mac"} straight to Google.`)}
     <h4 class="ft-sec">Vercel deploys</h4>
     <p class="ft-ro-note">Read only. Time Machine reads deploys from Vercel to show them next to your save points. It never deploys, promotes or rolls back anything.</p>
     ${keyRow(v, "vercel", `A token from <button type="button" class="ft-link" data-fa="tokens">vercel.com/account/tokens</button>. It is only used to read projects and deploys.`)}
@@ -112,7 +119,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
       v.problem = !boot.ok ? boot.error.message : !creds.ok ? creds.error.message : "That project is no longer in the list.";
       return draw();
     }
-    Object.assign(v, { phase: "ready", ask: p.features.ask, link: p.features.vercel, keys: creds.data });
+    Object.assign(v, { phase: "ready", ask: p.features.ask, link: p.features.vercel, keys: creds.data, runtime: boot.data.runtime });
     if (v.link || !v.keys.vercel) v.options = null;
     draw();
   };

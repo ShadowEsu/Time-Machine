@@ -8,7 +8,7 @@ Time Machine saves your project before Claude Code acts. It runs your own tests 
 
 Website and waitlist: **https://time-machine-site.vercel.app**
 
-> **Status: early.** The `tm` CLI, Claude Code hooks and the MCP server work and are tested. **Not on npm yet** (build from source below). The Mac app is in development and not signed yet.
+> **Status: early.** The `tm` CLI, local browser app, Claude Code hooks and MCP server work from source. **Not on npm yet** (build below). The Mac app remains available from source and is not signed by Apple.
 
 ## 30 seconds: watch it rescue a broken project
 
@@ -58,6 +58,18 @@ tm demo
 
 No pnpm? Run `npm install -g pnpm` first. The global `tm` points at this folder, so keep the folder.
 
+## Open the local web app
+
+```sh
+tm ui
+```
+
+This opens Time Machine in your browser. The server binds to `127.0.0.1` on your computer, not a cloud service. Add a Git project by its full local folder path, or choose **Try the demo** to exercise the real engine on synthetic data. Save, check, compare and recover use the same engine and store as the CLI. No project upload is needed.
+
+Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the address without opening a browser, and `tm ui --port 4388` chooses a port. Open the complete address printed for this run; it includes a private session key. Do not share it or expose the port through a tunnel.
+
+The browser app does not need Electron or Apple signing. The Mac app stays available for native menu-bar and overlay features. Browser shortcuts work while the page is focused; a browser tab cannot provide the Mac app's global shortcut or desktop overlays.
+
 ## Your own project in four commands
 
 ```sh
@@ -83,6 +95,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | | What | Status |
 |---|---|---|
 | `tm` command | `init`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `demo`, `hook install`, `mcp` | Built, tested |
+| Local browser app | `tm ui`: real project onboarding, history, checks, comparison, recovery and live CLI/hook updates | Built from source |
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
@@ -98,6 +111,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | Command | What it does |
 |---|---|
 | `tm init` | Writes `timemachine.yml` with a guessed check and install step |
+| `tm ui [--no-open] [--port N]` | Opens the local browser app; files and engine stay on your computer |
 | `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, config key names, lockfile and environment digests |
 | `tm timeline` | Lists save points and their verdicts |
 | `tm diff cp-0002 cp-0004` | Compares code, files, config keys, dependencies and environment |
@@ -110,7 +124,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | `tm hook install` | Adds the Claude Code hooks to `.claude/settings.json` |
 | `tm mcp` | Runs the MCP server on stdio. Add it with `claude mcp add timemachine -- tm mcp` |
 
-Every command takes `--json`. Human and JSON output come from the same result, so they never disagree.
+Engine commands take `--json`. Human and JSON output come from the same result. `tm ui` instead runs a local server until you stop it.
 
 ## Verdicts
 
@@ -126,9 +140,9 @@ Usage errors exit 64. A save point with no verdict is shown as not checked, neve
 
 Save points and verdicts are signed with a key in `~/.timemachine`. That catches accidental edits and edits by tools that do not read the key. It is not tamper proof against someone who can read that key.
 
-## The Mac app (in development)
+## The Mac app
 
-On a Mac, from the repo root: `pnpm app`. To see it in any browser with demo data, run `pnpm --filter @timetm/desktop preview:build` and open `apps/desktop/preview/dist/index.html`. Builds are not signed by Apple yet, so macOS warns on first open. Details: `apps/desktop/README.md`.
+On a Mac, from the repo root: `pnpm app`. It uses the same screens and engine as `tm ui`, with a native folder picker, menu-bar item and overlays. Builds are not signed by Apple yet, so macOS warns on first open. Details: `apps/desktop/README.md`. The static `preview:build` is only a demonstration with in-memory data; use `tm ui` for real projects.
 
 ## Repo map
 
