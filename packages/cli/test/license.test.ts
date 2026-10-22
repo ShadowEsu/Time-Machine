@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { describe, expect, test } from "vitest";
-import { FREE_PROJECT_LIMIT, signLicense } from "@timetm/core";
+import { signLicense } from "@timetm/core";
 import { tempDir } from "../../../fixtures/demo/setup.ts";
 import { main } from "../src/main.ts";
 
@@ -31,16 +31,16 @@ function home(): { root: string; tmHome: string; env: NodeJS.ProcessEnv } {
 }
 
 const payload = { v: 1 as const, id: "cs_test_abcdefgh", plan: "web" as const, issued: "2026-10-22" };
-const free = { active: false, id: null, issued: null, problem: null, freeProjectLimit: FREE_PROJECT_LIMIT };
-const FREE_LINE = `Free. The web app lists up to ${FREE_PROJECT_LIMIT} projects. The CLI and every restore are free. Buy once for $50 at https://time-machine-site.vercel.app/#pricing\n`;
+const none = { active: false, id: null, issued: null, problem: null };
+const NONE_LINE = "No license on this computer. The web app needs one. Buy once for $50 at https://time-machine-site.vercel.app/#pricing, then run tm license <key>. The tm command line tool stays free and open source.\n";
 
 describe("tm license", () => {
-  test("shows free without making a store, saves a key, shows it, and forgets it", async () => {
+  test("shows no license without making a store, saves a key, shows it, and forgets it", async () => {
     const k = keys();
     const { root, tmHome, env } = home();
     const signed = { ...env, TM_LICENSE_PUBLIC_KEY: k.pub };
-    expect(await run(root, signed, ["license"])).toEqual({ code: 0, out: FREE_LINE, err: "" });
-    expect(JSON.parse((await run(root, signed, ["license", "--json"])).out)).toEqual(free);
+    expect(await run(root, signed, ["license"])).toEqual({ code: 0, out: NONE_LINE, err: "" });
+    expect(JSON.parse((await run(root, signed, ["license", "--json"])).out)).toMatchObject(none);
     expect(existsSync(tmHome)).toBe(false);
 
     const key = signLicense(payload, k.priv);
@@ -48,12 +48,12 @@ describe("tm license", () => {
     expect(saved).toEqual({ code: 0, out: "License saved on this computer.\nLicensed, purchase cs_test_abcdefgh, issued 2026-10-22.\n", err: "" });
     expect(JSON.parse(readFileSync(join(tmHome, "license.json"), "utf8")).key).toBe(key);
     expect(await run(root, signed, ["license"])).toEqual({ code: 0, out: "Licensed, purchase cs_test_abcdefgh, issued 2026-10-22.\n", err: "" });
-    expect(JSON.parse((await run(root, signed, ["license", "--json"])).out)).toEqual({ ...free, active: true, id: payload.id, issued: payload.issued });
+    expect(JSON.parse((await run(root, signed, ["license", "--json"])).out)).toMatchObject({ ...none, active: true, id: payload.id, issued: payload.issued });
 
     const removed = await run(root, signed, ["license", "--remove"]);
-    expect(removed).toEqual({ code: 0, out: `License removed from this computer.\n${FREE_LINE}`, err: "" });
+    expect(removed).toEqual({ code: 0, out: `License removed from this computer.\n${NONE_LINE}`, err: "" });
     expect(existsSync(join(tmHome, "license.json"))).toBe(false);
-    expect(JSON.parse((await run(root, signed, ["license", "--remove", "--json"])).out)).toEqual(free);
+    expect(JSON.parse((await run(root, signed, ["license", "--remove", "--json"])).out)).toMatchObject(none);
   });
 
   test("a key from another seller is refused with exit 64 and nothing is saved", async () => {

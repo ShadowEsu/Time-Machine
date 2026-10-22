@@ -68,7 +68,7 @@ Usage: tm <command> [options]
   ui [--port N] [--no-open]
                         Open the real local browser app; Ctrl+C stops it
   license [key]         Show the web app license on this computer, or save a key
-                        --remove forgets it. The CLI and every restore need no license
+                        --remove forgets it. The tm command line tool needs no license
 
 Options: --json   machine readable output   -h, --help   --version
 

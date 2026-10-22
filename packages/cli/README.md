@@ -54,10 +54,10 @@ Engine commands take `--json`. Human and JSON output come from the same result. 
 
 ## License
 
-The CLI is free under the MIT license and never needs a key. No restore is ever gated. The local browser app (`tm ui`) lists up to 3 projects for free; a one-time $50 purchase at https://time-machine-site.vercel.app/#pricing unlocks unlimited projects. The key is shown once on the purchase page and is checked on your computer with a public key, so nothing phones home.
+The `tm` command line tool is free and open source under the MIT license and never needs a key. Every command in the table above, including recovery, works without one. The local browser app (`tm ui`) needs a one-time $50 license from https://time-machine-site.vercel.app/#pricing. The key is shown on the purchase page, and you can sign in there later to see it again. It is checked on your computer with a public key, so nothing phones home.
 
 ```sh
-tm license             # free, licensed, or what is wrong with the saved key
+tm license             # licensed, no license, or what is wrong with the saved key
 tm license TM1.xxx.yyy # save the key for every project on this computer
 tm license --remove    # forget it
 ```
