@@ -1,6 +1,6 @@
 // Pure decisions for the menu bar dot, the corner card, the agent pill and where windows go.
 // No Electron imports, so they are unit tested in apps/desktop/test.
-import { npxHookCommand, shellQuote as quote } from "@timetm/core";
+import { npxHookCandidates, shellQuote as quote } from "@timetm/core";
 import type { ProjectStatus, Verdict } from "../shared/api.js";
 
 export type DotState = "pass" | "fail" | "none" | "working";
@@ -72,12 +72,13 @@ export function trayVerdicts(statuses: ProjectStatus[]): (Verdict | null)[] {
  * The commands the Claude Code hooks could call, best first. TM_HOOK_COMMAND wins on its own,
  * but only in a development build: a packaged app ignores it.
  * Then the CLI this app can run itself, as quoted absolute paths with the app's own Node
- * (Electron run as Node). Last, npx with the version pinned, never the bare package name.
+ * (Electron run as Node). Last, npx with the version pinned, never the bare package name, and only once
+ * the package is published (core `NPM_PUBLISHED`), so an unowned npm name is never run.
  */
 export function hookCandidates(o: { override: string | undefined; packaged: boolean; nodePath: string; cliScript: string | null; version: string }): string[] {
   if (o.override && !o.packaged) return [o.override];
   const own = o.cliScript ? [`ELECTRON_RUN_AS_NODE=1 ${quote(o.nodePath)} ${quote(o.cliScript)}`] : [];
-  return [...own, npxHookCommand(o.version)];
+  return [...own, ...npxHookCandidates(o.version)];
 }
 
 /** The first command that runs. When none does, the last one, marked as not running. */

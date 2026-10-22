@@ -230,6 +230,18 @@ export function npxHookCommand(version: string): string {
   return `npx -y timetm@${version}`;
 }
 
+/**
+ * Whether `timetm` is published on npm by us. Until it is, nobody owns the name, so the npx fallback
+ * would run whatever someone else publishes under it: it is never offered or probed. Flip this in the
+ * release that publishes the package (docs/launch/NPM_PUBLISH.md).
+ */
+export const NPM_PUBLISHED = false;
+
+/** The npx fallback for the hook command list: empty until the package is published. */
+export function npxHookCandidates(version: string): string[] {
+  return NPM_PUBLISHED ? [npxHookCommand(version)] : [];
+}
+
 /** Quotes one word for /bin/sh, so paths with spaces or quotes stay one argument. */
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;

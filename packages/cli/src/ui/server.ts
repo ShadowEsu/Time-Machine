@@ -77,7 +77,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
   const credentials = new Credentials(join(userData, "credentials.json"), unavailableCipher, process.env);
   const own = options.script ? `${tm.shellQuote(process.execPath)} ${tm.shellQuote(realpathSync(options.script))}` : null;
   const engine = new Engine(state, {
-    candidates: process.env.TM_HOOK_COMMAND ? [process.env.TM_HOOK_COMMAND] : [...(own ? [own] : []), tm.npxHookCommand(VERSION)],
+    candidates: process.env.TM_HOOK_COMMAND ? [process.env.TM_HOOK_COMMAND] : [...(own ? [own] : []), ...tm.npxHookCandidates(VERSION)],
     version: VERSION,
   }, { credentials, fetch: globalThis.fetch });
   const token = randomBytes(32).toString("hex");

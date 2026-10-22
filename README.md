@@ -66,7 +66,7 @@ tm ui
 
 This opens Time Machine in your browser. The server binds to `127.0.0.1` on your computer, not a cloud service. Add a Git project by its full local folder path, or choose **Try the demo** to exercise the real engine on synthetic data. Save, check, compare and recover use the same engine and store as the CLI. No project upload is needed.
 
-Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the address without opening a browser, and `tm ui --port 4388` chooses a port. Open the complete address printed for this run; it includes a private session key. Do not share it or expose the port through a tunnel.
+Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the address without opening a browser, and `tm ui --port 4388` chooses a port. Open the complete address printed for this run; it includes a private session key. Do not share it or expose the port through a tunnel. To open the browser, `tm ui` passes that address to your system's launcher (`open` or `xdg-open`), so other accounts on the same computer could see it in a process list for the moment the launcher runs. On a shared computer, use `tm ui --no-open` and paste the address yourself.
 
 The browser app does not need Electron or Apple signing. The Mac app stays available for native menu-bar and overlay features. Browser shortcuts work while the page is focused; a browser tab cannot provide the Mac app's global shortcut or desktop overlays.
 
