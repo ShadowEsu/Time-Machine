@@ -52,7 +52,8 @@ The CLI and the web app are fully local. The only backend is on the site:
 | Payments | Stripe Checkout, one-time $50 (ADR 0013). We never touch card numbers | Built, closed until the keys are set |
 | License | A key signed with Ed25519, verified offline by the CLI and the web app, saved once per computer. Restores never check it | Built |
 | Data held | Nothing: the key holds an opaque purchase id, the plan and the date. Stripe keeps the payment record | Built |
-| Hosting | Two Vercel functions: `checkout`, `license`, plus `health` | Built |
+| Sign in | Supabase Auth email codes through `/api/auth`; `/api/account` lists a buyer's keys from Stripe by email. No password, no table | Built, closed until the keys are set |
+| Hosting | Vercel functions: `checkout`, `license`, `auth`, `account`, plus `health` | Built |
 
 ## Proposed decisions waiting on the founder
 

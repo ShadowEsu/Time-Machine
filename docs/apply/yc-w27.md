@@ -128,7 +128,7 @@ What we understand: people do not want a list of snapshots. They want to know wh
 
 The command line tool is free. Restores are never paywalled.
 
-Price: the web app costs $50 once, with up to 3 projects free (ADR 0013). Checkout opens once the seller of record is set. A team plan for agencies comes after that.
+Price: the web app costs $50 once, with no free plan (ADR 0013). Checkout opens once the seller of record is set. A team plan for agencies comes after that.
 
 The math, not a forecast: one Pro user pays $72 to $108 a year. 10,000 paying users is about $0.7M to $1.1M a year. The larger market is the planned action connector for agent actions in other apps (ADR 0007). Nothing of it is built.
 

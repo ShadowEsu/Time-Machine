@@ -13,7 +13,8 @@ The `tm` tool and the web app keep everything locally: save points, Git bundles,
 | What | When | Why |
 |---|---|---|
 | Email address | You join the waitlist or create an account | To reach you about your account, and product news if you opt in |
-| Billing details | You buy the web app license | Stripe processes payment. We never see your full card number or your email from checkout |
+| Billing details | You buy the web app license | Stripe processes payment. We never see your full card number. Stripe keeps the email you gave at checkout |
+| Email address | You sign in on the website | To send a one-time code and to find your purchases at Stripe by that email. No password is stored |
 | License key contents | You buy the web app license | An opaque purchase id, the plan and the issue date, signed by us. Nothing about you |
 | Website visits | You visit the site | Cookieless, aggregate page counts. No ad tracking |
 | Usage events | Only if you turn on telemetry | To improve the product |

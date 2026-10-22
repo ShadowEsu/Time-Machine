@@ -353,7 +353,7 @@ claude mcp add timemachine -- tm mcp
 
 These are planned. None of them work today.
 
-- **Checkout for the web app.** The price is $50 once (ADR 0013) and `tm license <key>` works, but nothing is for sale until checkout opens. The free web app lists up to 3 projects.
+- **Checkout for the web app.** The price is $50 once (ADR 0013) and `tm license <key>` works, but nothing is for sale until checkout opens. The web app needs a key to open; there is no free plan.
 - **Container isolation** with Docker, OrbStack or Apple `container`, labeled as stronger than host mode.
 - **Dependency cache**, so checks do not reinstall packages every time.
 - **npm package** `timetm`, with `npx timetm init`.

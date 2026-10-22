@@ -8,7 +8,7 @@ Time Machine saves your project before Claude Code acts. It runs your own tests 
 
 Website and waitlist: **https://time-machine-site.vercel.app**
 
-> **Status: early.** The `tm` CLI, the web app (`tm ui`), the Claude Code hooks and the MCP server work from source. **Not on npm yet** (build below). The web app costs $50 once; checkout is not open yet, and the free web app lists up to 3 projects.
+> **Status: early.** The `tm` CLI, the web app (`tm ui`), the Claude Code hooks and the MCP server work from source. **Not on npm yet** (build below). The web app costs $50 once and needs a license key to open; checkout is not open yet.
 
 ## 30 seconds: watch it rescue a broken project
 
@@ -87,7 +87,7 @@ Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the
 
 The web app is the only app. There is no Mac app, no installer and no account. Browser shortcuts work while the page is focused.
 
-**Price.** The CLI is free and MIT. The web app lists up to 3 projects for free. One payment of $50 unlocks unlimited projects on your computers, plus updates while we ship them. Restores are never behind the license. Activate with `tm license <key>` or in the web app under Settings. Checkout is not open yet (ADR 0013).
+**Price.** The web app costs $50, paid once. There is no free plan and no subscription. The key works on any number of your own computers and projects, with updates while we ship them, and is verified offline. The first time you open `tm ui` it asks for the key; `tm license <key>` also saves it. Sign in on the website with your checkout email to see your key again. The `tm` command line tool is open source (MIT) and stays that way. Checkout is not open yet (ADR 0013).
 
 ## Your own project in four commands
 
@@ -122,7 +122,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | npm package | `timetm`, command `tm` | Not published yet |
 | Website | Static site in `site/` with a waitlist, personal referral links and anonymous funnel counts. Public at https://time-machine-site.vercel.app | Live; waitlist saves once Supabase is set up |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
-| Web app license | $50 once: unlimited projects in the web app, updates while we ship them, key verified offline, no account. Free: CLI, hooks, MCP, every restore, web app with up to 3 projects | Built (`tm license`); checkout not open yet, see ADR 0013 |
+| Web app license | $50 once, no free plan: the web app needs a key to open. Updates while we ship them, key verified offline, sign in on the site to see it again. The CLI, hooks and MCP stay open source | Built (`tm license`, site checkout, sign-in); checkout not open yet, see ADR 0013 |
 
 ## Commands
 

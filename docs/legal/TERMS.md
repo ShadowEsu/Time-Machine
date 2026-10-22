@@ -40,9 +40,9 @@ Your code and files stay on your computer. We do not upload them. You own your p
 
 **What you get.** One person may use the web app with any number of their own projects, on any number of their own computers. Updates are included while we ship them. We do not promise updates for any length of time.
 
-**The free version.** Without a license the web app lists up to 3 projects. Saving, checking, comparing and every restore work the same with or without a license. The `tm` command line tool is free under its open source license.
+**No free version.** The web app does not run without a license key. The `tm` command line tool is separate and free under its open source license.
 
-**Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. Keep it: we cannot email it, because we do not take your email at checkout. If you lose it, open the purchase page again from your Stripe receipt.
+**Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. To see it again, sign in on the website with the email you gave at checkout. Signing in sends a one-time code to that email and keeps no password.
 
 **Refunds.** You can get a full refund within 14 days of payment by emailing [Contact]. After that, payments are not refundable except where the law says otherwise. If you are in the EU or UK you also have the legal right to withdraw described at checkout.
 
