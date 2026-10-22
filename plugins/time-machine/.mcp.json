@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "timemachine": {
-      "command": "tm",
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/tm-hook",
       "args": ["mcp"]
     }
   }

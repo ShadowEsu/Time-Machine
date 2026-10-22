@@ -5,7 +5,7 @@ description: Set up Time Machine save points in the current project. Use when th
 
 # Set up Time Machine in this project
 
-The Time Machine plugin already provides the Claude Code hooks and the MCP server. They act only in a project that has `timemachine.yml` at its Git root. This skill creates that file.
+The Time Machine plugin already provides the Claude Code hooks and the MCP server. They act only in a project whose check the user approved with `tm init` on this computer. A `timemachine.yml` that came with the repo is not enough. This skill creates the file if needed, confirms the check with the user, and records the approval.
 
 Follow these steps in order. Run the commands from the project folder.
 
@@ -19,21 +19,28 @@ If `tm` is not found, stop here. Tell the user the plugin needs the `tm` command
 
 Run `git rev-parse --show-toplevel`. Time Machine needs a Git repository with at least one commit. If there is none, tell the user and ask before running `git init` or making a commit.
 
-## 3. Create timemachine.yml
+## 3. Create timemachine.yml if there is none
 
-Run `tm init`. It writes `timemachine.yml` at the Git root with a guessed check (for example `npm test`) and install step (for example `npm ci`). It keeps an existing file.
+If `timemachine.yml` already exists at the Git root (for example it came with the repo), do not run `tm init` yet: go to step 4, because `tm init` approves the check that is in the file.
+
+Otherwise run `tm init`. It writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`), and approves that guess. Step 4 confirms it with the user.
 
 ## 4. Confirm the check with the user
 
-Show the user the `verify` section of `timemachine.yml`: `verify.command` and, if present, `verify.setup`. Ask the user to confirm that `verify.command` is the command that tells them the project works. If they want a different command, edit `verify.command` in `timemachine.yml` to what they say. Do not guess further.
+Show the user the `verify` section of `timemachine.yml`: `verify.command` and, if present, `verify.setup`. Say that Time Machine will run them on this computer at the end of each Claude turn. Ask the user to confirm that `verify.command` is the command that tells them the project works, and that both are safe to run. If they want a different command, edit `verify.command` in `timemachine.yml` to what they say. Do not guess further. If the user does not confirm, stop here.
 
-## 5. Optional: the demo
+## 5. Approve the check
+
+After the user confirmed, run `tm init`. It keeps the file as it is and records the approval of the check now in the file, outside the project. Show the user the `Approved` line it prints. If `timemachine.yml` changes later, run `tm init` again only after the user confirms the new check.
+
+## 6. Optional: the demo
 
 Run `tm demo` only if the user asks for it. It builds a small synthetic project in a temporary folder and does not touch this project.
 
 ## Never do this
 
 - Never run `tm hook install`. The plugin already provides the hooks. If a project also has hooks from `tm hook install`, the plugin steps aside there, so nothing saves twice.
+- Never run `tm init` on an existing `timemachine.yml` before the user confirmed its check.
 - Never run destructive commands, `tm recover`, or anything that changes the user's branch as part of setup.
 
 ## When you are done

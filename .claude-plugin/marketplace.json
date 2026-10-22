@@ -9,7 +9,7 @@
     {
       "name": "time-machine",
       "source": "./plugins/time-machine",
-      "description": "Saves before each prompt and risky shell command, and checks your tests when Claude stops. Acts only in projects with timemachine.yml."
+      "description": "Saves before each prompt and risky shell command, and checks your tests when Claude stops. Acts only in projects where you approved the check with tm init."
     }
   ]
 }

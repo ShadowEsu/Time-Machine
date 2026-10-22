@@ -1,10 +1,10 @@
 {
-  "description": "Time Machine save points. Each hook exits 0 silently when tm is not on PATH, and tm acts only in projects with timemachine.yml.",
+  "description": "Time Machine save points. bin/tm-hook runs tm only when it is Time Machine and exits 0 silently otherwise; tm acts only in projects whose check was approved with tm init on this computer.",
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "command -v tm >/dev/null 2>&1 || exit 0; exec tm hook prompt --if-initialized", "timeout": 30 }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/tm-hook\" prompt", "timeout": 30 }
         ]
       }
     ],
@@ -12,14 +12,14 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "command -v tm >/dev/null 2>&1 || exit 0; exec tm hook pre-bash --if-initialized", "timeout": 30 }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/tm-hook\" pre-bash", "timeout": 30 }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "command -v tm >/dev/null 2>&1 || exit 0; exec tm hook stop --if-initialized", "timeout": 600, "asyncRewake": true }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/tm-hook\" stop", "timeout": 600, "asyncRewake": true }
         ]
       }
     ]
