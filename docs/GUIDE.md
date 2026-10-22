@@ -352,7 +352,7 @@ claude mcp add timemachine -- tm mcp
 
 These are planned. None of them work today.
 
-- **Signed Mac download.** The Mac app works from source today with Save now, Check it works and Rewind. Run `pnpm app` from the cloned repository. Apple signing and notarization are not ready.
+- **Checkout for the web app.** The price is $50 once (ADR 0013) and `tm license <key>` works, but nothing is for sale until checkout opens. The free web app lists up to 3 projects.
 - **Container isolation** with Docker, OrbStack or Apple `container`, labeled as stronger than host mode.
 - **Dependency cache**, so checks do not reinstall packages every time.
 - **npm package** `timetm`, with `npx timetm init`.

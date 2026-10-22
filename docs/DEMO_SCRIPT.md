@@ -85,7 +85,7 @@ On Linux the sandbox name is `bwrap` or `unshare`. Use the line exactly as print
 ## Rules for this video
 
 - Every terminal line comes from a real run. No mocked terminal, no edited text.
-- Do not show the Mac app as a working, installed app. The screens are built (onboarding, History, Rewind with undo, Compare, Settings, Inspector, the corner card, agent labels), but the app has not yet run as a signed Mac app (D08). If you show it at all, use the browser preview with its "demo data" banner on screen and say "in development".
+- The web app (`tm ui`) may be shown on a real project or on `tm demo`. Do not show a Mac app: it was retired (ADR 0012).
 - Do not show or mention the action connector for email, Slack and other apps. It is planned only (ADR 0007).
 - Do not say "undo anything", "guaranteed", "zero setup", or "works with every agent". Hooks exist for Claude Code today. The MCP server works with any agent that speaks MCP.
 - Do not show `npx timetm` unless the package is really on npm that day.

@@ -62,7 +62,7 @@ First: solo developers who let Claude Code, Cursor or Codex run on auto approve.
 
 Next: small agencies that run agents across many client repos. Research says they pay first. We have not talked to one yet.
 
-Later: people who build with agents but do not use Git or a terminal. They have the most pain. They need the Mac app.
+Later: people who build with agents but do not use Git or a terminal. They have the most pain. They need the web app, which opens in the browser with one command.
 
 ## Why now?
 
@@ -104,7 +104,7 @@ Built and tested:
 - Two independent code reviews found 17 bugs. Each was fixed with a failing test first.
 - Engine and command line tests: **[FOUNDER]** paste the current count from `pnpm test` on the day you submit.
 
-Built, not yet run as a signed Mac app: the Mac app screens. Onboarding, the History ruler, the Rewind wizard with undo, Compare with now, Settings, an Inspector with the exact commit and check log, a corner card that shows only when a working project breaks, and labels that say which agent made each save point. Signing and notarizing (D08) is the next step.
+Built: the web app (`tm ui`). Onboarding, the History ruler, the Rewind wizard with undo, Compare with now, Settings, an Inspector with the exact commit and check log, and labels that say which agent made each save point. It runs on the user's computer and opens in the browser, so there is nothing to sign.
 
 Not built: users, revenue and a waitlist. No users yet. No revenue. **[FOUNDER]** update with real numbers on the day you submit, for example think aloud sessions done.
 
@@ -123,7 +123,7 @@ What is different: a verdict, not a list of snapshots. We rebuild each save poin
 
 The command line tool is free. Restores are never paywalled.
 
-Planned, not built: Pro for the Mac app at $9 a month, stepping down to $8 from month 7, $7 from month 13, and a $6 floor (ADR 0002). A team plan comes later.
+Price: the web app costs $50 once, with up to 3 projects free (ADR 0013). Checkout opens once the seller of record is set. A team plan comes later.
 
 Planned, not built: an action connector that keeps a record and an honest way back for what agents do in other apps, like email and Slack (ADR 0007). Nothing of it exists yet.
 

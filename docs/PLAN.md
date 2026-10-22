@@ -1,14 +1,14 @@
 # Plan to MVP
 
-Status (22 October 2026): M0 to M3 code is built and merged to `main`. License: MIT (ADR 0010). `timetm` is one command from npm (`docs/launch/NPM_PUBLISH.md`); publishing waits on two-factor on the founder's npm account. 365 automated tests (363 on macOS, 2 run only on Linux) in CI on macOS and Linux, Node 22 and 24. D01 to D07 of the Mac app are built, with a launch splash, fade transitions and stable self-signed packaging; Apple signing (D08) remains. `tm ui` serves the same app screens in a local browser from the CLI (no Electron, no signing needed). The website is public at https://time-machine-site.vercel.app: one page with the promise and the waitlist in the first screen, a real recording, a step-by-step section for people who don't code, the developer view with an agent-readable `install.md`, plain-word definitions, a changelog and a dense footer. The waitlist saves pending signups once Supabase is set up (`docs/launch/SUPABASE_SETUP.md`); the site sends no email. The action connector remains proposed v2 (ADR 0007). Full session memory: `docs/HANDOFF.md`.
+Status (22 October 2026): M0 to M3 code is built and merged to `main`. License: MIT (ADR 0010). `timetm` is one command from npm (`docs/launch/NPM_PUBLISH.md`); publishing waits on two-factor on the founder's npm account. 365 automated tests (363 on macOS, 2 run only on Linux) in CI on macOS and Linux, Node 22 and 24. The web app (Phase B, W01 to W07) is built and served by `tm ui` from the CLI; the Electron Mac app was retired on 22 October (ADR 0012). The web app costs $50 once (ADR 0013): `tm license` and the Settings panel are built, the site shows the price, and checkout opens once an adult signer and a Stripe account exist (`docs/launch/CHECKOUT_SETUP.md`). The website is public at https://time-machine-site.vercel.app: one page with the promise and the waitlist in the first screen, a real recording, a step-by-step section for people who don't code, the developer view with an agent-readable `install.md`, plain-word definitions, a changelog and a dense footer. The waitlist saves pending signups once Supabase is set up (`docs/launch/SUPABASE_SETUP.md`); the site sends no email. The action connector remains proposed v2 (ADR 0007). Full session memory: `docs/HANDOFF.md`.
 
-Waiting on the founder: npm account (publish), the Supabase project and two Vercel settings for the waitlist, who signs for money, lawyer review, a domain, and the demo video. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
+Waiting on the founder: npm account (publish), who signs for money (blocks checkout), a Stripe account, lawyer review, a domain, and the demo video. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
 
 ## Goal
 
 By 31 October 2026, a stranger can run `npx timetm init` on the demo project, break it, and get a verified recovery branch in under 2 minutes. That is the demo for the a16z speedrun (closes 1 November) and YC W27 (closes 2 November, 8pm PT).
 
-Measured 17 October on a real repo (`sindresorhus/slugify`, packed `timetm`, fresh home, empty npm cache): 54 to 82 s from `init` to a verified recovery branch over two runs (`scripts/time-first-run.sh`). Before `init` guessed the install step, the same path never reached a verified branch: every check failed to start without `node_modules`. The Mac app's Try the demo reaches a recovery branch in 2 clicks. What remains for the goal is the npm publish itself.
+Measured 17 October on a real repo (`sindresorhus/slugify`, packed `timetm`, fresh home, empty npm cache): 54 to 82 s from `init` to a verified recovery branch over two runs (`scripts/time-first-run.sh`). Before `init` guessed the install step, the same path never reached a verified branch: every check failed to start without `node_modules`. The web app's Try the demo reaches a recovery branch in 2 clicks. What remains for the goal is the npm publish itself.
 
 ## Milestones
 
@@ -19,8 +19,8 @@ Measured 17 October on a real repo (`sindresorhus/slugify`, packed `timetm`, fre
 | M2 (done) | 22 to 25 Oct | `tm open` (worktree), `tm verify` (host mode, timeout, clean env, network rule), `tm find-good`, `tm recover` | The demo runs end to end. The working copy and current branch are byte for byte unchanged after every command |
 | M3 (done, publish waiting) | 26 to 28 Oct | `--json` on every command, exit codes per ADR 0005, Claude Code hook kit, `tm mcp`, publish `timetm` 0.1 to npm | All V tests green on macOS and Linux CI. `npx timetm --help` works from a clean machine |
 | M4 (site done, private) | 29 to 31 Oct | 60 second demo video, one page site with waitlist, Terms and Privacy reviewed, both applications submitted | Applications sent. The site says what is built and what is planned |
-| M5 | Nov to Dec | Phase B Mac app (D01 to D08), full scroll story site | Per the brief |
-| M6 | After first 20 active users | Pro billing and license backend (below) | Per ADR to be written |
+| M5 (done) | 21 to 22 Oct | Phase B web app (W01 to W07), `tm license`, the price on the site | Per the brief and ADR 0012, 0013 |
+| M6 | When the signer exists | Open checkout: Stripe keys and the license signing key on Vercel, one test purchase | `/api/health` says `checkout:true` and a test key activates |
 
 Each milestone ends with a commit and push. A milestone is not done if any test is skipped.
 
@@ -30,7 +30,7 @@ Each milestone ends with a commit and push. A milestone is not done if any test 
 |---|---|---|
 | Create an npm account and claim `timetm` | 20 Oct | The name is free today. Turn on 2FA |
 | Pick an open source license for the engine and CLI | 20 Oct | Apache 2.0 or MIT keep adoption easy. Recorded as an ADR |
-| Decide who signs for money: a parent or guardian, or a company with an adult officer | 28 Oct | Blocks Stripe, Apple and the Terms. See `docs/legal/README.md` |
+| Decide who signs for money: a parent or guardian, or a company with an adult officer | 28 Oct | Blocks Stripe and the Terms. See `docs/legal/README.md` and `docs/launch/CHECKOUT_SETUP.md` |
 | Pick and buy a domain | 28 Oct | Needed for the site and support email |
 | Find 5 builders who use coding agents for think aloud tests | 31 Oct | How and what to say: `docs/OUTREACH.md` |
 | Lawyer review of Terms and Privacy | Before the first paid user | A law school clinic or startup program can help |
@@ -42,20 +42,17 @@ Each milestone ends with a commit and push. A milestone is not done if any test 
 - **M5 version:** the 12 beat scroll story from `design/WEBSITE_SPEC.md`, then the fork to `/builders`, `/developers`, `/agents`.
 - Every claim on the site matches what is built that day. Planned features carry a "Planned" label.
 
-## Backend plan (planned, M6)
+## Backend (built, M6 opens it)
 
-No backend is needed for the MVP. The CLI is free and fully local. When Pro launches:
+The CLI and the web app are fully local. The only backend is on the site:
 
-| Piece | Choice | Why |
+| Piece | Choice | Status |
 |---|---|---|
-| Waitlist | One Supabase table (email, consent, source, date) and one Vercel function. Built, waiting on founder setup (ADR 0006) | Smallest thing that works |
-| Payments | Stripe Checkout and the Stripe customer portal | Cancel online in one place. We never touch card numbers |
-| The Ladder | A webhook counts paid months and moves the subscription to the next price | Matches ADR 0002. Notice emails 7 to 30 days before each step |
-| License | A signed license file checked offline by the app, refreshed every 30 days, with grace | The app keeps working offline. Restores never check the license |
-| Data held | Email, Stripe customer ID, plan, step, paid month count | Nothing about projects, ever |
-| Hosting | Three small serverless functions: checkout, webhook, license | Cheap. Easy to delete |
-
-An ADR is required before any of this is built.
+| Waitlist | One Supabase table and one Vercel function (ADR 0006) | Live |
+| Payments | Stripe Checkout, one-time $50 (ADR 0013). We never touch card numbers | Built, closed until the keys are set |
+| License | A key signed with Ed25519, verified offline by the CLI and the web app, saved once per computer. Restores never check it | Built |
+| Data held | Nothing: the key holds an opaque purchase id, the plan and the date. Stripe keeps the payment record | Built |
+| Hosting | Two Vercel functions: `checkout`, `license`, plus `health` | Built |
 
 ## Proposed decisions waiting on the founder
 

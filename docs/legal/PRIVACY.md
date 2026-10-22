@@ -2,19 +2,19 @@
 
 **DRAFT. Not in effect. Needs lawyer review.** Last updated: [date].
 
-Short version: your code stays on your computer. Features you turn on may send a summary of your history to Google, or read your deploys from Vercel, as described below. We collect as little as we can and we never sell it. Save points never store secret values. Keys for features you connect are kept encrypted on your Mac.
+Short version: your code stays on your computer. Features you turn on may send a summary of your history to Google, or read your deploys from Vercel, as described below. We collect as little as we can and we never sell it. Save points never store secret values. Keys for features you connect are read from your own environment and never stored by the web app.
 
 ## 1. What stays on your computer
 
-The `tm` tool and the Mac app keep everything locally: save points, Git bundles, file copies, check logs, the audit log, and the names of settings you choose. We cannot see any of it. For settings, Time Machine stores only key names and a keyed fingerprint, never the values.
+The `tm` tool and the web app keep everything locally: save points, Git bundles, file copies, check logs, the audit log, and the names of settings you choose. We cannot see any of it. For settings, Time Machine stores only key names and a keyed fingerprint, never the values.
 
 ## 2. What we collect
 
 | What | When | Why |
 |---|---|---|
 | Email address | You join the waitlist or create an account | To reach you about your account, and product news if you opt in |
-| Billing details | You subscribe | Stripe processes payment. We never see your full card number |
-| Plan, step and paid month count | You subscribe | To apply The Ladder and the "yours to keep" license |
+| Billing details | You buy the web app license | Stripe processes payment. We never see your full card number or your email from checkout |
+| License key contents | You buy the web app license | An opaque purchase id, the plan and the issue date, signed by us. Nothing about you |
 | Website visits | You visit the site | Cookieless, aggregate page counts. No ad tracking |
 | Usage events | Only if you turn on telemetry | To improve the product |
 | Support messages | You contact us | To help you |

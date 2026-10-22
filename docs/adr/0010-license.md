@@ -4,7 +4,7 @@ Date: 17 October 2026. Status: accepted (founder decision, relayed by BOSS).
 
 ## Decision
 
-- The repository, the `tm` CLI (npm name `timetm`), the core engine and the Mac app source are under the **MIT License**. See `LICENSE`.
+- The repository, the `tm` CLI (npm name `timetm`), the core engine and the web app source are under the **MIT License**. See `LICENSE`.
 - Every `package.json` says `"license": "MIT"`.
 - The npm package is still not published. The founder creates the npm account with 2FA and publishes. Agents never publish.
 
@@ -15,7 +15,7 @@ Date: 17 October 2026. Status: accepted (founder decision, relayed by BOSS).
 
 ## Cost
 
-- Anyone can fork and sell the code. The business depends on the Mac app experience, signing, updates and support, not on hiding the engine.
+- Anyone can fork and sell the code. The business depends on the web app experience, updates and support, not on hiding the engine. The $50 one-time license (ADR 0013) is a purchase of the packaged web app, not a change to this code license.
 
 ## Migration path
 

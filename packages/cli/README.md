@@ -52,6 +52,18 @@ The browser app has no menu-bar item, global hotkey or desktop overlay. Those re
 
 Engine commands take `--json`. Human and JSON output come from the same result. `tm ui` instead stays running as a local server until interrupted.
 
+## License
+
+The CLI is free under the MIT license and never needs a key. No restore is ever gated. The local browser app (`tm ui`) lists up to 3 projects for free; a one-time $50 purchase at https://time-machine-site.vercel.app/#pricing unlocks unlimited projects. The key is shown once on the purchase page and is checked on your computer with a public key, so nothing phones home.
+
+```sh
+tm license             # free, licensed, or what is wrong with the saved key
+tm license TM1.xxx.yyy # save the key for every project on this computer
+tm license --remove    # forget it
+```
+
+`tm license --json` prints the same status as an object.
+
 ## What it does not do
 
 Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values from config files like `.env`, only key names and a fingerprint, so you set those again by hand. Other files are skipped when their name or content matches a secret pattern; a secret that matches none, or one already committed to Git, is saved like any code. Files your `.gitignore` skips are not saved, and each save point lists them. The hooks hide a prompt or a risky command when it looks like a secret, holds a current secret value from your config files such as `.env`, or has a URL with a user and password, like `postgres://user:pass@host`. Only the hooks can mark a save point as made by Claude Code: `tm checkpoint --trigger claude-code...` is refused with exit code 64. Every save point and every recovery says what was not restored.

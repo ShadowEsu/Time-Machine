@@ -2,7 +2,7 @@ import { parseArgs, type ParseArgsConfig } from "node:util";
 import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtStatus, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLicense, fmtLog, fmtOpen, fmtRecover, fmtStatus, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
 import { runUi } from "./ui/server.js";
@@ -67,6 +67,8 @@ Usage: tm <command> [options]
   mcp                   Run the MCP server on stdio for AI agents
   ui [--port N] [--no-open]
                         Open the real local browser app; Ctrl+C stops it
+  license [key]         Show the web app license on this computer, or save a key
+                        --remove forgets it. The CLI and every restore need no license
 
 Options: --json   machine readable output   -h, --help   --version
 
@@ -86,6 +88,7 @@ const OPTIONS = {
   port: { type: "string" },
   "no-open": { type: "boolean" },
   "no-approve": { type: "boolean" },
+  remove: { type: "boolean" },
 } as const satisfies ParseArgsConfig["options"];
 
 const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
@@ -103,7 +106,20 @@ const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
   "find-good": { args: [0, 0], flags: [] },
   recover: { args: [1, 1], flags: [] },
   log: { args: [0, 0], flags: [] },
+  license: { args: [0, 1], flags: ["remove"] },
 };
+
+/**
+ * The public key that license keys are checked against. TM_LICENSE_PUBLIC_KEY replaces the embedded
+ * seller key with another raw Ed25519 public key (base64url). Tests use it to sign with a throwaway
+ * keypair, and a user can pin a different seller key with it. It is never read from anywhere else.
+ */
+function licensePublicKey(env: NodeJS.ProcessEnv): string {
+  const override = env.TM_LICENSE_PUBLIC_KEY;
+  if (override === undefined || override === "") return tm.LICENSE_PUBLIC_KEY;
+  if (!/^[A-Za-z0-9_-]{43}$/.test(override)) throw new tm.TmError("usage", "TM_LICENSE_PUBLIC_KEY must be a raw Ed25519 public key, 32 bytes as base64url.");
+  return override;
+}
 
 class UsageError extends Error {}
 
@@ -128,7 +144,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const spec = ALLOWED[command];
     if (!spec) throw new UsageError(`Unknown command "${command}". Run tm --help.`);
     if (args.length < spec.args[0] || args.length > spec.args[1]) throw new UsageError(`Wrong number of arguments for ${command}. Run tm --help.`);
-    for (const flag of ["message", "trigger", "dir", "if-changed", "if-initialized", "port", "no-open", "no-approve"] as const) {
+    for (const flag of ["message", "trigger", "dir", "if-changed", "if-initialized", "port", "no-open", "no-approve", "remove"] as const) {
       if (values[flag] !== undefined && !spec.flags.includes(flag)) throw new UsageError(`--${flag} does not apply to ${command}.`);
     }
     if (command === "ui" && values.json) throw new UsageError("--json does not apply to ui.");
@@ -229,6 +245,24 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "log": {
         const r = await tm.log(ctx);
         print(r, fmtLog(r));
+        return 0;
+      }
+      case "license": {
+        const key = args[0];
+        if (values.remove === true) {
+          if (key !== undefined) throw new UsageError("--remove takes no key.");
+          const r = tm.removeLicense(ctx);
+          print(r, `License removed from this computer.\n${fmtLicense(r)}`);
+          return 0;
+        }
+        const publicKey = licensePublicKey(io.env);
+        if (key === undefined) {
+          const r = tm.licenseStatus(ctx, publicKey);
+          print(r, fmtLicense(r));
+          return 0;
+        }
+        const r = tm.activateLicense(ctx, key, publicKey);
+        print(r, `License saved on this computer.\n${fmtLicense(r)}`);
         return 0;
       }
     }
