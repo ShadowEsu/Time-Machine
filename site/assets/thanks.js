@@ -9,6 +9,7 @@
     loading: "Fetching your key…",
     noSession: "This page needs the link Stripe opens after payment. If you paid and lost that link, email " + CONTACT + " with the time of your purchase.",
     notPaid: "Stripe has not marked this purchase as paid yet. Wait a minute and reload this page. If it stays like this, email " + CONTACT + " with the time of your purchase.",
+    testPurchase: "This was a Stripe test purchase, so no license key is issued for it.",
     notFound: "We could not find this purchase. Check that you opened the link Stripe gave you, or email " + CONTACT + ".",
     closed: "Checkout is not open yet, so no key can be issued. If you did pay, email " + CONTACT + ".",
     upstream: "The license service did not answer. Reload this page in a minute. If it keeps failing, email " + CONTACT + " and we send your key by hand.",
@@ -57,6 +58,8 @@
         keyEl.focus();
       } else if (r.status === 400) {
         say(MSG.noSession, "error");
+      } else if (r.status === 402 && r.data.error === "test_purchase") {
+        say(MSG.testPurchase, "error");
       } else if (r.status === 402) {
         say(MSG.notPaid, "error");
       } else if (r.status === 404) {

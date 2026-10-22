@@ -1,7 +1,8 @@
 import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { parseLicenseKey, signLicense as coreSign } from "../../packages/core/src/license.ts";
+import { LICENSE_PUBLIC_KEY, parseLicenseKey, signLicense as coreSign } from "../../packages/core/src/license.ts";
 import { GET } from "./license.js";
+import { LIVE_APPROVAL, publicKeyOf, SELLER_PUBLIC_KEY } from "./_lib/checkout.js";
 import { handleLicense, issuedDate, purchaseId, signLicense } from "./_lib/license.js";
 
 // A throwaway keypair per test file. Synthetic values only.
@@ -19,7 +20,7 @@ const SESSION = "cs_test_a1B2c3D4e5F6g7H8i9J0synthetic";
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 const paid = (extra = {}) => json({
-  id: SESSION, object: "checkout.session", mode: "payment", payment_status: "paid", created: CREATED,
+  id: SESSION, object: "checkout.session", mode: "payment", payment_status: "paid", created: CREATED, livemode: false,
   metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000,
   customer_details: { email: "buyer@example.test", name: "Synthetic Buyer" }, ...extra,
 });
@@ -101,6 +102,24 @@ describe("license handler", () => {
     const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" } });
     expect(await handleLicense(request(), live.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
     expect(live.fetch).not.toHaveBeenCalled();
+  });
+
+  it("never signs a release key for a test-mode purchase", async () => {
+    expect(SELLER_PUBLIC_KEY).toBe(LICENSE_PUBLIC_KEY);
+    expect(publicKeyOf(K.priv)).toBe(K.pub);
+    // K stands in for the release keypair here, since its real private half is not in the repo.
+    const asRelease = (env, response = paid) => {
+      const s = setup({ env, response });
+      return { ...s, deps: { ...s.deps, sellerPublicKey: K.pub } };
+    };
+    const closed = asRelease(ENV);
+    expect(await handleLicense(request(), closed.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(closed.fetch).not.toHaveBeenCalled();
+    const approved = { ...ENV, STRIPE_LIVE_OK: LIVE_APPROVAL };
+    expect(await handleLicense(request(), asRelease(approved).deps)).toEqual({ status: 402, headers: {}, body: { ok: false, error: "test_purchase" } });
+    const live = await handleLicense(request(), asRelease(approved, () => paid({ livemode: true })).deps);
+    expect(live.status).toBe(200);
+    expect(parseLicenseKey(live.body.key, K.pub).plan).toBe("web");
   });
 
   it("validates the session id, the method, and the Stripe shape before signing", async () => {

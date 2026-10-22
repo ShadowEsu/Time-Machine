@@ -3,8 +3,8 @@
 // email they paid with. Keys are derived from Stripe's own records, so the site keeps no license table.
 // Rules: never log the email, the code, the token, the anon key or the Stripe key. Never fake a key.
 import { z } from "zod";
-import { isCheckoutConfigured, reply, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
-import { isTmPurchase, licenseFor, SessionSchema } from "./license.js";
+import { isCheckoutConfigured, reply, signsReleaseKeys, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
+import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, SessionSchema } from "./license.js";
 import { clientId, isAllowedOrigin, isValidEmail, normalizeEmail, readJsonObject, supabaseOrigin } from "./waitlist.js";
 
 export const MAX_AUTH_BYTES = 2048;
@@ -107,13 +107,13 @@ export async function handleAuth(req, deps) {
 /**
  * GET with Authorization: Bearer <token> lists the keys for the signed-in email.
  * @param {{ method: string, authorization?: string|null, ip?: string|null }} req
- * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void }} deps
+ * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string }} deps
  */
 export async function handleAccount(req, deps) {
   const log = deps.log ?? (() => {});
   if (req.method !== "GET") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "GET" });
   if (!isAuthConfigured(deps.env)) return reply(503, { ok: false, error: "auth_closed" });
-  if (!isCheckoutConfigured(deps.env)) return reply(503, { ok: false, error: "checkout_closed" });
+  if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(503, { ok: false, error: "checkout_closed" });
   const match = /^Bearer ([A-Za-z0-9._-]{20,4000})$/.exec(typeof req.authorization === "string" ? req.authorization.trim() : "");
   if (!match) return reply(401, { ok: false, error: "unauthorized" });
   if (rateLimited("account", clientId(req.ip, deps.env.SUPABASE_ANON_KEY))) return rateLimitReply();
@@ -141,6 +141,7 @@ export async function handleAccount(req, deps) {
   }
   const email = user.data.email;
 
+  const releaseKey = signsReleaseKeys(deps.env, deps.sellerPublicKey);
   const licenses = [];
   let after = null;
   for (let page = 0; page < MAX_STRIPE_PAGES; page += 1) {
@@ -167,7 +168,7 @@ export async function handleAccount(req, deps) {
       return reply(502, { ok: false, error: "stripe_error" });
     }
     for (const session of parsed.data.data) {
-      if (isTmPurchase(session)) licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
+      if (isTmPurchase(session) && !isTestPurchaseOnReleaseKey(session, releaseKey)) licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
     }
     const last = parsed.data.data[parsed.data.data.length - 1];
     if (!parsed.data.has_more || !last) break;

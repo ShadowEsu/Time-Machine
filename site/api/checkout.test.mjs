@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
-import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, siteOrigin } from "./_lib/checkout.js";
+import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, publicKeyOf, siteOrigin } from "./_lib/checkout.js";
 
 // Synthetic values only. The signing key is 32 arbitrary bytes; it never signs anything here.
 const SIGNING = Buffer.alloc(32, 3).toString("base64url");
@@ -80,6 +80,15 @@ describe("checkout handler", () => {
     }
     expect(isCheckoutConfigured({ ...ENV, STRIPE_SECRET_KEY: "rk_test_Synthetic0123" })).toBe(true);
     expect(isCheckoutConfigured({ ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789", STRIPE_LIVE_OK: LIVE_APPROVAL })).toBe(true);
+  });
+
+  it("stays closed in test mode when the signing key is the release key, so a test card never buys a real key", async () => {
+    const releasePub = publicKeyOf(SIGNING); // stands in for the release key
+    const { fetch, deps } = setup();
+    expect(isCheckoutConfigured(ENV, releasePub)).toBe(false);
+    expect(await handleCheckout(request(), { ...deps, sellerPublicKey: releasePub })).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(isCheckoutConfigured({ ...ENV, STRIPE_LIVE_OK: LIVE_APPROVAL }, releasePub)).toBe(true);
   });
 
   it("refuses other methods and other origins before calling Stripe", async () => {

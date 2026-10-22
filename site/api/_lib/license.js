@@ -4,9 +4,8 @@
 // signs it, so the CLI and the web app verify it offline with the embedded public key.
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
-import { isCheckoutConfigured, PRICE_CENTS, PRODUCT_TAG, reply, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
+import { isCheckoutConfigured, PKCS8_HEADER, PRICE_CENTS, PRODUCT_TAG, reply, signsReleaseKeys, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
 
-const PKCS8_HEADER = Buffer.from("302e020100300506032b657004220420", "hex");
 const SessionIdSchema = z.string().regex(/^cs_[A-Za-z0-9_]{10,200}$/);
 // Only the fields the decision needs. Everything else Stripe sends is dropped here.
 export const SessionSchema = z.object({
@@ -14,6 +13,7 @@ export const SessionSchema = z.object({
   mode: z.string(),
   payment_status: z.string(),
   created: z.number().int().nonnegative(),
+  livemode: z.boolean(),
   metadata: z.object({ product: z.string() }).partial().nullish(),
   currency: z.string().nullish(),
   amount_subtotal: z.number().int().nullish(),
@@ -25,6 +25,13 @@ export const SessionSchema = z.object({
 export function isTmPurchase(session) {
   return session.mode === "payment" && session.payment_status === "paid" && session.metadata?.product === PRODUCT_TAG
     && session.currency === "usd" && typeof session.amount_subtotal === "number" && session.amount_subtotal >= PRICE_CENTS;
+}
+
+// A test-mode session never gets a key signed with the release key, which every release accepts forever.
+// isCheckoutConfigured already keeps that pair closed; this holds per session too, for example when live
+// mode is approved while a test key is still set. `releaseKey` is signsReleaseKeys for this request.
+export function isTestPurchaseOnReleaseKey(session, releaseKey) {
+  return releaseKey && session.livemode !== true;
 }
 
 // Signs {v:1,id,plan,issued} in that key order with the raw Ed25519 private key (32 bytes, base64url).
@@ -51,7 +58,7 @@ export function issuedDate(createdSeconds) {
 /**
  * GET ?session=cs_... returns the license key for a paid Checkout Session.
  * @param {{ method: string, session?: string|null }} req
- * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void }} deps
+ * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string }} deps
  * @returns {Promise<{ status: number, headers: Record<string, string>, body: object }>}
  */
 export async function handleLicense(req, deps) {
@@ -59,7 +66,7 @@ export async function handleLicense(req, deps) {
   if (req.method !== "GET") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "GET" });
   const session = SessionIdSchema.safeParse(req.session);
   if (!session.success) return reply(400, { ok: false, error: "invalid_session" });
-  if (!isCheckoutConfigured(deps.env)) return reply(503, { ok: false, error: "checkout_closed" });
+  if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(503, { ok: false, error: "checkout_closed" });
 
   let res;
   try {
@@ -83,6 +90,7 @@ export async function handleLicense(req, deps) {
     return reply(502, { ok: false, error: "stripe_error" });
   }
   if (!isTmPurchase(parsed.data)) return reply(402, { ok: false, error: "not_paid" });
+  if (isTestPurchaseOnReleaseKey(parsed.data, signsReleaseKeys(deps.env, deps.sellerPublicKey))) return reply(402, { ok: false, error: "test_purchase" });
 
   return reply(200, { ok: true, ...licenseFor(parsed.data, deps.env.TM_LICENSE_PRIVATE_KEY) });
 }

@@ -15,7 +15,7 @@ const TOKEN = "synthetic.access.token-0123456789";
 const AUTH = `Bearer ${TOKEN}`;
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const session = (id, extra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, ...extra });
+const session = (id, extra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, livemode: false, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, ...extra });
 const user = () => json({ id: "00000000-0000-4000-8000-000000000000", email: EMAIL, role: "authenticated" });
 
 // Routes each fetch by URL: the Supabase user call, then one or more Stripe pages.
@@ -65,6 +65,17 @@ describe("account handler", () => {
   it("answers an empty list for an email with no paid sessions", async () => {
     const { deps } = setup({ pages: [{ data: [], has_more: false }] });
     expect(await handleAccount(request(), deps)).toEqual({ status: 200, headers: {}, body: { ok: true, email: EMAIL, licenses: [] } });
+  });
+
+  it("lists no release key for a test-mode purchase", async () => {
+    // PUB stands in for the release key, since its real private half is not in the repo.
+    const pages = [{ data: [session("cs_test_one1234567890"), session("cs_live_two1234567890", { livemode: true })], has_more: false }];
+    const s = setup({ env: { ...ENV, STRIPE_LIVE_OK: "yes-attorney-cleared" }, pages });
+    const res = await handleAccount(request(), { ...s.deps, sellerPublicKey: PUB });
+    expect(res.body.licenses.map((l) => l.id)).toEqual([purchaseId("cs_live_two1234567890")]);
+    const closed = setup();
+    expect((await handleAccount(request(), { ...closed.deps, sellerPublicKey: PUB })).body.error).toBe("checkout_closed");
+    expect(closed.fetch).not.toHaveBeenCalled();
   });
 
   it("is 401 for a missing, malformed or rejected token, and Stripe is never asked", async () => {
