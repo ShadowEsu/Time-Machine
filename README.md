@@ -58,6 +58,19 @@ tm demo
 
 No pnpm? Run `npm install -g pnpm` first. The global `tm` points at this folder, so keep the folder.
 
+## Claude Code plugin
+
+With `tm` installed (see above), add Time Machine to Claude Code from this repo, with no account:
+
+```text
+/plugin marketplace add ShadowEsu/Time-Machine
+/plugin install time-machine@time-machine
+```
+
+The plugin brings the Claude Code hooks, the MCP server and a `/time-machine:setup` skill that runs `tm init` with you. Its hooks run in every Claude Code session, but they act only in projects that have `timemachine.yml` (made by `tm init`). Everywhere else, and when `tm` is not on your PATH, they do nothing.
+
+Do not also run `tm hook install` in a project while the plugin is on. Both sets of hooks would run, so each save would happen twice.
+
 ## Open the local web app
 
 ```sh

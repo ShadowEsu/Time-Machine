@@ -172,7 +172,7 @@ Every command takes `--json`. The JSON and the human output come from the same r
 | `tm log` | Shows the append-only audit log. |
 | `tm demo [dir]` | Builds the Marigold Tips demo and runs the rescue. |
 | `tm hook install` | Adds Claude Code hooks to `.claude/settings.json`. |
-| `tm hook <prompt\|pre-bash\|stop>` | What the hooks call. Reads hook JSON on stdin. |
+| `tm hook <prompt\|pre-bash\|stop> [--if-initialized]` | What the hooks call. Reads hook JSON on stdin. `--if-initialized` does nothing, silently, unless the project has `timemachine.yml`. The Claude Code plugin uses it. |
 | `tm mcp` | Runs an MCP server over stdio. |
 
 `checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`. A trigger that starts with `claude-code` is refused with a usage error (exit code 64), because only the hooks (`tm hook`) can mark a save point as made by Claude Code.
@@ -292,6 +292,17 @@ This adds hooks to the project's `.claude/settings.json`. Your existing settings
 Hooks never block the agent because of their own errors. Prompt text and the risky command in a save point's note are hidden when they look like a secret, hold a current secret value from your config files such as `.env`, or have a URL with a user and password in it.
 
 The hooks call `tm hook prompt`, `tm hook pre-bash` and `tm hook stop`. You do not run these yourself. If a `tm` that is this same version is on your PATH, the hooks call `tm`. Otherwise they call the `tm` that ran `tm hook install`, by its absolute path, with the same Node. `tm hook install` prints the command. If you move or delete that folder, run `tm hook install` again. Only a `tm` run through `npx` makes the hooks call `npx -y timetm@<version>`, pinned to the exact version that installed them.
+
+### Claude Code plugin
+
+Instead of `tm hook install`, you can add the Time Machine plugin to Claude Code from this repo:
+
+```text
+/plugin marketplace add ShadowEsu/Time-Machine
+/plugin install time-machine@time-machine
+```
+
+It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`: they act only in a project with `timemachine.yml`, and do nothing when `tm` is missing. Do not also run `tm hook install` in the same project, or each save would happen twice.
 
 ### MCP server
 

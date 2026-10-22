@@ -1,0 +1,15 @@
+{
+  "name": "time-machine",
+  "description": "Time Machine: save points for your project, checked with your own tests",
+  "owner": {
+    "name": "Preston Susanto",
+    "email": "preston@unvibe.site"
+  },
+  "plugins": [
+    {
+      "name": "time-machine",
+      "source": "./plugins/time-machine",
+      "description": "Saves before each prompt and risky shell command, and checks your tests when Claude stops. Acts only in projects with timemachine.yml."
+    }
+  ]
+}

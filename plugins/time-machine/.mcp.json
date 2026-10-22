@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "timemachine": {
+      "command": "tm",
+      "args": ["mcp"]
+    }
+  }
+}

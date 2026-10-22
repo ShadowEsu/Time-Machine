@@ -1,0 +1,27 @@
+{
+  "description": "Time Machine save points. Each hook exits 0 silently when tm is not on PATH, and tm acts only in projects with timemachine.yml.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v tm >/dev/null 2>&1 || exit 0; exec tm hook prompt --if-initialized", "timeout": 30 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "command -v tm >/dev/null 2>&1 || exit 0; exec tm hook pre-bash --if-initialized", "timeout": 30 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v tm >/dev/null 2>&1 || exit 0; exec tm hook stop --if-initialized", "timeout": 600, "asyncRewake": true }
+        ]
+      }
+    ]
+  }
+}
