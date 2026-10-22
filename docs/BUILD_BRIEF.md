@@ -236,7 +236,7 @@ Full scripts and targets are in `.private/research/13-pricing-launch-naming.md`.
 3. **Open source license** for the engine and CLI.
 4. **Loyalty pricing.** Decided: "The Ladder" (ADR 0002).
 5. **Deadlines:** a16z speedrun SR008 closes 1 November 2026; YC W27 closes 2 November 2026 at 8pm PT. Dated milestones are in `docs/PLAN.md`.
-6. **Who signs for money.** The founder is under 18. A parent or guardian, or a company with an adult officer, must be the seller before Pro, Stripe or the Apple program. See `docs/legal/README.md`.
+6. **Who signs for money.** An adult seller of record, or a company with an adult officer, must be in place before Pro, Stripe or the Apple program. See `docs/legal/README.md`.
 7. **Engine decisions** recorded: store location (ADR 0003), isolation and network (ADR 0004), exit codes (ADR 0005).
 
 ## 10. Rewind everything: the roadmap
