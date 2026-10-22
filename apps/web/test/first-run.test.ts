@@ -2,7 +2,7 @@
 // and Try the demo in the preview rescues the story the same way the engine does. Synthetic data.
 import { describe, expect, test } from "vitest";
 import type { HookPreview } from "../src/shared/api.ts";
-import { checkLede, hookStepActions } from "../src/renderer/first-run.ts";
+import { checkLede, hookStepActions, setupStrip } from "../src/renderer/first-run.ts";
 import { FakeEngine } from "../preview/fake.ts";
 
 const hook = (runs: boolean, plugin = false): HookPreview => ({
@@ -31,6 +31,23 @@ describe("the last onboarding step", () => {
     expect(hookStepActions(hook(false), false)).toEqual(finishOnly);
     // The Claude Code plugin already covers the project once its check is approved, so no lines are added.
     expect(hookStepActions(hook(true, true), false)).toEqual(finishOnly);
+  });
+});
+
+describe("the setup strip on History", () => {
+  test("stays until the first verdict, then goes once Claude Code is connected or it is hidden", () => {
+    // Added, not checked yet: Check it works is the current step, and it can't be hidden yet.
+    expect(setupStrip({ verdict: false, connected: false, hidden: false })).toEqual({ check: "current", connect: "todo", canHide: false });
+    // Hiding before any check does not skip the check.
+    expect(setupStrip({ verdict: false, connected: false, hidden: true })).not.toBeNull();
+    // Connected first: the strip still waits for the first verdict.
+    expect(setupStrip({ verdict: false, connected: true, hidden: false })).toEqual({ check: "current", connect: "done", canHide: false });
+    // Checked, not connected: Connect Claude Code is the current step, and Hide is offered.
+    expect(setupStrip({ verdict: true, connected: false, hidden: false })).toEqual({ check: "done", connect: "current", canHide: true });
+    expect(setupStrip({ verdict: true, connected: false, hidden: true })).toBeNull();
+    expect(setupStrip({ verdict: true, connected: true, hidden: false })).toBeNull();
+    // While the connection is still being read, a checked project shows nothing rather than flash the strip.
+    expect(setupStrip({ verdict: true, connected: null, hidden: false })).toBeNull();
   });
 });
 

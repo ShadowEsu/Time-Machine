@@ -10,7 +10,7 @@ import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
 import { CallSchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
 import { pointTitle, when } from "../src/shared/format.ts";
-import { projectStatus } from "../src/renderer/status.ts";
+import { passStreaks, projectStatus } from "../src/renderer/status.ts";
 import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
@@ -23,12 +23,13 @@ describe("settings", () => {
       onboarded: false,
       simpleRewind: false,
       verdictTipSeen: false,
+      setupHidden: [],
     });
   });
 
   test("settings saved by the Mac app keep their values and drop the desktop-only keys", () => {
     const old = { showGitDetails: true, theme: "system", onboarded: true, simpleRewind: false };
-    expect(SettingsSchema.parse({ ...old, overlayCards: false, hotkey: "Control+Alt+T", agentPill: true })).toEqual({ ...old, verdictTipSeen: false });
+    expect(SettingsSchema.parse({ ...old, overlayCards: false, hotkey: "Control+Alt+T", agentPill: true })).toEqual({ ...old, verdictTipSeen: false, setupHidden: [] });
   });
 
   test("a patch never resets what it leaves out, and unknown keys are refused", () => {
@@ -144,6 +145,18 @@ describe("project status", () => {
     expect(pointTitle(prompt, "Claude Code")).toBe("Before the prompt: add dark mode");
     expect(pointTitle({ ...stop, trigger: "claude-code:pre-bash", note: "Before risky command: rm -rf dist" }, "Safety save")).toBe("Before risky command: rm -rf dist");
     expect(pointTitle({ note: "Saved by you", trigger: "app", agent: null }, "You")).toBe("Saved by you");
+  });
+
+  test("N checks passed counts only the passes since the last check that did not pass", () => {
+    const verify = (target: string, result: string) => ({ action: "verify", target, result });
+    const streaks = passStreaks([
+      verify("cp-0001", "PASS"), verify("cp-0001", "FAIL"), verify("cp-0001", "PASS"), verify("cp-0001", "PASS"),
+      { action: "verify-stopped", target: "cp-0001", result: "INCOMPLETE" }, { action: "checkpoint", target: "cp-0002", result: "saved" },
+      verify("cp-0002", "PASS"), verify("cp-0003", "PASS"), verify("cp-0003", "ERROR"),
+    ]);
+    expect(streaks.get("cp-0001")).toBe(2);
+    expect(streaks.get("cp-0002")).toBe(1);
+    expect(streaks.get("cp-0003")).toBe(0);
   });
 });
 

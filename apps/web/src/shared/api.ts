@@ -45,6 +45,8 @@ export const SettingsSchema = z.object({
   simpleRewind: z.boolean().default(false),
   /** The one-time tip that explains the verdict words, shown with the first verdict until it is hidden. */
   verdictTipSeen: z.boolean().default(false),
+  /** Projects whose setup strip on History was hidden with Hide, after their first verdict. */
+  setupHidden: z.array(ProjectId).max(1000).default([]),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -55,6 +57,7 @@ export const SettingsPatchSchema = z.strictObject({
   onboarded: z.boolean().optional(),
   simpleRewind: z.boolean().optional(),
   verdictTipSeen: z.boolean().optional(),
+  setupHidden: z.array(ProjectId).max(1000).optional(),
 });
 
 /** A Vercel project linked to a Time Machine project. The ids go into API URLs, so only safe characters. */

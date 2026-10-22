@@ -24,3 +24,21 @@ export function checkLede(init: { verifyCommand: string; created: boolean }): st
   if (!init.verifyCommand.trim()) return "No test command found, so save points can’t be checked yet. Type the command that shows your project works, or pick Build it.";
   return init.created ? "We picked one from your project. Change it if it is not right." : "Your timemachine.yml already has one. Change it if it is not right.";
 }
+
+/** Where a project is in its setup, for the strip on History. The project is added once it has a save point. */
+export interface SetupStrip {
+  check: "current" | "done";
+  connect: "todo" | "current" | "done";
+  /** "Hide" is offered once a check has run, so hiding never skips the one step that proves anything. */
+  canHide: boolean;
+}
+
+/**
+ * The setup strip stays until the project has its first verdict and either Claude Code is connected or
+ * the person hid it. `connected` is null while the connection is still being read: with a verdict in,
+ * the strip waits rather than flashing up for a project that turns out to be connected.
+ */
+export function setupStrip(s: { verdict: boolean; connected: boolean | null; hidden: boolean }): SetupStrip | null {
+  if (s.verdict && (s.connected !== false || s.hidden)) return null;
+  return { check: s.verdict ? "done" : "current", connect: s.connected ? "done" : s.verdict ? "current" : "todo", canHide: s.verdict };
+}

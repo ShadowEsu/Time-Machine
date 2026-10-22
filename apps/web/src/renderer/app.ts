@@ -6,7 +6,7 @@ import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, Isolatio
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, plural, pointClock, pointTitle, pointWhen, seconds, shortTitle, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
-import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
+import { goBackLabel, lastWorking as lastWorkingOf, passStreaks, projectStatus, type StatusButton } from "./status.js";
 import { filterPalette, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
 import { claudeChannel, PLANNED_AGENTS, type Channel } from "./channels.js";
@@ -14,10 +14,11 @@ import { renderAskPanel } from "./ask-panel.js";
 import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
-import { checkLede, hookStepActions } from "./first-run.js";
+import { checkLede, hookStepActions, setupStrip } from "./first-run.js";
 import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { ToastTimer } from "./toast.js";
+import { confirmButtons, type ConfirmCopy } from "./confirm.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -147,6 +148,10 @@ interface State {
   verifyResults: Map<string, VerifyResult>;
   /** Paths changed in each save point since the one before it. Read in the background for the journal and the Rewind. */
   changes: Map<string, string[]>;
+  /** How many checks in a row passed for each save point, from the audit log. */
+  passes: Map<string, number>;
+  /** A confirm before removing a project or going back to a version without proof. */
+  confirm: (ConfirmCopy & { act: "remove" | "tv-use"; id: string | null }) | null;
   /** A button that shows its pressed state because its shortcut just fired. */
   flash: { sel: string; until: number } | null;
   /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
@@ -245,6 +250,7 @@ async function loadTimeline(): Promise<void> {
     if (!st.selected || !ids.includes(st.selected)) st.selected = ids.at(-1) ?? null;
     void loadChanges();
     void loadDeployChips();
+    void loadPasses();
   } catch (e) {
     st.timeline = null;
     st.timelineError = msg(e);
@@ -271,6 +277,7 @@ async function selectProject(id: string, screen: Screen = "history"): Promise<vo
     st.timeline = null;
     st.selected = null;
     st.changes = new Map();
+    st.passes = new Map();
     st.drawer = false;
     st.deployChips = new Map();
     changesFor = "";
@@ -440,9 +447,11 @@ function sidebar(mobile = false): string {
     })
     .join("");
   const claude = claudeChannel(st.agents ?? [], st.lastTurn);
-  const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Connected", partial: "Needs setup", "not-connected": "Not connected", planned: "Planned" };
-  const agent = (name: string, state: Channel["state"], note: string): string =>
-    `<button class="it ag ${state === "planned" ? "off" : ""}" data-act="agents" title="${esc(`${name}: ${note}`)}">${agentMark(name)}<span class="nm"><span>${esc(name)}</span><small>${esc(stateWord[state])}</small></span>${state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}</button>`;
+  const agent = (ch: Channel): string =>
+    `<button class="it ag" data-act="agents" title="${esc(`${ch.name}: ${ch.line}`)}">${agentMark(ch.name)}<span class="nm"><span>${esc(ch.name)}</span><small>${esc(ch.short)}</small></span>${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}</button>`;
+  const planned = PLANNED_AGENTS.map((a) => a.name).join(", ");
+  // The planned agents share one quiet row, so the rail does not list three agents that do nothing yet.
+  const more = `<button class="it ag off ag-more" data-act="agents" title="${esc(`${planned}: planned, not connected`)}"><span class="amark" aria-hidden="true">+${PLANNED_AGENTS.length}</span><span class="nm"><span>More agents <span class="planned">Planned</span></span><small>${esc(planned)}</small></span></button>`;
   const total = st.storage?.reduce((n, r) => n + r.bytes, 0);
   return `<aside class="side${mobile ? " mobile-side" : ""}" ${mobile ? 'id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navigation"' : 'aria-label="Project navigation"'}>
     <div class="brand"><span class="mark" aria-hidden="true"></span>Time Machine${mobile ? '<button class="btn ghost nav-close" data-act="nav-close" aria-label="Close navigation">Close</button>' : ""}</div>
@@ -450,8 +459,8 @@ function sidebar(mobile = false): string {
     ${items || '<div class="muted small" style="padding:4px 8px">No projects yet</div>'}
     <button class="it quiet ${st.screen === "onboarding" ? "on" : ""}" data-act="add"><span class="plus" aria-hidden="true">+</span><span class="nm">Add project</span><kbd>${keys("Mod+N")}</kbd></button>
     <button class="sec sec-b ${st.screen === "agents" ? "on" : ""}" data-act="agents">Agents</button>
-    ${st.agents ? agent(claude.name, claude.state, claude.line) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
-    ${PLANNED_AGENTS.map((a) => agent(a.name, "planned", "Planned. Not connected.")).join("")}
+    ${st.agents ? agent(claude) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
+    ${more}
     <div class="side-foot">
       <button class="it ${st.screen === "storage" ? "on" : ""}" data-act="storage"><span class="nm">Storage</span>${total !== undefined ? `<small>${esc(bytes(total))}</small>` : ""}</button>
       <button class="it ${st.screen === "settings" ? "on" : ""}" data-act="settings"><span class="nm">Settings</span><kbd>${keys("Mod+,")}</kbd></button>
@@ -509,8 +518,11 @@ function checkSummary(c: TimelineEntry): string {
   const vr = st.verifyResults.get(c.id);
   const same = vr && vr.verdict === c.verdict ? vr : null;
   switch (c.verdict) {
-    case "PASS":
-      return same ? `check passed in ${seconds(same.durationMs)}` : "check passed";
+    case "PASS": {
+      const n = st.passes.get(c.id) ?? 0;
+      const count = n > 1 ? `${n} checks passed` : "check passed";
+      return same ? `${count}${n > 1 ? ", the last" : ""} in ${seconds(same.durationMs)}` : count;
+    }
     case "FAIL":
       return same?.exitCode != null && st.settings.showGitDetails ? `check failed, exit ${same.exitCode}` : "check failed";
     case "INCOMPLETE":
@@ -587,6 +599,33 @@ function homeRuler(all: TimelineEntry[]): string {
     <span class="ph${cur === n - 1 ? " now" : ""}" style="left:${x(cur)}%" aria-hidden="true"></span>${labels}</div>`;
 }
 
+/**
+ * Setup on History, until the project has its first verdict and Claude Code is connected or the strip
+ * was hidden. The demo project has no setup to do, so it never shows one.
+ */
+function setupView(p: ProjectEntry, pts: TimelineEntry[]): string {
+  if (p.demo || !pts.length) return "";
+  const row = st.agents?.find((a) => a.projectId === p.id);
+  const strip = setupStrip({ verdict: pts.some((x) => x.verdict), connected: st.agents ? row?.claudeCode === "connected" : null, hidden: st.settings.setupHidden.includes(p.id) });
+  if (!strip) return "";
+  const done = '<span class="n" aria-hidden="true">✓</span><span class="sr-only">Done: </span>';
+  const num = (n: number): string => `<span class="n" aria-hidden="true">${n}</span>`;
+  // The same buttons as the project's row on Agents.
+  const connect =
+    strip.connect === "done" || !row ? ""
+      : row.claudeCode === "needs-approval" && row.check ? `<button class="btn" data-act="approve-check" data-id="${p.id}">Approve this check</button>`
+        : row.claudeCode === "not-connected" || row.claudeCode === "partial" ? `<button class="btn" data-act="hook" data-id="${p.id}">${row.claudeCode === "partial" ? "Add the missing lines" : "Connect"}</button>`
+          : '<button class="btn" data-act="agents">Open Agents</button>';
+  const cmd = row?.check ? `<code class="mono">${esc(row.check)}</code>` : "your check";
+  const card = (cls: string, mark: string, title: string, body: string, extra = ""): string =>
+    `<li class="s3 ${cls}"${cls === "now" ? ' aria-current="step"' : ""}><b>${mark}${title}</b><span>${body}</span>${extra}</li>`;
+  return `<section class="setup" aria-label="Setup"><ol class="steps3">
+    ${card("done", done, "Add the project", "Your first save point is made.")}
+    ${card(strip.check === "done" ? "done" : "now", strip.check === "done" ? done : num(2), "Check it works", `Runs ${cmd} in a safe copy, never in your folder.`)}
+    ${card(strip.connect === "done" ? "done" : strip.connect === "current" ? "now" : "", strip.connect === "done" ? done : num(3), "Connect Claude Code (optional)", "Saves before each prompt.", connect)}
+  </ol>${strip.canHide ? `<button class="btn link setup-hide" data-act="setup-hide" data-id="${p.id}">Hide</button>` : ""}</section>`;
+}
+
 /** The project page: one status sentence, one main action, what does not come back, the ruler, then the journal. */
 function history(): string {
   const p = project();
@@ -612,6 +651,7 @@ function history(): string {
     <h1 class="hero-h">${keepTimes(head)}</h1>
     <p class="hero-p">${keepTimes(esc(s.body))}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
     <div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>
+    ${setupView(p, pts)}
     ${honest}
   </section>`;
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
@@ -1002,7 +1042,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   const alts = proven ? compare : [
     ...(r.trying ? ['<button class="btn link" data-act="stop-check">Stop the check</button>'] : []),
     `<span class="key-note">${tr ? "Opens it in a safe copy again and runs your check." : "Opens it in a safe copy and runs your check. Your folder is not touched."}</span>`,
-    tvAlt("tv-use", "Go back anyway", "use", "", busy),
+    tvAlt("tv-use-anyway", "Go back anyway", "use", "", busy),
     ...compare,
     ...(tr ? [`<button class="btn link" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>`] : []),
   ];
@@ -1239,7 +1279,7 @@ function agentsScreen(): string {
   const channel = (ch: Channel): string =>
     `<div class="ch ch-${ch.state}">${agentMark(ch.name)}<span class="ch-n">${esc(ch.name)}</span><span class="ch-s">${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}${esc(stateWord[ch.state])}</span><span class="ch-l">${esc(ch.line)}</span></div>`;
   const channels = st.agents
-    ? [claudeChannel(st.agents, st.lastTurn), ...PLANNED_AGENTS.map((a): Channel => ({ ...a, state: "planned", line: "Not connected. Support is planned, not built yet." }))].map(channel).join("")
+    ? [claudeChannel(st.agents, st.lastTurn), ...PLANNED_AGENTS.map((a): Channel => ({ ...a, state: "planned", line: "Not connected. Support is planned, not built yet.", short: "Planned" }))].map(channel).join("")
     : LOADING;
   return `<div class="page"><div class="col">
     <div><h1>Agents</h1><p class="lede">Connections and activity come from local hook events, never from your screen. Planned agents are not connected.</p></div>
@@ -1260,7 +1300,7 @@ function storageScreen(): string {
     if (!c.result) return "";
     if (c.result.applied) return `<span class="small muted">Removed ${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}.</span>`;
     if (!c.result.files.length) return '<span class="small muted">Nothing to clean up.</span>';
-    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
+    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-cancel" data-id="${projectId}">Never mind</button><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
   };
   const rows = st.storage
     ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on ${device()}</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || NO_PROJECTS
@@ -1423,6 +1463,16 @@ function hookSheet(): string {
     <p class="small muted">Claude Code will then save before each prompt and before risky commands, and check after each turn. If a turn breaks a working version, Claude is told.</p>
     ${!h.preview.runs && !h.done ? `<div class="note bad">${esc(hookNotRunning)}</div>` : ""}${h.error ? `<div class="note bad">${esc(h.error)}</div>` : ""}${h.done ? `<div class="note">${esc(h.done)}</div>` : ""}
     <div class="row-btns" style="justify-content:flex-end"><button class="btn ghost" data-act="hook-close">${h.done ? "Done" : "Cancel"}</button>${h.done || !h.preview.runs ? "" : `<button class="btn dark" data-act="hook-do" ${h.working ? "disabled" : ""}>Add these lines</button>`}</div>
+  </div></div>`;
+}
+
+function confirmView(): string {
+  const c = st.confirm;
+  if (!c) return "";
+  return `<div class="scrim confirm-scrim ${once("scrim:confirm")}" data-leave="confirm"><div class="sheet confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+    <h2 id="confirm-title">${keepTimes(esc(c.title))}</h2>
+    <p id="confirm-body">${esc(c.body)}</p>
+    <div class="row-btns">${confirmButtons(c.action)}</div>
   </div></div>`;
 }
 
@@ -1837,7 +1887,7 @@ function render(): void {
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}</div></div>`;
+    ${connectionBanner()}<div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`;
   // The toast sits over the work area: past the rail, and short of a right column when one is open.
   toastHost.dataset.right = appCls;
   seenOnce = drawOnce;
@@ -2070,6 +2120,16 @@ function tvStep(how: "back" | "forward" | "prevChange" | "nextChange" | "first" 
     while (j < pts.length - 1 && v(j) === v(j - 1)) j++;
   }
   tvGo(pts[Math.max(0, Math.min(pts.length - 1, j))]?.id);
+}
+
+/** How many checks in a row passed for each save point, from the audit log, for "3 checks passed". */
+async function loadPasses(): Promise<void> {
+  const p = project();
+  if (!p) return;
+  const r = await bridge.call({ method: "log", projectId: p.id });
+  if (!r.ok || project()?.id !== p.id) return;
+  st.passes = passStreaks(r.data.entries);
+  render();
 }
 
 /** Read what changed in each save point, oldest first, without blocking anything. */
@@ -2492,6 +2552,24 @@ async function setSetting(patch: Partial<Settings>): Promise<void> {
   render();
 }
 
+/** Forgets a project in the app. Its save points stay in the store and its folder is not touched. */
+async function removeProject(id: string): Promise<void> {
+  try {
+    st.projects = await api({ method: "removeProject", projectId: id });
+    dropMounts(id);
+    if (st.projectId === id) st.projectId = st.projects[0]?.id ?? null;
+    toast("Removed from the app. Its save points stay in the store.");
+    if (st.screen === "storage") await openPage("storage");
+    else if (st.projectId) await selectProject(st.projectId);
+    else {
+      st.screen = "welcome";
+      render();
+    }
+  } catch (e) {
+    toast(msg(e));
+  }
+}
+
 /** Store clean up: a preview first, then the removal of exactly the files the preview showed. */
 async function cleanStore(projectId: string, apply: boolean): Promise<void> {
   if (st.cleanup?.working) return;
@@ -2503,6 +2581,12 @@ async function cleanStore(projectId: string, apply: boolean): Promise<void> {
     const result = await api(apply ? { method: "cleanStore", projectId, apply, files: shown?.files ?? [] } : { method: "cleanStore", projectId, apply });
     st.cleanup = { projectId, result, working: false };
     if (apply) st.storage = await api({ method: "storage" });
+    else if (result.files.length) {
+      // The choice is now Never mind or Remove them. Never mind gets focus, so Enter right away keeps the logs.
+      render();
+      root.querySelector<HTMLElement>(`[data-act="clean-cancel"][data-id="${CSS.escape(projectId)}"]`)?.focus();
+      return;
+    }
   } catch (e) {
     st.cleanup = null;
     toast(msg(e));
@@ -2597,6 +2681,29 @@ async function onClick(el: HTMLElement): Promise<void> {
       return tvTry();
     case "tv-use":
       return rewindDo();
+    case "tv-use-anyway": {
+      const r = st.rewind;
+      const c = r?.target ? entry(r.target) : null;
+      if (!c || st.busy) return;
+      const why = c.verdict === "FAIL" ? "Its check failed, so it may not work." : c.verdict ? "Its check did not pass, so it may not work." : "It is not checked, so we don’t know if it works.";
+      st.confirm = {
+        act: "tv-use", id: c.id, action: "Go back anyway",
+        title: `Go back to the ${pointName(c.id)} version without a check that passed?`,
+        body: `${why} We save your current version first and put this one on a new local branch. Your folder and branch are not touched, and you can undo it.`,
+      };
+      return render();
+    }
+    case "confirm-cancel":
+      st.confirm = null;
+      return render();
+    case "confirm-do": {
+      const c = st.confirm;
+      st.confirm = null;
+      render();
+      if (c?.act === "tv-use") return rewindDo();
+      if (c?.act === "remove" && c.id) return removeProject(c.id);
+      return;
+    }
     case "tv-compare":
       if (st.rewind?.target) return openCompare(st.rewind.target, "now");
       return;
@@ -2694,24 +2801,24 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "clean-apply":
       if (d.id) await cleanStore(d.id, true);
       return;
-    case "remove":
-      if (d.id) {
-        try {
-          st.projects = await api({ method: "removeProject", projectId: d.id });
-          dropMounts(d.id);
-          if (st.projectId === d.id) st.projectId = st.projects[0]?.id ?? null;
-          toast("Removed from the app. Its save points stay in the store.");
-          if (st.screen === "storage") await openPage("storage");
-          else if (st.projectId) await selectProject(st.projectId);
-          else {
-            st.screen = "welcome";
-            render();
-          }
-        } catch (e) {
-          toast(msg(e));
-        }
-      }
+    case "clean-cancel":
+      st.cleanup = null;
+      render();
+      if (d.id) root.querySelector<HTMLElement>(`[data-act="clean-preview"][data-id="${CSS.escape(d.id)}"]`)?.focus();
       return;
+    case "setup-hide":
+      if (d.id) await setSetting({ setupHidden: [...st.settings.setupHidden.filter((x) => x !== d.id), d.id] });
+      return render();
+    case "remove": {
+      const name = st.projects.find((x) => x.id === d.id)?.name;
+      if (!d.id || !name) return;
+      st.confirm = {
+        act: "remove", id: d.id, action: "Remove from app",
+        title: `Remove ${name} from the app?`,
+        body: "The app stops showing it. Its save points stay in the store on this computer, and your project folder is not touched. Add it again any time.",
+      };
+      return render();
+    }
     case "hook":
       if (d.id) await openHookSheet(d.id);
       return;
@@ -2722,7 +2829,8 @@ async function onClick(el: HTMLElement): Promise<void> {
       return doHook();
     case "hook-close":
       st.hookSheet = null;
-      if (st.screen === "agents") st.agents = await api({ method: "agents" }).catch(() => st.agents);
+      // Connecting from History's setup strip or from Agents: either way the rail and the strip read it again.
+      st.agents = await api({ method: "agents" }).catch(() => st.agents);
       return render();
     case "ob-next1":
       return obNext1();
@@ -2837,7 +2945,8 @@ function onKey(e: KeyboardEvent): void {
   if (modal && !modal.matches(".tv, .rw-sheet")) {
     if (k === "escape") {
       e.preventDefault();
-      if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
+      if (st.confirm) st.confirm = null;
+      else if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
       else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
       else if (st.navOpen) st.navOpen = false;
       else if (st.drawer) st.drawer = false;
@@ -2985,7 +3094,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, isolation: null, cleanup: null,
-    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
+    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), passes: new Map(), confirm: null, flash: null, undo: null,
     license: { status: boot.data.license, draft: "", working: false, error: null },
   };
   if (isMac()) document.documentElement.classList.add("mac");
@@ -3003,9 +3112,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
       render();
       return;
     }
-    if (target.classList.contains("scrim") && (st.palette || st.keysSheet)) {
+    if (target.classList.contains("scrim") && (st.palette || st.keysSheet || st.confirm)) {
       st.palette = null;
       st.keysSheet = false;
+      st.confirm = null;
       render();
       return;
     }

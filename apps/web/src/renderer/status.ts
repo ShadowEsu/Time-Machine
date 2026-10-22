@@ -94,3 +94,17 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
       };
   }
 }
+
+/**
+ * How many checks in a row passed for each save point, newest last, from the audit log's "verify" lines
+ * (oldest first). A check that did not pass starts the count again; a stopped check proves nothing and
+ * leaves it as it was. "3 checks passed" is only said when the last three checks all passed.
+ */
+export function passStreaks(entries: readonly { action: string; target: string | null; result: string }[]): Map<string, number> {
+  const streaks = new Map<string, number>();
+  for (const e of entries) {
+    if (e.action !== "verify" || !e.target) continue;
+    streaks.set(e.target, e.result === "PASS" ? (streaks.get(e.target) ?? 0) + 1 : 0);
+  }
+  return streaks;
+}

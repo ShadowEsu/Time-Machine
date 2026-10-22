@@ -91,7 +91,7 @@ export class FakeEngine implements TmBridge {
   private added = true;
   private seed: Point | null = null;
   private stopping = false;
-  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false };
+  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [] };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null } };
   /** Whether each key is set. The preview never holds a real key. */
   private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
