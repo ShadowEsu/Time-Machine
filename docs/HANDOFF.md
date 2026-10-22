@@ -317,7 +317,7 @@ Throwaway Playwright scripts (not in the repo) live in `/tmp/tm-pw/` (m7v3.mjs c
 
 ### Small leftovers worth remembering
 - `apps/desktop/preview-shots/` is gitignored; screenshots exist only on the Mac.
-- Test counts: 365 (363 on macOS, 2 Linux-only) on 22 Oct, in `README.md`, `docs/PLAN.md`, `site/index.html`, `site/story.html`, `site/company.html`. `site/assets/story.js` reads the number from the HTML.
+- Test counts: 384 (382 on macOS, 2 Linux-only) on 22 Oct, in `README.md`, `docs/PLAN.md`, `site/index.html`, `site/story.html`, `site/company.html`. `site/assets/story.js` reads the number from the HTML.
 - Ask uses Flash-Lite because the 3.8 Flash free tier hit its daily limit.
 - The Gemini key in use is temporary; when it changes, update `apps/desktop/.env` (gitignored) only.
 - `docs/HANDOFF.md` (this file) should be updated at the end of every session.
