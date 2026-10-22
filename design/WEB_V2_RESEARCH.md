@@ -156,12 +156,6 @@ These tokens extend WEBSITE_SPEC 6.2. Keep its easings and add:
 
 ## 5. Founder section (facts as written on unvibe.site/about)
 
-- Preston Susanto, 17, student founder studying Electrical Engineering and Computer Science at Diablo Valley College, Pleasant Hill, California.
-- Grew up in Jakarta, moved to Perth in 2021 and California in 2025. Speaks English, Indonesian and Mandarin.
-- Self-taught from Berkeley CS285 and Stanford CS234 lectures "on a MacBook with no GPU and no cloud budget". Aiming to transfer to UC Berkeley, 4.0 GPA.
-- Built Unvibe (24+ releases, Claude for Startups member). SF Hacks 2026: three awards. Mega Hackathon 2026: Gaming Award, solo. Leads Code The Change (20+ members).
-- "I read every email myself." preston@unvibe.site
-
 **Before publishing:** age only with the founder's and a parent's consent, location only if he wants it (WEBSITE_SPEC 4.9). Never reuse Unvibe numbers as Time Machine traction. Unvibe's pages disagree on startup support ($232,700 vs $267,700), so leave it out.
 
 **Suggested line:** "I'm Preston. I build with coding agents, and I kept losing versions that worked. Time Machine is the record I wanted: every step saved, and an honest answer to which one still works."
