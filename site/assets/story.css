@@ -467,6 +467,12 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .pf .kick { display: none; }
   .pc { height: 150px; }
 }
+/* Small, short phones (320 x 640): the subtext is pinned to the bottom, so a smaller, higher headline keeps
+   "what worked." clear of it instead of running into "Your agent can break things." */
+@media (max-width: 400px) and (max-height: 700px) {
+  .chip { top: 110px; }
+  .hero-h { top: 140px; font-size: 13vw; line-height: 1; }
+}
 @media (pointer: coarse) { #rwFocus { display: none; } }
 
 /* ---------- reduced motion: clean stills ---------- */
