@@ -2,7 +2,7 @@
 import { exec, execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { audit } from "./audit.js";
@@ -404,11 +404,16 @@ export const TM_HELP_MARKER = "tm: save points for your project, checked with yo
 /**
  * Whether the plugin's hooks can reach Time Machine: the same test its tm-hook script makes, the `tm` on
  * PATH printing TM_HELP_MARKER first. False when tm is missing or is another program, which is when the
- * plugin silently does nothing.
+ * plugin silently does nothing. It never runs in a project and never gets the caller's tokens: a project
+ * can ship its own `tm`, and Windows looks in the working folder before PATH. So it runs from the home
+ * folder with only the absolute PATH entries, the home variables and what Windows needs to find tm.cmd.
  */
-export async function probePluginTm(cwd: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+export async function probePluginTm(env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  const path = (env.PATH ?? env.Path ?? "").split(delimiter).filter((entry) => entry !== "" && isAbsolute(entry)).join(delimiter);
+  const minimal: NodeJS.ProcessEnv = { PATH: path };
+  for (const name of ["HOME", "USERPROFILE", "SystemRoot", "PATHEXT"]) if (env[name] !== undefined) minimal[name] = env[name];
   try {
-    const { stdout } = await promisify(execFile)("tm", ["--help"], { cwd, env, timeout: 15_000, encoding: "utf8" });
+    const { stdout } = await promisify(execFile)("tm", ["--help"], { cwd: homedir(), env: minimal, shell: process.platform === "win32", timeout: 15_000, encoding: "utf8" });
     return stdout.split("\n")[0]?.trim() === TM_HELP_MARKER;
   } catch {
     return false;

@@ -1,9 +1,9 @@
 // Whether the Time Machine Claude Code plugin covers a project: installed for it (user scope, or
 // project/local scope for this folder) and not turned off by enabledPlugins. The records are the
 // ones `claude plugin install` writes (checked against Claude Code on 22 Oct 2026).
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { delimiter, join, relative, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
 import { setupDemo } from "../../../fixtures/demo/setup.ts";
@@ -72,5 +72,30 @@ describe("Claude Code plugin status", () => {
     expect(tm.claudePluginStatus({ ...ctx, env }).installed).toBe(true);
     writeFileSync(join(moved, "installed_plugins.json"), "{ not json");
     expect(tm.claudePluginStatus({ ...ctx, env })).toEqual({ installed: false, enabled: false, scope: null, version: null });
+  });
+});
+
+describe("plugin tm probe", () => {
+  // A tm that prints the marker and writes down what it was given.
+  function fakeTm(dir: string, out: string): void {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "tm"), `#!/bin/sh\nprintf '%s|%s' "$VERCEL_TOKEN" "$PWD" > "${out}"\necho "${tm.TM_HELP_MARKER}"\n`);
+    chmodSync(join(dir, "tm"), 0o755);
+  }
+
+  test.skipIf(process.platform === "win32")("runs the tm on PATH from the home folder without the caller's tokens, and never a tm reached through a relative PATH entry", async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "tm-probe-")));
+    const seen = join(root, "seen.txt");
+    fakeTm(join(root, "bin"), seen);
+    expect(await tm.probePluginTm({ PATH: join(root, "bin"), HOME: homedir(), VERCEL_TOKEN: "SYNTHETIC_token" })).toBe(true);
+    expect(readFileSync(seen, "utf8")).toBe(`|${realpathSync(homedir())}`);
+
+    // A project's own tm, reachable only through a relative entry (Windows looks in the working folder the same way).
+    const leaked = join(root, "leaked.txt");
+    fakeTm(join(root, "repo"), leaked);
+    const rel = relative(homedir(), join(root, "repo"));
+    expect(existsSync(resolve(homedir(), rel, "tm"))).toBe(true);
+    expect(await tm.probePluginTm({ PATH: [rel, ".", ""].join(delimiter), HOME: homedir(), VERCEL_TOKEN: "SYNTHETIC_token" })).toBe(false);
+    expect(existsSync(leaked)).toBe(false);
   });
 });

@@ -186,7 +186,7 @@ export class Engine {
           const status = tm.status(ctx);
           const row = { ...base, settingsPath: s.settingsPath, missing: s.missing, working: since !== null, workingSince: since, check: status.check, pluginOff: plugin.installed && !plugin.enabled };
           if (s.state !== "not-connected" || !plugin.enabled) return { ...row, claudeCode: s.state, via: s.present.length ? "settings" : null };
-          const claudeCode = !status.approved ? "needs-approval" : (await tm.probePluginTm(p.path, process.env)) ? "connected" : "not-running";
+          const claudeCode = !status.approved ? "needs-approval" : (await tm.probePluginTm(process.env)) ? "connected" : "not-running";
           return { ...row, claudeCode, via: "plugin", missing: [] };
         } catch {
           return { ...base, claudeCode: "unavailable", via: null, pluginOff: false, check: null, settingsPath: null, missing: [], working: false, workingSince: null };
