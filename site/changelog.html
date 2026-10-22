@@ -56,6 +56,12 @@
       <li>
         <h3 class="h4">See Time Machine save before a risky command</h3>
         <p>When Time Machine saves before a risky command such as <code translate="no">git reset --hard</code>, Claude Code now shows you one line: "Time Machine saved cp-0007 before git reset --hard." Prompts and the end of a turn stay quiet. <code translate="no">tm demo</code> now ends with the next step for your own project. When <code translate="no">tm init</code> finds no test command, it says so plainly. <code translate="no">tm status</code> tells you, and the plugin's setup skill, what is missing.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/29">PR #29</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Install Time Machine as a Claude Code plugin</h3>
+        <p>In Claude Code, run <code translate="no">/plugin marketplace add ShadowEsu/Time-Machine</code>, then <code translate="no">/plugin install time-machine@time-machine</code>. No account is needed, but <code translate="no">tm</code> must be installed. The hooks act only in projects where you ran <code translate="no">tm init</code> and approved the check on your computer.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/27">PR #27</a></p>
       </li>
       <li>
         <h3 class="h4">Save points from the same minute are easy to tell apart</h3>
