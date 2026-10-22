@@ -11,14 +11,14 @@ Later it can rebuild any save point in a separate copy, run your check there, an
 What it is not:
 
 - It is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project folder.
-- It never stores secret values. You set those again by hand.
+- It never stores secret values from config files like `.env`, only key names and a fingerprint. You set those again by hand. Other files are skipped only when their name or content matches a secret pattern.
 - It does not replace a full disk backup.
 - Checks run in host mode by default. That is weaker isolation than a container, and every verdict says so.
 - A save point that was never checked is shown as "not checked", never as working.
 
 ## 2. Install
 
-Time Machine is not on npm yet. `npx timetm init` is coming soon. For now, build it from source.
+Time Machine is not on npm yet. `npx timetm init` will work only once it is published. For now, build it from source.
 
 You need Node 22 or newer, pnpm and Git.
 
@@ -253,7 +253,7 @@ config:
 
 Every save point lists what it did not save.
 
-**Where the store lives.** In `~/.timemachine`, or `$TM_HOME` if you set it. Each project gets a folder at `projects/<hash of the project path>/` with `objects/`, `checkpoints/`, `bundles/`, `logs/`, `reports/`, `audit.jsonl` and `project.json`. Deleting your project folder does not delete its save points. Keep `~/.timemachine/key` too. It seals every save point, and save points cannot be read without it.
+**Where the store lives.** In `~/.timemachine`, or `$TM_HOME` if you set it. Each project gets a folder at `projects/<hash of the project path>/` with `objects/`, `checkpoints/`, `bundles/`, `logs/`, `reports/`, `audit.jsonl` and `project.json`. Deleting your project folder does not delete its save points. Keep `~/.timemachine/key` too. It signs every save point, so edits by other tools are caught. Save points are not encrypted: anyone who can read your disk can read them.
 
 ## 8. Verdicts and what to do
 
@@ -325,9 +325,9 @@ claude mcp add timemachine -- tm mcp
 - **Your folder and branch are never touched.** `open`, `verify` and `find-good` work in separate Git worktrees. `recover` creates a new branch and a recovery copy next to your project. Switching is up to you.
 - **Nothing is pushed, merged or deployed.** Ever.
 - **Your current state is saved before a recovery**, so a recovery can be undone.
-- **Secret values are never stored**, in the store, logs or reports. Check logs are scrubbed of current secret values.
+- **Secret values from config files like `.env` are never stored**, only key names and a fingerprint. Files that match a secret pattern are skipped; a secret that matches none, or one already committed to Git, is saved like any code. Check logs are scrubbed of current secret values.
 - **Host mode is always labeled.** Every verdict says which isolation mode and network rule it ran with.
-- **Save points are sealed.** A changed save point fails its integrity check and gives ERROR, not PASS.
+- **Save points are signed.** A changed save point fails its integrity check and gives ERROR, not PASS.
 - **Every action is in the audit log.** See `tm log`.
 
 ## 11. FAQ and troubleshooting

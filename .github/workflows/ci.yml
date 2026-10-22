@@ -25,3 +25,24 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @timetm/desktop build
       - run: node scripts/check-cli-package.mjs
+  source-install:
+    name: source install (ubuntu, Node 24)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      # The documented source install from README.md, step by step. Any failing step fails the job.
+      - run: pnpm install
+      - run: pnpm build
+      - run: npm install -g ./packages/cli
+      - name: tm --version and tm demo in a temp folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          tm --version
+          tm demo

@@ -41,13 +41,7 @@ Real output, shortened. `tm demo` builds a small synthetic app, breaks it the wa
 
 Needs Node 22 or newer and Git.
 
-**Once on npm** (the package is `timetm`, the command is `tm`):
-
-```sh
-npx timetm demo
-```
-
-**From source, today:**
+Not on npm yet, so install from source:
 
 ```sh
 git clone https://github.com/ShadowEsu/Time-Machine.git && cd Time-Machine
@@ -109,7 +103,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 ## Safety limits
 
 - **Not universal undo.** Databases, deployed versions, emails, payments and anything outside your project are not captured. Every result says what was not restored.
-- **Secret values are never stored**, only key names and a fingerprint. You set them again by hand.
+- **Secret values from config files like `.env` are never stored**, only key names and a fingerprint. You set them again by hand. Other files are skipped when their name or content matches a secret pattern; a secret that matches none, or one already committed to Git, is saved like any code.
 - **Checks run in host mode:** a separate Git worktree with a clean environment and a time limit. That is weaker isolation than a container. With `network: deny` a sandbox turns the network off (`sandbox-exec` on macOS, `bwrap` or `unshare` on Linux); without a sandbox the verdict is BLOCKED.
 - **A passing check means your tests passed,** not that the app is correct. A save point never checked is shown as not checked, never as working.
 

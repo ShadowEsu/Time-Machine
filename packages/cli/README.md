@@ -8,14 +8,14 @@ When an AI agent or a late night change breaks your project, Time Machine finds 
 
 ## Install
 
-Needs Node 22 or newer and Git.
+Not on npm yet. Build from source (below). Needs Node 22 or newer and Git.
+
+Once it is published:
 
 ```sh
 npx timetm demo        # builds a small broken project and rescues it, in about a minute
 npm install -g timetm  # then use the `tm` command
 ```
-
-Until the first npm release, build from source (below).
 
 
 ## Local browser app
@@ -54,7 +54,7 @@ Engine commands take `--json`. Human and JSON output come from the same result. 
 
 ## What it does not do
 
-Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values, only key names and a fingerprint, so you set those again by hand. Files your `.gitignore` skips are not saved, and each save point lists them. The hooks hide a prompt or a risky command when it looks like a secret, holds a current secret value from your config files such as `.env`, or has a URL with a user and password, like `postgres://user:pass@host`. Only the hooks can mark a save point as made by Claude Code: `tm checkpoint --trigger claude-code...` is refused with exit code 64. Every save point and every recovery says what was not restored.
+Time Machine is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project. It never stores secret values from config files like `.env`, only key names and a fingerprint, so you set those again by hand. Other files are skipped when their name or content matches a secret pattern; a secret that matches none, or one already committed to Git, is saved like any code. Files your `.gitignore` skips are not saved, and each save point lists them. The hooks hide a prompt or a risky command when it looks like a secret, holds a current secret value from your config files such as `.env`, or has a URL with a user and password, like `postgres://user:pass@host`. Only the hooks can mark a save point as made by Claude Code: `tm checkpoint --trigger claude-code...` is refused with exit code 64. Every save point and every recovery says what was not restored.
 
 Save points and verdicts are signed with a key stored in `~/.timemachine`. That catches accidental edits and edits by tools that do not read the key. It is not tamper proof against someone who can read that key.
 
