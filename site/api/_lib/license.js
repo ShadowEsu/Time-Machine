@@ -73,7 +73,13 @@ export async function handleLicense(req, deps) {
   }
   if (parsed.data.mode !== "payment" || parsed.data.payment_status !== "paid") return reply(402, { ok: false, error: "not_paid" });
 
-  const id = purchaseId(parsed.data.id);
-  const key = signLicense({ id, plan: "web", issued: issuedDate(parsed.data.created) }, deps.env.TM_LICENSE_PRIVATE_KEY);
-  return reply(200, { ok: true, key, id });
+  return reply(200, { ok: true, ...licenseFor(parsed.data, deps.env.TM_LICENSE_PRIVATE_KEY) });
+}
+
+// The one place a paid session becomes a key. /api/license and /api/account both use it, so the key
+// on the thanks page and the key after sign-in are the same bytes.
+export function licenseFor(session, privateKey) {
+  const id = purchaseId(session.id);
+  const issued = issuedDate(session.created);
+  return { key: signLicense({ id, plan: "web", issued }, privateKey), id, issued };
 }

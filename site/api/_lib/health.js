@@ -2,6 +2,8 @@
 // `waitlist` says the two Supabase settings are present. `database` says whether a real, read-only
 // call to the waitlist database just worked, so "configured" is never reported as "working".
 // `checkout` says the Stripe key and the license signing key are both present. No Stripe call is made.
+// `auth` says SUPABASE_URL and SUPABASE_ANON_KEY are both present, so sign-in can be offered.
+import { isAuthConfigured } from "./auth.js";
 import { isCheckoutConfigured } from "./checkout.js";
 import { isConfigured, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
 
@@ -13,13 +15,14 @@ const PROBE_CODE = "";
 /**
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void }} deps
- * @returns {Promise<{ ok: true, waitlist: boolean, database: "reachable"|"unreachable"|"not_configured", email: false, checkout: boolean }>}
+ * @returns {Promise<{ ok: true, waitlist: boolean, database: "reachable"|"unreachable"|"not_configured", email: false, checkout: boolean, auth: boolean }>}
  */
 export async function checkHealth(deps) {
   const log = deps.log ?? (() => {});
   const waitlist = isConfigured(deps.env);
   const checkout = isCheckoutConfigured(deps.env);
-  if (!waitlist) return { ok: true, waitlist, database: "not_configured", email: false, checkout };
+  const auth = isAuthConfigured(deps.env);
+  if (!waitlist) return { ok: true, waitlist, database: "not_configured", email: false, checkout, auth };
 
   let database = "unreachable";
   try {
@@ -35,5 +38,5 @@ export async function checkHealth(deps) {
   } catch (err) {
     log(`health: upstream request failed (${err && err.name ? err.name : "Error"})`);
   }
-  return { ok: true, waitlist, database, email: false, checkout };
+  return { ok: true, waitlist, database, email: false, checkout, auth };
 }

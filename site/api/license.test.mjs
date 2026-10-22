@@ -56,7 +56,7 @@ describe("license handler", () => {
     const { fetch, deps } = setup();
     const res = await handleLicense(request(), deps);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, key: expect.stringMatching(/^TM1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/), id: purchaseId(SESSION) });
+    expect(res.body).toEqual({ ok: true, key: expect.stringMatching(/^TM1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/), id: purchaseId(SESSION), issued: "2026-10-22" });
     expect(parseLicenseKey(res.body.key, K.pub)).toEqual({ v: 1, id: purchaseId(SESSION), plan: "web", issued: "2026-10-22" });
     const text = JSON.stringify(res) + Buffer.from(res.body.key.split(".")[1], "base64url").toString();
     expect(text).not.toContain("example.test");
