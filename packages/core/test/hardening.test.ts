@@ -1,5 +1,6 @@
 // Fixes from the security review. Each test reproduces a confirmed issue.
-import { appendFileSync, chmodSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import { dirname } from "node:path";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -167,9 +168,17 @@ describe("security review fixes", () => {
   });
 
   test("H16 a Stop that lands after the check exited keeps the real exit code", async () => {
-    // The command exits at once but leaves a detached child holding the pipes, so the result waits for the grace period.
-    const r = await runWithTimeout("/bin/sh", ["-c", "perl -MPOSIX -e 'setsid(); sleep 2' & sleep 0.1; exit 1"], { cwd: tempDir("late-stop"), env: process.env, timeoutMs: 10_000, signal: AbortSignal.timeout(220) });
-    expect(r).toMatchObject({ code: 1, stopped: false, timedOut: false });
+    // The command exits right after writing a marker, but leaves a detached child holding the pipes, so the result
+    // waits for the 250 ms grace period. The Stop lands 100 ms after the marker: after the exit, inside the grace period.
+    // Real time on purpose: the window is a real child process and runWithTimeout's real grace timer, not fakeable.
+    const dir = tempDir("late-stop");
+    const marker = join(dir, "exiting");
+    const stop = new AbortController();
+    const run = runWithTimeout("/bin/sh", ["-c", `perl -MPOSIX -e 'setsid(); sleep 3' & touch "${marker}"; exit 1`], { cwd: dir, env: process.env, timeoutMs: 20_000, signal: stop.signal });
+    while (!existsSync(marker)) await sleep(5);
+    await sleep(100);
+    stop.abort();
+    expect(await run).toMatchObject({ code: 1, stopped: false, timedOut: false });
   });
 
   test("H14 setup and check keep proxy and certificate settings, and a failed setup is INCOMPLETE", async () => {
