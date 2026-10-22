@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { audit } from "./audit.js";
-import { loadConfig, LOCKFILES, type ProjectConfig } from "./config.js";
+import { loadConfig, LOCKFILES, VERSION_PINS, type ProjectConfig } from "./config.js";
 import { git, gitTry, safeRemote, short, splitZ } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import { runSync } from "./exec.js";
@@ -105,9 +105,13 @@ function untrackedCandidates(p: Project, cfg: ProjectConfig, head: string | null
   const included = cfg.capture.include.length
     ? splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...cfg.capture.include]))
     : [];
-  // Lockfiles and environment definition files come back even when .gitignore skips them, so a
-  // recovery rebuilds the same dependencies and runtime, not just the same code.
-  const environment = splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...LOCKFILES, ...cfg.environment.files]));
+  // Lockfiles and version pins come back even when .gitignore skips them, so a recovery rebuilds the
+  // same dependencies and runtime, not just the same code. Other environment files (Dockerfile,
+  // compose, devcontainer) can hold secrets in forms the secret scan misses (ENV, ARG, JSON), so
+  // when ignored they keep only their digest. Only exact pin names are used: environment.files
+  // entries are git pathspecs, and a glob there must never pull in other ignored files.
+  const pins = cfg.environment.files.filter((f) => VERSION_PINS.includes(f));
+  const environment = splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...LOCKFILES, ...pins]));
   const configFiles = new Set(cfg.config.files);
   return [...new Set([...staged, ...others, ...included, ...environment])].filter((f) => !configFiles.has(f)).sort();
 }

@@ -132,7 +132,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | `tm status` | Says whether this project is set up and its check approved on this computer. Changes nothing |
 | `tm ui [--no-open] [--port N]` | Opens the web app in your browser; files and engine stay on your computer |
 | `tm license [key] [--remove]` | Shows, saves or forgets the one-time web app license on this computer |
-| `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, lockfiles and environment files such as a Dockerfile or `.nvmrc` even when `.gitignore` skips them, config key names, and runtime versions |
+| `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, lockfiles and version pins such as `.nvmrc` even when `.gitignore` skips them, environment file digests, config key names, and runtime versions |
 | `tm timeline` | Lists save points and their verdicts |
 | `tm diff cp-0002 cp-0004` | Compares code, files, config keys, dependencies and environment |
 | `tm open cp-0003` | Rebuilds a save point in a separate folder |

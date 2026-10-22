@@ -13,6 +13,9 @@ export const LOCKFILES = [
   "Cargo.lock", "go.sum", "Gemfile.lock", "composer.lock",
 ];
 
+/** Runtime version pins. Like lockfiles, they are saved even when .gitignore skips them. */
+export const VERSION_PINS = [".nvmrc", ".node-version", ".tool-versions", ".python-version"];
+
 export const ENV_FILES = [
   "Dockerfile", "docker-compose.yml", "compose.yaml", ".nvmrc", ".node-version",
   ".tool-versions", ".python-version", ".devcontainer/devcontainer.json",

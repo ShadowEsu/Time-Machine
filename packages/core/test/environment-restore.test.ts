@@ -1,7 +1,10 @@
-// More than a commit comes back: lockfiles and environment definition files (Dockerfile, .nvmrc
-// and similar) are saved even when .gitignore skips them, restored into the recovery copy, and
-// checked against their recorded digests. Paths in environment.files must stay inside the project.
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+// More than a commit comes back: lockfiles and version pins (.nvmrc and similar) are saved even when
+// .gitignore skips them, restored into the recovery copy, and checked against their recorded digests.
+// Other environment definition files (Dockerfile, compose, devcontainer) come back only when Git has
+// them; when ignored they can hold secrets, so only their digest is kept. Paths in environment.files
+// must stay inside the project.
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -19,6 +22,13 @@ function repo(files: Record<string, string>): { dir: string; ctx: tm.Ctx } {
   return { dir, ctx: { cwd: dir, tmHome, env: { ...process.env, TM_HOME: tmHome } } };
 }
 
+/** The files a save point holds in the store, by path, with their saved text. */
+function stored(ctx: tm.Ctx, id: string): Record<string, string> {
+  const store = tm.storeDirFor(ctx);
+  const m = JSON.parse(readFileSync(join(store, "checkpoints", `${id}.json`), "utf8")) as { files: { path: string; sha256: string }[] };
+  return Object.fromEntries(m.files.map((f) => [f.path, gunzipSync(readFileSync(join(store, "objects", f.sha256.slice(0, 2), `${f.sha256.slice(2)}.gz`))).toString("utf8")]));
+}
+
 const base = {
   "package.json": JSON.stringify({ name: "app", scripts: { test: "node --test" } }),
   "index.test.js": "const t=require('node:test');t('ok',()=>{});\n",
@@ -29,7 +39,7 @@ const base = {
 };
 
 describe("environment definition and lockfiles", () => {
-  test("ignored lockfiles and environment files are saved, listed as restorable, and come back on recover", async () => {
+  test("ignored lockfiles and version pins are saved, listed as restorable, and come back on recover", async () => {
     const { dir, ctx } = repo(base);
     await tm.init(ctx);
     const cp = await tm.checkpoint(ctx, { note: "works" });
@@ -74,5 +84,52 @@ describe("environment definition and lockfiles", () => {
     const yml = readFileSync(join(dir, "timemachine.yml"), "utf8");
     writeFileSync(join(dir, "timemachine.yml"), yml + "environment:\n  files:\n    - ../outside\n");
     await expect(tm.checkpoint(ctx, { note: "x" })).rejects.toThrow(/inside the project/);
+  });
+
+  test("ignored Dockerfile, compose and devcontainer files never enter the store; pins and lockfiles still do", async () => {
+    // The secret scan only matches NAME=value at a line start. These forms slip past it, so ignored definitions keep only a digest.
+    const secrets = {
+      Dockerfile: "FROM node:22\nENV DB_PASSWORD=hunter2hunter2\nENV API_SECRET hunter3hunter3\nARG NPM_TOKEN=abcdef0123456789\n",
+      "docker-compose.yml": "services:\n  db:\n    image: postgres\n    environment:\n      - POSTGRES_PASSWORD=supersecretpw\n",
+      "compose.yaml": "services:\n  web:\n    environment:\n      - API_TOKEN=tok_0123456789abcdef\n",
+      ".devcontainer/devcontainer.json": JSON.stringify({ image: "node:22", containerEnv: { DB_PASSWORD: "hunter2hunter2" } }) + "\n",
+    };
+    const pins = { ".nvmrc": "22\n", ".tool-versions": "nodejs 22.0.0\n", "pnpm-lock.yaml": "lockfileVersion: '9.0'\n" };
+    const { dir, ctx } = repo({
+      "package.json": JSON.stringify({ name: "app", scripts: { test: "node --test" } }),
+      "index.test.js": "const t=require('node:test');t('ok',()=>{});\n",
+      ".gitignore": [...Object.keys(secrets), ...Object.keys(pins)].join("\n") + "\n",
+      ...secrets,
+      ...pins,
+    });
+    await tm.init(ctx);
+    const cp = await tm.checkpoint(ctx, { note: "works" });
+    const files = stored(ctx, cp.checkpoint.id);
+    expect(Object.keys(files).sort()).toEqual([".nvmrc", ".tool-versions", "pnpm-lock.yaml", "timemachine.yml"]);
+    expect(Object.values(files).join("\n")).not.toMatch(/hunter2|hunter3|supersecretpw|abcdef0123456789|tok_0123456789abcdef/);
+    // Still fingerprinted, so diff sees a change, but never offered or claimed as restored.
+    expect(cp.checkpoint.coverage.captured).toContain("Environment definition: Dockerfile, docker-compose.yml, compose.yaml, .nvmrc, .tool-versions, .devcontainer/devcontainer.json");
+    expect(cp.checkpoint.coverage.restorable).toContain("Environment definition: .nvmrc, .tool-versions");
+    expect(cp.checkpoint.coverage.restorable).toContain("Dependencies: pnpm-lock.yaml");
+    expect(cp.checkpoint.coverage.manual.join("\n")).toMatch(/Files your \.gitignore skips were not saved: .*Dockerfile/);
+    const r = await tm.recover(ctx, cp.checkpoint.id);
+    expect(r.restored).toContain("Environment definition: .nvmrc, .tool-versions");
+    expect(r.restored.join("\n")).not.toMatch(/Dockerfile|compose|devcontainer/);
+    for (const name of Object.keys(secrets)) expect(existsSync(join(r.copyDir, name)), name).toBe(false);
+    // The user's own ignored files are untouched.
+    expect(readFileSync(join(dir, "Dockerfile"), "utf8")).toBe(secrets.Dockerfile);
+  });
+
+  test("a glob in environment.files never pulls other ignored files into the store", async () => {
+    // environment.files entries reach git as pathspecs. Only exact version pin names are taken past .gitignore.
+    const { ctx } = repo({
+      "package.json": "{}",
+      ".gitignore": "*.tfvars\nnode_modules/\n",
+      "timemachine.yml": 'version: 1\nenvironment:\n  files: ["*.tfvars", "node_modules"]\n',
+      "infra/prod/terraform.tfvars": 'db_password = "hunter2hunter2"\n',
+      "node_modules/x/index.js": "module.exports = 1;\n",
+    });
+    const cp = await tm.checkpoint(ctx, { note: "x" });
+    expect(Object.keys(stored(ctx, cp.checkpoint.id))).toEqual([]);
   });
 });
