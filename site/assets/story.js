@@ -131,7 +131,9 @@
     M = acts.map((el) => {
       const r = el.getBoundingClientRect();
       return { el, top: r.top + scrollY, h: el.offsetHeight,
-        rs: $$(".r", el).map((e) => ({ e, r: (e.dataset.r || "0 0").split(" ").map(Number), last: "" })) };
+        // Heading text is only faded, never visibility-hidden, so assistive tech always gets the heading and the
+        // section labels that point at it. Every faded block, heading or not, stops taking clicks while invisible.
+        rs: $$(".r", el).map((e) => ({ e, head: !!e.closest("h1, h2, h3, h4, h5, h6"), r: (e.dataset.r || "0 0").split(" ").map(Number), last: "" })) };
     });
     paperH = paper.offsetHeight;
     rowHead = rows[0].offsetTop;
@@ -312,7 +314,8 @@
         it.last = key;
         it.e.style.opacity = op.toFixed(3);
         it.e.style.transform = y ? `translate3d(0,${y.toFixed(1)}px,0)` : "none";
-        it.e.style.visibility = op < 0.01 ? "hidden" : "visible";
+        if (!it.head) it.e.style.visibility = op < 0.01 ? "hidden" : "visible";
+        it.e.style.pointerEvents = op < 0.01 ? "none" : "";
       }
     }
   }
