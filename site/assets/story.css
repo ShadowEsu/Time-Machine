@@ -473,6 +473,11 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .chip { top: 110px; }
   .hero-h { top: 140px; font-size: 13vw; line-height: 1; }
 }
+/* Narrow phones: the act title in the progress pill gives way, so the sound switch stays fully on screen.
+   The pill is decoration (aria-hidden); the act number and bar stay. */
+@media (max-width: 400px) {
+  .hud-t { display: none; }
+}
 @media (pointer: coarse) { #rwFocus { display: none; } }
 
 /* ---------- reduced motion: clean stills ---------- */

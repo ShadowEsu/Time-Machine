@@ -274,8 +274,9 @@ time, .num { font-variant-numeric: tabular-nums; }
 .wl input[type="email"]::placeholder { color: var(--ink-3); }
 .wl input[type="email"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .wl-row .btn { min-height: 52px; }
+/* The whole label is the hit area (44 px tall); the box itself is 24 px so it is a full target on its own too. */
 .wl-consent { display: flex; gap: 12px; align-items: flex-start; min-height: 44px; padding-top: 4px; font-size: 15px; color: var(--ink-2); cursor: pointer; }
-.wl-consent input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent-btn); cursor: pointer; }
+.wl-consent input { flex: none; width: 24px; height: 24px; margin: -1px 0 0; accent-color: var(--accent-btn); cursor: pointer; }
 .wl-hp { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .wl-status { min-height: 1.5em; margin: 0; font-size: 15px; font-weight: 500; }
 .wl-privacy { margin: 0; color: var(--ink-3); font-size: 13.5px; }
@@ -319,6 +320,7 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 .foot { position: relative; border-top: 1px solid var(--line); padding-top: 36px; overflow: hidden; color: var(--ink-3); font-size: 14px; }
 .foot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 28px; }
 .foot-row p { margin: 0; }
+.foot-row p a { padding-block: 4px; }
 .foot nav { display: flex; flex-wrap: wrap; gap: 0 20px; }
 .foot nav a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {

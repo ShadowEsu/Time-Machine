@@ -115,6 +115,8 @@ body.home .btn-primary, .hero-form .wl-row .btn-primary { min-height: 44px; padd
 /* Footer: everything else lives here, in four columns, then the giant wordmark. */
 .ft { position: relative; overflow: hidden; padding: 72px var(--inline) 28px;
   background: #141413; color: var(--ink-2); font-size: 14.5px; border-top: 1px solid var(--line); }
+/* Text links in the footer and captions get 4 px above and below, so each reaches a 24 px target. */
+.ft a, .rewind-story figcaption a { padding-block: 4px; }
 .ft a { color: var(--ink); text-underline-offset: 3px; }
 .ft-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .7fr); gap: 40px clamp(24px, 3vw, 48px); max-width: 1200px; margin: 0 auto; }
 .ft-grid p { margin: 0; }
