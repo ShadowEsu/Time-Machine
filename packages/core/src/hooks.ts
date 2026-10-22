@@ -7,8 +7,8 @@ import { z } from "zod";
 import { audit } from "./audit.js";
 import { checkpoint } from "./checkpoint.js";
 import { TmError } from "./errors.js";
-import { loadConfig } from "./config.js";
-import { resolveProject, type Project } from "./project.js";
+import { CONFIG_FILE, loadConfig } from "./config.js";
+import { gitRoot, resolveProject, type Project } from "./project.js";
 import { clipSafe, holdsSecretValue } from "./secrets.js";
 import type { Ctx, HookEvent, HookInstallResult, HookResult } from "./types.js";
 import { secretValues, verify } from "./verify.js";
@@ -76,15 +76,28 @@ function screened(p: Project, text: string): string {
   return holdsSecretValue(text, secretValues([p.root], loadConfig(p.root).config)) ? "(text hidden: it contained a secret value from this project)" : text;
 }
 
+/** True when ctx.cwd is inside a Git repository whose root has timemachine.yml. Never throws. */
+function optedIn(ctx: Ctx): boolean {
+  try {
+    const root = gitRoot(ctx);
+    return root !== null && existsSync(join(root, CONFIG_FILE));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Runs one hook. Never throws and never blocks the agent because of its own errors.
  * Only "stop" can return exit 2, to tell the agent a working state just broke.
+ * With requireConfig (the Claude Code plugin, whose hooks fire in every folder) it does nothing,
+ * silently, unless the project has timemachine.yml: no save point, no audit line, no store.
  */
-export async function runHook(ctx: Ctx, event: HookEvent, input: unknown): Promise<HookResult> {
+export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: { requireConfig?: boolean } = {}): Promise<HookResult> {
   try {
     const parsed = HookInputSchema.safeParse(input);
     const data = parsed.success ? parsed.data : {};
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
+    if (opts.requireConfig && !optedIn(c)) return none(event);
     const p = resolveProject(c);
     const turnFile = join(p.store, TURN_FILE);
     if (event === "prompt") {
