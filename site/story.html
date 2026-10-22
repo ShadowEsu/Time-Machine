@@ -146,7 +146,7 @@
       <h2 class="hx" id="promise-h"><span class="r" data-r=".06 .18">Save.</span> <span class="r" data-r=".28 .4">Check.</span> <span class="r" data-r=".5 .62">Bring back.</span></h2>
       <ul class="trio">
         <li class="r" data-r=".1 .22"><b>Save.</b> Before each prompt, and before risky commands like <code>rm -rf</code> or <code>git reset --hard</code>.</li>
-        <li class="r" data-r=".32 .44"><b>Check.</b> Your own test runs in a separate copy, with the network off.</li>
+        <li class="r" data-r=".32 .44"><b>Check.</b> Your own test runs in a separate copy, with the network off when a sandbox is available.</li>
         <li class="r" data-r=".54 .66"><b>Bring back.</b> The newest save point that works, on a new branch. Your folder is never touched.</li>
       </ul>
       <p class="next r" data-r=".78 .9">Why would you need that? Here is a normal morning.</p>
@@ -266,7 +266,7 @@
         <dl class="spec-list">
           <dt><code>tm checkpoint</code></dt><dd>Save a checkpoint by hand.</dd>
           <dt><code>tm timeline</code> · <code>tm diff</code></dt><dd>See every save point and what changed.</dd>
-          <dt><code>tm verify</code></dt><dd>Run your check in a separate copy, network off.</dd>
+          <dt><code>tm verify</code></dt><dd>Run your check in a separate copy, network off when a sandbox is available.</dd>
           <dt><code>tm find-good</code></dt><dd>Find the newest save point that passes.</dd>
           <dt><code>tm recover</code></dt><dd>A new branch and a recovery copy. Your folder is never touched.</dd>
           <dt><code>tm demo</code></dt><dd>The whole rescue above, on a synthetic app.</dd>

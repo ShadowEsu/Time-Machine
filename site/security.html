@@ -97,7 +97,7 @@
       <p class="sub rv" style="--d:1">If an agent runs <code>rm -rf</code> on your project, the save points are somewhere else.</p>
     </div>
     <div class="split">
-      <pre class="tree rv" aria-label="The store folder layout">~/.timemachine/          <span class="d">or $TM_HOME</span>
+      <pre class="tree rv" tabindex="0" role="region" aria-label="The store folder layout">~/.timemachine/          <span class="d">or $TM_HOME</span>
 ├── key                  <span class="d">signs every save point</span>
 └── projects/
     └── 9f2c41d07a3be815/ <span class="d">hash of the path</span>
@@ -240,8 +240,8 @@
           <tr><th scope="row">What we store</th><td>Your email, that you ticked the consent box, the page you joined from, the time, your own referral code, and the referral code that brought you, if any.</td></tr>
           <tr><th scope="row">Rate limits</th><td>A one-way code made from your IP address, never the IP itself. Codes older than one hour are removed during later requests.</td></tr>
           <tr><th scope="row">What we do not</th><td>No IP address, no browser details, no cookies.</td></tr>
-          <tr><th scope="row">Where</th><td>One table in Supabase, written by one function hosted on Vercel. Nothing else writes to it.</td></tr>
-          <tr><th scope="row">Who can read it</th><td>Row level security is on with no public access. Only the server key can read or write, and that key lives only in the Vercel project settings.</td></tr>
+          <tr><th scope="row">Where</th><td>Its own schema in Supabase, written by one function hosted on Vercel.</td></tr>
+          <tr><th scope="row">Who can read it</th><td>Row level security is on. The public key can only call three fixed functions and cannot read any table.</td></tr>
           <tr><th scope="row">Logs</th><td>The function never logs or echoes your email.</td></tr>
           <tr><th scope="row">No fake success</th><td>The form says you are on the list only when the row was saved. If saving fails, it asks you to email us.</td></tr>
           <tr><th scope="row">Deleting it</th><td>Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> and we delete your row.</td></tr>
