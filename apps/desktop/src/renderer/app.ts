@@ -4,7 +4,7 @@
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
 import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, clock, dayLabel, esc, plural, pointTitle, seconds, shortTitle, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
+import { bytes, checkSource, clock, dayLabel, esc, plural, pointClock, pointTitle, pointWhen, seconds, shortTitle, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
 import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
 import { filterPalette, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
@@ -197,7 +197,8 @@ async function api<M extends Method>(call: CallOf<M>): Promise<Results[M]> {
   if (!r.ok) throw new ApiFailure(r.error.message);
   if (call.method === "verify") {
     const v = r.data as VerifyResult;
-    st.verifyResults.set(v.checkpoint, v);
+    // A stopped check proves nothing, so the save point keeps the verdict it had.
+    if (!v.stopped) st.verifyResults.set(v.checkpoint, v);
   }
   return r.data;
 }
@@ -215,6 +216,11 @@ function points(): TimelineEntry[] {
 function entry(id: string | null): TimelineEntry | null {
   return points().find((c) => c.id === id) ?? null;
 }
+
+/** A save point's time of day, told apart from this project's other save points (seconds when two share a minute). */
+const ptClock = (c: TimelineEntry): string => pointClock(c, points());
+/** `ptClock` with the day in front when it is not today. */
+const ptWhen = (c: TimelineEntry): string => pointWhen(c, points());
 
 function lastWorking(): TimelineEntry | null {
   return lastWorkingOf(points());
@@ -307,6 +313,11 @@ function keys(k: string): string {
 }
 function badge(v: Verdict | null, cls = ""): string {
   return `<span class="vb v-${verdictKey(v)} ${cls}"><i class="g" aria-hidden="true"></i>${esc(verdictWord(v))}</span>`;
+}
+/** Shown next to the first verdict someone sees, until they hide it. It names the words once, where they appear. */
+function verdictTip(): string {
+  if (st.settings.verdictTipSeen) return "";
+  return `<div class="note tip" role="note"><p><b>Reading verdicts.</b> Works means your check passed in a safe copy. Broken means it failed. Not checked yet means no check has run. Each save point keeps its verdict in History, so the last version that works is always easy to find.</p><button class="btn ghost" data-act="tip-hide">Hide this tip</button></div>`;
 }
 function glyph(v: Verdict | null): string {
   return `<i class="g v-${verdictKey(v)}" aria-hidden="true"></i>`;
@@ -505,7 +516,7 @@ function journalEntry(c: TimelineEntry, first: boolean, lastGood: boolean): stri
   const facts = [checkSummary(c), changed?.length ? plural(changed.length, "file") : ""].filter(Boolean).join(" · ");
   const cls = ["entry", first ? "first" : "", st.drawer && c.id === st.selected ? "on" : "", st.lit === c.id ? "lit" : ""].filter(Boolean).join(" ");
   return `<article class="${cls}" id="e-${esc(c.id)}" data-act="open" data-id="${esc(c.id)}">
-    <div class="when">${esc(clock(c.createdAt))}</div><div class="gl">${glyph(c.verdict)}</div>
+    <div class="when${ptClock(c) === clock(c.createdAt) ? "" : " secs"}">${esc(ptClock(c))}</div><div class="gl">${glyph(c.verdict)}</div>
     <div class="body">
       <h3><button class="e-t" data-act="open" data-id="${esc(c.id)}">${esc(title(c, author))}</button>${lastGood ? '<span class="wayback">Last version that works</span>' : ""}</h3>
       <div class="meta">${authorChip(author)}${badge(c.verdict)}${facts ? `<span>${esc(facts)}</span>` : ""}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(c.id)} · ${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</div>
@@ -528,13 +539,13 @@ function homeRuler(all: TimelineEntry[]): string {
   const lw = lastWorking();
   const clips = sessions(pts).map((s) => `<span class="clip" style="left:${x(s.from) - 1}%;width:${x(s.to) - x(s.from) + 2}%"><span>${esc(s.name)}</span></span>`).join("");
   const ticks = pts
-    .map((c, i) => `<button class="rt-tk ${i > cur ? "after" : ""}" style="left:${x(i)}%" data-act="open" data-id="${esc(c.id)}" title="${esc(`${when(c.createdAt)} · ${title(c)} · ${verdictWord(c.verdict)}`)}" aria-label="${esc(`${when(c.createdAt)}, ${title(c)}, ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`)
+    .map((c, i) => `<button class="rt-tk ${i > cur ? "after" : ""}" style="left:${x(i)}%" data-act="open" data-id="${esc(c.id)}" title="${esc(`${ptWhen(c)} · ${title(c)} · ${verdictWord(c.verdict)}`)}" aria-label="${esc(`${ptWhen(c)}, ${title(c)}, ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`)
     .join("");
   // Labels for the first, the last working and the newest save point, never two on top of each other.
   const marks: number[] = [];
   for (const i of [n - 1, lw ? pts.indexOf(lw) : -1, cur, 0]) if (i >= 0 && marks.every((m) => Math.abs(x(m) - x(i)) > 9)) marks.push(i);
   const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
-  const labels = marks.map((i) => `<span class="rlab ${i === cur ? "on" : ""}" style="left:${x(i)}%;transform:translateX(${shift(i)}%)">${esc(i === n - 1 && pts[i]?.id === points().at(-1)?.id ? `Now ${clock(pts[i]?.createdAt ?? "")}` : clock(pts[i]?.createdAt ?? ""))}</span>`).join("");
+  const labels = marks.map((i) => { const c = pts[i]; const t = c ? ptClock(c) : ""; return `<span class="rlab ${i === cur ? "on" : ""}" style="left:${x(i)}%;transform:translateX(${shift(i)}%)">${esc(i === n - 1 && c?.id === points().at(-1)?.id ? `Now ${t}` : t)}</span>`; }).join("");
   return `<div class="hruler" role="group" aria-label="Save points, oldest on the left">
     <div class="lane">${clips}</div><div class="base" aria-hidden="true"></div>${ticks}
     <span class="ph" style="left:${x(cur)}%" aria-hidden="true"></span>${labels}</div>`;
@@ -558,7 +569,7 @@ function history(): string {
   const facts = (rows: [string, string[]][]): string =>
     `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v.map(esc).join(" · ")}</dd>`).join("")}</dl>`;
   const honest =
-    s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${when(lw.createdAt)}, unless you redo them. They stay saved in History.`]]])
+    s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${ptWhen(lw)}, unless you redo them. They stay saved in History.`]]])
       : newest ? facts([["Saved", savedLines(newest)], ["Not saved", notSavedLines(newest)]]) : "";
   const header = `<section class="hero">
     <div class="eyebrow hero-e">${glyph(s.v)}<span>${esc(p.name)}</span>${st.settings.showGitDetails ? `<span class="path">${newest?.branch ? `${esc(newest.branch)} · ` : ""}${esc(p.path)}</span>` : ""}</div>
@@ -594,14 +605,14 @@ function history(): string {
     const run = newestFirst.slice(i, j);
     if (run.length >= 2 && !st.unfolded.has(c.id) && !run.some((x) => x.id === st.selected && st.drawer)) {
       const oldest = run.at(-1);
-      rows.push(`<button class="fold" data-act="unfold" data-id="${esc(c.id)}"><span class="when"></span><span class="gl"><i></i></span><span class="body">${esc(`${plural(run.length, "automatic save")} · ${clock(oldest?.createdAt ?? "")} to ${clock(c.createdAt)}`)}<span class="muted"> · Show</span></span></button>`);
+      rows.push(`<button class="fold" data-act="unfold" data-id="${esc(c.id)}"><span class="when"></span><span class="gl"><i></i></span><span class="body">${esc(`${plural(run.length, "automatic save")} · ${oldest ? ptClock(oldest) : ""} to ${ptClock(c)}`)}<span class="muted"> · Show</span></span></button>`);
       i = j - 1;
       continue;
     }
     rows.push(journalEntry(c, i === 0, c.id === lw?.id && newest?.verdict !== "PASS"));
     const older = newestFirst[i + 1];
     // Only say "broke here" when two neighbouring checks prove it.
-    if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span></span><span class="line"><span>Broke here: ${esc(when(older.createdAt))} works, ${esc(when(c.createdAt))} is broken</span></span></div>`);
+    if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span></span><span class="line"><span>Broke here: ${esc(ptWhen(older))} works, ${esc(ptWhen(c))} is broken</span></span></div>`);
   }
   return `<div class="page proj"><div class="doc">${header}${undoBar}
     ${homeRuler(pts)}
@@ -614,7 +625,7 @@ function history(): string {
 function pointName(id: string): string {
   const c = entry(id);
   if (!c) return id;
-  return st.settings.showGitDetails ? `${when(c.createdAt)} (${c.id})` : when(c.createdAt);
+  return st.settings.showGitDetails ? `${ptWhen(c)} (${c.id})` : ptWhen(c);
 }
 
 /** A project screen action from the status rule: the main one filled, the other a quiet link. Shortcuts sit inside, so they are learned by seeing them. */
@@ -652,7 +663,7 @@ function detail(): string {
   const author = authorOf(c);
   const isNewest = points().at(-1)?.id === c.id;
   const primary = c.verdict === "PASS" && !isNewest
-    ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>${esc(goBackLabel(c))}</button>`
+    ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>${esc(goBackLabel(c, points()))}</button>`
     : `<button class="btn big dark" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>`;
   const opened = st.openResult && st.openResult.id === c.id
     ? `<div class="note">A safe copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div>${st.settings.showGitDetails || isBrowser() ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>`
@@ -660,8 +671,8 @@ function detail(): string {
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
     : "";
-  return `<aside class="rcol detail ${once("detail")}" ${window.innerWidth < 1100 ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
-    <header class="rc-top"><span class="eyebrow">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))}</span>
+  return `<aside class="rcol detail ${once("detail")}" ${window.innerWidth < 1100 ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(`Save point from ${ptWhen(c)}`)}">
+    <header class="rc-top"><span class="eyebrow">${esc(dayLabel(c.createdAt))} ${esc(ptClock(c))}</span>
       <button class="btn ghost" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
     <div class="rc-body">
       <h2 class="sp-h">${esc(title(c, author))}</h2>
@@ -707,11 +718,11 @@ function checkSheet(): string {
       PASS: "It works.", FAIL: "It’s broken.", INCOMPLETE: "We couldn’t finish the check.", BLOCKED: "The check needs something first.", ERROR: "The check itself crashed.",
     };
     const extra =
-      r.verdict === "FAIL" ? (lw ? ` The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}.` : " No earlier save point has passed yet.")
+      r.verdict === "FAIL" ? (lw ? ` The last version that works is from ${ptWhen(lw)}: ${shortTitle(lw)}.` : " No earlier save point has passed yet.")
         : r.verdict === "ERROR" ? " This is a problem with the check, not necessarily your project."
           : r.verdict === "PASS" ? ` Checked in a safe copy on ${device()} in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
-    result = `<div class="big-verdict ${stampOnce(`check:${r.checkpoint}:${r.verdict}`)}">${glyph(r.verdict)}<span>${esc(head[r.verdict])}</span></div>
-      <p>${esc(r.reason + extra)}</p>
+    result = `<div class="big-verdict ${stampOnce(`check:${r.checkpoint}:${r.verdict}`)}">${glyph(r.verdict)}<span>${esc(r.stopped ? "You stopped the check." : head[r.verdict])}</span></div>
+      <p>${esc(r.stopped ? `${r.reason} The save point keeps the verdict it had.` : r.reason + extra)}</p>${r.stopped ? "" : verdictTip()}
       ${st.settings.showGitDetails ? `<div class="git"><div><span class="k">verdict</span> ${esc(r.verdict)} · exit ${esc(String(r.exitCode))} · ${esc(r.isolation)} mode</div><div><span class="k">command</span> ${esc(r.command)}</div>${r.log ? `<div><span class="k">log</span> ${esc(r.log)}</div>` : ""}</div>` : ""}`;
   }
   const done = c.phase === "done" || !!c.error;
@@ -721,9 +732,10 @@ function checkSheet(): string {
     <h2>Checking ${esc(p.name)}</h2>${list}${result}
     <p class="small muted">Your project folder is not touched. The check runs in a separate copy.</p>
     <div class="row-btns" style="justify-content:flex-end">
+      ${c.phase === "checking" && !done ? '<button class="btn" data-act="stop-check">Stop the check</button>' : ""}
       ${done && c.result?.log ? `<button class="btn ghost" data-act="reveal" data-path="${esc(c.result.log)}">Show log</button>` : ""}
       <button class="btn ${goBack ? "" : "dark"}" data-act="close-check" ${done ? "" : "disabled"}>Done</button>
-      ${goBack ? `<button class="btn dark" data-act="rewind-to" data-id="${goBack.id}">${esc(goBackLabel(goBack))}</button>` : ""}</div>
+      ${goBack ? `<button class="btn dark" data-act="rewind-to" data-id="${goBack.id}">${esc(goBackLabel(goBack, points()))}</button>` : ""}</div>
   </div></div>`;
 }
 
@@ -741,7 +753,7 @@ function rewind(): string {
   const c = entry(stageId());
   const tried = r.find?.tried ?? r.progress.map((x) => ({ id: x.checkpoint, verdict: asVerdict(x.verdict), reason: "" }));
   const triedRows = r.step === "find" && tried.length
-    ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? clock(e.createdAt) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
+    ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? ptClock(e) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
     : "";
   const pane = c ? tvRead(r, c) : { read: `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div>`, key: tvKey("find", "Find the last working version", "enter", "↵"), alts: [] };
   return `<div class="scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet wide rw-sheet" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
@@ -882,7 +894,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   const git = st.settings.showGitDetails;
   const cols = (a: string, b: string, yes: string[], no: string[]): string =>
     `<div class="tv-cols"><div class="kv"><span class="h">${esc(a)}</span>${li(yes, "Nothing listed")}</div><div class="kv no"><span class="h">${esc(b)}</span>${li(no, "Nothing listed")}</div></div>`;
-  const meta = `<div class="eyebrow tv-meta">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))} · ${esc(authorOf(c))}</div>`;
+  const meta = `<div class="eyebrow tv-meta">${esc(dayLabel(c.createdAt))} ${esc(ptClock(c))} · ${esc(authorOf(c))}</div>`;
   const error = r.error ? `<div class="note bad">${esc(r.error)}</div>` : "";
 
   if (r.step === "done" && r.result) {
@@ -912,21 +924,22 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
         <div class="tv-ev"><span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>The ${esc(pointName(c.id))} version, ${r.progress.length + 1} of up to ${points().length}. Newest first, each in a safe copy.</span></div></div>
       ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
       key: tvKey("tv-wait", "Checking…", "enter", "", true),
-      alts: ['<span class="muted small">Esc leaves this view. The search keeps going and tells you when it is done.</span>'],
+      alts: ['<button class="btn link" data-act="stop-check">Stop the search</button>', '<span class="muted small">Esc leaves this view. The search keeps going and tells you when it is done.</span>'],
     };
   }
 
   if (r.find && !r.find.found && !r.target) {
     const last = r.find.tried.at(-1);
     const why =
-      r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
+      r.find.stopped ? (r.find.tried.length ? `You stopped the search. None of the ${plural(r.find.tried.length, "save point")} checked before that passed.` : "You stopped the search before any save point was checked.")
+        : r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
         : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
           : `We couldn’t check every save point, so we won’t call any of them working. ${last?.reason ?? ""}`;
     return {
-      read: `<div class="tv-verdict"><h2 class="tv-head">No working version found.</h2><div class="note warn">${esc(why)}</div></div>
+      read: `<div class="tv-verdict"><h2 class="tv-head">${r.find.stopped ? "Search stopped." : "No working version found."}</h2><div class="note warn">${esc(why)}</div></div>
       ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
       key: tvKey("tv-exit", "Back to where I was", "enter", "↵"),
-      alts: [],
+      alts: r.find.stopped ? [tvAlt("find", "Search again", "", "")] : [],
     };
   }
 
@@ -948,9 +961,10 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   const prev = all[all.findIndex((x) => x.id === c.id) - 1] ?? null;
   const compare = notNewest ? [tvAlt("tv-compare", "See what changed", "c", "C", busy)] : [];
   const key = r.recovering ? tvKey("tv-use", "Going back…", "enter", "", true)
-    : proven ? tvKey("tv-use", goBackLabel(c), "enter", "↵", busy)
+    : proven ? tvKey("tv-use", goBackLabel(c, points()), "enter", "↵", busy)
       : tvKey("tv-try", tr ? "Try it again" : "Try it first", "enter", "↵", busy);
   const alts = proven ? compare : [
+    ...(r.trying ? ['<button class="btn link" data-act="stop-check">Stop the check</button>'] : []),
     `<span class="key-note">${tr ? "Opens it in a safe copy again and runs your check." : "Opens it in a safe copy and runs your check. Your folder is not touched."}</span>`,
     tvAlt("tv-use", "Go back anyway", "use", "", busy),
     ...compare,
@@ -987,14 +1001,14 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
     .map((c, i) => {
       const v = shownVerdict(c);
       const cls = ["tvt", i === cur ? "on" : "", c.id === checking ? "checking" : ""].filter(Boolean).join(" ");
-      return `<button class="${cls}" style="left:${x(i)}%" tabindex="-1" ${still ? "" : `data-act="tv-go" data-id="${esc(c.id)}"`} title="${esc(`${clock(c.createdAt)} · ${title(c)} · ${verdictWord(v)}`)}">${c.id === checking ? '<i class="g v-checking-tick" aria-hidden="true"></i>' : glyph(v)}</button>`;
+      return `<button class="${cls}" style="left:${x(i)}%" tabindex="-1" ${still ? "" : `data-act="tv-go" data-id="${esc(c.id)}"`} title="${esc(`${ptClock(c)} · ${title(c)} · ${verdictWord(v)}`)}">${c.id === checking ? '<i class="g v-checking-tick" aria-hidden="true"></i>' : glyph(v)}</button>`;
     })
     .join("");
   const near = (i: number): boolean => Math.abs(i - cur) < Math.max(1, n * 0.09);
   const labels = pts
     .map((c, i) => {
       const show = n <= 12 || i === cur || ((i === 0 || i === n - 1) && !near(i));
-      return show ? `<span class="${i === cur ? "on" : ""}" style="left:${x(i)}%">${esc(clock(c.createdAt))}</span>` : "";
+      return show ? `<span class="${i === cur ? "on" : ""}" style="left:${x(i)}%">${esc(ptClock(c))}</span>` : "";
     })
     .join("");
   const veilText = r.step === "done" && r.result ? "Your other version is saved" : "These stay saved";
@@ -1004,6 +1018,12 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
       ? `<svg class="tv-fork" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" vector-effect="non-scaling-stroke" d="M ${x(cur)} 100 C ${x(cur)} 50, ${x(cur)} 30, ${x(cur) + 2.5} 30 L 100 30"/></svg>
         <span class="fork-l" style="left:calc(${x(cur)}% + 34px)">${esc(st.settings.showGitDetails ? `${r.result.branch} · new branch, local only` : "New branch, local only")}</span>`
       : "";
+  // Every shape on the ruler is named: the three common ones always, the rare ones when a save point has them.
+  const seen = new Set(pts.map((c) => shownVerdict(c)));
+  const legend = ([["PASS", true], ["FAIL", true], ["INCOMPLETE", false], ["BLOCKED", false], ["ERROR", false], [null, true]] as const)
+    .filter(([v, always]) => always || seen.has(v))
+    .map(([v]) => `<span>${glyph(v)}${esc(verdictWord(v))}</span>`)
+    .join("");
   return `<footer class="tv-ruler ${once("tv-ruler", "rise")}${fork ? " forked" : ""}">
     <div class="tv-track">
       ${fork}
@@ -1014,7 +1034,7 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
       ${veil}
       <div class="tv-ph" data-carry="ph" style="left:${x(cur)}%" aria-hidden="true"></div>
     </div>
-    <div class="tv-legend" aria-hidden="true"><span>${glyph("PASS")}Works</span><span>${glyph("FAIL")}Broken</span><span>${glyph(null)}Not checked yet</span><span class="sp"></span><span><kbd>J</kbd><kbd>L</kbd> step</span><span><kbd>⇧J</kbd><kbd>⇧L</kbd> verdict change</span></div>
+    <div class="tv-legend" aria-hidden="true">${legend}<span class="sp"></span><span><kbd>J</kbd><kbd>L</kbd> step</span><span><kbd>⇧J</kbd><kbd>⇧L</kbd> verdict change</span></div>
   </footer>`;
 }
 
@@ -1033,7 +1053,7 @@ function dialModule(pts: TimelineEntry[], cur: number, still: boolean, key: stri
     .map((c, i) => {
       const a = dialAngle(i, n);
       const dot = c.id === checking ? '<i class="g v-checking-tick"></i>' : glyph(shownVerdict(c));
-      const label = named.has(i) && (i === cur || Math.abs(i - cur) > Math.max(1, n * 0.08)) ? `<b class="${i === cur ? "on" : ""}" style="transform:rotate(${-a}deg)">${esc(clock(c.createdAt))}</b>` : "";
+      const label = named.has(i) && (i === cur || Math.abs(i - cur) > Math.max(1, n * 0.08)) ? `<b class="${i === cur ? "on" : ""}" style="transform:rotate(${-a}deg)">${esc(ptClock(c))}</b>` : "";
       return `<span class="det ${i === cur ? "on" : ""}" style="transform:rotate(${a}deg)"><span class="dg" style="transform:rotate(${-a}deg)">${dot}</span>${label}</span>`;
     })
     .join("");
@@ -1043,7 +1063,7 @@ function dialModule(pts: TimelineEntry[], cur: number, still: boolean, key: stri
     <div class="silk"><span>Save points</span><span>${esc(String(n))}</span></div>
     <div class="dial ${still ? "still" : ""} ${dialDrag ? "drag" : ""}">
       <div class="dets" aria-hidden="true">${dets}</div>
-      <div class="knob" role="slider" tabindex="0" data-carry="knob" style="transform:rotate(${a}deg)" aria-label="Save point. Turn it, or press J and L or the arrow keys." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${clock(c.createdAt)}, ${title(c)}, ${verdictWord(shownVerdict(c))}` : "")}" ${still ? 'aria-disabled="true"' : ""}></div>
+      <div class="knob" role="slider" tabindex="0" data-carry="knob" style="transform:rotate(${a}deg)" aria-label="Save point. Turn it, or press J and L or the arrow keys." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${ptClock(c)}, ${title(c)}, ${verdictWord(shownVerdict(c))}` : "")}" ${still ? 'aria-disabled="true"' : ""}></div>
     </div>
     <div class="silk hint"><span>Turn, or J and L</span><span>← → to step</span></div>
     <div class="dm-key">${key}</div>
@@ -1095,9 +1115,9 @@ function compare(): string {
     const e = entry(id);
     const sub = side === "now" && c.now
       ? c.now.skipped ? "Nothing changed since the last save point." : "Saved just now, so we could compare."
-      : e ? `${when(e.createdAt)} · ${triggerLabel(e.trigger)}` : "";
+      : e ? `${ptWhen(e)} · ${triggerLabel(e.trigger)}` : "";
     const author = side === "now" && c.now ? null : e ? triggerLabel(e.trigger) : null;
-    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : e ? when(e.createdAt) : id)}</span><span class="t1">${esc(e ? title(e, author) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
+    return `<div class="cmp-side"><span class="eyebrow">${esc(side === "now" ? "Now" : e ? ptWhen(e) : id)}</span><span class="t1">${esc(e ? title(e, author) : id)}</span><span class="small muted">${esc(sub)}</span>${badge(e?.verdict ?? null)}</div>`;
   };
   let body = "";
   if (c.loading) body = '<div class="steplist"><div class="r"><span class="spin"></span><span>Comparing…</span></div></div>';
@@ -1131,7 +1151,7 @@ function compare(): string {
         <div class="dsec"><span class="h">Packages</span>${list(d.dependencies.changed.map((t) => ({ s: "changed", t })), "No change")}</div>
         <div class="dsec"><span class="h">Environment</span>${list(d.environment.changed.map((t) => ({ s: "changed", t })), "No change")}</div>
       </div>
-      ${ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns"><button class="btn big dark" data-act="rewind-to" data-id="${ea.id}">${esc(goBackLabel(ea))}</button><span class="small muted">${esc(`That version passed its check. ${c.b === "now" ? "Now" : `The ${pointName(d.b)} version`} ${eb?.verdict ? `is ${verdictWord(eb.verdict)}` : "has not been checked"}.`)}</span></div>` : ""}`;
+      ${ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns"><button class="btn big dark" data-act="rewind-to" data-id="${ea.id}">${esc(goBackLabel(ea, points()))}</button><span class="small muted">${esc(`That version passed its check. ${c.b === "now" ? "Now" : `The ${pointName(d.b)} version`} ${eb?.verdict ? `is ${verdictWord(eb.verdict)}` : "has not been checked"}.`)}</span></div>` : ""}`;
   }
   const heading = c.a && c.a !== "now" && c.b === "now" ? `What changed since ${pointName(c.a)}` : "Compare";
   return `<div class="page"><div class="col">
@@ -1256,8 +1276,8 @@ function onboarding(): string {
   } else if (o.step === 2 && o.project) {
     const detected = o.init?.verifyCommand ?? "";
     const setup = o.init?.verifySetup.trim() ?? "";
-    const optRow = (key: OnboardingState["choice"], title: string, cmd: string, rec: boolean): string =>
-      `<label class="opt ${o.choice === key ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="${key}" ${o.choice === key ? "checked" : ""}><span><div class="t">${esc(title)}</div>${cmd ? `<div class="d mono">${esc(cmd)}</div>` : ""}</span><span class="small muted">${rec ? "recommended" : ""}</span></label>`;
+    const optRow = (key: OnboardingState["choice"], title: string, cmd: string, rec: boolean, note = ""): string =>
+      `<label class="opt ${o.choice === key ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="${key}" ${o.choice === key ? "checked" : ""}><span><div class="t">${esc(title)}</div>${cmd ? `<div class="d mono">${esc(cmd)}</div>` : ""}${note ? `<div class="d">${esc(note)}</div>` : ""}</span><span class="small muted">${rec ? "recommended" : ""}</span></label>`;
     const fv = o.tryResult && o.first && o.tryResult.checkpoint === o.first.id ? o.tryResult.verdict : null;
     const firstNote = o.first
       ? `<div class="first-sp">${glyph(fv)}<span><b>Your first save point is made.</b> ${fv ? `Checked: ${esc(verdictWord(fv))}.` : "Saved, not checked. Try the check below to find out if it works."}</span></div>`
@@ -1265,16 +1285,17 @@ function onboarding(): string {
     body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works. ${!detected ? "We could not guess one from your project, so type yours." : o.init?.created ? "We picked one from your project. Change it if it is not right." : "Your timemachine.yml already has one. Change it if it is not right."}</p></div>
       ${firstNote}
       <div class="panel">
-        ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true) : ""}
+        ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true, checkSource(detected, !!o.init?.created)) : ""}
         ${detected !== "npm run build" ? optRow("build", "Build it", "npm run build", false) : ""}
-        <label class="opt ${o.choice === "custom" ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="custom" ${o.choice === "custom" ? "checked" : ""}><span style="display:grid;gap:6px"><div class="t">My own command</div><input class="field" data-model="ob-custom" aria-label="Custom check command" placeholder="for example: npm test" value="${esc(o.custom)}"></span><span></span></label>
+        <label class="opt ${o.choice === "custom" ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="custom" ${o.choice === "custom" ? "checked" : ""}><span style="display:grid;gap:6px"><div class="t" id="ob-custom-label">My own command</div><input class="field" data-model="ob-custom" aria-labelledby="ob-custom-label" aria-describedby="ob-custom-hint" placeholder="for example: npm test" value="${esc(o.custom)}" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="d" id="ob-custom-hint">Any command that ends without an error when your project works, like npm test or pytest.</div></span><span></span></label>
         ${setup ? `<p class="small muted">Installs first with <span class="mono">${esc(setup)}</span>, then runs the check.</p>` : ""}
         <p class="small muted">Checks run in a safe copy, never in your folder.${o.init?.network === "deny" ? " The internet is off during checks." : ` The internet stays on during checks on ${device()}, because no sandbox was found.`}</p>
         <div class="row-btns"><button class="btn" data-act="ob-try" ${o.trying ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
           ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${esc(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
         ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn’t pass right now. That’s OK. We’ll save it as Broken, and the next version that passes becomes your first working save point.</div>` : ""}
+        ${o.tryResult && !o.tryResult.stopped ? verdictTip() : ""}
       </div>
-      <div class="row-btns ob-acts"><button class="btn dark" data-act="ob-next2" ${o.working || o.trying ? "disabled" : ""}>Continue</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
+      <div class="row-btns ob-acts"><button class="btn dark" data-act="ob-next2" ${o.working || o.trying ? "disabled" : ""}>Next: when to save</button><button class="btn ghost" data-act="ob-back">Back</button></div>`;
   } else if (o.step === 3 && o.project) {
     const h = o.hook;
     const a = hookStepActions(h, !!o.hookDone);
@@ -1386,6 +1407,8 @@ function captureCarry(): void {
   document.querySelectorAll<HTMLElement>("[data-carry]").forEach((el) => carried.set(el.dataset.carry ?? "", el.getAttribute("style") ?? ""));
 }
 function applyCarry(): void {
+  // Reduced motion: the dial and playhead jump straight to the new save point; nothing spins or glides.
+  if (reducedMotion()) return;
   const moves: [HTMLElement, string][] = [];
   document.querySelectorAll<HTMLElement>("[data-carry]").forEach((el) => {
     const before = carried.get(el.dataset.carry ?? "");
@@ -1469,9 +1492,9 @@ function paletteItems(): PaletteItem[] {
   const items: PaletteItem[] = [];
   if (p && newest) {
     items.push({ group: "Actions", label: "Save now", hint: keys("Mod+S"), act: "save" }, { group: "Actions", label: "Check it works", hint: keys("Mod+Enter"), act: "check" });
-    if (lw && newest.verdict !== "PASS") items.push({ group: "Actions", label: goBackLabel(lw), hint: "last working version", act: "rewind-to", id: lw.id });
+    if (lw && newest.verdict !== "PASS") items.push({ group: "Actions", label: goBackLabel(lw, points()), hint: "last working version", act: "rewind-to", id: lw.id });
     items.push({ group: "Actions", label: "Find the last working version", hint: "", act: "find" });
-    items.push({ group: "Actions", label: lw ? `Compare the ${when(lw.createdAt)} version with now` : "Compare with now", hint: keys("Mod+Shift+C"), act: "compare", ...(lw ? { a: lw.id, b: "now" } : {}) });
+    items.push({ group: "Actions", label: lw ? `Compare the ${ptWhen(lw)} version with now` : "Compare with now", hint: keys("Mod+Shift+C"), act: "compare", ...(lw ? { a: lw.id, b: "now" } : {}) });
   }
   items.push(
     { group: "Actions", label: "Agents", hint: "connections", act: "agents" },
@@ -1485,7 +1508,7 @@ function paletteItems(): PaletteItem[] {
     items.push({ group: "Projects", label: x.name, hint: s?.problem ? "Can’t find it" : verdictWord(s?.newest?.verdict ?? null), act: "project", id: x.id, verdict: s?.problem ? "ERROR" : (s?.newest?.verdict ?? null) });
   }
   for (const c of [...pts].reverse().slice(0, 12)) {
-    items.push({ group: "Save points", label: `${when(c.createdAt)} · ${title(c)}`, hint: verdictWord(c.verdict), act: "open", id: c.id, verdict: c.verdict });
+    items.push({ group: "Save points", label: `${ptWhen(c)} · ${title(c)}`, hint: verdictWord(c.verdict), act: "open", id: c.id, verdict: c.verdict });
   }
   return items;
 }
@@ -1774,6 +1797,15 @@ async function saveNow(): Promise<void> {
   void refreshStatuses().then(render);
 }
 
+async function hideVerdictTip(): Promise<void> {
+  try {
+    st.settings = await api({ method: "setSettings", patch: { verdictTipSeen: true } });
+  } catch (e) {
+    toast(msg(e));
+  }
+  render();
+}
+
 async function checkNow(id?: string): Promise<void> {
   const p = project();
   if (!p || st.busy) return;
@@ -1879,7 +1911,7 @@ async function findGood(): Promise<void> {
   await refreshStatuses();
   if (st.screen !== "rewind" && st.rewind) {
     const found = st.rewind.find?.found;
-    toast(found ? `Found it. The ${pointName(found)} version is the last one that works. Press ${keys("Mod+Shift+R")} to see it.` : "We could not find a version that passes its check.");
+    toast(found ? `Found it. The ${pointName(found)} version is the last one that works. Press ${keys("Mod+Shift+R")} to see it.` : st.rewind.find?.stopped ? "Search stopped. No save point was marked as working." : "We could not find a version that passes its check.");
     return;
   }
   render();
@@ -1964,7 +1996,9 @@ async function rewindTry(): Promise<void> {
   st.busy = "Checking";
   render();
   try {
-    r.tryResult = await api({ method: "verify", projectId: p.id, id: r.target });
+    const v = await api({ method: "verify", projectId: p.id, id: r.target });
+    if (v.stopped) toast("Check stopped. The save point keeps the verdict it had.");
+    else r.tryResult = v;
   } catch (e) {
     r.error = msg(e);
   }
@@ -2494,6 +2528,13 @@ async function onClick(el: HTMLElement): Promise<void> {
       return checkNow();
     case "verify-one":
       return checkNow(d.id);
+    case "stop-check": {
+      const p = project();
+      if (p) void bridge.call({ method: "stopCheck", projectId: p.id });
+      return;
+    }
+    case "tip-hide":
+      return hideVerdictTip();
     case "close-check":
       st.check = null;
       return render();

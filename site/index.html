@@ -21,19 +21,12 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
 <link rel="preload" href="assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/newsreader-latin-opsz-italic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/home.css">
 <script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
-<script src="assets/intro.js"></script>
 </head>
 <body class="home">
 <a class="skip" href="#main">Skip to content</a>
-<div class="intro" aria-hidden="true">
-  <p class="intro-word" data-type data-speed="85"><span>Time</span> <em>Machine</em></p>
-  <p class="intro-line">Rewinding to the last version that worked</p>
-  <div class="intro-bar"><i></i></div>
-</div>
 
 <header class="bar">
   <a class="bar-brand" href="index.html" aria-current="page" translate="no"><img src="assets/img/icon.png" width="30" height="30" alt="">Time Machine</a>
@@ -49,16 +42,9 @@
 <main id="main" tabindex="-1">
   <section class="stage" aria-labelledby="hero-h">
     <div class="hero">
-      <p class="badge"><span class="dot" aria-hidden="true"></span>Early access. <a href="#try">The <code translate="no">tm</code> CLI works today.</a></p>
-      <h1 id="hero-h" data-type data-type-now>Get back the version <br>that passed your tests.</h1>
+      <h1 id="hero-h">Get back the version <br>that passed your tests.</h1>
       <div class="hero-act">
-        <div class="hero-lead">
-          <p class="sub"><span translate="no">Time Machine</span> saves your project before Claude Code acts, checks each save point with your own tests, and brings back the newest one that passes.</p>
-          <p class="hero-links">
-            <a class="hero-watch" href="#app-recording">Watch a real recovery</a>
-            <a class="hero-demo" href="#rewind-demo" data-open-app hidden>Try the app demo <span aria-hidden="true">↗</span></a>
-          </p>
-        </div>
+        <p class="sub"><span translate="no">Time Machine</span> saves your project before Claude Code acts, checks each save point with your own tests, and brings back the newest one that passes.</p>
         <div class="hero-form">
           <form id="waitlist" class="wl wl-hero" data-waitlist novalidate>
             <label class="sr-only" for="wl-email">Email</label>
@@ -70,14 +56,15 @@
             <p class="wl-status" id="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
             <p class="wl-privacy">Joining means one email when Time Machine is ready, nothing else. We store your email and the page you joined from. <a href="privacy.html">Privacy (draft)</a></p>
           </form>
+          <p class="hero-alt"><a href="#try">Install from source</a> <span>Works on macOS and Linux. Needs Node 22 and Git.</span></p>
         </div>
       </div>
     </div>
 
     <section class="recording" id="app-recording" aria-labelledby="recording-h">
       <div class="recording-head">
-        <h2 id="recording-h">Broken, then back, in the real app.</h2>
-        <p>The real Mac app on a synthetic project. The Claude Code edit is scripted. The hooks, save points, checks and recovery are real. 68 seconds, captions, no sound.</p>
+        <h2 id="recording-h">A real recovery, recorded in the Mac app</h2>
+        <p>Checks run locally. Recovery creates a separate copy. Your current folder stays unchanged.</p>
       </div>
       <div class="recording-stage">
         <figure class="recording-player">
@@ -89,7 +76,7 @@
             <track kind="captions" src="assets/demo/recovery.en.vtt" srclang="en" label="English" default>
             Your browser cannot play this video. Read the transcript next to it.
           </video>
-          <figcaption id="recording-caption">Checks run locally. Recovery creates a separate copy. Your current folder stays unchanged.</figcaption>
+          <figcaption id="recording-caption"><b>The Claude Code edit is scripted. The hooks, save points, checks and recovery are real.</b> The real Mac app on a synthetic project. <span class="num">68 seconds</span>, captions, no sound.</figcaption>
         </figure>
         <div class="recording-chapters">
           <h3 id="chapters-h">Chapters and transcript</h3>
@@ -105,6 +92,7 @@
           </ol>
         </div>
       </div>
+      <p class="recording-next"><a class="btn btn-ghost" href="#waitlist" data-waitlist-focus>Join the waitlist</a> <span>One email when Time Machine is ready. Nothing else.</span></p>
     </section>
 
     <figure id="rewind-demo" class="rewind-story" data-rewind data-phase="broken" aria-labelledby="rs-title" aria-describedby="rs-caption">
@@ -203,12 +191,11 @@
 
   <section class="block" id="try" aria-labelledby="try-h">
     <div class="block-head">
-      <p class="eyebrow">Try it now</p>
-      <h2 id="try-h" data-type>Run the demo on your own computer.</h2>
+      <h2 id="try-h">Install from source and run the demo</h2>
       <p class="lead">The Mac app is still in development. The <code translate="no">tm</code> CLI works today on macOS and Linux. Build it from source, then run the demo, or open the same app in your browser with <code translate="no">tm ui</code>.</p>
     </div>
-    <div class="term-block install" data-copy-box data-reveal>
-      <p class="install-h">Install from source <span class="tag-s">Not on npm yet</span></p>
+    <div class="term-block install" data-copy-box>
+      <p class="install-h">In a terminal <span class="tag-s">Not on npm yet</span></p>
       <pre id="install-cmds" class="term-scroll" tabindex="0" role="region" aria-label="Install commands" translate="no">git clone https://github.com/ShadowEsu/Time-Machine.git
 cd Time-Machine
 pnpm install &amp;&amp; pnpm build
@@ -219,43 +206,53 @@ tm demo</pre>
         <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
       </div>
       <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
-      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. In two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took 24 and 45 seconds. Most of that is downloading and building.</p>
+      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. In two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took <span class="num">24 and 45 seconds</span>. Most of that is downloading and building.</p>
       <p class="install-note"><code translate="no">tm ui</code> opens Time Machine in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. Tested on macOS so far.</p>
     </div>
-    <ul class="facts" data-reveal>
-      <li><b>Save points stay on your computer, in <code translate="no">~/.timemachine</code>. Nothing is uploaded.</b> The optional Ask feature in the Mac app sends a short summary to Google only after you turn it on.</li>
-      <li><b>Time Machine is not a backup and not a replacement for Git.</b> Keep committing, and keep a disk backup.</li>
-    </ul>
+    <div class="try-side">
+      <div class="agent-setup" data-copy-box>
+        <p class="agent-setup-h">Set up with Claude Code</p>
+        <p class="agent-setup-t">Open Claude Code in your project and paste this. The steps it follows are in <a href="install.md">install.md</a>.</p>
+        <p id="agent-prompt" class="agent-prompt" translate="no">Read https://time-machine-site.vercel.app/install.md and set up Time Machine in this project.</p>
+        <div class="copy-row">
+          <button class="btn btn-ghost btn-sm" type="button" data-copy="agent-prompt" hidden>Copy prompt</button>
+          <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
+        </div>
+      </div>
+      <ul class="facts">
+        <li><b>Save points stay on your computer, in <code translate="no">~/.timemachine</code>. Nothing is uploaded.</b> The optional Ask feature in the Mac app sends a short summary to Google only after you turn it on.</li>
+        <li><b>Time Machine is not a backup and not a replacement for Git.</b> Keep committing, and keep a disk backup.</li>
+      </ul>
+    </div>
   </section>
 
   <section class="block" aria-labelledby="plain-h">
     <div class="block-head">
-      <p class="eyebrow">For people who don’t write code</p>
-      <h2 id="plain-h" data-type>You ask an AI to change your app, and sometimes it breaks it.</h2>
+      <h2 id="plain-h">No code needed to get the working version back</h2>
       <p class="lead">Time Machine keeps a copy of your project before the AI touches it, checks which copies still work, and gives you the last good one back. You use buttons, not the terminal.</p>
     </div>
     <ol class="story">
-      <li class="story-row" data-reveal>
+      <li class="story-row">
         <div class="story-text">
           <p class="story-n">1</p>
-          <h3 data-type>It tells you when something broke</h3>
+          <h3>See which versions work and which broke</h3>
           <p>Every change gets a save point. The app shows plainly which ones work and which are broken, and the last one that worked.</p>
         </div>
         <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="900"><img src="assets/img/app-broken.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The Mac app shows a failed check, the last save point that passed, a Go back button, recovery limits and a history of checked versions."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
-      <li class="story-row flip" data-reveal>
+      <li class="story-row flip">
         <div class="story-text">
           <p class="story-n">2</p>
-          <h3 data-type>Turn the dial back</h3>
-          <p>Pick the last version that works. Before anything happens, you see what comes back and what does not, like passwords or your database.</p>
+          <h3>Dial back to the last version that works</h3>
+          <p>Before anything happens, you see what comes back and what does not, like passwords or your database.</p>
         </div>
         <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="1100"><img src="assets/img/app-review-wide.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The recovery review shows the save point that passed, files that return, secret values and database contents that do not, and the dial with its Go back button."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
-      <li class="story-row" data-reveal>
+      <li class="story-row">
         <div class="story-text">
           <p class="story-n">3</p>
-          <h3 data-type>Press Go back. Your work is safe.</h3>
-          <p>The good version comes back as a separate copy. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
+          <h3>Go back in a separate copy</h3>
+          <p>The good version comes back next to your work. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
         </div>
         <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="786"><img src="assets/img/app-done.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The recovery report shows a separate copy is ready on a new local branch, what returned, and remaining manual steps. The original folder was not switched."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
@@ -264,22 +261,21 @@ tm demo</pre>
 
   <section class="block" aria-labelledby="dev-h">
     <div class="block-head">
-      <p class="eyebrow">For developers</p>
-      <h2 id="dev-h" data-type>One engine behind the app, the CLI and the hooks.</h2>
+      <h2 id="dev-h">One engine behind the app, the CLI and the hooks</h2>
       <p class="lead">The Mac app, the <code translate="no">tm</code> CLI, the Claude Code hooks and the MCP server call the same engine, so their answers always match.</p>
     </div>
-    <ul class="cards" data-reveal>
+    <ul class="cards">
       <li class="card">
         <p class="card-k">1</p>
-        <h3>Save</h3>
-        <p class="card-t">Before each Claude Code prompt and before risky shell commands, even when nothing is committed yet.</p>
+        <h3>Save points before every prompt</h3>
+        <p class="card-t">Claude Code hooks save before each prompt and before risky shell commands, even when nothing is committed yet.</p>
         <p class="card-d">Claude Code’s own rewind skips files changed by Bash. Time Machine saves first, outside your project folder, with a Git bundle.</p>
         <p class="card-f"><span class="ok">Built</span> Claude Code hooks</p>
       </li>
       <li class="card">
         <p class="card-k">2</p>
-        <h3>Check</h3>
-        <p class="card-t">Your own tests, in a separate copy.</p>
+        <h3>Your tests decide: PASS or FAIL</h3>
+        <p class="card-t">Each save point is checked in a separate copy.</p>
         <pre class="card-term" data-type="term" role="region" aria-label="Real tm find-good output"><span class="d">$</span> tm find-good
 cp-0004  <span class="f">FAIL</span>
 cp-0003  <span class="p">PASS</span>  newest that works</pre>
@@ -287,13 +283,13 @@ cp-0003  <span class="p">PASS</span>  newest that works</pre>
       </li>
       <li class="card">
         <p class="card-k">3</p>
-        <h3>Bring back</h3>
-        <p class="card-t">The newest version that passes, on a new branch.</p>
+        <h3>Go back on a new branch</h3>
+        <p class="card-t">The newest version that passes comes back.</p>
         <p class="card-d">Your folder and current branch are never touched. Nothing is pushed, merged or deployed. Every report lists what did not come back.</p>
         <p class="card-f"><span class="ok">Built</span> <code>tm recover cp-0003</code></p>
       </li>
     </ul>
-    <figure class="term-block" data-reveal>
+    <figure class="term-block">
       <pre data-type="term" role="region" aria-label="Real output of tm demo, shortened"><span class="d">$</span> tm find-good
   cp-0006   <span class="f">FAIL</span>   The check failed with exit code 1.
   cp-0005   <span class="f">FAIL</span>   The check failed with exit code 1.
@@ -313,18 +309,25 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 
   <section class="block" aria-labelledby="why-h">
     <div class="why">
-      <h2 id="why-h" data-type>The built-in rewind skips the shell.</h2>
-      <blockquote>
-        <p>“Checkpointing does not track files modified by Bash commands.”</p>
-        <footer><a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Claude Code docs, Checkpointing</a></footer>
-      </blockquote>
-      <p class="lead">When an agent runs <code>rm</code>, <code>mv</code> or <code>sed -i</code>, that rewind cannot bring the files back. Time Machine saves before risky commands, outside your project, so a deleted folder does not take your save points with it.</p>
+      <h2 id="why-h">Where Claude Code’s rewind stops</h2>
+      <p class="lead">Time Machine runs your own tests on each save point in a separate copy. It brings the working one back on a new branch without touching your folder, and lists what did not come back. It saves before every prompt, and again right before commands like <code>rm -rf</code> and <code>git reset --hard</code>. So an <code>mv</code> or <code>sed -i</code> during a turn can be undone from the save point made before that prompt.</p>
+      <div class="why-gaps">
+        <p class="why-gaps-h">What Claude Code’s checkpointing docs say it does not cover:</p>
+        <ul>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Files changed by Bash commands</a> are not tracked.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#subagent-edits-not-restored" rel="noopener">Edits made by most subagents</a> are usually not captured.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#external-changes-not-tracked" rel="noopener">Changes made outside Claude Code</a>, or in other sessions, are normally not captured.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#symlinked-and-hard-linked-paths-not-restored" rel="noopener">Symlinked and hard-linked files</a> are skipped on restore.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#automatic-tracking" rel="noopener">File snapshots are deleted</a> about 30 days after the session, by default.</li>
+        </ul>
+        <p class="why-gaps-note">Read on 22 October 2026.</p>
+      </div>
     </div>
   </section>
 
   <section class="block" aria-labelledby="cmp-h">
     <div class="block-head">
-      <h2 id="cmp-h" data-type>How it compares with what you have</h2>
+      <h2 id="cmp-h">Compared with Claude Code’s rewind and Git</h2>
       <p class="lead">Your agent’s rewind and Git each cover part of the problem. Time Machine adds the check and the safe way back.</p>
     </div>
     <p class="cmp-note" id="cmp-scroll-hint">Scroll the table sideways or use the arrow keys to compare all three.</p>
@@ -333,7 +336,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <caption class="sr-only">What Claude Code’s rewind, Git and Time Machine each do</caption>
         <thead><tr><th scope="col"><span class="sr-only">Capability</span></th><th scope="col">Claude Code rewind</th><th scope="col">Git</th><th scope="col" class="tm" translate="no">Time Machine</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="no">Not tracked</td><td class="part">Only what you committed</td><td class="yes">Saved before risky commands</td></tr>
+          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="no">Not tracked</td><td class="part">Only what you committed</td><td class="yes">Saved before each prompt and before commands like <code>rm -rf</code></td></tr>
           <tr><th scope="row">Saves automatically while the agent works</th><td class="yes">Yes</td><td class="no">No, you commit</td><td class="yes">Yes, with Claude Code hooks</td></tr>
           <tr><th scope="row">Tells you which version passes your tests</th><td class="no">No</td><td class="no">No, you test by hand</td><td class="yes">Yes, each in a separate copy</td></tr>
           <tr><th scope="row">Going back leaves your current work alone</th><td class="no">Restores in place</td><td class="part">Depends on the command</td><td class="yes">New branch and a copy</td></tr>
@@ -346,9 +349,9 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 
   <section class="block" aria-labelledby="words-h">
     <div class="block-head">
-      <h2 id="words-h" data-type>4 words you’ll see in the app</h2>
+      <h2 id="words-h">Four words you’ll see in the app</h2>
     </div>
-    <dl class="words" data-reveal>
+    <dl class="words">
       <div><dt>Save point</dt><dd>A copy of your project at one moment. Made before each request to the AI and before risky commands.</dd></div>
       <div><dt>Check</dt><dd>Your own tests, run on a save point in a separate copy. The answer is Works or Broken.</dd></div>
       <div><dt>Go back</dt><dd>The newest save point that works comes back as a separate copy. Your current work stays where it is.</dd></div>
@@ -358,7 +361,16 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 
   <section class="block end" aria-labelledby="end-h">
     <div>
-      <h2 id="end-h" data-type>Let your agent try, and keep a way back.</h2>
+      <h2 id="end-h">Keep a way back while your agent works</h2>
+      <div class="not">
+        <p class="not-h" id="not-h">Time Machine is not</p>
+        <ul aria-labelledby="not-h">
+          <li><b>A backup or a Git replacement.</b> Keep committing, and keep a disk backup.</li>
+          <li><b>An account or a cloud service.</b> The <code translate="no">tm</code> CLI and <code translate="no">tm ui</code> run on your computer.</li>
+          <li><b>A restore in place.</b> You get a separate copy on a new branch.</li>
+          <li><b>Another approval prompt.</b> The hooks save and check without asking you to approve each step.</li>
+        </ul>
+      </div>
       <a class="btn btn-warm" href="#waitlist">Join the waitlist</a>
     </div>
   </section>
@@ -374,7 +386,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
         <div><dt>Browser app</dt><dd><code translate="no">tm ui</code>. Works from source. Tested on macOS.</dd></div>
         <div><dt>Mac app</dt><dd>In development. Not signed by Apple yet.</dd></div>
-        <div><dt>Tests</dt><dd>317 automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
+        <div><dt>Tests</dt><dd><span class="num">320</span> automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
         <div><dt>License</dt><dd>MIT. <a href="https://github.com/ShadowEsu/Time-Machine" rel="noopener">Source on GitHub</a></dd></div>
       </dl>
     </div>
@@ -414,6 +426,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <li><a href="security.html">Security</a></li>
         <li><a href="company.html">Company</a></li>
         <li><a href="blog/index.html">Blog</a></li>
+        <li><a href="changelog.html">Changelog</a></li>
         <li><a href="privacy.html">Privacy (draft)</a></li>
         <li><a href="terms.html">Terms (draft)</a></li>
       </ul>

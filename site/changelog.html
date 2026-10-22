@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Changelog. Time Machine</title>
+<meta name="description" content="Every change that shipped to Time Machine, newest first, with a link to its pull request.">
+<link rel="canonical" href="https://time-machine-site.vercel.app/changelog">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1918">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:title" content="Changelog. Time Machine">
+<meta property="og:description" content="Every change that shipped to Time Machine, newest first, with a link to its pull request.">
+<meta property="og:image" content="https://time-machine-site.vercel.app/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Time Machine. Real tm find-good output: three save points FAIL, cp-0003 PASS.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
+<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+      <a href="security.html">Security</a>
+      <a href="company.html">Company</a>
+      <a href="blog/index.html">Blog</a>
+    </nav>
+    <a class="btn btn-primary btn-sm top-cta" href="index.html#waitlist">Join the waitlist</a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+<section class="hero cl-hero" aria-labelledby="hero-h">
+  <div class="wrap">
+    <h1 class="dx" id="hero-h">Changelog</h1>
+    <p class="sub">What changed in Time Machine, newest first. Each entry links to its pull request on GitHub. Planned work is not listed here.</p>
+  </div>
+</section>
+
+<div class="wrap cl">
+
+  <section class="cl-day" aria-labelledby="d-2026-10-22">
+    <h2 class="cl-date" id="d-2026-10-22"><time datetime="2026-10-22">22 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">Save points from the same minute are easy to tell apart</h3>
+        <p>When two save points share a minute, the app shows their seconds as well. The save point number breaks any remaining tie.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/26">Shipping in PR #26</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Stop a check or a search</h3>
+        <p>Long checks and searches for the last working version now have a Stop button. A stopped check never changes a verdict.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/26">Shipping in PR #26</a></p>
+      </li>
+      <li>
+        <h3 class="h4">A first-time tip and a clearer add-project step</h3>
+        <p>The first time a verdict appears, a short tip explains Works, Broken and Not checked yet. You can dismiss it. Adding a project now labels each step and the check field more clearly.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/26">Shipping in PR #26</a></p>
+      </li>
+      <li>
+        <h3 class="h4">A calmer home page, and install steps for Claude Code</h3>
+        <p>The first screen now shows the headline, the waitlist and the real recording, with no typing effect or opening screen. A new <a href="install.md">install.md</a> lists the setup steps in a form Claude Code can follow.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/26">Shipping in PR #26</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Time Machine in your browser with <code translate="no">tm ui</code></h3>
+        <p><code translate="no">tm ui</code> opens the same app screens in your browser, served from your own computer at <code>127.0.0.1</code>. It uses the same engine and save points as the CLI. Nothing is hosted, and each launch gets a private session key.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/25">PR #25</a></p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="cl-day" aria-labelledby="d-2026-10-21">
+    <h2 class="cl-date" id="d-2026-10-21"><time datetime="2026-10-21">21 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">One warm dark look, and a new recording</h3>
+        <p>The site and the app now share one warm dark look, and the app starts in dark mode. The home page has a new <span class="num">68-second</span> recording of the real Mac app, with captions and chapters.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/24">PR #24</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Easier to read and move around the site</h3>
+        <p>Body text is larger, captions are easier to read, and header links are easier to hit. Links within a page stop below the sticky header, and pressing a chapter brings the video into view.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/22">PR #22</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/23">PR #23</a></p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="cl-day" aria-labelledby="d-2026-10-20">
+    <h2 class="cl-date" id="d-2026-10-20"><time datetime="2026-10-20">20 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">Clearer recovery screens in the Mac app</h3>
+        <p>The recovery screens are quieter, with clearer type, and open on your history. Muted text has more contrast, and the recovery limits can be reached with the keyboard.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/19">PR #19</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/20">PR #20</a></p>
+      </li>
+      <li>
+        <h3 class="h4">A real recovery on the home page</h3>
+        <p>The home page shows a captioned recording of the real Mac app bringing back a working version, with chapters and a transcript. The video downloads nothing until you press play.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/20">PR #20</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/21">PR #21</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Install steps you can follow today</h3>
+        <p>The site lists the real commands to install from source, and what they need: Node 22 or newer and Git. It also shows how long clone to finished demo took in two timed runs.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/17">PR #17</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/18">PR #18</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Hooks work from a source install</h3>
+        <p><code translate="no">tm hook install</code> now points the Claude Code hooks at your installed <code translate="no">tm</code>, not at an npm package that is not published yet. Reinstalling replaces old Time Machine hook lines and keeps other tools’ hooks. After a recovery, the advice now says to keep working in the recovery copy, so restored files are not lost.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/16">PR #16</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Fair limits on the waitlist</h3>
+        <p>Signups, referral lookups and visit counts are limited per client. Too many requests get a clear answer to try again later.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/15">PR #15</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Claude Code turns show live in the Mac app</h3>
+        <p>A save point made by the Claude Code hooks in another terminal now appears in the open Mac app as it happens, titled with your prompt. The site’s API also refuses requests that fake where they come from.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/14">PR #14</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Safer recovery and a steadier Mac app</h3>
+        <p>Every recovery lists each thing it could not bring back. You can save before your project’s first commit, and undo still works after you delete the recovery copy by hand. The Mac app runs one copy at a time and stops a running check when you quit.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/13">PR #13</a></p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="cl-day" aria-labelledby="d-2026-10-19">
+    <h2 class="cl-date" id="d-2026-10-19"><time datetime="2026-10-19">19 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">Try the rewind on the home page</h3>
+        <p>An interactive illustration lets you turn a dial back to the save point that passed. A second view shows the same steps as app screens. Both are illustrations and open no files.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/11">PR #11</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/12">PR #12</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Accessibility pass in the Mac app</h3>
+        <p>Keyboard focus stays inside dialogs and goes back where it was when they close. Status changes are announced to screen readers, and the main buttons are easier to hit.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/10">PR #10</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Waitlist storage and an honest comparison</h3>
+        <p>Waitlist signups are kept in their own database schema. The public key can only call three fixed functions and cannot read the tables. The home page adds a table comparing Claude Code’s rewind, Git and Time Machine.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/9">PR #9</a></p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="cl-day" aria-labelledby="d-2026-10-18">
+    <h2 class="cl-date" id="d-2026-10-18"><time datetime="2026-10-18">18 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">The public site</h3>
+        <p>The first public site: one promise, real <code translate="no">tm</code> output and a waitlist with personal referral links. Real Mac app screens and a three-step walkthrough for people who don’t write code followed the same day. The opening screen and typing effect added that day were removed on 22 October.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/2">PR #2</a>, <a href="https://github.com/ShadowEsu/Time-Machine/pull/3">PR #3</a>, <a href="https://github.com/ShadowEsu/Time-Machine/pull/6">PR #6</a>, <a href="https://github.com/ShadowEsu/Time-Machine/pull/7">PR #7</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/8">PR #8</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Signups wait as pending, and the site sends no email</h3>
+        <p>A signup is saved as pending and unconfirmed. The site never sends email. Preston writes to the list himself.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/6">PR #6</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Mac app launch screen and packaging</h3>
+        <p>The Mac app has a launch screen and smoother transitions. Builds use a stable self-signed package. They are not signed by Apple.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/6">PR #6</a> and <a href="https://github.com/ShadowEsu/Time-Machine/pull/7">PR #7</a></p>
+      </li>
+      <li>
+        <h3 class="h4">A first run that actually checks</h3>
+        <p><code translate="no">tm init</code> now guesses the install step from your lockfile, so the first check can install dependencies and run. On a real open source project, init to a checked recovery branch took <span class="num">54 to 82 seconds</span> in two timed runs.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/4">PR #4</a></p>
+      </li>
+      <li>
+        <h3 class="h4">The npm package is ready, not published</h3>
+        <p>The npm package, <code translate="no">timetm</code>, installs and runs the demo from a clean folder. It is not on npm yet.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/3">PR #3</a></p>
+      </li>
+      <li>
+        <h3 class="h4">The first release</h3>
+        <p>The save, check and recover engine, the <code translate="no">tm</code> CLI, the Mac app and this site, under the MIT license. Tests run in CI on macOS and Linux with Node 22 and 24.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/1">PR #1</a></p>
+      </li>
+    </ol>
+  </section>
+
+</div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="story.html">The story</a>
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="changelog.html" aria-current="page">Changelog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="mailto:preston@unvibe.site">Email us</a>
+      </nav>
+      <p class="foot-note">Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+</body>
+</html>

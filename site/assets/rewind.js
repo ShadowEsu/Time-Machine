@@ -194,16 +194,6 @@
     draw(false, false);
   }
   views.forEach(function (button) { button.addEventListener("click", function () { setView(button.dataset.storyView); }); });
-  var openApp = document.querySelector("[data-open-app]");
-  openApp.addEventListener("click", function (event) {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    setView("app");
-    if (location.hash !== "#rewind-demo") history.pushState(null, "", "#rewind-demo");
-    story.scrollIntoView({ block: "start", behavior: "instant" });
-    appPoints.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
-  });
-  openApp.hidden = false;
   story.querySelector(".rs-views").hidden = false;
   media.addEventListener("change", function () {
     stop(false);

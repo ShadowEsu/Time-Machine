@@ -101,12 +101,15 @@ export interface OpenResult {
   manual: string[];
 }
 
-export type VerifyResult = VerdictRecord;
+/** `stopped` is set when the user stopped the check. Such a result is never recorded as the save point's verdict. */
+export type VerifyResult = VerdictRecord & { stopped?: true };
 
 export interface FindGoodResult {
   verdict: Verdict;
   found: string | null;
   tried: { id: string; verdict: Verdict; reason: string }[];
+  /** Set when the user stopped the search before it found a version that passes. */
+  stopped?: true;
 }
 
 export interface RecoverResult {

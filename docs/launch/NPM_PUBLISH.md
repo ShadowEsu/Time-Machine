@@ -68,7 +68,7 @@ Also open https://www.npmjs.com/package/timetm.
 
 ## 7. Then tell the agent (BOSS or the Time Machine pane)
 
-The agent updates everything that says "not on npm yet": the site status line and FAQ, `README.md`, `docs/GUIDE.md`, `docs/PLAN.md`, and the hook fallback note. Then it redeploys the site. After that, the waitlist gets its first real email: "it is on npm".
+The agent updates everything that says "not on npm yet": the site status line and FAQ, `README.md`, `docs/GUIDE.md`, `docs/PLAN.md`, and the hook fallback note. It also sets `NPM_PUBLISHED = true` in `packages/core/src/hooks.ts`, so the app may offer `npx -y timetm@<version>` as the hook command when no local `tm` runs (until then the app never runs npx, because nobody owned the name). Then it redeploys the site. After that, the waitlist gets its first real email: "it is on npm".
 
 ## If something goes wrong
 
