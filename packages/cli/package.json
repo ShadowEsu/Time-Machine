@@ -28,6 +28,7 @@
   },
   "files": [
     "dist/tm.js",
+    "dist/ui",
     "README.md",
     "LICENSE"
   ],
@@ -35,7 +36,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "bundle": "esbuild src/bin.ts --bundle --platform=node --format=esm --target=node22 --minify --legal-comments=eof --outfile=dist/tm.js \"--banner:js=import { createRequire as __tmRequire } from 'node:module'; const require = __tmRequire(import.meta.url);\""
+    "bundle": "node scripts/build.mjs"
   },
   "devDependencies": {
     "@timetm/core": "workspace:*",

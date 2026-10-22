@@ -5,3 +5,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 coverage/
+
+# Private local-preview marks. Publication requires provider permission.
+/apps/desktop/src/renderer/agents/*.svg
+/site/assets/agents/*.svg

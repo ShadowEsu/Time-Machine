@@ -227,6 +227,21 @@ describe("Settings > Features", () => {
     expect(html.match(/data-fa="remove-key"/g)).toHaveLength(2);
   });
 
+  test.each([false, true])("browser credential configuration %s never exposes credential mutation controls", (configured) => {
+    const html = featureSettingsHtml({ ...base, runtime: "browser", keys: { gemini: configured, vercel: configured } });
+    expect(html.match(/<input\b[^>]*type="password"/g) ?? []).toHaveLength(0);
+    expect(html.match(/<form\b[^>]*data-key-form/g) ?? []).toHaveLength(0);
+    expect(html.match(/<button\b[^>]*data-fa="remove-key"/g) ?? []).toHaveLength(0);
+    expect(html.match(/<button\b[^>]*role="switch"/g) ?? []).toHaveLength(1);
+    expect(html.match(/<button\b[^>]*data-fa="pick"/g) ?? []).toHaveLength(configured ? 1 : 0);
+  });
+
+  test("explicit desktop runtime retains credential controls", () => {
+    const html = featureSettingsHtml({ ...base, runtime: "desktop", keys: { gemini: true, vercel: true } });
+    expect(html.match(/<input\b[^>]*type="password"/g) ?? []).toHaveLength(2);
+    expect(html.match(/<button\b[^>]*data-fa="remove-key"/g) ?? []).toHaveLength(2);
+  });
+
   test("says Vercel access is read only and nothing is deployed, promoted or rolled back", () => {
     const html = featureSettingsHtml(base);
     expect(html).toContain("Read only.");

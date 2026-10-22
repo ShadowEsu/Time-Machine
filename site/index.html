@@ -205,7 +205,7 @@
     <div class="block-head">
       <p class="eyebrow">Try it now</p>
       <h2 id="try-h" data-type>Run the demo on your own computer.</h2>
-      <p class="lead">The Mac app is still in development. The <code translate="no">tm</code> CLI works today on macOS and Linux. Build it from source, then run the demo.</p>
+      <p class="lead">The Mac app is still in development. The <code translate="no">tm</code> CLI works today on macOS and Linux. Build it from source, then run the demo, or open the same app in your browser with <code translate="no">tm ui</code>.</p>
     </div>
     <div class="term-block install" data-copy-box data-reveal>
       <p class="install-h">Install from source <span class="tag-s">Not on npm yet</span></p>
@@ -220,6 +220,7 @@ tm demo</pre>
       </div>
       <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
       <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. In two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took 24 and 45 seconds. Most of that is downloading and building.</p>
+      <p class="install-note"><code translate="no">tm ui</code> opens Time Machine in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. Tested on macOS so far.</p>
     </div>
     <ul class="facts" data-reveal>
       <li><b>Save points stay on your computer, in <code translate="no">~/.timemachine</code>. Nothing is uploaded.</b> The optional Ask feature in the Mac app sends a short summary to Google only after you turn it on.</li>
@@ -371,21 +372,22 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <p class="ft-mail"><a href="mailto:preston@unvibe.site">preston@unvibe.site</a></p>
       <dl class="ft-status">
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
+        <div><dt>Browser app</dt><dd><code translate="no">tm ui</code>. Works from source. Tested on macOS.</dd></div>
         <div><dt>Mac app</dt><dd>In development. Not signed by Apple yet.</dd></div>
-        <div><dt>Tests</dt><dd>286 automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
+        <div><dt>Tests</dt><dd>317 automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
         <div><dt>License</dt><dd>MIT. <a href="https://github.com/ShadowEsu/Time-Machine" rel="noopener">Source on GitHub</a></dd></div>
       </dl>
     </div>
 
     <div class="ft-col">
-      <p class="ft-h">Works with</p>
-      <ul>
-        <li>Claude Code <span class="tag-s ok">Built</span></li>
-        <li>Any MCP agent, 7 tools <span class="tag-s ok">Built</span></li>
-        <li>Cursor <span class="tag-s">Planned</span></li>
-        <li>Codex CLI <span class="tag-s">Planned</span></li>
-        <li>Gemini CLI <span class="tag-s">Planned</span></li>
+      <p class="ft-h" id="agents-h">Agent integrations</p>
+      <ul class="agent-support" aria-labelledby="agents-h">
+        <li data-mark="claude"><span class="agent-support-name">Claude Code</span><span class="agent-support-status">Built · automatic hooks</span></li>
+        <li data-mark="openai"><span class="agent-support-name">Codex CLI</span><span class="agent-support-status">Planned</span></li>
+        <li data-mark="gemini"><span class="agent-support-name">Gemini CLI</span><span class="agent-support-status">Planned</span></li>
+        <li data-mark="cursor"><span class="agent-support-name">Cursor</span><span class="agent-support-status">Planned</span></li>
       </ul>
+      <p class="agent-support-note">MCP agents can use seven real tools to save, inspect, check and recover. Automatic hooks are built for Claude Code only today.</p>
       <p class="ft-h">Does not bring back</p>
       <ul>
         <li>Secret values (only key names are kept)</li>
@@ -428,5 +430,6 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 <script src="assets/rewind.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
 <script src="assets/copy.js" defer></script>
+<script src="assets/agent-preview.js" defer></script>
 </body>
 </html>

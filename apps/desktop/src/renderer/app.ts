@@ -110,6 +110,9 @@ interface State {
   /** b is "now" to compare with the project folder as it is: we save it first (only if something changed). */
   compare: { a: string | null; b: string | null; now: { id: string; skipped: boolean } | null; result: DiffResult | null; loading: boolean; error: string | null };
   onboarding: OnboardingState;
+  navOpen: boolean;
+  connection: { state: "connecting" | "connected" | "disconnected"; message?: string } | null;
+  pageError: string | null;
   inspector: boolean;
   /** The entry detail for `selected`: the right column when the window is wide, a full sheet when narrow. */
   drawer: boolean;
@@ -162,7 +165,7 @@ const TITLES: Partial<{ [M in Method]: string }> = {
 };
 
 /** Shown instead of "Add these lines" when the hook command did not answer its version check. */
-const hookNotRunning = "This command does not run on this Mac yet, so we won’t add it. Claude Code would fail at every prompt and nothing would be saved.";
+const hookNotRunning = "This command does not run on this computer yet, so we won’t add it. Claude Code would fail at every prompt and nothing would be saved.";
 
 let bridge: TmBridge;
 let opts: StartOptions;
@@ -171,6 +174,7 @@ let root: HTMLElement;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 let announcer: HTMLElement;
 const dialogFocus = new DialogFocus();
+let addReturn: { screen: Screen; focus: string | null } | null = null;
 
 function emptyOnboarding(): OnboardingState {
   return { step: 1, path: null, project: null, init: null, current: "", choice: "detected", custom: "", working: false, trying: false, tryResult: null, hook: null, hookError: null, hookDone: null, first: null, error: null };
@@ -282,6 +286,21 @@ function toast(text: string): void {
 // Small view helpers
 
 const isMac = (): boolean => st.boot.platform === "darwin";
+const isBrowser = (): boolean => st.boot.runtime === "browser";
+const device = (): string => isBrowser() ? "this computer" : "this Mac";
+const revealLabel = (recovery = false): string => isBrowser() ? (recovery ? "Copy recovery folder path" : "Copy local path") : (recovery ? "Show the recovery copy in Finder" : "Show in Finder");
+
+/**
+ * Provider marks appear only in a private local preview (`TM_UI_BRAND_MARKS=1`); publishing them needs each
+ * provider's permission. Everyone else gets two initials in a small square, never an invented logo.
+ */
+function agentMark(name: string): string {
+  const file = /claude/i.test(name) ? "claude" : /codex|openai/i.test(name) ? "openai" : /gemini/i.test(name) ? "gemini" : /cursor/i.test(name) ? "cursor" : null;
+  if (file && st.boot.localBrandMarks) return `<span class="amark agent-logo" aria-hidden="true"><img src="agents/${file}.svg" alt=""></span>`;
+  const words = name.split(" ");
+  const initials = words.length > 1 ? `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}` : name.slice(0, 2);
+  return `<span class="amark" aria-hidden="true">${esc(initials)}</span>`;
+}
 function keys(k: string): string {
   if (isMac()) return k.replace("Mod+", "⌘").replace("Shift+", "⇧").replace("Enter", "↵");
   return k.replace("Mod+", "Ctrl+");
@@ -366,7 +385,7 @@ function ago(iso: string): string {
 // Views
 
 /** The project rail: projects with a verdict glyph and how long ago they last saved, the agents, Storage and Settings. */
-function sidebar(): string {
+function sidebar(mobile = false): string {
   const inProject = PROJECT_SCREENS.includes(st.screen);
   const items = st.projects
     .map((p) => {
@@ -374,27 +393,38 @@ function sidebar(): string {
       const v = s?.newest?.verdict ?? null;
       const label = s?.problem ? "Can’t find it" : s?.newest ? verdictWord(v) : "No save points yet";
       const age = s?.newest && !s.problem ? `<small title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(ago(s.newest.createdAt))}</small>` : "";
-      return `<button class="it ${p.id === st.projectId && inProject ? "on" : ""}" data-act="project" data-id="${p.id}" title="${esc(`${p.name}: ${label}`)}">
-        ${glyph(s?.problem ? "ERROR" : v)}<span class="nm">${esc(p.name)}</span><span class="sr-only">${esc(label)}</span>${age}</button>`;
+      return `<button class="it project-it ${p.id === st.projectId && inProject ? "on" : ""}" data-act="project" data-id="${p.id}" ${p.id === st.projectId && inProject ? 'aria-current="page"' : ""} title="${esc(p.path)}">
+        ${glyph(s?.problem ? "ERROR" : v)}<span class="nm"><span>${esc(p.name)}</span><small class="project-verdict">${esc(label)}</small></span>${age}</button>`;
     })
     .join("");
   const claude = claudeChannel(st.agents ?? [], st.lastTurn);
-  const agent = (mark: string, name: string, state: string, note: string): string =>
-    `<button class="it ag ${state === "planned" ? "off" : ""}" data-act="agents" title="${esc(`${name}: ${note}`)}"><span class="amark" aria-hidden="true">${esc(mark)}</span><span class="nm">${esc(name)}</span>${state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}<span class="sr-only">${esc(note)}</span>${state === "planned" ? "<small>Planned</small>" : ""}</button>`;
+  const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Connected", partial: "Needs setup", "not-connected": "Not connected", planned: "Planned" };
+  const agent = (name: string, state: Channel["state"], note: string): string =>
+    `<button class="it ag ${state === "planned" ? "off" : ""}" data-act="agents" title="${esc(`${name}: ${note}`)}">${agentMark(name)}<span class="nm"><span>${esc(name)}</span><small>${esc(stateWord[state])}</small></span>${state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}</button>`;
   const total = st.storage?.reduce((n, r) => n + r.bytes, 0);
-  return `<aside class="side">
-    <div class="brand"><span class="mark" aria-hidden="true"></span>Time Machine</div>
+  return `<aside class="side${mobile ? " mobile-side" : ""}" ${mobile ? 'id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navigation"' : 'aria-label="Project navigation"'}>
+    <div class="brand"><span class="mark" aria-hidden="true"></span>Time Machine${mobile ? '<button class="btn ghost nav-close" data-act="nav-close" aria-label="Close navigation">Close</button>' : ""}</div>
     <div class="sec">Projects</div>
     ${items || '<div class="muted small" style="padding:4px 8px">No projects yet</div>'}
     <button class="it quiet ${st.screen === "onboarding" ? "on" : ""}" data-act="add"><span class="plus" aria-hidden="true">+</span><span class="nm">Add project</span><kbd>${keys("Mod+N")}</kbd></button>
     <button class="sec sec-b ${st.screen === "agents" ? "on" : ""}" data-act="agents">Agents</button>
-    ${agent(claude.mark, claude.name, claude.state, claude.line)}
-    ${PLANNED_AGENTS.map((a) => agent(a.mark, a.name, "planned", "Planned. Not connected.")).join("")}
+    ${st.agents ? agent(claude.name, claude.state, claude.line) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
+    ${PLANNED_AGENTS.map((a) => agent(a.name, "planned", "Planned. Not connected.")).join("")}
     <div class="side-foot">
       <button class="it ${st.screen === "storage" ? "on" : ""}" data-act="storage"><span class="nm">Storage</span>${total !== undefined ? `<small>${esc(bytes(total))}</small>` : ""}</button>
       <button class="it ${st.screen === "settings" ? "on" : ""}" data-act="settings"><span class="nm">Settings</span><kbd>${keys("Mod+,")}</kbd></button>
     </div>
   </aside>`;
+}
+
+function navigation(): string {
+  return st.navOpen ? `<div class="scrim nav-scrim" data-leave="navigation">${sidebar(true)}</div>` : "";
+}
+
+function connectionBanner(): string {
+  const c = st.connection;
+  if (!isBrowser() || !c || c.state === "connected") return "";
+  return `<div class="connection-banner" role="status"><span class="connection-dot" aria-hidden="true"></span><div><b>${c.state === "connecting" ? "Connecting to your local app" : "Disconnected from your local app"}</b><p>${esc(c.message ?? "Keep tm ui running in your terminal. Live history and actions need that connection.")}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
 }
 
 function welcome(): string {
@@ -403,8 +433,8 @@ function welcome(): string {
     <h1>Get back the version that passed your tests.</h1>
     <p class="lede">Time Machine saves your project before your agent acts and checks each save point with your own tests, in a safe copy. When something breaks, it brings back the newest one that passes, on a new branch. Your folder and branch are not touched.</p>
     <div class="row-btns"><button class="btn dark big" data-act="demo">Try the demo</button><button class="btn big" data-act="add">Add a project</button></div>
-    <p class="foot">Works on this Mac. Your code is not uploaded. Time Machine is not universal undo: every result says what was not restored.</p>
-    <p class="foot unsigned">Not signed or notarized by Apple yet, so macOS warns on first open. Signing is planned.</p>
+    <p class="foot">Runs on ${device()}. Your project is not uploaded. Time Machine is not universal undo: every result says what was not restored.</p>
+    ${isBrowser() ? '<p class="foot local-note">Local browser app · Keep <span class="mono">tm ui</span> running in your terminal.</p>' : '<p class="foot unsigned">Not signed or notarized by Apple yet, so macOS warns on first open. Signing is planned.</p>'}
   </div></div>`;
 }
 
@@ -413,11 +443,9 @@ function authorOf(c: TimelineEntry): string {
   return c.agent?.name ?? triggerLabel(c.trigger);
 }
 
-/** An author chip: two letters in a small square, then the name. No third-party logos. */
+/** An author chip uses a supplied official mark when the recorded author is a known agent. */
 function authorChip(name: string): string {
-  const words = name.split(" ");
-  const mark = words.length > 1 ? `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}` : name.slice(0, 2);
-  return `<span class="chip"><span class="amark" aria-hidden="true">${esc(mark)}</span>${esc(name)}</span>`;
+  return `<span class="chip">${agentMark(name)}${esc(name)}</span>`;
 }
 
 /** Runs of save points made by the same agent, as recorded by the engine. Never guessed from the trigger. */
@@ -458,7 +486,7 @@ function checkSummary(c: TimelineEntry): string {
 function weRan(c: TimelineEntry): string {
   const vr = st.verifyResults.get(c.id);
   const same = vr && vr.verdict === c.verdict ? vr : null;
-  const what = same ? `${same.command} in a safe copy` : "Your check, in a safe copy on this Mac";
+  const what = same ? `${same.command} in a safe copy` : `Your check, in a safe copy on ${device()}`;
   const result: { [V in Verdict]: string } = { PASS: "Passed", FAIL: "Failed", INCOMPLETE: "It did not finish", BLOCKED: "It could not start: it needs something", ERROR: "The check itself crashed" };
   return c.verdict ? `${what}. ${result[c.verdict]}${same ? `, ${seconds(same.durationMs)}` : ""}.` : "Nothing yet. This save point is not checked.";
 }
@@ -516,6 +544,7 @@ function homeRuler(all: TimelineEntry[]): string {
 function history(): string {
   const p = project();
   if (!p) return welcome();
+  if (!st.timeline && !st.timelineError) return `<div class="empty" role="status">${LOADING}<h2>Reading ${esc(p.name)}</h2><p>Loading saved versions from your local history.</p></div>`;
   if (st.timelineError && !st.timeline) {
     return `<div class="empty"><h2>We can’t read ${esc(p.name)}</h2><p>${esc(st.timelineError)}</p><div class="row-btns"><button class="btn" data-act="reload">Try again</button><button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button></div></div>`;
   }
@@ -600,9 +629,9 @@ function verdictSentence(c: TimelineEntry): string {
   const how = st.settings.showGitDetails ? ` (basic isolation, ${c.isolation ?? "host"} mode)` : "";
   switch (c.verdict) {
     case "PASS":
-      return `It passed its check in a safe copy on this Mac${how}.`;
+      return `It passed its check in a safe copy on ${device()}${how}.`;
     case "FAIL":
-      return `It failed its check in a safe copy on this Mac${how}.`;
+      return `It failed its check in a safe copy on ${device()}${how}.`;
     case "INCOMPLETE":
       return "We couldn’t finish the check. We won’t call it working until we can.";
     case "BLOCKED":
@@ -626,12 +655,12 @@ function detail(): string {
     ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>${esc(goBackLabel(c))}</button>`
     : `<button class="btn big dark" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>`;
   const opened = st.openResult && st.openResult.id === c.id
-    ? `<div class="note">A safe copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">Show in Finder</button></div>${st.settings.showGitDetails ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>`
+    ? `<div class="note">A safe copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div>${st.settings.showGitDetails || isBrowser() ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>`
     : "";
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
     : "";
-  return `<aside class="rcol detail ${once("detail")}" role="region" aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
+  return `<aside class="rcol detail ${once("detail")}" ${window.innerWidth < 1100 ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(`Save point from ${when(c.createdAt)}`)}">
     <header class="rc-top"><span class="eyebrow">${esc(dayLabel(c.createdAt))} ${esc(clock(c.createdAt))}</span>
       <button class="btn ghost" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
     <div class="rc-body">
@@ -655,7 +684,7 @@ function detail(): string {
 /** A ⋯ button with a small menu. One menu is open at a time. */
 function menuButton(key: string, label: string, items: string[]): string {
   const open = st.menu === key;
-  return `<span class="mn"><button class="btn ghost mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" aria-expanded="${open}" aria-haspopup="menu">⋯</button>${open ? `<div class="mn-l" role="menu">${items.join("")}</div>` : ""}</span>`;
+  return `<span class="mn"><button class="btn ghost mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" aria-expanded="${open}">⋯</button>${open ? `<div class="mn-l" role="group" aria-label="${esc(label)}">${items.join("")}</div>` : ""}</span>`;
 }
 
 function checkSheet(): string {
@@ -680,7 +709,7 @@ function checkSheet(): string {
     const extra =
       r.verdict === "FAIL" ? (lw ? ` The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}.` : " No earlier save point has passed yet.")
         : r.verdict === "ERROR" ? " This is a problem with the check, not necessarily your project."
-          : r.verdict === "PASS" ? ` Checked in a safe copy on this Mac in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
+          : r.verdict === "PASS" ? ` Checked in a safe copy on ${device()} in ${seconds(r.durationMs)}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
     result = `<div class="big-verdict ${stampOnce(`check:${r.checkpoint}:${r.verdict}`)}">${glyph(r.verdict)}<span>${esc(head[r.verdict])}</span></div>
       <p>${esc(r.reason + extra)}</p>
       ${st.settings.showGitDetails ? `<div class="git"><div><span class="k">verdict</span> ${esc(r.verdict)} · exit ${esc(String(r.exitCode))} · ${esc(r.isolation)} mode</div><div><span class="k">command</span> ${esc(r.command)}</div>${r.log ? `<div><span class="k">log</span> ${esc(r.log)}</div>` : ""}</div>` : ""}`;
@@ -781,7 +810,7 @@ function comesBackLines(c: TimelineEntry): string[] {
 function evidenceFor(c: TimelineEntry, v: Verdict | null): string {
   const vr = st.verifyResults.get(c.id);
   const same = vr && vr.verdict === v ? vr : null;
-  const where = `In a safe copy on this Mac${st.settings.showGitDetails ? ` (basic isolation, ${c.isolation ?? "host"} mode)` : ""}`;
+  const where = `In a safe copy on ${device()}${st.settings.showGitDetails ? ` (basic isolation, ${c.isolation ?? "host"} mode)` : ""}`;
   const took = same ? ` in ${seconds(same.durationMs)}` : "";
   const net = same ? (same.network.enforcedBy ? ", network off" : ", network on") : "";
   switch (v) {
@@ -862,12 +891,13 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
       read: `<div class="tv-verdict"><div class="eyebrow tv-meta">Recovery copy ready · new branch</div>
         <h2 class="tv-head ${stampOnce(`done:${res.branch}`)}">The ${esc(pointName(res.id))} version is back on a new branch.</h2>
         <p class="tv-lede">It is on a new branch, with a recovery copy next to your project. Your folder was not touched, so switching is your call.</p>
-        <div class="tv-ev">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a safe copy on this Mac.` : "Not checked yet. Run Check it works before you rely on it."}</span></div></div>
+        <div class="tv-ev">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a safe copy on ${device()}.` : "Not checked yet. Run Check it works before you rely on it."}</span></div></div>
       <div class="report"><h3>What came back</h3>
         ${cols("Brought back", "Not brought back", res.restored.map(plainRestored), res.notRestored.map(plainNotSaved))}
         <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
         <div class="endline"><span>Your current version was saved first. Nothing was pushed, merged, deployed or deleted.</span></div>
-        <div class="row-btns"><button class="btn link" data-act="reveal" data-path="${esc(res.copyDir)}">Show the recovery copy in Finder</button><button class="btn link" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy the report as text</button></div>
+        <div class="row-btns"><button class="btn link" data-act="reveal" data-path="${esc(res.copyDir)}">${revealLabel(true)}</button><button class="btn link" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy the report as text</button></div>
+        ${isBrowser() ? `<p class="small muted">Open this local folder in your editor: <span class="mono sel-text">${esc(res.copyDir)}</span></p>` : ""}
       </div>
       ${git ? `<div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> ${esc(res.savedBefore)}</div><div><span class="k">report</span> ${esc(res.reportPath)}</div></div>` : ""}
       ${undoNote(res)}`,
@@ -911,7 +941,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn’t confirm this version works. You can still go back to it, but it is not proven.</div>`
       : !proven ? `<div class="note">No passing check is recorded for this version. Try it first: we open it in a safe copy and run your check.</div>` : "";
   const opened = r.openResult && r.openResult.id === c.id
-    ? `<div class="note">A copy you can open is ready. Your folder was not touched.${git ? ` <span class="mono">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">Show in Finder</button></div>` : "";
+    ? `<div class="note">A copy you can open is ready. Your folder was not touched.${git || isBrowser() ? ` <span class="mono sel-text">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">${revealLabel()}</button></div>` : "";
   const busy = r.trying || r.recovering || !!st.busy;
   const notNewest = !!newest && newest.id !== c.id;
   const all = points();
@@ -1116,6 +1146,7 @@ const NO_PROJECTS = '<div class="tr"><span class="muted">No projects yet.</span>
 
 /** Agents: one channel per coding agent, then Claude Code's connection in each project. */
 function agentsScreen(): string {
+  if (st.pageError) return pageFailure("Agents");
   const agentWords: { [K in AgentRow["claudeCode"]]: string } = {
     connected: "Connected. It saves before each prompt and checks after each turn.",
     "not-running": "Connected, but the command does not run yet. Nothing is saved until it does.",
@@ -1134,12 +1165,12 @@ function agentsScreen(): string {
     : LOADING;
   const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Idle", partial: "Partly connected", "not-connected": "Not connected", planned: "Planned" };
   const channel = (ch: Channel): string =>
-    `<div class="ch ch-${ch.state}"><span class="amark" aria-hidden="true">${esc(ch.mark)}</span><span class="ch-n">${esc(ch.name)}</span><span class="ch-s">${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}${esc(stateWord[ch.state])}</span><span class="ch-l">${esc(ch.line)}</span></div>`;
+    `<div class="ch ch-${ch.state}">${agentMark(ch.name)}<span class="ch-n">${esc(ch.name)}</span><span class="ch-s">${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}${esc(stateWord[ch.state])}</span><span class="ch-l">${esc(ch.line)}</span></div>`;
   const channels = st.agents
     ? [claudeChannel(st.agents, st.lastTurn), ...PLANNED_AGENTS.map((a): Channel => ({ ...a, state: "planned", line: "Not connected. Support is planned, not built yet." }))].map(channel).join("")
     : LOADING;
   return `<div class="page"><div class="col">
-    <div><h1>Agents</h1><p class="lede">One line per coding agent. Each line comes from hook events on this Mac, never from your screen.</p></div>
+    <div><h1>Agents</h1><p class="lede">Connections and activity come from local hook events, never from your screen. Planned agents are not connected.</p></div>
     <div class="panel channels" aria-label="Agent channels">${channels}</div>
     <p class="small muted">What an agent says about its own tests is never shown as a check. We run your check ourselves, in a safe copy.</p>
     <h2 class="h2">Claude Code in each project</h2>
@@ -1149,6 +1180,7 @@ function agentsScreen(): string {
 }
 
 function storageScreen(): string {
+  if (st.pageError) return pageFailure("Storage");
   const cleanRow = (projectId: string): string => {
     const c = st.cleanup?.projectId === projectId ? st.cleanup : null;
     if (!c) return `<button class="btn" data-act="clean-preview" data-id="${projectId}" ${st.cleanup?.working ? "disabled" : ""}>Clean up old check logs…</button>`;
@@ -1159,10 +1191,10 @@ function storageScreen(): string {
     return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
   };
   const rows = st.storage
-    ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on this Mac</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || NO_PROJECTS
+    ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on ${device()}</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || NO_PROJECTS
     : LOADING;
   return `<div class="page"><div class="col">
-    <div><h1>Storage</h1><p class="lede">Save points are stored on this Mac, outside your project folders, so deleting a project does not delete its history. This is not a full Mac backup.</p></div>
+    <div><h1>Storage</h1><p class="lede">Save points are stored on ${device()}, outside your project folders, so deleting a project does not delete its history. This is not a full computer backup.</p></div>
     <div class="panel"><div class="table">${rows}</div></div>
     <p class="small muted">Clean up only removes old check logs: a log goes when a newer check of the same save point replaced it. Save points and their newest check logs stay. First we list what would go, then you choose Remove them.${st.settings.showGitDetails ? ` Store: <span class="mono">${esc(st.boot.storeDir)}</span>` : ""}</p>
     <p class="small muted"><span class="planned">Planned</span> Thinning old save points. Pinned and working save points will always stay.</p>
@@ -1170,13 +1202,14 @@ function storageScreen(): string {
 }
 
 function settings(): string {
+  if (st.pageError) return pageFailure("Settings");
   const s = st.settings;
   const seg = (v: Settings["theme"], label: string): string => `<button class="${s.theme === v ? "on" : ""}" data-act="theme" data-v="${v}">${label}</button>`;
   const sw = (key: "showGitDetails" | "overlayCards" | "agentPill", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
   const iso = st.isolation;
   const network = !iso ? LOADING
     : iso.networkSandbox ? `When a project turns the network off for checks, ${esc(iso.networkSandbox)} blocks it.`
-      : "Nothing on this Mac can block the network during a check. A project that asks for no network gets Needs something, never Works.";
+      : `Nothing on ${device()} can block the network during a check. A project that asks for no network gets Needs something, never Works.`;
   const hk = s.hotkey;
   const hotkeyState = st.boot.preview ? "The browser preview has no shortcut." : !hk ? "Off." : st.hotkeyActive ? "On." : "Not active. Another app may already use it.";
   return `<div class="page"><div class="col">
@@ -1189,7 +1222,7 @@ function settings(): string {
       <div class="setrow"><span class="l">Going back</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.</span></div></div>
     </div>
     ${st.projects.map((p) => `<div class="panel"><h3>Features for ${esc(p.name)}</h3><div class="mount" data-mount="features:${esc(p.id)}"></div></div>`).join("")}
-    <div class="panel"><h3>Shortcut</h3>
+    ${isBrowser() ? '<div class="panel browser-capabilities"><h3>Local browser app</h3><p class="muted">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal. Global shortcuts, the menu bar timeline, corner cards and the floating agent pill are available only in the desktop app.</p><p class="small muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>' : `<div class="panel"><h3>Shortcut</h3>
       <div class="setrow"><span class="l">Open Time Machine</span><div style="display:grid;gap:6px">
         <div class="row-btns"><input class="field hotkey" data-model="hotkey" aria-label="Shortcut" placeholder="for example: Control+Alt+T" value="${esc(st.hotkeyDraft ?? hk ?? "")}"><button class="btn" data-act="hotkey-save">Save</button>${hk ? '<button class="btn ghost" data-act="hotkey-off">Turn off</button>' : ""}</div>
         <span class="muted">Works from any app. ${esc(hotkeyState)} Use two modifier keys, one of them Control or Command, plus a key.</span></div></div>
@@ -1198,9 +1231,9 @@ function settings(): string {
     <div class="panel"><h3>Overlays</h3>
       <div class="setrow"><span class="l">Corner cards</span><div class="toggle">${sw("overlayCards", s.overlayCards, "Corner cards")}<span class="muted">Only when a project that worked breaks. It never takes focus and hides on its own.</span></div></div>
       <div class="setrow"><span class="l">Agent pill</span><div class="toggle">${sw("agentPill", s.agentPill, "Agent pill")}<span class="muted">A small pill while a connected agent is working. It goes away when the turn ends.</span></div></div>
-    </div>
+    </div>`}
     <div class="panel"><h3>Checks</h3>
-      <div class="setrow"><span class="l">Where checks run</span><div>In a safe copy on this Mac, never in your folder. Checks use the tools installed on this Mac.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}</div></div>
+      <div class="setrow"><span class="l">Where checks run</span><div>In a safe copy on ${device()}, never in your folder. Checks use the tools installed on ${device()}.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}</div></div>
       <div class="setrow"><span class="l">Network during checks</span><div>${network}</div></div>
       <p class="small muted"><span class="planned">Planned</span> Stronger isolation with Docker or Apple container.</p>
     </div>
@@ -1211,10 +1244,15 @@ function onboarding(): string {
   const o = st.onboarding;
   let body = "";
   if (o.step === 1) {
-    body = `<div><h1>Which project should we look after?</h1><p class="lede">Pick the folder of a project that uses Git. We only read the folder you pick.</p></div>
-      <div class="panel"><div class="row-btns"><button class="btn dark" data-act="ob-choose" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Choose folder…"}</button>${o.working ? '<span class="spin"></span>' : ""}<span class="mono muted">${esc(o.path ?? "No folder chosen")}</span></div>
-      <p class="small muted">Setup starts when you pick it. We’ll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
-      <div class="row-btns ob-acts">${o.path && o.error && !o.working ? '<button class="btn" data-act="ob-next1">Try again</button>' : ""}<button class="btn ghost" data-act="demo">Try the demo instead</button></div>`;
+    body = `<div><h1>Which project should we look after?</h1><p class="lede">${isBrowser() ? "Connect a local Git project. Your files stay on this computer; this is not an upload." : "Pick the folder of a project that uses Git. We only read the folder you pick."}</p></div>
+      <div class="panel">${isBrowser() ? `<form id="local-project-form" class="path-form" data-form="local-project" aria-busy="${o.working}">
+        <label for="local-project-path">Absolute folder path</label>
+        <input id="local-project-path" class="field" data-model="ob-path" type="text" value="${esc(o.path ?? "")}" placeholder="${st.boot.platform === "win32" ? "C:\\Users\\you\\project" : "/Users/you/projects/my-project"}" autocomplete="off" autocapitalize="none" spellcheck="false" required maxlength="4096" aria-describedby="local-project-help${o.error ? " onboarding-error" : ""}" aria-invalid="${!!o.error}" ${o.working ? "disabled" : ""}>
+        <p id="local-project-help" class="small muted">Paste the full path to an existing folder on the computer running tm ui, not a URL or a browser upload. Git is required today. You can copy the path from your terminal with <span class="mono">pwd</span>.</p>
+        <div class="row-btns"><button type="submit" class="btn dark" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Add project"}</button><button type="button" class="btn ghost" data-act="ob-cancel" ${o.working ? "disabled" : ""}>Cancel</button>${o.working ? '<span class="spin" role="status" aria-label="Setting up project"></span>' : ""}</div>
+      </form>` : `<div class="row-btns"><button class="btn dark" data-act="ob-choose" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Choose folder…"}</button>${o.working ? '<span class="spin"></span>' : ""}<span class="mono muted">${esc(o.path ?? "No folder chosen")}</span></div>`}
+      <p class="small muted">Setup starts when you ${isBrowser() ? "add the project" : "pick it"}. We’ll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
+      <div class="row-btns ob-acts">${!isBrowser() && o.path && o.error && !o.working ? '<button class="btn" data-act="ob-next1">Try again</button>' : ""}<button class="btn ghost" data-act="demo" ${o.working ? "disabled" : ""}>Try the demo instead</button></div>`;
   } else if (o.step === 2 && o.project) {
     const detected = o.init?.verifyCommand ?? "";
     const setup = o.init?.verifySetup.trim() ?? "";
@@ -1229,9 +1267,9 @@ function onboarding(): string {
       <div class="panel">
         ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true) : ""}
         ${detected !== "npm run build" ? optRow("build", "Build it", "npm run build", false) : ""}
-        <label class="opt ${o.choice === "custom" ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="custom" ${o.choice === "custom" ? "checked" : ""}><span style="display:grid;gap:6px"><div class="t">My own command</div><input class="field" data-model="ob-custom" placeholder="for example: npm test" value="${esc(o.custom)}"></span><span></span></label>
+        <label class="opt ${o.choice === "custom" ? "on" : ""}"><input type="radio" name="check" data-act="ob-choice" data-v="custom" ${o.choice === "custom" ? "checked" : ""}><span style="display:grid;gap:6px"><div class="t">My own command</div><input class="field" data-model="ob-custom" aria-label="Custom check command" placeholder="for example: npm test" value="${esc(o.custom)}"></span><span></span></label>
         ${setup ? `<p class="small muted">Installs first with <span class="mono">${esc(setup)}</span>, then runs the check.</p>` : ""}
-        <p class="small muted">Checks run in a safe copy, never in your folder.${o.init?.network === "deny" ? " The internet is off during checks." : " The internet stays on during checks on this Mac, because no sandbox was found."}</p>
+        <p class="small muted">Checks run in a safe copy, never in your folder.${o.init?.network === "deny" ? " The internet is off during checks." : ` The internet stays on during checks on ${device()}, because no sandbox was found.`}</p>
         <div class="row-btns"><button class="btn" data-act="ob-try" ${o.trying ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
           ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${esc(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
         ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn’t pass right now. That’s OK. We’ll save it as Broken, and the next version that passes becomes your first working save point.</div>` : ""}
@@ -1242,7 +1280,7 @@ function onboarding(): string {
     const a = hookStepActions(h, !!o.hookDone);
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
-        <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or from the menu bar.</div></span><span></span></label>
+        <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app${isBrowser() ? ", or choose Save now from More actions." : ", or from the menu bar."}</div></span><span></span></label>
         <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code’s settings for this project. You can also do this later from Agents.</div>
           ${h ? hookLines(h) : ""}
           ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn’t prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">recommended</span></div>
@@ -1252,7 +1290,7 @@ function onboarding(): string {
   }
   return `<div class="page"><div class="col narrow">
     ${steps(o.step, ["Pick a folder", "Choose the check", "Choose when to save"])}
-    ${o.error ? `<div class="note bad">${esc(o.error)}</div>` : ""}
+    ${o.error ? `<div id="onboarding-error" class="note bad" role="alert">${esc(o.error)}</div>` : ""}
     ${body}</div></div>`;
 }
 
@@ -1416,7 +1454,7 @@ function toolbar(): string {
       ])
     : "";
   const ask = inProject ? `<button class="jump ask-t ${st.askOpen ? "on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}"><span>Ask</span><kbd>${esc(keys("Mod+J"))}</kbd></button>` : "";
-  return `<div class="toolbar"><nav class="crumb" aria-label="Where you are">${crumb}</nav>
+  return `<div class="toolbar"><button class="btn ghost nav-toggle" data-act="nav-toggle" aria-label="Open navigation" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>Projects</button><nav class="crumb" aria-label="Where you are">${crumb}</nav>
     ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
     <span class="tb-sp"></span>
     <button class="jump" data-act="palette" aria-label="Jump to"><span>Jump to…</span><kbd>${esc(keys("Mod+K"))}</kbd></button>${ask}${more}</div>`;
@@ -1471,7 +1509,7 @@ function paletteView(): string {
   if (!st.palette) return "";
   return `<div class="scrim pal-scrim ${once("scrim:pal")}" data-leave="pal"><div class="pal" role="dialog" aria-modal="true" aria-label="Jump to">
     <input class="pal-q" data-model="pal" placeholder="Jump to a project, a save point or an action…" value="${esc(st.palette.q)}" aria-label="Jump to" autocomplete="off" spellcheck="false">
-    <div class="pal-list" role="listbox">${paletteList()}</div>
+    <div class="pal-list" role="listbox" aria-label="Matching projects and actions">${paletteList()}</div>
     <div class="pal-foot muted"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>Esc</kbd> close</span></div>
   </div></div>`;
 }
@@ -1523,7 +1561,7 @@ let drawnPage = "";
 function askColumn(): string {
   const p = project();
   if (!p) return "";
-  return `<aside class="rcol ask-col ${once("ask-col")}" aria-label="${esc(`Ask about ${p.name}`)}">
+  return `<aside class="rcol ask-col ${once("ask-col")}" ${window.innerWidth < 1100 ? 'role="dialog" aria-modal="true"' : ""} aria-label="${esc(`Ask about ${p.name}`)}">
     <header class="rc-top"><h2 class="ask-h">Ask</h2><span class="small muted ask-about">about ${esc(p.name)}</span><span class="tb-sp"></span><button class="btn ghost" data-act="ask-toggle" aria-label="Hide Ask">Hide<kbd>${esc(keys("Mod+J"))}</kbd></button></header>
     <div class="mount ask-mount" data-mount="ask:${esc(p.id)}"></div>
   </aside>`;
@@ -1669,11 +1707,11 @@ function render(): void {
                   : history();
   // The right column holds the entry detail when one is open, else Ask when it is shown. Only on project screens.
   const inProject = !!project() && PROJECT_SCREENS.includes(st.screen) && !scene;
-  const right = !inProject ? "" : st.drawer && entry(st.selected) ? detail() : st.askOpen ? askColumn() : "";
+  const right = !inProject || st.check || st.hookSheet || st.demoBusy ? "" : st.drawer && entry(st.selected) ? detail() : st.askOpen ? askColumn() : "";
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    <div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side">', '<aside class="side" inert>') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" data-leave="toast">${esc(st.toast)}</div>` : ""}</div></div>`;
+    ${connectionBanner()}<div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" data-leave="toast">${esc(st.toast)}</div>` : ""}</div></div>`;
   seenOnce = drawOnce;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
@@ -2109,6 +2147,16 @@ async function obChoose(): Promise<void> {
 
 async function obNext1(): Promise<void> {
   const o = st.onboarding;
+  if (o.working) return;
+  if (isBrowser()) {
+    o.path = o.path?.trim() ?? "";
+    if (!o.path.startsWith("/") && !/^[A-Za-z]:\\/.test(o.path)) {
+      o.error = "Enter the full absolute folder path, such as /Users/you/projects/my-project. Relative paths and ~ are not supported.";
+      render();
+      root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
+      return;
+    }
+  }
   if (!o.path) return;
   o.working = true;
   o.error = null;
@@ -2126,6 +2174,8 @@ async function obNext1(): Promise<void> {
     st.onboarding = { ...o, working: false, error: msg(e) };
   }
   render();
+  if (isBrowser() && st.onboarding.error) root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
+  else if (isBrowser() && st.onboarding.step === 2) root.querySelector<HTMLButtonElement>('[data-act="ob-try"]')?.focus();
 }
 
 function obCommand(): string {
@@ -2256,20 +2306,29 @@ async function doHook(): Promise<void> {
   render();
 }
 
-/** Agents, Storage or Settings. Each reads its own data; a failure leaves that part empty, never the screen. */
+function pageFailure(title: string): string {
+  return `<div class="page"><div class="col"><h1>${esc(title)}</h1><div class="note bad" role="alert">${esc(st.pageError ?? "Couldn’t read local data.")}</div><div><button class="btn" data-act="page-retry">Try again</button></div></div></div>`;
+}
+
+/** A failed read stays an error, never an invented empty list. */
 async function openPage(screen: "agents" | "storage" | "settings"): Promise<void> {
   st.screen = screen;
   st.drawer = false;
+  st.pageError = null;
   if (screen === "storage") {
     st.storage = null;
     st.cleanup = null;
   }
   render();
-  if (screen === "storage") await api({ method: "storage" }).then((r) => (st.storage = r), () => (st.storage = []));
-  else if (screen === "agents") {
-    await api({ method: "agents" }).then((r) => (st.agents = r), () => (st.agents = st.agents ?? []));
-    await loadLastTurns();
-  } else await api({ method: "isolation" }).then((r) => (st.isolation = r), () => undefined);
+  try {
+    if (screen === "storage") st.storage = await api({ method: "storage" });
+    else if (screen === "agents") {
+      st.agents = await api({ method: "agents" });
+      await loadLastTurns();
+    } else st.isolation = await api({ method: "isolation" });
+  } catch (e) {
+    if (st.screen === screen) st.pageError = msg(e);
+  }
   if (st.screen === screen) render();
 }
 
@@ -2315,9 +2374,20 @@ async function cleanStore(projectId: string, apply: boolean): Promise<void> {
 }
 
 function startAdd(): void {
+  addReturn = { screen: st.screen === "onboarding" ? (project() ? "history" : "welcome") : st.screen, focus: focusKey() };
   st.onboarding = emptyOnboarding();
   st.screen = "onboarding";
   render();
+  if (isBrowser()) root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
+}
+
+function cancelAdd(): void {
+  if (st.onboarding.working || st.onboarding.trying) return;
+  st.screen = addReturn?.screen ?? (project() ? "history" : "welcome");
+  st.onboarding = emptyOnboarding();
+  render();
+  if (addReturn?.focus) root.querySelector<HTMLElement>(addReturn.focus)?.focus();
+  addReturn = null;
 }
 
 async function onClick(el: HTMLElement): Promise<void> {
@@ -2325,7 +2395,21 @@ async function onClick(el: HTMLElement): Promise<void> {
   // Any action closes an open ⋯ menu and the palette. Opening them is the only exception.
   if (d.act !== "menu") st.menu = null;
   if (d.act !== "palette") st.palette = null;
+  if (d.act !== "nav-toggle") st.navOpen = false;
   switch (d.act) {
+    case "page-retry":
+      if (st.screen === "agents" || st.screen === "storage" || st.screen === "settings") return openPage(st.screen);
+      return;
+    case "nav-toggle":
+      st.navOpen = !st.navOpen;
+      return render();
+    case "nav-close":
+      return render();
+    case "reconnect":
+      window.location.reload();
+      return;
+    case "ob-cancel":
+      return cancelAdd();
     case "menu":
       st.menu = st.menu === d.v ? null : (d.v ?? null);
       return render();
@@ -2430,22 +2514,23 @@ async function onClick(el: HTMLElement): Promise<void> {
       return runDiff();
     case "reveal":
       if (d.path) {
-        const r = await bridge.call({ method: "reveal", path: d.path });
+        const r = await bridge.call(isBrowser() ? { method: "copy", text: d.path } : { method: "reveal", path: d.path });
         if (!r.ok) toast(r.error.message);
+        else if (isBrowser()) toast("Local path copied. Open it in your editor or file manager.");
       }
       return;
     case "copy":
       if (d.text !== undefined) {
-        await bridge.call({ method: "copy", text: d.text });
-        toast("Copied.");
+        const r = await bridge.call({ method: "copy", text: d.text });
+        toast(r.ok ? "Copied." : r.error.message);
       }
       return;
     case "copy-report":
       if (d.path) {
         try {
           const text = await api({ method: "readReport", path: d.path });
-          await bridge.call({ method: "copy", text });
-          toast("Recovery report copied as Markdown.");
+          const copied = await bridge.call({ method: "copy", text });
+          toast(copied.ok ? "Recovery report copied as Markdown." : copied.error.message);
         } catch (e) {
           toast(msg(e));
         }
@@ -2560,6 +2645,7 @@ function rewindKey(e: KeyboardEvent): boolean {
     return true;
   }
   if (k === "Enter") {
+    if (e.target instanceof HTMLElement && e.target.closest("button, summary, a[href]")) return false;
     // Enter never waits for an animation. It does the main action now: Use when proven, else Try.
     flash('[data-key="enter"]');
     if (r.finding || r.trying || r.recovering || st.busy) return true;
@@ -2575,6 +2661,8 @@ function rewindKey(e: KeyboardEvent): boolean {
   }
   if (r.finding || r.trying || r.recovering || r.step === "done") return false;
   const lower = k.toLowerCase();
+  const arrow = k.startsWith("Arrow") || k === "Home" || k === "End";
+  if (arrow && !(e.target instanceof HTMLElement && e.target.classList.contains("knob"))) return false;
   const scene = r.mode === "scene";
   if (scene && (lower === "j" || k === "ArrowLeft" || k === "ArrowDown")) tvStep(e.shiftKey ? "prevChange" : "back");
   else if (scene && (lower === "l" || k === "ArrowRight" || k === "ArrowUp")) tvStep(e.shiftKey ? "nextChange" : "forward");
@@ -2608,6 +2696,9 @@ function onKey(e: KeyboardEvent): void {
       e.preventDefault();
       if (st.check && (st.check.phase === "done" || st.check.error)) st.check = null;
       else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
+      else if (st.navOpen) st.navOpen = false;
+      else if (st.drawer) st.drawer = false;
+      else if (st.askOpen) st.askOpen = false;
       render();
     }
     return;
@@ -2630,6 +2721,11 @@ function onKey(e: KeyboardEvent): void {
   if (k === "escape" && st.inspector) {
     st.inspector = false;
     render();
+    return;
+  }
+  if (k === "escape" && isBrowser() && st.screen === "onboarding" && st.onboarding.step === 1) {
+    e.preventDefault();
+    cancelAdd();
     return;
   }
   if (!typing && rewindKey(e)) {
@@ -2663,6 +2759,7 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (typing || st.screen !== "history" || st.check) return;
+  if (t instanceof HTMLButtonElement && (k === "enter" || k === " ")) return;
   const pts = points();
   const i = pts.findIndex((c) => c.id === st.selected);
   // History list is newest first, so Down goes back in time.
@@ -2732,23 +2829,31 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   document.body.append(announcer);
   const boot = await b.call({ method: "bootstrap" });
   if (!boot.ok) {
-    root.textContent = boot.error.message;
+    root.innerHTML = `<main class="launch-error"><span class="mark" aria-hidden="true"></span><h1>Can’t connect to Time Machine</h1><p role="alert">${esc(boot.error.message)}</p><p class="muted">For the local browser app, keep tm ui running in your terminal and reopen the complete local URL it printed. In the desktop app, try reopening the window.</p><button class="btn dark" id="retry-launch">Try again</button></main>`;
+    root.querySelector("#retry-launch")?.addEventListener("click", () => window.location.reload());
     return;
   }
   st = {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "history" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
     compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false,
+    navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
     askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, isolation: null, cleanup: null, hotkeyDraft: null, hotkeyActive: boot.data.hotkeyActive,
     hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
   };
   if (isMac()) document.documentElement.classList.add("mac");
-  if (!o.preview) document.documentElement.classList.add("native");
+  if (!o.preview && !isBrowser()) document.documentElement.classList.add("native");
+  if (isBrowser()) document.documentElement.classList.add("browser-runtime");
   applyTheme();
   root.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
+    if (target.classList.contains("nav-scrim")) {
+      st.navOpen = false;
+      render();
+      return;
+    }
     if (target.classList.contains("scrim") && st.check && (st.check.phase === "done" || st.check.error)) {
       st.check = null;
       render();
@@ -2769,8 +2874,17 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
       render();
     }
   });
+  root.addEventListener("submit", (e) => {
+    if (!(e.target instanceof HTMLFormElement) || e.target.dataset.form !== "local-project") return;
+    e.preventDefault();
+    void obNext1();
+  });
   root.addEventListener("input", (e) => {
     const t = e.target as HTMLInputElement;
+    if (t.dataset.model === "ob-path") {
+      st.onboarding.path = t.value;
+      return;
+    }
     if (t.dataset.model === "hotkey") {
       st.hotkeyDraft = t.value;
       return;
@@ -2797,7 +2911,33 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     void runDiff();
   });
   window.addEventListener("keydown", onKey);
-  window.addEventListener("resize", fitSessions);
+  let layoutBand = window.innerWidth < 861 ? 0 : window.innerWidth < 1100 ? 1 : 2;
+  window.addEventListener("resize", () => {
+    const band = window.innerWidth < 861 ? 0 : window.innerWidth < 1100 ? 1 : 2;
+    if (band !== layoutBand) {
+      layoutBand = band;
+      if (band !== 0) st.navOpen = false;
+      render();
+    } else fitSessions();
+  });
+  if (isBrowser()) window.addEventListener("tm:connection", (e) => {
+    const before = st.connection?.state;
+    st.connection = (e as CustomEvent<NonNullable<State["connection"]>>).detail;
+    render();
+    if (st.connection.state === "connected" && before === "disconnected") {
+      void (async () => {
+        const fresh = await bridge.call({ method: "bootstrap" });
+        if (fresh.ok) {
+          st.projects = fresh.data.projects;
+          st.settings = fresh.data.settings;
+          applyTheme();
+        }
+        await refreshStatuses();
+        if (st.projectId) await loadTimeline();
+        render();
+      })();
+    }
+  });
   // The dial: press and drag around it, or scroll over it. It moves the selection only.
   const dialTo = (e: PointerEvent): void => {
     const dial = root.querySelector<HTMLElement>(".dial");

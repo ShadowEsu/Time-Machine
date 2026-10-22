@@ -1,0 +1,4 @@
+.browser-connect { box-sizing: border-box; max-width: 42rem; margin: 12vh auto; padding: 2rem; color: #faf9f5; background: #24231f; border: 1px solid #49463e; border-radius: 1rem; line-height: 1.6; }
+.browser-connect h1 { font-family: Newsreader, Georgia, serif; font-weight: 500; line-height: 1.15; font-size: clamp(1.8rem, 5vw, 2.6rem); }
+.browser-connect p { color: #d6d3c8; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .browser-connect { margin: 2rem 1rem; padding: 1.25rem; } }

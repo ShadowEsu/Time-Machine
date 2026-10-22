@@ -5,18 +5,16 @@ import { plural, when } from "../shared/format.js";
 
 export interface Channel {
   name: string;
-  /** Two letters in a small square, instead of a third-party logo. */
-  mark: string;
   state: "working" | "idle" | "partial" | "not-connected" | "planned";
   /** One plain sentence. */
   line: string;
 }
 
 /** Agents without a connection yet. Shown as planned, never as connected. */
-export const PLANNED_AGENTS: readonly { name: string; mark: string }[] = [
-  { name: "Codex", mark: "Cx" },
-  { name: "Gemini CLI", mark: "Gm" },
-  { name: "Cursor", mark: "Cu" },
+export const PLANNED_AGENTS: readonly { name: string }[] = [
+  { name: "Codex" },
+  { name: "Gemini CLI" },
+  { name: "Cursor" },
 ];
 
 /**
@@ -24,7 +22,7 @@ export const PLANNED_AGENTS: readonly { name: string; mark: string }[] = [
  * time of its newest "agent-turn ended" audit line, when one was read.
  */
 export function claudeChannel(rows: AgentRow[], lastEnded: ReadonlyMap<string, string>, now = new Date()): Channel {
-  const base = { name: "Claude Code", mark: "CC" };
+  const base = { name: "Claude Code" };
   const working = rows.filter((r) => r.working);
   if (working.length) {
     const first = working[0];

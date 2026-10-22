@@ -4,7 +4,7 @@ Save points for your projects before AI agents act, checked with your own tests.
 
 When an AI agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check, rebuilds it in a separate copy, and prepares a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
-**Status: early.** The engine, the CLI, Claude Code hooks and the MCP server below work and are tested. The Mac app is in development. Website: https://time-machine-site.vercel.app
+**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. The Mac app remains available from source. Website: https://time-machine-site.vercel.app
 
 ## Install
 
@@ -16,6 +16,21 @@ npm install -g timetm  # then use the `tm` command
 ```
 
 Until the first npm release, build from source (below).
+
+
+## Local browser app
+
+After installing from source, run:
+
+```sh
+tm ui
+```
+
+Time Machine opens in your browser, backed by the real local engine. Add a Git project using its full folder path, or choose **Try the demo** to run the real save-check-recover loop on synthetic data. The browser is a view of your local files, not a cloud upload.
+
+The server listens only on `127.0.0.1`. Keep the terminal running and use Ctrl+C to stop it. `tm ui --no-open` prints the address without opening a browser. `tm ui --port 4388` selects a port. Use the complete address printed for the current run, which contains a private session key; do not share it or expose the port through a tunnel.
+
+The browser app has no menu-bar item, global hotkey or desktop overlay. Those remain native Mac features. Optional Ask and Vercel features use `GEMINI_API_KEY` and `VERCEL_TOKEN` from the server environment; the browser app does not write keys to a plaintext settings file. Project history stays local unless you explicitly enable an opt-in online feature.
 
 ## What works today
 
@@ -33,8 +48,9 @@ Until the first npm release, build from source (below).
 | `tm demo` | Builds a small broken project and rescues it, so you can watch the whole thing in a minute |
 | `tm hook install` | Adds Claude Code hooks: a save point before each prompt and risky command, and a check when Claude stops that tells it if a working state just broke. The hooks call `tm` when this same version is on your PATH. Otherwise they call this `tm` by its absolute path, and it prints that command. Run from `npx`, they call `npx -y timetm@<version>`, pinned to this exact version |
 | `tm mcp` | An MCP server so agents can save, check, find and recover through the same engine |
+| `tm ui [--no-open] [--port N]` | Opens the real local browser app, with projects, history, checks, comparison, recovery and live hook updates |
 
-Every command takes `--json`. Human and JSON output come from the same result.
+Engine commands take `--json`. Human and JSON output come from the same result. `tm ui` instead stays running as a local server until interrupted.
 
 ## What it does not do
 

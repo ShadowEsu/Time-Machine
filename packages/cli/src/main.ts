@@ -5,6 +5,7 @@ import { realpathSync } from "node:fs";
 import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
+import { runUi } from "./ui/server.js";
 
 export interface Io {
   cwd: string;
@@ -61,6 +62,8 @@ Usage: tm <command> [options]
   hook install          Add Claude Code hooks to .claude/settings.json
   hook <event>          Run a hook: prompt, pre-bash or stop (reads JSON on stdin)
   mcp                   Run the MCP server on stdio for AI agents
+  ui [--port N] [--no-open]
+                        Open the real local browser app; Ctrl+C stops it
 
 Options: --json   machine readable output   -h, --help   --version
 
@@ -76,6 +79,8 @@ const OPTIONS = {
   trigger: { type: "string" },
   dir: { type: "string" },
   "if-changed": { type: "boolean" },
+  port: { type: "string" },
+  "no-open": { type: "boolean" },
 } as const satisfies ParseArgsConfig["options"];
 
 const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
@@ -84,6 +89,7 @@ const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
   demo: { args: [0, 1], flags: [] },
   hook: { args: [1, 1], flags: [] },
   mcp: { args: [0, 0], flags: [] },
+  ui: { args: [0, 0], flags: ["port", "no-open"] },
   timeline: { args: [0, 0], flags: [] },
   diff: { args: [2, 2], flags: [] },
   open: { args: [1, 1], flags: ["dir"] },
@@ -116,9 +122,10 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const spec = ALLOWED[command];
     if (!spec) throw new UsageError(`Unknown command "${command}". Run tm --help.`);
     if (args.length < spec.args[0] || args.length > spec.args[1]) throw new UsageError(`Wrong number of arguments for ${command}. Run tm --help.`);
-    for (const flag of ["message", "trigger", "dir", "if-changed"] as const) {
+    for (const flag of ["message", "trigger", "dir", "if-changed", "port", "no-open"] as const) {
       if (values[flag] !== undefined && !spec.flags.includes(flag)) throw new UsageError(`--${flag} does not apply to ${command}.`);
     }
+    if (command === "ui" && values.json) throw new UsageError("--json does not apply to ui.");
 
     const ctx: tm.Ctx = { cwd: io.cwd, env: io.env };
     const style = makeStyle(io.isTTY && !io.env.NO_COLOR);
@@ -127,6 +134,11 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 
     switch (command) {
+      case "ui": {
+        const port = values.port;
+        if (port !== undefined && (!/^[1-9]\d{0,4}$/.test(port) || Number(port) > 65535)) throw new UsageError("--port must be an integer between 1 and 65535.");
+        return await runUi(io, { open: values["no-open"] !== true, ...(port !== undefined ? { port: Number(port) } : {}) });
+      }
       case "init": {
         const r = await tm.init(ctx);
         print(r, fmtInit(r));
