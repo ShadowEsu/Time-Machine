@@ -58,7 +58,10 @@ export function runWithTimeout(
       timedOut = true;
       killGroup();
     }, Math.max(1, opts.timeoutMs));
+    // Once the command has exited, its exit code is the result: a late Stop or timeout must not replace it.
+    let exited = false;
     const stop = (): void => {
+      if (exited) return;
       stopped = true;
       killGroup();
     };
@@ -74,6 +77,8 @@ export function runWithTimeout(
     };
     child.on("error", (e) => settle({ code: 127, signal: null, spawnError: e.message }));
     child.on("exit", (code, signal) => {
+      exited = true;
+      clearTimeout(timer);
       killGroup();
       // Give the pipes a moment to drain, then stop waiting on anything that escaped the group.
       const grace = setTimeout(() => {

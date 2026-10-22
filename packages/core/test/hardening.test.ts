@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
+import { runWithTimeout } from "../src/exec.ts";
 import { FAKE_SECRET, git, write } from "../../../fixtures/demo/build.ts";
 import { setupDemo, tempDir, writeConfig } from "../../../fixtures/demo/setup.ts";
 
@@ -163,6 +164,12 @@ describe("security review fixes", () => {
     expect((await tm.timeline(ctx)).checkpoints.find((c) => c.id === "cp-0003")?.verdict).toBe("PASS");
     const f = await tm.findGood(ctx, { signal: stopSoon() });
     expect(f).toMatchObject({ verdict: "INCOMPLETE", found: null, stopped: true, tried: [] });
+  });
+
+  test("H16 a Stop that lands after the check exited keeps the real exit code", async () => {
+    // The command exits at once but leaves a detached child holding the pipes, so the result waits for the grace period.
+    const r = await runWithTimeout("/bin/sh", ["-c", "perl -MPOSIX -e 'setsid(); sleep 2' & sleep 0.1; exit 1"], { cwd: tempDir("late-stop"), env: process.env, timeoutMs: 10_000, signal: AbortSignal.timeout(220) });
+    expect(r).toMatchObject({ code: 1, stopped: false, timedOut: false });
   });
 
   test("H14 setup and check keep proxy and certificate settings, and a failed setup is INCOMPLETE", async () => {
