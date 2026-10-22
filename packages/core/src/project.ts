@@ -15,11 +15,16 @@ export interface Project {
   store: string;
 }
 
+/** The top folder of the Git repository that contains ctx.cwd, or null outside one. */
+export function gitRoot(ctx: Ctx): string | null {
+  const r = gitTry(ctx.cwd, ctx.env ?? process.env, ["rev-parse", "--show-toplevel"]);
+  return r.code === 0 ? realpathSync(r.stdout.trim()) : null;
+}
+
 export function resolveProject(ctx: Ctx): Project {
   const env = ctx.env ?? process.env;
-  const r = gitTry(ctx.cwd, env, ["rev-parse", "--show-toplevel"]);
-  if (r.code !== 0) throw new TmError("not_found", "This folder is not inside a Git repository. Run git init and make a first commit, then try again.");
-  const root = realpathSync(r.stdout.trim());
+  const root = gitRoot(ctx);
+  if (root === null) throw new TmError("not_found", "This folder is not inside a Git repository. Run git init and make a first commit, then try again.");
   const home = resolve(ctx.cwd, ctx.tmHome ?? env.TM_HOME ?? join(homedir(), ".timemachine"));
   if (isInside(root, home)) throw new TmError("usage", `The Time Machine store (${home}) is inside the project. Point TM_HOME somewhere outside it.`);
   const key = createHash("sha256").update(root).digest("hex").slice(0, 16);

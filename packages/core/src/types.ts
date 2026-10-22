@@ -59,6 +59,8 @@ export interface InitResult {
   verifySetup: string;
   network: "allow" | "deny";
   sandbox: string | null;
+  /** The command this computer trusts the Claude Code plugin and MCP tools to run (setup, then the check), or null when it is not approved (tm init --no-approve). */
+  approvedCheck: string | null;
 }
 
 export interface SetCheckResult {
@@ -152,6 +154,8 @@ export interface HookResult {
   checkpoint: string | null;
   verdict: Verdict | null;
   message: string;
+  /** Shown to the user, never to Claude: the CLI prints it as Claude Code hook JSON `{"systemMessage": ...}` on stdout. */
+  systemMessage?: string;
 }
 
 export interface HookInstallResult {

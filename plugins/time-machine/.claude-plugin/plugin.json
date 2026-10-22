@@ -1,0 +1,14 @@
+{
+  "name": "time-machine",
+  "displayName": "Time Machine",
+  "version": "0.1.0",
+  "description": "Save points for your project, checked with your own tests. Saves before each prompt and risky shell command, and checks your tests when Claude stops. Acts only in projects where you approved the check with tm init on this computer. Needs the tm CLI on PATH.",
+  "author": {
+    "name": "Preston Susanto",
+    "email": "preston@unvibe.site"
+  },
+  "homepage": "https://time-machine-site.vercel.app",
+  "repository": "https://github.com/ShadowEsu/Time-Machine",
+  "license": "MIT",
+  "keywords": ["checkpoints", "undo", "recovery", "tests", "git"]
+}

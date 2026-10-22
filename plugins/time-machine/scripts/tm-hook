@@ -1,0 +1,50 @@
+#!/bin/sh
+# Time Machine plugin entry point: tm-hook prompt|pre-bash|stop|mcp
+#
+# Runs the tm on PATH only after checking that it is Time Machine: the first line of its
+# `tm --help` must be MARKER. The check runs once per resolved tm path and modification time,
+# with no stdin, and the answer is cached under ${TM_HOME:-$HOME/.timemachine}. When tm is
+# missing or is another program, it exits 0 with no output, so the hook never blocks Claude Code
+# and that program never sees the hook input.
+MARKER='tm: save points for your project, checked with your own tests.'
+
+case "$1" in
+  prompt|pre-bash|stop|mcp) ;;
+  *) exit 0 ;;
+esac
+
+tm=$(command -v tm 2>/dev/null) || exit 0
+case "$tm" in
+  /*) ;;
+  *) exit 0 ;; # an alias or a shell function, not a program
+esac
+real=$(realpath "$tm" 2>/dev/null || readlink -f "$tm" 2>/dev/null || printf '%s\n' "$tm")
+mtime=$(stat -c %Y "$real" 2>/dev/null || stat -f %m "$real" 2>/dev/null) || exit 0
+key="$mtime $real"
+cache_dir=${TM_HOME:-$HOME/.timemachine}
+cache="$cache_dir/plugin-tm-check"
+seen=$(cat "$cache" 2>/dev/null)
+
+if [ "$seen" = "no $key" ]; then
+  exit 0
+elif [ "$seen" != "ok $key" ]; then
+  probe=$(mktemp "${TMPDIR:-/tmp}/tm-hook.XXXXXX") || exit 0
+  "$tm" --help </dev/null >"$probe" 2>/dev/null &
+  pid=$!
+  # A program that hangs on --help is stopped after 10 seconds.
+  (sleep 10 && kill "$pid") >/dev/null 2>&1 &
+  timer=$!
+  wait "$pid"
+  status=$?
+  { kill "$timer" && wait "$timer"; } 2>/dev/null
+  first=$(sed -n 1p "$probe")
+  rm -f "$probe"
+  # Stopped by the timer: too slow to tell. Ask again next time rather than remember a guess.
+  [ "$status" -gt 128 ] && exit 0
+  if [ "$status" -eq 0 ] && [ "$first" = "$MARKER" ]; then verdict=ok; else verdict=no; fi
+  mkdir -p "$cache_dir" 2>/dev/null && printf '%s %s\n' "$verdict" "$key" >"$cache.$$" 2>/dev/null && mv -f "$cache.$$" "$cache" 2>/dev/null
+  [ "$verdict" = ok ] || exit 0
+fi
+
+[ "$1" = mcp ] && exec "$tm" mcp
+exec "$tm" hook "$1" --if-initialized

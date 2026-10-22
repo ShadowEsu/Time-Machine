@@ -7,8 +7,9 @@ import { z } from "zod";
 import { audit } from "./audit.js";
 import { checkpoint } from "./checkpoint.js";
 import { TmError } from "./errors.js";
-import { loadConfig } from "./config.js";
-import { resolveProject, type Project } from "./project.js";
+import { CONFIG_FILE, loadConfig } from "./config.js";
+import { changedWarningDue, consentState } from "./consent.js";
+import { gitRoot, resolveProject, type Project } from "./project.js";
 import { clipSafe, holdsSecretValue } from "./secrets.js";
 import type { Ctx, HookEvent, HookInstallResult, HookResult } from "./types.js";
 import { secretValues, verify } from "./verify.js";
@@ -76,15 +77,63 @@ function screened(p: Project, text: string): string {
   return holdsSecretValue(text, secretValues([p.root], loadConfig(p.root).config)) ? "(text hidden: it contained a secret value from this project)" : text;
 }
 
+const CLAUDE_EVENT: Record<HookEvent, string> = { prompt: "UserPromptSubmit", "pre-bash": "PreToolUse", stop: "Stop" };
+
+/** True when the project's own .claude settings already run this Time Machine hook (from tm hook install). Unreadable files count as no hook. */
+function hasOwnHook(root: string, event: HookEvent): boolean {
+  return ["settings.json", "settings.local.json"].some((file) => {
+    try {
+      const r = SettingsSchema.safeParse(JSON.parse(readFileSync(join(root, ".claude", file), "utf8")));
+      const groups = r.success ? (r.data.hooks?.[CLAUDE_EVENT[event]] ?? []) : [];
+      return groups.some((g) => g.hooks.some((h) => h.command !== undefined && installedCommand.test(h.command) && h.command.endsWith(` hook ${event}`)));
+    } catch {
+      return false;
+    }
+  });
+}
+
+const CHECK_CHANGED = "Time Machine: the check in timemachine.yml changed; run tm init to approve it.";
+
+/**
+ * Why a plugin hook (requireConfig) stays out, or null when it should act. It acts only when ctx.cwd
+ * is in a Git repository whose root has timemachine.yml, this computer approved that exact check
+ * with tm init, and the project has no hook of its own for this event. Returns "" to stay silent, or,
+ * for a prompt only, a one-time notice for the user when the check changed after it was approved.
+ * Never throws.
+ */
+function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
+  try {
+    const root = gitRoot(ctx);
+    if (root === null || !existsSync(join(root, CONFIG_FILE)) || hasOwnHook(root, event)) return "";
+    const p = resolveProject(ctx);
+    const { config } = loadConfig(p.root);
+    const state = consentState(p, config);
+    if (state === "approved") return null;
+    // The notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
+    // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent, as does pre-bash.
+    return state === "changed" && event === "prompt" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Runs one hook. Never throws and never blocks the agent because of its own errors.
  * Only "stop" can return exit 2, to tell the agent a working state just broke.
+ * With requireConfig (the Claude Code plugin, whose hooks fire in every folder) it does nothing unless
+ * the user approved this project's check with tm init on this computer: no save point, no check, no
+ * audit line, no store. It also steps aside when the project's own tm hook install hooks run this event,
+ * so nothing saves twice.
  */
-export async function runHook(ctx: Ctx, event: HookEvent, input: unknown): Promise<HookResult> {
+export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: { requireConfig?: boolean } = {}): Promise<HookResult> {
   try {
     const parsed = HookInputSchema.safeParse(input);
     const data = parsed.success ? parsed.data : {};
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
+    if (opts.requireConfig) {
+      const skip = pluginSkip(c, event);
+      if (skip !== null) return skip ? { ...none(event), systemMessage: skip } : none(event);
+    }
     const p = resolveProject(c);
     const turnFile = join(p.store, TURN_FILE);
     if (event === "prompt") {

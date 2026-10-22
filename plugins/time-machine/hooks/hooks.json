@@ -1,0 +1,27 @@
+{
+  "description": "Time Machine save points. scripts/tm-hook runs tm only when it is Time Machine and exits 0 silently otherwise; tm acts only in projects whose check was approved with tm init on this computer.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/tm-hook\" prompt", "timeout": 30 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/tm-hook\" pre-bash", "timeout": 30 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/tm-hook\" stop", "timeout": 600, "asyncRewake": true }
+        ]
+      }
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { audit } from "./audit.js";
 import { onInterrupt } from "./cleanup.js";
 import { loadConfig, type ProjectConfig } from "./config.js";
+import { checkCommand } from "./consent.js";
 import { TmError } from "./errors.js";
 import { runWithTimeout, type TimedResult } from "./exec.js";
 import { materialize, removeWorktree } from "./materialize.js";
@@ -66,7 +67,7 @@ export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): P
   const started = Date.now();
   const policy = cfg.verify.network;
   const sandbox = policy === "deny" ? detectSandbox(p.env) : null;
-  const command = cfg.verify.setup ? `${cfg.verify.setup} && ${cfg.verify.command}` : cfg.verify.command;
+  const command = checkCommand(cfg);
 
   const finish = (verdict: Verdict, reason: string, exitCode: number | null = null, log: string | null = null): VerifyResult => {
     const r: VerifyResult = {

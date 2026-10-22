@@ -62,6 +62,9 @@ try {
     win.setContentSize(960, 640);
     return size;
   });
+  // setContentSize returns before the renderer relays out; PageDown on the old layout scrolls nothing.
+  await page.waitForFunction(() => innerWidth === 960 && innerHeight === 640);
+  await page.waitForFunction(() => { const r = document.querySelector(".tv-read"); return !!r && r.scrollHeight > r.clientHeight; });
   await page.locator(".tv-read").focus();
   assert(await page.locator(".tv-read").evaluate(el => el === document.activeElement), "Recovery limits must be keyboard-focusable");
   await page.keyboard.press("PageDown");

@@ -40,12 +40,23 @@ Go to your project folder and run:
 
 ```sh
 cd path/to/your-project
+tm init --no-approve
+```
+
+`tm init --no-approve` writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`), or keeps the one the project already has. Open the file and confirm the check is the command that tells you the project works, and that `verify.setup`, `verify.command` and `verify.network` are safe to run on this computer. Then approve it:
+
+```sh
 tm init
 ```
 
-`tm init` writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`). Open the file and confirm the check is the command that tells you the project works.
+`tm init` keeps the file as it is and records your approval outside the project. The Claude Code plugin and the MCP `verify` and `find_good` tools run only a check you approved. If the check changes later, run `tm init` again after you have read it.
 
-Optional, for Claude Code: `tm hook install` adds hooks to `.claude/settings.json` so Time Machine saves before each prompt and before risky shell commands. It changes a settings file, so ask before you run it.
+Optional, for Claude Code, pick one of these two:
+
+- **The Claude Code plugin.** In Claude Code, run `/plugin marketplace add ShadowEsu/Time-Machine`, then `/plugin install time-machine@time-machine`. No account is needed. `tm` from step 1 must be installed. It adds the hooks and the MCP server for every project, but they act only in projects where you ran `tm init` on this computer. `tm init` approves the check in `timemachine.yml`; a `timemachine.yml` that came with a cloned repo is not enough. If the check changes later, the hooks stop and ask you to run `tm init` again, which keeps your file and approves the new check. The hooks do nothing when `tm` is not on your PATH, or when the `tm` on your PATH is not Time Machine.
+- **Hooks for this project only.** `tm hook install` adds hooks to `.claude/settings.json` so Time Machine saves before each prompt and before risky shell commands. It changes a settings file, so ask before you run it.
+
+If a project also has hooks from `tm hook install`, the plugin steps aside there, so nothing saves twice.
 
 ## 4. Open the app in your browser
 
