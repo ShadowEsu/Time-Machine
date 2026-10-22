@@ -1,6 +1,6 @@
-/* The Pay once button. Reads /api/health first: while checkout is closed the button says so and
-   nothing is for sale. A click asks /api/checkout for a Stripe URL and goes there.
-   No price, key or card detail ever passes through this page. */
+/* The Pay once button. Reads /api/health first (the request checkout.js already made): while checkout
+   is closed the button is disabled and says so, and nothing is for sale. A click asks /api/checkout for
+   a Stripe URL and goes there. No price, key or card detail ever passes through this page. */
 (function () {
   "use strict";
 
@@ -34,12 +34,14 @@
 
   function closed() {
     button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
     button.textContent = "Checkout opens soon";
     say(MSG.soon);
   }
 
   function open() {
     button.disabled = false;
+    button.removeAttribute("aria-disabled");
     button.textContent = label;
   }
 
@@ -48,11 +50,10 @@
     say(text, { text: CONTACT, href: "mailto:" + CONTACT + "?subject=" + encodeURIComponent("Time Machine web app") });
   }
 
-  if (location.protocol === "file:") return closed();
+  if (location.protocol === "file:" || !window.tmHealth) return closed();
 
-  fetch(api("health"), { headers: { Accept: "application/json" }, credentials: "same-origin" })
-    .then(function (res) { return res.ok ? res.json() : null; })
-    .then(function (h) { if (h && h.checkout === false) closed(); else open(); }, open);
+  // A failed or unreadable answer leaves the button enabled, so a click can say what went wrong.
+  window.tmHealth.then(function (h) { if (h && h.checkout === false) closed(); else open(); });
 
   button.addEventListener("click", function () {
     if (button.disabled) return;

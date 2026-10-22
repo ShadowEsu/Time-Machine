@@ -185,7 +185,8 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 
 /* Header, the same on every page. Markup:
    header.top > .wrap.top-in > a.brand (img + name), nav.nav (How it works, Security, The story, Company),
-   a.top-signin (Sign in), a.btn.btn-ghost.btn-sm.top-cta. Mark the current page's link with aria-current="page". */
+   a.top-signin[data-checkout-open][hidden] (Sign in), a.btn.btn-ghost.btn-sm.top-cta. Mark the current page's link with aria-current="page".
+   Every page loads assets/checkout.js, which shows Sign in once checkout is open. */
 .top {
   position: sticky; top: 0; z-index: 50;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
@@ -200,16 +201,18 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 }
 .nav a:active { background: var(--mist); color: var(--ink); }
 .nav a[aria-current="page"] { color: var(--ink); background: var(--mist); }
-/* Sign in: a quiet text link before the button, a full 44 px target at every width. */
+/* Sign in: a quiet text link before the button, a full 44 px target at every width. It ships hidden and
+   checkout.js shows it only once checkout is open, so the closed state needs no script. */
 .top-signin { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-radius: 999px; color: var(--ink-2); font-size: 14.5px; text-decoration: none; transition: background .2s, color .2s; }
 @media (hover: hover) and (pointer: fine) { .top-signin:hover { background: var(--mist); color: var(--ink); } }
 .top-signin[aria-current="page"] { color: var(--ink); }
+.top-signin[hidden] { display: none; }
 .top-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none; }
 .top-progress i { display: block; height: 100%; background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); opacity: .6; }
-/* Narrower screens: two rows, brand, Sign in and button, then the four links. Not sticky, so stories get the full screen. */
+/* Narrower screens: two rows, brand, Sign in (when shown) and button, then the four links. Not sticky, so stories get the full screen. */
 @media (max-width: 860px) {
   .top { position: relative; }
-  .top-in { flex-wrap: wrap; padding-top: 6px; padding-bottom: 2px; }
+  .top-in { flex-wrap: wrap; row-gap: 0; padding-top: 6px; padding-bottom: 2px; }
   .nav { order: 3; width: 100%; justify-content: space-between; margin: 0 -10px; width: calc(100% + 20px); font-size: 14px; }
   .nav a { padding: 0 10px; }
   .top-progress { display: none; }
@@ -261,6 +264,7 @@ time, .num { font-variant-numeric: tabular-nums; }
 .pill-works { background: var(--works-bg); color: var(--works-fg); }
 .pill-broken { background: var(--broken-bg); color: var(--broken-fg); }
 .pill-none { box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
+.pill-couldnt { background: var(--couldnt-bg); color: var(--couldnt-fg); }
 .pill-none::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
 
 /* Waitlist form, shared. Markup contract:
