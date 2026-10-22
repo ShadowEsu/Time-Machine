@@ -133,12 +133,15 @@ describe("plugin hooks need consent pinned to the check", () => {
     expect(ran(marker)).toBe("ran");
   });
 
-  test("a check changed after consent runs nothing, warns once, and runs again after tm init", async () => {
+  test("a check changed after consent runs nothing, tells the user once on a prompt, and runs again after tm init", async () => {
     const { dir, ctx, marker, setCheck } = markerRepo();
     await tm.init(ctx);
     const changed = setCheck("changed");
-    const first = await tm.runHook(ctx, "stop", { cwd: dir }, guarded);
-    expect(first).toEqual({ event: "stop", exitCode: 0, checkpoint: null, verdict: null, message: CHANGED });
+    for (const event of ["stop", "pre-bash"] as const) {
+      expect(await tm.runHook(ctx, event, { cwd: dir, ...bash }, guarded)).toEqual({ event, exitCode: 0, checkpoint: null, verdict: null, message: "" });
+    }
+    const first = await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" }, guarded);
+    expect(first).toEqual({ event: "prompt", exitCode: 0, checkpoint: null, verdict: null, message: "", systemMessage: CHANGED });
     for (const event of ["prompt", "pre-bash", "stop"] as const) {
       expect(await tm.runHook(ctx, event, { cwd: dir, prompt: "x", ...bash }, guarded)).toEqual({ event, exitCode: 0, checkpoint: null, verdict: null, message: "" });
     }

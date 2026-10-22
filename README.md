@@ -69,9 +69,9 @@ With `tm` installed (see above), add Time Machine to Claude Code from this repo,
 
 The plugin brings the Claude Code hooks, the MCP server and a `/time-machine:setup` skill that runs `tm init` with you. Its hooks run in every Claude Code session, but they act only in projects where you ran `tm init` on this computer. A `timemachine.yml` that came with a cloned repo is not enough: `tm init` approves the project's check (`verify.setup` and `verify.command`) and records that approval in your Time Machine store, outside the project. Everywhere else, and when `tm` is not on your PATH, the hooks do nothing.
 
-If the check changes after you approved it, for example after a `git pull`, the hooks stop and say so once: "Time Machine: the check in timemachine.yml changed; run tm init to approve it." Running `tm init` again keeps your file as it is and approves the new check. The MCP tools `verify` and `find_good` need the same approval, and name the command they run.
+If the check changes after you approved it, for example after a `git pull`, the hooks stop. On your next prompt Claude Code shows you, once: "Time Machine: the check in timemachine.yml changed; run tm init to approve it." Running `tm init` again keeps your file as it is and approves the new check. The MCP tools `verify` and `find_good` need the same approval, and name the command they run.
 
-The hooks and the MCP server go through `bin/tm-hook` in the plugin. It runs `tm` only after checking that the `tm` on your PATH is Time Machine: the first line of `tm --help` must read "tm: save points for your project, checked with your own tests." Another program named `tm` never sees your prompts.
+The hooks and the MCP server go through `scripts/tm-hook` in the plugin. It runs `tm` only after checking that the `tm` on your PATH is Time Machine: the first line of `tm --help` must read "tm: save points for your project, checked with your own tests." Another program named `tm` never sees your prompts.
 
 If a project also has hooks from `tm hook install`, the plugin steps aside there, so nothing saves twice.
 
@@ -118,7 +118,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 345 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 346 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Mac app | Notebook history, Rewind dial with undo, Compare, agent channels, overlays, opt-in Ask and read-only Vercel deploy links. Native macOS smoke exercised real-engine recovery and the non-focusing corner card | Built from source; not signed or shipped |
 | Website | Static site in `site/` with a waitlist, personal referral links and anonymous funnel counts. Public at https://time-machine-site.vercel.app | Live; waitlist saves once Supabase is set up |

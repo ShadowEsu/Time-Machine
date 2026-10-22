@@ -97,8 +97,9 @@ const CHECK_CHANGED = "Time Machine: the check in timemachine.yml changed; run t
 /**
  * Why a plugin hook (requireConfig) stays out, or null when it should act. It acts only when ctx.cwd
  * is in a Git repository whose root has timemachine.yml, this computer approved that exact check
- * with tm init, and the project has no hook of its own for this event. Returns "" to stay silent,
- * or a one-time warning when the check changed after it was approved. Never throws.
+ * with tm init, and the project has no hook of its own for this event. Returns "" to stay silent, or,
+ * for a prompt only, a one-time notice for the user when the check changed after it was approved.
+ * Never throws.
  */
 function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
   try {
@@ -108,7 +109,9 @@ function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
     const { config } = loadConfig(p.root);
     const state = consentState(p, config);
     if (state === "approved") return null;
-    return state === "changed" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
+    // The notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
+    // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent, as does pre-bash.
+    return state === "changed" && event === "prompt" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
   } catch {
     return "";
   }
@@ -129,7 +132,7 @@ export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: 
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
     if (opts.requireConfig) {
       const skip = pluginSkip(c, event);
-      if (skip !== null) return none(event, skip);
+      if (skip !== null) return skip ? { ...none(event), systemMessage: skip } : none(event);
     }
     const p = resolveProject(c);
     const turnFile = join(p.store, TURN_FILE);

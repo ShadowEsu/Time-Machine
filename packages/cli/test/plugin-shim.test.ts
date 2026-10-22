@@ -1,4 +1,4 @@
-// The plugin's hooks and MCP server go through bin/tm-hook. It runs the tm on PATH only after checking
+// The plugin's hooks and MCP server go through scripts/tm-hook. It runs the tm on PATH only after checking
 // that it is Time Machine, so another program named tm never receives a prompt.
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { tempDir } from "../../../fixtures/demo/setup.ts";
 import { main } from "../src/main.ts";
 
 const PLUGIN = resolve(import.meta.dirname, "../../../plugins/time-machine");
-const SHIM = join(PLUGIN, "bin", "tm-hook");
+const SHIM = join(PLUGIN, "scripts", "tm-hook");
 const input = JSON.stringify({ cwd: "/nowhere", prompt: "secret plans" });
 
 async function helpText(): Promise<string> {
@@ -42,7 +42,7 @@ function shim(env: { bin: string; dir: string }, arg: string): { code: number | 
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
 
-describe("plugin bin/tm-hook", () => {
+describe("plugin scripts/tm-hook", () => {
   test("a tm that is not Time Machine never gets the hook input, and is asked only once", () => {
     const f = fakeTm("tm: a tiny task manager\n");
     expect(shim(f, "prompt")).toEqual({ code: 0, out: "", err: "" });
@@ -84,10 +84,16 @@ describe("plugin bin/tm-hook", () => {
     const f = fakeTm(await helpText());
     for (const [event, arg] of [["UserPromptSubmit", "prompt"], ["PreToolUse", "pre-bash"], ["Stop", "stop"]] as const) {
       const command = hooks[event]?.[0]?.hooks[0]?.command ?? "";
-      expect(command).toBe(`"\${CLAUDE_PLUGIN_ROOT}/bin/tm-hook" ${arg}`);
+      expect(command).toBe(`"\${CLAUDE_PLUGIN_ROOT}/scripts/tm-hook" ${arg}`);
       const r = spawnSync("/bin/bash", ["-c", command], { input, encoding: "utf8", env: { PATH: `${f.bin}:/usr/bin:/bin`, HOME: f.dir, TM_HOME: join(f.dir, "tmhome"), CLAUDE_PLUGIN_ROOT: PLUGIN } });
       expect(r.status).toBe(arg === "stop" ? 2 : 0);
     }
     expect(f.calls()).toEqual(["--help", "hook prompt --if-initialized", "hook pre-bash --if-initialized", "hook stop --if-initialized"]);
+  });
+
+  test("the MCP server runs through the shim, and the plugin has no top-level bin/ (it would join Claude's Bash PATH)", () => {
+    const Mcp = z.object({ mcpServers: z.record(z.string(), z.object({ command: z.string(), args: z.array(z.string()) })) });
+    expect(Mcp.parse(JSON.parse(readFileSync(join(PLUGIN, ".mcp.json"), "utf8"))).mcpServers.timemachine).toEqual({ command: "${CLAUDE_PLUGIN_ROOT}/scripts/tm-hook", args: ["mcp"] });
+    expect(existsSync(join(PLUGIN, "bin"))).toBe(false);
   });
 });

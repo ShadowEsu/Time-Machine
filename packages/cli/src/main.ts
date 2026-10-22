@@ -209,6 +209,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
         }
         const r = await tm.runHook(ctx, event, input, { requireConfig: values["if-initialized"] === true });
         if (json) io.stdout(`${JSON.stringify(r)}\n`);
+        else if (r.systemMessage) io.stdout(`${JSON.stringify({ systemMessage: r.systemMessage })}\n`);
         if (r.message) io.stderr(`${r.message}\n`);
         return r.exitCode;
       }

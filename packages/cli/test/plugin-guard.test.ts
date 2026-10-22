@@ -51,14 +51,16 @@ describe("tm hook --if-initialized", () => {
     expect(r.code).toBe(0);
   });
 
-  test("a check changed after tm init prints one line on stderr, once", async () => {
+  test("a check changed after tm init: the prompt hook tells the user once with systemMessage JSON, stop stays silent", async () => {
     const { dir, env } = folder(true);
     writeConfig(dir);
     await run(dir, env, ["init"]);
     writeConfig(dir, { command: "npm test" });
-    const input = JSON.stringify({ cwd: dir });
-    expect(await run(dir, env, ["hook", "stop", "--if-initialized"], input)).toEqual({ code: 0, out: "", err: "Time Machine: the check in timemachine.yml changed; run tm init to approve it.\n" });
-    expect(await run(dir, env, ["hook", "stop", "--if-initialized"], input)).toEqual({ code: 0, out: "", err: "" });
+    const input = JSON.stringify({ cwd: dir, prompt: "x" });
+    const silent = { code: 0, out: "", err: "" };
+    expect(await run(dir, env, ["hook", "stop", "--if-initialized"], input)).toEqual(silent);
+    expect(await run(dir, env, ["hook", "prompt", "--if-initialized"], input)).toEqual({ code: 0, out: '{"systemMessage":"Time Machine: the check in timemachine.yml changed; run tm init to approve it."}\n', err: "" });
+    expect(await run(dir, env, ["hook", "prompt", "--if-initialized"], input)).toEqual(silent);
   });
 
   test("outside any Git repo it exits 0 and prints nothing", async () => {

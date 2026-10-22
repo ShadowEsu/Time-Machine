@@ -154,6 +154,8 @@ export interface HookResult {
   checkpoint: string | null;
   verdict: Verdict | null;
   message: string;
+  /** Shown to the user, never to Claude: the CLI prints it as Claude Code hook JSON `{"systemMessage": ...}` on stdout. */
+  systemMessage?: string;
 }
 
 export interface HookInstallResult {
