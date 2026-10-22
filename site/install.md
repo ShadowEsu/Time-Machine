@@ -47,7 +47,7 @@ tm init
 
 Optional, for Claude Code, pick one of these two:
 
-- **The Claude Code plugin.** In Claude Code, run `/plugin marketplace add ShadowEsu/Time-Machine`, then `/plugin install time-machine@time-machine`. No account is needed. It adds the hooks and the MCP server for every project, but the hooks act only in projects with `timemachine.yml`, and do nothing when `tm` is not on your PATH. `tm` from step 1 must be installed.
+- **The Claude Code plugin.** In Claude Code, run `/plugin marketplace add ShadowEsu/Time-Machine`, then `/plugin install time-machine@time-machine`. No account is needed. `tm` from step 1 must be installed. It adds the hooks and the MCP server for every project, but they act only in projects where you ran `tm init` on this computer. `tm init` approves the check in `timemachine.yml`; a `timemachine.yml` that came with a cloned repo is not enough. If the check changes later, the hooks stop and ask you to run `tm init` again, which keeps your file and approves the new check. The hooks do nothing when `tm` is not on your PATH, or when the `tm` on your PATH is not Time Machine.
 - **Hooks for this project only.** `tm hook install` adds hooks to `.claude/settings.json` so Time Machine saves before each prompt and before risky shell commands. It changes a settings file, so ask before you run it.
 
 If a project also has hooks from `tm hook install`, the plugin steps aside there, so nothing saves twice.

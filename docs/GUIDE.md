@@ -161,7 +161,7 @@ Every command takes `--json`. The JSON and the human output come from the same r
 
 | Command | What it does |
 |---|---|
-| `tm init` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. |
+| `tm init` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. Approves the current check on this computer for the Claude Code plugin and the MCP `verify` and `find_good` tools. Run it again to approve a changed check. |
 | `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. |
 | `tm timeline` | Lists save points, newest first, with verdicts. |
 | `tm diff <a> <b>` | Compares code, files, config keys, dependencies and environment. |
@@ -172,7 +172,7 @@ Every command takes `--json`. The JSON and the human output come from the same r
 | `tm log` | Shows the append-only audit log. |
 | `tm demo [dir]` | Builds the Marigold Tips demo and runs the rescue. |
 | `tm hook install` | Adds Claude Code hooks to `.claude/settings.json`. |
-| `tm hook <prompt\|pre-bash\|stop> [--if-initialized]` | What the hooks call. Reads hook JSON on stdin. `--if-initialized` does nothing, silently, unless the project has `timemachine.yml`. The Claude Code plugin uses it. |
+| `tm hook <prompt\|pre-bash\|stop> [--if-initialized]` | What the hooks call. Reads hook JSON on stdin. `--if-initialized` does nothing, silently, unless this computer approved the project's check with `tm init`. The Claude Code plugin uses it. |
 | `tm mcp` | Runs an MCP server over stdio. |
 
 `checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`. A trigger that starts with `claude-code` is refused with a usage error (exit code 64), because only the hooks (`tm hook`) can mark a save point as made by Claude Code.
@@ -302,7 +302,12 @@ Instead of `tm hook install`, you can add the Time Machine plugin to Claude Code
 /plugin install time-machine@time-machine
 ```
 
-It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`: they act only in a project with `timemachine.yml`, and do nothing when `tm` is missing. If a project also has hooks from `tm hook install` in `.claude/settings.json` or `.claude/settings.local.json`, the plugin steps aside there, so nothing saves twice.
+It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`, which acts only where you approved the check:
+
+- **A `timemachine.yml` alone is not consent.** A cloned repo can ship one. `tm init` (or setting the check in the app) records `consent.json` in the project's store, `~/.timemachine/projects/<id>/`, outside the repo: a SHA-256 hash of `verify.setup` and `verify.command`. All three hooks need it, because save points copy files like `.env` and Stop runs the check.
+- **A changed check stops the hooks.** When `verify.setup` or `verify.command` no longer matches the approval, the hooks save nothing and run nothing, and print once: "Time Machine: the check in timemachine.yml changed; run tm init to approve it." `tm init` keeps the file as it is, approves the new check and prints it on the `Approved` line.
+- **Only Time Machine's `tm` runs.** The hooks and the MCP server call `bin/tm-hook` in the plugin. It checks once per `tm` path and modification time that the first line of `tm --help` is "tm: save points for your project, checked with your own tests.", with no stdin and a 10 second limit, and caches the answer in `~/.timemachine/plugin-tm-check`. Otherwise, or when `tm` is missing, it exits 0 with no output.
+- **No double saves.** If a project also has hooks from `tm hook install` in `.claude/settings.json` or `.claude/settings.local.json`, the plugin steps aside there.
 
 ### MCP server
 
@@ -310,7 +315,7 @@ It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:s
 claude mcp add timemachine -- tm mcp
 ```
 
-`tm mcp` runs over stdio and offers these tools: `checkpoint`, `timeline`, `diff`, `verify`, `find_good`, `recover` and `log`. They call the same engine as the CLI, so the answers match.
+`tm mcp` runs over stdio and offers these tools: `checkpoint`, `timeline`, `diff`, `verify`, `find_good`, `recover` and `log`. They call the same engine as the CLI, so the answers match. `verify` and `find_good` run the project's check, so they refuse with "Run tm init in this project to approve its check first." until `tm init` approved it on this computer. Their description and result name the command they run.
 
 ## 10. Safety promises
 
