@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Security. Time Machine</title>
-<meta name="description" content="Time Machine is local first. Save points stay on your machine, secret values are never stored, checks run in a separate copy with the network off when a sandbox exists, and nothing is pushed, merged or deployed. Plus our honest limits.">
+<meta name="description" content="Time Machine is local first. Save points stay on your machine, secret values from config files like .env are never stored, checks run in a separate copy with the network off when a sandbox exists, and nothing is pushed, merged or deployed. Plus our honest limits.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1a1918">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Time Machine">
 <meta property="og:title" content="Security. Time Machine">
-<meta property="og:description" content="Time Machine is local first. Save points stay on your machine, secret values are never stored, checks run in a separate copy with the network off when a sandbox exists, and nothing is pushed, merged or deployed. Plus our honest limits.">
+<meta property="og:description" content="Time Machine is local first. Save points stay on your machine, secret values from config files like .env are never stored, checks run in a separate copy with the network off when a sandbox exists, and nothing is pushed, merged or deployed. Plus our honest limits.">
 <meta property="og:image" content="https://time-machine-site.vercel.app/assets/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -45,12 +45,12 @@
     <div>
       <p class="k rv">Security</p>
       <h1 class="dx rv" style="--d:1" id="hero-h" data-type data-type-now>Local first.<br><span class="dim">Honest limits.</span></h1>
-      <p class="sub rv" style="--d:2">Your code and your save points stay on your computer. Secret values are never stored. Nothing is pushed, merged or deployed. And where our protection stops, we say so.</p>
+      <p class="sub rv" style="--d:2">Your code and your save points stay on your computer. Secret values from config files like .env are never stored, only key names and a fingerprint. Nothing is pushed, merged or deployed. And where our protection stops, we say so.</p>
       <div class="btn-row rv" style="--d:3"><a class="btn btn-primary" href="#limits">Read the limits</a><a class="btn btn-ghost" href="#report">Report an issue</a></div>
     </div>
     <div class="slip-w rv" style="--d:2">
       <div class="slip-sh">
-        <div class="slip" role="img" aria-label="A recovery receipt. Nothing was pushed, merged or deployed. Not restored: secret values for PORT and STRIPE_SECRET_KEY, and databases, deployed versions and external services. Key names only. Values never stored.">
+        <div class="slip" role="img" aria-label="A recovery receipt. Nothing was pushed, merged or deployed. Not restored: secret values for PORT and STRIPE_SECRET_KEY, and databases, deployed versions and external services. Key names only for .env values.">
           <p class="h">Time Machine<span>recovery receipt · Marigold Tips</span></p>
           <p class="kk">$ tm recover cp-0003</p>
           <p>Nothing was pushed, merged or deployed. Your folder and branch were not touched.</p>
@@ -64,7 +64,7 @@
           <p>Set PORT in .env in the recovery copy.</p>
           <p>Set STRIPE_SECRET_KEY in .env in the recovery copy.</p>
           <div class="cut"></div>
-          <p class="end">Key names only. Values never stored.</p>
+          <p class="end">Key names only for .env values.</p>
           <span class="stamp" aria-hidden="true">Local</span>
         </div>
       </div>
@@ -81,7 +81,7 @@
     </div>
     <div class="grid3">
       <div class="cell rv"><span class="n">01</span><h3 class="h4">Local first</h3><p>The <code>tm</code> tool has no account and no server. Save points, logs, reports and the audit log live on your machine. We cannot see them.</p></div>
-      <div class="cell rv" style="--d:1"><span class="n">02</span><h3 class="h4">Secret values never stored</h3><p>Only key names and a keyed fingerprint. Not in the store, the logs, the reports, or our own tests.</p></div>
+      <div class="cell rv" style="--d:1"><span class="n">02</span><h3 class="h4">No .env values stored</h3><p>For config files like <code>.env</code>, only key names and a keyed fingerprint. Files that look like they hold a secret are skipped. Check logs are scrubbed of current secret values.</p></div>
       <div class="cell rv" style="--d:2"><span class="n">03</span><h3 class="h4">Signed save points</h3><p>Each save point and each verdict is signed with a key on your machine. A changed save point gives ERROR, never PASS.</p></div>
       <div class="cell rv"><span class="n">04</span><h3 class="h4">A separate copy</h3><p>Checks run in a separate Git worktree with a clean environment and a time limit. The network is off when a sandbox can enforce it.</p></div>
       <div class="cell rv" style="--d:1"><span class="n">05</span><h3 class="h4">Never pushes, merges or deploys</h3><p>Recover makes a new branch and a recovery copy. It never switches your folder. Switching is up to you.</p></div>
@@ -98,7 +98,7 @@
     </div>
     <div class="split">
       <pre class="tree rv" aria-label="The store folder layout">~/.timemachine/          <span class="d">or $TM_HOME</span>
-├── key                  <span class="d">seals every save point</span>
+├── key                  <span class="d">signs every save point</span>
 └── projects/
     └── 9f2c41d07a3be815/ <span class="d">hash of the path</span>
         ├── objects/     <span class="d">files, stored once</span>
@@ -112,7 +112,7 @@
         <li><b>One folder per project,</b> named by a hash of the project path. A store inside the project is refused.</li>
         <li><b>Code survives the folder.</b> Each save point is a Git commit pinned at <code>refs/tm/&lt;id&gt;</code>, and also written as a Git bundle into the store. Deleting your project does not delete its save points.</li>
         <li><b>Files are stored once by content</b> and compressed, so repeats cost nothing. Check disk use with <code>du -sh ~/.timemachine</code>.</li>
-        <li><b>Keep the key.</b> <code>~/.timemachine/key</code> seals every save point. Save points cannot be read without it.</li>
+        <li><b>Keep the key.</b> <code>~/.timemachine/key</code> signs every save point, so edits by other tools are caught. Save points are not encrypted: anyone who can read your disk can read them.</li>
       </ul>
     </div>
   </div>
@@ -121,7 +121,7 @@
 <section class="sec" id="secrets" aria-labelledby="se-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">03</span> Secrets</p><h2 class="hx2" id="se-h">Key names only.<br>Never values.</h2></div>
+      <div class="rv"><p class="k"><span class="n">03</span> Secrets</p><h2 class="hx2" id="se-h">Key names only.<br>Never .env values.</h2></div>
       <p class="sub rv" style="--d:1">After a recovery, you set secret values again by hand. The report lists each one, so nothing is a surprise.</p>
     </div>
     <div class="split">
@@ -231,13 +231,14 @@
 <section class="sec" id="waitlist-data" aria-labelledby="wd-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">07</span> The waitlist</p><h2 class="hx2" id="wd-h">Four fields.<br><span class="dim">No IP address.</span></h2></div>
+      <div class="rv"><p class="k"><span class="n">07</span> The waitlist</p><h2 class="hx2" id="wd-h">Your email and a few facts.<br><span class="dim">Never your IP address.</span></h2></div>
       <p class="sub rv" style="--d:1">The waitlist is the only thing on this site that stores personal data. Here is all of it.</p>
     </div>
     <div class="rv">
       <table class="kv">
         <tbody>
-          <tr><th scope="row">What we store</th><td>Your email, that you ticked the consent box, the page you joined from, and the time.</td></tr>
+          <tr><th scope="row">What we store</th><td>Your email, that you ticked the consent box, the page you joined from, the time, your own referral code, and the referral code that brought you, if any.</td></tr>
+          <tr><th scope="row">Rate limits</th><td>A one-way code made from your IP address, never the IP itself. Codes older than one hour are removed during later requests.</td></tr>
           <tr><th scope="row">What we do not</th><td>No IP address, no browser details, no cookies.</td></tr>
           <tr><th scope="row">Where</th><td>One table in Supabase, written by one function hosted on Vercel. Nothing else writes to it.</td></tr>
           <tr><th scope="row">Who can read it</th><td>Row level security is on with no public access. Only the server key can read or write, and that key lives only in the Vercel project settings.</td></tr>
@@ -275,6 +276,8 @@
       <li><span><b>Only captured project state.</b> Databases, deployed versions, emails, payments and anything outside your project folder are not captured.</span></li>
       <li><span><b>Host mode is weaker than a container.</b> A check runs as you, on your machine, in a separate copy. Container isolation is Planned.</span></li>
       <li><span><b>The signature is not tamper proof</b> against someone who can read <code>~/.timemachine/key</code>.</span></li>
+      <li><span><b>Save points are not encrypted.</b> Anyone who can read your disk can read them.</span></li>
+      <li><span><b>Secret detection uses names and patterns.</b> A secret that matches none of them, or one already committed to Git, is saved like any code.</span></li>
       <li><span><b>Setup has the network,</b> even with <code>network: deny</code>. Only the check runs offline.</span></li>
       <li><span><b>A PASS proves your check passed.</b> It does not prove your app is correct. The verdict is only as good as the check.</span></li>
       <li><span><b>Not a disk backup.</b> Keep one.</span></li>
@@ -289,7 +292,7 @@
     <div class="rv">
       <p class="k">Waitlist</p>
       <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
-      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+      <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
     </div>
     <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
       <div class="wl-field">
@@ -299,10 +302,10 @@
           <button class="btn btn-primary" type="submit">Join the waitlist</button>
         </div>
       </div>
-      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when the CLI is on npm. Nothing else.</span></label>
       <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
       <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
-      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
+      <p class="wl-privacy">We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
     </form>
   </div>
 </section>

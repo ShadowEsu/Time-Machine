@@ -76,7 +76,7 @@
           <p class="pp-t">Secret values in .env: PORT, STRIPE_SECRET_KEY<br>Databases, deployed versions and external services are not captured</p>
           <p class="pp-k">Manual steps</p>
           <p class="pp-t">Set PORT in .env in the recovery copy.<br>Set STRIPE_SECRET_KEY in .env in the recovery copy.</p>
-          <p class="pp-end">Key names only. Values never stored.</p>
+          <p class="pp-end">Key names only for .env values.</p>
         </div>
       </div>
 
@@ -237,7 +237,7 @@
       <p class="kick r" data-r=".02 .1"><code>tm recover cp-0003</code></p>
       <h2 class="hx r" id="report-h" data-r=".04 .14">A new branch.<br>An honest receipt.</h2>
       <p class="sub r rp-d" data-r=".14 .24">It saves where you are first, then builds <code>tm/recover/cp-0003</code> in a separate copy. Your folder and branch are never touched. Nothing is pushed, merged or deployed.</p>
-      <p class="sub strong r rp-d" data-r=".44 .54">And it tells you what it could not bring back. Secret values are never stored, only key names. Databases and deployed versions are not captured.</p>
+      <p class="sub strong r rp-d" data-r=".44 .54">And it tells you what it could not bring back. Secret values from config files like .env are never stored, only key names and a fingerprint. Databases and deployed versions are not captured.</p>
       <div class="rcpt r" data-r=".1 .22">
         <p class="rc-cmd">$ tm recover cp-0003</p>
         <p>Recovery ready for cp-0003. Nothing was pushed, merged or deployed. Your folder and branch were not touched.</p>
@@ -278,7 +278,7 @@
         <p class="spec-k"><span class="tag tag-dev">In development</span></p>
         <dl class="spec-list"><dt>Mac app</dt><dd>The same engine, with a timeline you can see. Not signed or shipped yet.</dd></dl>
         <p class="spec-k"><span class="tag tag-plan">Not on npm yet</span></p>
-        <dl class="spec-list"><dt>The <code>tm</code> CLI</dt><dd>Join the waitlist for one email when it is published.</dd></dl>
+        <dl class="spec-list"><dt>The <code>tm</code> CLI</dt><dd>Join the waitlist and we write to you when it is on npm.</dd></dl>
         <p class="spec-k"><span class="tag tag-plan">Planned</span></p>
         <dl class="spec-list"><dt>The Ladder</dt><dd>Pricing. Nothing is for sale yet.</dd></dl>
         <div class="tests alu">
@@ -291,7 +291,7 @@
       <div class="vs-row"><p class="vs-k">Claude Code rewind<span>Built in checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Edits made by its file editing tools. Not Bash commands</span></div></div>
       <div class="vs-row"><p class="vs-k">Time Machine<span>tm, today</span></p><div class="vs-bar"><i style="--w:1"></i><span>Your code, uncommitted work and the files Git sees at each save point, plus a check that proves it runs</span></div></div>
     </div>
-    <p class="fine-s">Claude Code: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">checkpointing docs, "Bash command changes not tracked"</a>. Time Machine does not save secret values, databases, deployed versions, files your .gitignore skips or files over the size limit.</p>
+    <p class="fine-s">Claude Code: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">checkpointing docs, "Bash command changes not tracked"</a>. Time Machine does not save secret values from .env files, databases, deployed versions, files your .gitignore skips or files over the size limit.</p>
 
     <div class="app" aria-labelledby="app-h">
       <div class="app-copy">
@@ -359,7 +359,7 @@
     </div>
     <div class="join">
       <h2 class="hx" id="end-h">Build with<br>a way back.</h2>
-      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+      <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
       <form id="waitlist" class="wl" data-waitlist novalidate>
         <div class="wl-field">
           <label for="wl-email">Email</label>
@@ -368,10 +368,10 @@
             <button class="btn btn-primary" type="submit">Join the waitlist</button>
           </div>
         </div>
-        <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+        <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when the CLI is on npm. Nothing else.</span></label>
         <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
-        <p class="wl-privacy">We store your email and the page you joined from. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
+        <p class="wl-privacy">We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. See the <a href="privacy.html">privacy policy (draft)</a>.</p>
       </form>
     </div>
   </div>

@@ -65,7 +65,7 @@
   <li>install Claude Code hooks that save before each prompt and before risky shell commands, and check at the end of each turn</li>
   <li>connect any agent that speaks MCP to seven tools on the same engine</li>
 </ul>
-<p>There are 54 engine and CLI tests. They pass on macOS and Linux in CI. Save points live in <code>~/.timemachine</code> with a Git bundle, and secret values are never stored, only key names.</p>
+<p>There are 54 engine and CLI tests. They pass on macOS and Linux in CI. Save points live in <code>~/.timemachine</code> with a Git bundle. Secret values from config files like <code>.env</code> are never stored, only key names and a fingerprint.</p>
 <p>We also ran it on a real open source project, sindresorhus/slugify. That found something the synthetic tests did not: behind a network proxy, <code>npm install</code> failed inside the safe copy, because the clean environment dropped the proxy settings. The fix started with a failing test, like every fix here. Proxy, certificate and package manager settings now pass through.</p>
 <p>Two independent reviews of the engine found 17 bugs in total. All 17 were fixed the same way: a test that shows the bug first, then the fix.</p>
 <p>What is not done: the npm package <code>timetm</code> is not published yet, so you build from source. The Mac app is in development, and not signed or shipped yet.</p>
@@ -92,7 +92,7 @@
 <p>Money changes incentives, so here are the lines we have already drawn. No streaks, countdowns or fake urgency. No alerts unless a real check failed. Restores are never behind a paywall, and the CLI stays free. Our planned Pro pricing, called The Ladder, gets cheaper the longer you stay. It is Planned, and nothing is for sale yet.</p>
 
 <h2>How you can help</h2>
-<p>If you build with coding agents, try the demo from source and tell us where it confuses you or breaks. If you want to be a design partner, email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a>. And if you just want one email when the CLI is on npm and the Mac app is ready, join the waitlist below.</p>
+<p>If you build with coding agents, try the demo from source and tell us where it confuses you or breaks. If you want to be a design partner, email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a>. And if you just want to hear when the CLI is on npm, join the waitlist below.</p>
 
 <section class="sources" aria-labelledby="src-h">
   <h2 id="src-h">Sources</h2>
@@ -113,7 +113,7 @@
     <div class="rv">
       <p class="k">Waitlist</p>
       <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
-      <p class="sub">One email when the CLI is on npm and the Mac app is ready. Nothing else.</p>
+      <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
     </div>
     <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
       <div class="wl-field">
@@ -123,10 +123,10 @@
           <button class="btn btn-primary" type="submit">Join the waitlist</button>
         </div>
       </div>
-      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when Time Machine is ready. Nothing else.</span></label>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when the CLI is on npm. Nothing else.</span></label>
       <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
       <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
-      <p class="wl-privacy">We store your email, your consent, the page you joined from and the time. No IP address. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
+      <p class="wl-privacy">We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. See the <a href="../privacy.html">privacy policy (draft)</a>.</p>
     </form>
   </div>
 </section>

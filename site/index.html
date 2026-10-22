@@ -54,7 +54,7 @@
             </div>
             <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
             <p class="wl-status" id="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
-            <p class="wl-privacy">Joining means one email when Time Machine is ready, nothing else. We store your email and the page you joined from. <a href="privacy.html">Privacy (draft)</a></p>
+            <p class="wl-privacy">Joining means we write to you when the CLI is on npm, nothing else. We store your email, the page and time you joined, and referral codes, never your IP address. <a href="privacy.html">Privacy (draft)</a></p>
           </form>
           <p class="hero-alt"><a href="#try">Install from source</a> <span>Works on macOS and Linux. Needs Node 22 and Git.</span></p>
         </div>
@@ -92,7 +92,7 @@
           </ol>
         </div>
       </div>
-      <p class="recording-next"><a class="btn btn-ghost" href="#waitlist" data-waitlist-focus>Join the waitlist</a> <span>One email when Time Machine is ready. Nothing else.</span></p>
+      <p class="recording-next"><a class="btn btn-ghost" href="#waitlist" data-waitlist-focus>Join the waitlist</a> <span>We write to the list when the CLI is on npm. Nothing else.</span></p>
     </section>
 
     <figure id="rewind-demo" class="rewind-story" data-rewind data-phase="broken" aria-labelledby="rs-title" aria-describedby="rs-caption">
@@ -206,7 +206,7 @@ tm demo</pre>
         <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
       </div>
       <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
-      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. In two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took <span class="num">24 and 45 seconds</span>. Most of that is downloading and building.</p>
+      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. Timed by hand in two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took <span class="num">24 and 45 seconds</span>. Most of that is downloading and building.</p>
       <p class="install-note"><code translate="no">tm ui</code> opens Time Machine in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. Tested on macOS so far.</p>
     </div>
     <div class="try-side">
@@ -229,7 +229,7 @@ tm demo</pre>
   <section class="block" aria-labelledby="plain-h">
     <div class="block-head">
       <h2 id="plain-h">No code needed to get the working version back</h2>
-      <p class="lead">Time Machine keeps a copy of your project before the AI touches it, checks which copies still work, and gives you the last good one back. You use buttons, not the terminal.</p>
+      <p class="lead">Time Machine keeps a copy of your project before the AI touches it, checks which copies still work, and gives you the last good one back. In the app you use buttons, not commands. The Mac app is coming; today <code translate="no">tm ui</code> shows the same screens after a source install.</p>
     </div>
     <ol class="story">
       <li class="story-row">
@@ -402,7 +402,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <p class="agent-support-note">MCP agents can use seven real tools to save, inspect, check and recover. Automatic hooks are built for Claude Code only today.</p>
       <p class="ft-h">Does not bring back</p>
       <ul>
-        <li>Secret values (only key names are kept)</li>
+        <li>Secret values from .env (only key names are kept)</li>
         <li>Databases</li>
         <li>Deployed versions</li>
         <li>Anything outside your project</li>
