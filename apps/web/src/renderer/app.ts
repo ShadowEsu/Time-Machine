@@ -584,7 +584,7 @@ function homeRuler(all: TimelineEntry[]): string {
   }).join("");
   return `<div class="hruler" role="group" aria-label="Save points, oldest on the left">
     <div class="lane">${clips}</div><div class="base" aria-hidden="true"></div>${ticks}
-    <span class="ph" style="left:${x(cur)}%" aria-hidden="true"></span>${labels}</div>`;
+    <span class="ph${cur === n - 1 ? " now" : ""}" style="left:${x(cur)}%" aria-hidden="true"></span>${labels}</div>`;
 }
 
 /** The project page: one status sentence, one main action, what does not come back, the ruler, then the journal. */

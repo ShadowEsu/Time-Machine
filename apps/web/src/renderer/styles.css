@@ -13,7 +13,10 @@
   --paper: #f8f8f6; --soft: #f2f2ef; --card: #ebebe7; --side: #f0f0ed; --mist: #eaeae5; --surface: #ffffff; --sheet: var(--surface); --press: #dfdfd8;
   --line: #e4e4df; --line-2: #d2d2cb; --sel: rgba(0,0,0,.04); --veil: rgba(248,248,246,.8);
   --accent: #343432; --accent-bg: #eaeae5; --accent-line: #a1a19a;
-  --action: #d97757; --action-ink: #231913;
+  /* The primary action is ink here and paper in dark (option A), so it never competes with clay.
+     Clay marks only the active project, the Now playhead and focus. Verdict colours are separate. */
+  --action: #202020; --action-ink: #f8f8f6; --action-hover: #3a3a38; --action-active: #4a4a47; --action-kbd: #b4b4ae; --keycap: #0c0c0c;
+  --clay: #d97757;
   --pass-fg: #0f7a3d; --pass-bg: #e4f1e6; --pass-dot: #16a34a;
   --amber-fg: #8a5a00; --amber-bg: #fbf0d9; --amber-dot: #d97706;
   --fail-fg: #b42318; --fail-bg: #fbe8e4; --fail-dot: #dc2626;
@@ -39,6 +42,7 @@
   --amber-fg: #facc15; --amber-bg: #2b2208; --amber-dot: #eab308;
   --fail-fg: #f87171; --fail-bg: #2e1513; --fail-dot: #ef4444;
   --err-fg: #d6d3c8; --err-bg: #2b2a26; --err-dot: #a8a59a;
+  --action: #faf9f5; --action-ink: #1a1918; --action-hover: #ecebe5; --action-active: #dfddd5; --action-kbd: #6f6c64; --keycap: #b9b6ac;
   --shadow-lg: 0 0 0 1px rgba(250,249,245,.07), 0 30px 80px -24px rgba(0,0,0,.9);
   --shadow-md: 0 0 0 1px var(--line), 0 24px 48px -24px rgba(0,0,0,.8);
   color-scheme: dark; } }
@@ -51,6 +55,7 @@
   --amber-fg: #facc15; --amber-bg: #2b2208; --amber-dot: #eab308;
   --fail-fg: #f87171; --fail-bg: #2e1513; --fail-dot: #ef4444;
   --err-fg: #d6d3c8; --err-bg: #2b2a26; --err-dot: #a8a59a;
+  --action: #faf9f5; --action-ink: #1a1918; --action-hover: #ecebe5; --action-active: #dfddd5; --action-kbd: #6f6c64; --keycap: #b9b6ac;
   --shadow-lg: 0 0 0 1px rgba(250,249,245,.07), 0 30px 80px -24px rgba(0,0,0,.9);
   --shadow-md: 0 0 0 1px var(--line), 0 24px 48px -24px rgba(0,0,0,.8);
   color-scheme: dark; }
@@ -63,8 +68,8 @@ body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(
 ::selection { background: var(--accent-bg); color: var(--ink); }
 body.overlay-body { background: transparent; }
 button, input, select { font: inherit; color: inherit; }
-/* Focus rings follow each control's own corners, so a focused pill stays a pill. */
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* One focus ring for the whole app: clay, 2 px, just outside the control's own corners, so a focused pill stays a pill. */
+:focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
 .mono { font-family: var(--mono); font-size: 12px; }
 .muted { color: var(--ink-3); }
 .small { font-size: 12px; }
@@ -74,7 +79,8 @@ p { margin: 0; text-wrap: pretty; }
 /* Shortcut hints are quiet but readable: ink-3 meets AA on every paper; on ink they keep the button's own color.
    11 px is the one size under the 12 px floor, because a hint repeats a visible label. */
 kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.btn.dark kbd, .pill kbd { color: inherit; }
+.pill kbd { color: inherit; }
+.btn.dark kbd { color: var(--action-kbd); }
 .btn kbd { margin-left: 1px; }
 /* Headlines speak in Newsreader. Italic is an accent, never a paragraph. Body stays Inter, technical facts Geist Mono. */
 .hero-h, .page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--serif); font-weight: 400; letter-spacing: -.02em; }
@@ -173,15 +179,17 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; border: 0; cursor: pointer; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-md); transition: transform .12s var(--ease), opacity .2s; white-space: nowrap; }
 .btn:hover:not([disabled]) { box-shadow: 0 0 0 1px var(--line-2), 0 1px 2px rgba(9,9,11,.06), 0 8px 20px -10px rgba(9,9,11,.2); }
 .btn:active:not([disabled]), .btn.kf { transform: scale(.97); background: var(--press); transition-duration: .08s; }
-.btn.dark { background: var(--action); color: var(--action-ink); box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 1px 2px rgba(0,0,0,.25); }
-.btn.dark:hover:not([disabled]) { background: color-mix(in srgb, var(--action) 88%, #fff); box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 1px 2px rgba(0,0,0,.25); }
-.btn.dark:active:not([disabled]), .btn.dark.kf { background: color-mix(in srgb, var(--action) 86%, #000); }
+.btn.dark { background: var(--action); color: var(--action-ink); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.btn.dark:hover:not([disabled]) { background: var(--action-hover); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.btn.dark:active:not([disabled]), .btn.dark.kf { background: var(--action-active); }
 .btn.big { height: 42px; padding: 0 18px; font-size: 13px; border-radius: var(--r-md); }
 .btn.big.dark { border-radius: var(--r-md); padding: 0 18px; font-size: 13px; }
 .btn.ghost { background: none; box-shadow: none; color: var(--ink-2); }
 .btn.ghost:hover:not([disabled]) { background: var(--sel); box-shadow: none; }
 .btn.ghost:active:not([disabled]), .btn.ghost.kf { background: var(--press); }
 .btn[disabled] { opacity: .4; cursor: not-allowed; }
+.btn.dark[disabled] { opacity: 1; background: var(--mist); color: var(--ink-4); box-shadow: none; }
+.btn.dark[disabled] kbd { color: inherit; }
 .btn.link { height: auto; min-height: 26px; padding: 2px 2px; background: none; box-shadow: none; border-radius: 4px; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; text-decoration-thickness: 1px; }
 .btn.link:hover:not([disabled]) { box-shadow: none; color: var(--ink); text-decoration-color: var(--ink-3); }
 .btn.link:active:not([disabled]), .btn.link.kf { background: none; transform: none; color: var(--ink); }
@@ -239,6 +247,9 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .rt-tk.after { opacity: .45; }
 .hruler .ph { position: absolute; top: 18px; width: 2px; height: 30px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transition: left .32s var(--ease-io); }
 .hruler .ph::before { content: ""; position: absolute; left: -4px; top: -6px; border: 5px solid transparent; border-top: 6px solid var(--ink); }
+/* At Now the playhead is clay, one of the four places clay appears. */
+.hruler .ph.now { background: var(--clay); }
+.hruler .ph.now::before { border-top-color: var(--clay); }
 .rlab { position: absolute; top: 52px; transform: translateX(-50%); font: 400 12px/1 var(--mono); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rlab.on { color: var(--ink); font-weight: 500; }
 
@@ -346,7 +357,7 @@ label.opt:hover { background: color-mix(in srgb, var(--sel) 60%, transparent); }
 .opt .t { font-weight: 500; }
 .opt .d { font-size: 12px; color: var(--ink-3); }
 .field { height: 32px; border-radius: 8px; border: 0; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--surface); padding: 0 10px; width: 100%; font-family: var(--mono); font-size: 12px; user-select: text; }
-.field:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.field:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
 select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-width: 0; }
 .dots3 { display: flex; gap: 6px; }
 .dots3 i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-5); }
@@ -448,7 +459,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .scrim.pal-scrim, .app > .scrim { z-index: 45; place-items: start center; padding-top: 12vh; }
 .pal { width: min(620px, 100%); max-height: 70vh; display: flex; flex-direction: column; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); overflow: hidden; }
 .scrim.enter .pal { animation: pop .2s var(--ease); }
-.pal-q { flex: none; height: 54px; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 0 20px; font-size: 16px; color: var(--ink); outline: none; user-select: text; }
+.pal-q { flex: none; height: 54px; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 0 20px; font-size: 16px; color: var(--ink); user-select: text; }
 .pal-q::placeholder { color: var(--ink-4); }
 .pal-list { overflow: auto; padding: 6px; display: grid; align-content: start; }
 .pal-g { padding: 10px 12px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
@@ -601,17 +612,19 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   transition: transform .16s var(--ease); }
 .knob::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; background: radial-gradient(120% 120% at 35% 25%, var(--knob-1), var(--knob-2) 62%); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.45); }
 .knob::after { content: ""; position: absolute; left: 50%; top: 22px; width: 4px; height: 34px; margin-left: -2px; border-radius: 2px; background: #e4e4da; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
-.knob:focus-visible { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent), 0 14px 26px -8px rgba(0,0,0,.45); }
+.knob:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--clay), 0 14px 26px -8px rgba(0,0,0,.45); }
 .dial.drag .knob { transition: none; }
 .dial.still .knob { opacity: .8; }
 .dm-key { width: 100%; margin-top: 18px; }
 .key { width: 100%; min-height: 54px; border: 0; border-radius: 14px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; text-align: left;
   background: var(--action); color: var(--action-ink); font: 500 14.5px/1.25 var(--font); letter-spacing: -.01em;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 5px 0 -1px color-mix(in srgb, var(--action) 62%, #000), 0 12px 18px -8px rgba(0,0,0,.35);
+  box-shadow: 0 5px 0 var(--keycap), 0 12px 18px -8px rgba(0,0,0,.35);
   transition: transform .12s ease-out, box-shadow .12s ease-out; }
-.key:active:not([disabled]), .key.kf { transform: translateY(4px); box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 0 -1px color-mix(in srgb, var(--action) 62%, #000), 0 4px 8px -4px rgba(0,0,0,.35); }
-.key[disabled] { opacity: .55; cursor: not-allowed; }
-.key kbd { color: inherit; opacity: .7; flex: none; }
+.key:hover:not([disabled]) { background: var(--action-hover); }
+.key:active:not([disabled]), .key.kf { transform: translateY(1px); background: var(--action-active); box-shadow: 0 4px 0 var(--keycap), 0 4px 8px -4px rgba(0,0,0,.35); }
+.key[disabled] { cursor: not-allowed; background: var(--mist); color: var(--ink-4); box-shadow: none; }
+.key kbd { color: var(--action-kbd); flex: none; }
+.key[disabled] kbd { color: inherit; }
 .dm-alts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 14px; margin-top: 12px; text-align: center; }
 .key-note { flex-basis: 100%; font-size: 12px; color: var(--ink-3); margin-bottom: 4px; }
 .tv-acts .key-note { flex-basis: auto; margin: 0; }
@@ -716,7 +729,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .btn, .btn.link, .it, .it.ag, .pill, .cr-p, .seg button, .jump, .sec-b, .pal-i, .mn-l button, .tv-x, .ov-card .x { min-height: 40px; }
 .tv-x, .ov-card .x { min-width: 40px; }
 .switch { box-sizing: content-box; border: 10px solid transparent; background-clip: padding-box; }
-.pal-q:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.pal-q:focus-visible { outline-offset: -3px; }
 .meta, .day span, .pal-h, .tv-clock { font-variant-numeric: tabular-nums; }
 
 /* The record is the reading surface; the rail carries project and agent context. */
@@ -724,7 +737,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .project-it .nm, .it.ag .nm { display: grid; gap: 3px; }
 .project-it .nm > span, .it.ag .nm > span { overflow: hidden; text-overflow: ellipsis; }
 .project-it .nm small, .it.ag .nm small { margin: 0; font-size: 12px; font-weight: 400; line-height: 1.3; }
-.project-it.on { box-shadow: inset 2px 0 var(--action); }
+.project-it.on { box-shadow: inset 2px 0 var(--clay); }
 .agent-logo { width: 32px; height: 32px; padding: 8px; background: #faf9f5; border-radius: 7px; box-shadow: none; }
 .agent-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .off .agent-logo, .ch-planned .agent-logo { background: #faf9f5; }
@@ -740,7 +753,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .path-form > label { font-weight: 500; }
 .path-form .field { height: 44px; font-size: 13px; }
 .path-form .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--fail-fg); }
-.field:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .launch-error { max-width: 580px; height: 100%; margin: auto; padding: 40px 24px; display: flex; flex-direction: column; gap: 18px; justify-content: center; align-items: flex-start; overflow: auto; }
 .launch-error h1 { font: 400 36px/1.1 var(--serif); }
 .connection-banner { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line-2); color: var(--ink); font-size: 12px; }
