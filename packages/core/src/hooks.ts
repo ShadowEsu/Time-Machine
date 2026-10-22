@@ -2,7 +2,7 @@
 import { exec, execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { audit } from "./audit.js";
@@ -382,17 +382,18 @@ function samePath(a: string, b: string): boolean {
  */
 export function claudePluginStatus(ctx: Ctx): ClaudePluginStatus {
   const none: ClaudePluginStatus = { installed: false, enabled: false, scope: null, version: null };
-  const p = resolveProject(ctx);
+  // Claude Code reads a folder's settings whether or not it is a Git project yet.
+  const project = gitRoot(ctx) ?? resolve(ctx.cwd);
   const env = ctx.env ?? process.env;
   const home = env.HOME || homedir();
   const root = env.CLAUDE_CODE_PLUGIN_CACHE_DIR || join(home, ".claude", "plugins");
   const installed = readJson(join(root, "installed_plugins.json"), InstalledPluginsSchema);
   const entries = installed?.plugins[CLAUDE_PLUGIN_ID] ?? [];
   // A folder install beats the user install, because that is the copy Claude Code loads here.
-  const folder = entries.find((e) => (e.scope === "local" || e.scope === "project") && e.projectPath !== undefined && samePath(e.projectPath, p.root));
+  const folder = entries.find((e) => (e.scope === "local" || e.scope === "project") && e.projectPath !== undefined && samePath(e.projectPath, project));
   const entry = folder ?? entries.find((e) => e.scope === "user");
   if (!entry) return none;
-  const files = [join(p.root, ".claude", "settings.local.json"), join(p.root, ".claude", "settings.json"), join(home, ".claude", "settings.json")];
+  const files = [join(project, ".claude", "settings.local.json"), join(project, ".claude", "settings.json"), join(home, ".claude", "settings.json")];
   const setting = files.map((f) => readJson(f, EnabledSchema)?.enabledPlugins?.[CLAUDE_PLUGIN_ID]).find((v) => v !== undefined);
   return { installed: true, enabled: setting ?? true, scope: entry.scope as "user" | "project" | "local", version: entry.version ?? null };
 }
