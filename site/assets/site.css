@@ -19,12 +19,13 @@
   font-display: swap;
   src: url("fonts/newsreader-latin-opsz-italic.woff2") format("woff2-variations"), url("fonts/newsreader-latin-opsz-italic.woff2") format("woff2");
 }
-/* Metric-matched stand-in while Newsreader loads, so the headline keeps its size and line breaks
-   when the web font swaps in. Measured against Newsreader at weight 340, optical size 72. */
+/* Metric-matched stand-ins while the web fonts load, so headlines and body text keep their line breaks
+   when the web fonts swap in (no layout shift). Tuned by comparing line breaks of the home h1 (Newsreader
+   weight 340, optical size 72) and lead (Inter) at 22 widths from 320 to 1600 px, with and without the web fonts. */
 @font-face {
   font-family: "Newsreader fallback";
   src: local("Georgia"), local("Times New Roman");
-  size-adjust: 98.8%;
+  size-adjust: 97.5%;
   ascent-override: 75%;
   descent-override: 26%;
   line-gap-override: 0%;
@@ -37,6 +38,14 @@
   src: url("fonts/inter-latin-opsz-normal.woff2") format("woff2-variations"), url("fonts/inter-latin-opsz-normal.woff2") format("woff2");
 }
 @font-face {
+  font-family: "Inter fallback";
+  src: local("Arial"), local("ArialMT");
+  size-adjust: 107.4%;
+  ascent-override: 90.2%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+}
+@font-face {
   font-family: "Geist Mono";
   font-style: normal;
   font-weight: 100 900;
@@ -46,7 +55,7 @@
 
 :root {
   --font-display: "Newsreader", "Newsreader fallback", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", "Inter fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --fs-hero: clamp(52px, 2.6rem + 5.4vw, 124px);
