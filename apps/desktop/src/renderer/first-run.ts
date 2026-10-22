@@ -1,5 +1,5 @@
-// The last onboarding step's buttons, decided from what the app knows about the Claude Code lines.
-// Pure, so the window and the tests agree. Finish is always one click away.
+// Onboarding copy and buttons, decided from what the app knows. Pure, so the window and the tests
+// agree. Finish is always one click away.
 import type { HookPreview } from "../shared/api.js";
 
 export interface HookStepActions {
@@ -17,4 +17,10 @@ export interface HookStepActions {
 export function hookStepActions(hook: HookPreview | null, connected: boolean): HookStepActions {
   if (connected || !hook || !hook.runs) return { primary: { act: "ob-finish", label: "Finish" }, skip: null };
   return { primary: { act: "ob-connect-finish", label: "Connect Claude Code and finish" }, skip: "Skip, finish without it" };
+}
+
+/** The check step's second sentence: plain when no test command was found, else where the check came from. */
+export function checkLede(init: { verifyCommand: string; created: boolean }): string {
+  if (!init.verifyCommand.trim()) return "No test command found, so save points can’t be checked yet. Type the command that shows your project works, or pick Build it.";
+  return init.created ? "We picked one from your project. Change it if it is not right." : "Your timemachine.yml already has one. Change it if it is not right.";
 }

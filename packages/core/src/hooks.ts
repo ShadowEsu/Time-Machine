@@ -26,7 +26,8 @@ const RISKY: RegExp[] = [
   new RegExp(`${GIT}checkout\\s+\\.(?:\\s|$)`),
   new RegExp(`${GIT}switch\\b.*\\s(?:-f\\b|--force\\b|--discard-changes\\b)`),
   new RegExp(`${GIT}restore\\s+(?!--staged\\b)`),
-  new RegExp(`${GIT}clean\\s+(?:\\S+\\s+)*(?:-[a-zA-Z]*f|--force)\\b`),
+  // Any short flag group with f (-f, -fd, -xfd, -ffdx) or --force. A dry run (-n, --dry-run) alone is not risky.
+  new RegExp(`${GIT}clean\\s+(?:\\S+\\s+)*(?:-[a-zA-Z]*f[a-zA-Z]*|--force)\\b`),
   new RegExp(`${GIT}push\\s+.*(?:--force\\b|-f\\b|--force-with-lease\\b)`),
   new RegExp(`${GIT}stash\\s+(?:drop|clear)\\b`),
   new RegExp(`${GIT}branch\\s+.*-D\\b`),
@@ -109,8 +110,9 @@ function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
     const { config } = loadConfig(p.root);
     const state = consentState(p, config);
     if (state === "approved") return null;
-    // The notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
-    // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent, as does pre-bash.
+    // The changed-check notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
+    // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent. Pre-bash
+    // speaks only to name a save point it just made (see runHook).
     return state === "changed" && event === "prompt" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
   } catch {
     return "";
@@ -150,8 +152,13 @@ export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: 
     if (event === "pre-bash") {
       const command = data.tool_input?.command ?? "";
       if (!isRisky(command)) return none(event);
-      const r = await checkpoint(c, { note: `Before risky command: ${clip(screened(p, command))}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
-      return { event, exitCode: 0, checkpoint: r.checkpoint.id, verdict: null, message: "" };
+      const shown = screened(p, command);
+      const r = await checkpoint(c, { note: `Before risky command: ${clip(shown)}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
+      const result: HookResult = { event, exitCode: 0, checkpoint: r.checkpoint.id, verdict: null, message: "" };
+      if (r.skipped) return result;
+      // The one line the user sees in Claude Code, only when a new save point was made: protection at the risky moment.
+      const what = shown === command ? clipSafe(command, 60, "a risky command") : "a risky command";
+      return { ...result, systemMessage: `Time Machine saved ${r.checkpoint.id} before ${what}${what.endsWith("...") ? "" : "."}` };
     }
     // stop: save, check, and compare with the newest earlier verdict. The turn is over either way.
     audit(p, "agent-turn", null, "ended");

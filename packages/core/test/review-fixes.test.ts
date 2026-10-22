@@ -184,6 +184,12 @@ describe("nits", () => {
     expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(out)).toBe(false);
   });
 
+  test("clipSafe strips terminal escapes and bidi controls, so a command cannot restyle or reorder what the user sees", () => {
+    const out = clipSafe("rm -rf \u001b[2J\u001b]8;;http://x\u0007dist\u009b31m \u202Etxt.exe\u2066a\u2069\u200Fb\u0000", 120);
+    expect(out).toBe("rm -rf [2J]8;;http://xdist31m txt.exeab");
+    expect(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/.test(out)).toBe(false);
+  });
+
   test("setCheck refuses a timemachine.yml with another hard link, and leaves both alone", async () => {
     const { dir, ctx } = await setupDemo();
     const path = join(dir, "timemachine.yml");

@@ -35,7 +35,7 @@ Not restored
   Databases, deployed versions and external services are not captured
 ```
 
-Real output, shortened. `tm demo` builds a small synthetic app, breaks it the way an agent might, and rescues it with the real engine.
+Real output, shortened. `tm demo` builds a small synthetic app, breaks it the way an agent might, and rescues it with the real engine. It ends with the next step: `cd` into your own project, run `tm init`, then add the Claude Code plugin below.
 
 ## Install
 
@@ -68,6 +68,10 @@ With `tm` installed (see above), add Time Machine to Claude Code from this repo,
 ```
 
 The plugin brings the Claude Code hooks, the MCP server and a `/time-machine:setup` skill that runs `tm init` with you. Its hooks run in every Claude Code session, but they act only in projects where you ran `tm init` on this computer. A `timemachine.yml` that came with a cloned repo is not enough: `tm init` approves the project's check (`verify.setup`, `verify.command` and `verify.network`) and records that approval in your Time Machine store, outside the project. `tm init --no-approve` writes or keeps the file without approving it, so you can read the guessed check first. Everywhere else, and when `tm` is not on your PATH, the hooks do nothing.
+
+What you see in Claude Code: before a risky shell command such as `git reset --hard`, when Time Machine saved first, Claude Code shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." It shows nothing when nothing changed since the last save point, and nothing on prompts or at the end of a turn. Hooks from `tm hook install` show the same line.
+
+Not sure what is missing? `tm status` says whether the project has a `timemachine.yml` and whether this computer approved its check. `/time-machine:setup` runs it for you. If `tm init` finds no test command, it says so, and approves nothing until you set `verify.command`.
 
 If the check changes after you approved it, for example after a `git pull` that edits the command or turns the network from `deny` to `allow`, the hooks stop. On your next prompt Claude Code shows you, once: "Time Machine: the check in timemachine.yml changed; run tm init to approve it." Running `tm init` again keeps your file as it is and approves the new check. The MCP tools `verify` and `find_good` need the same approval. Until then their descriptions name no command; after it, they show the command as quoted data (at most 200 characters), marked as data and not instructions.
 
@@ -118,7 +122,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 350 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 365 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Mac app | Notebook history, Rewind dial with undo, Compare, agent channels, overlays, opt-in Ask and read-only Vercel deploy links. Native macOS smoke exercised real-engine recovery and the non-focusing corner card | Built from source; not signed or shipped |
 | Website | Static site in `site/` with a waitlist, personal referral links and anonymous funnel counts. Public at https://time-machine-site.vercel.app | Live; waitlist saves once Supabase is set up |
@@ -130,6 +134,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | Command | What it does |
 |---|---|
 | `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step, and approves its check for the Claude Code plugin. `--no-approve` only writes the file |
+| `tm status` | Says whether this project is set up and its check approved on this computer. Changes nothing |
 | `tm ui [--no-open] [--port N]` | Opens the local browser app; files and engine stay on your computer |
 | `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, config key names, lockfile and environment digests |
 | `tm timeline` | Lists save points and their verdicts |

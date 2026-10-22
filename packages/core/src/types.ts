@@ -59,8 +59,18 @@ export interface InitResult {
   verifySetup: string;
   network: "allow" | "deny";
   sandbox: string | null;
-  /** The command this computer trusts the Claude Code plugin and MCP tools to run (setup, then the check), or null when it is not approved (tm init --no-approve). */
+  /** The command this computer trusts the Claude Code plugin and MCP tools to run (setup, then the check), or null when it is not approved (tm init --no-approve, or no verify.command yet). */
   approvedCheck: string | null;
+}
+
+/** tm status: what the Claude Code plugin needs before its hooks act here. */
+export interface StatusResult {
+  /** timemachine.yml exists at the Git root. */
+  initialized: boolean;
+  /** This computer approved the current check with tm init. */
+  approved: boolean;
+  /** The command a check runs (setup, then verify.command), or null when there is no verify.command. */
+  check: string | null;
 }
 
 export interface SetCheckResult {

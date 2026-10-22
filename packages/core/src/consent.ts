@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { loadConfig, type ProjectConfig } from "./config.js";
 import { resolveProject, type Project } from "./project.js";
-import type { Ctx } from "./types.js";
+import type { Ctx, StatusResult } from "./types.js";
 
 const CONSENT_FILE = "consent.json";
 const WARNED_FILE = "consent-warned";
@@ -66,4 +66,12 @@ export function approvedCheck(ctx: Ctx): { state: ConsentState; command: string 
   const p = resolveProject(ctx);
   const { config } = loadConfig(p.root);
   return { state: consentState(p, config), command: checkCommand(config) };
+}
+
+/** tm status: is this project set up (timemachine.yml) and is its check approved on this computer. Reads only; never creates the store. */
+export function status(ctx: Ctx): StatusResult {
+  const p = resolveProject(ctx);
+  const { config, exists } = loadConfig(p.root);
+  const check = exists && config.verify.command.trim() ? checkCommand(config) : null;
+  return { initialized: exists, approved: check !== null && consentState(p, config) === "approved", check };
 }

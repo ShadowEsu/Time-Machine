@@ -53,21 +53,23 @@ export function guessSetup(root: string): string {
  * Writes timemachine.yml, or keeps an existing one untouched, and approves its current check on
  * this computer. Running it again after the check changed is how the user approves the new one.
  * With approve: false it only writes or keeps the file; approvedCheck then reports an approval that
- * already matches, or null.
+ * already matches, or null. An empty verify.command runs nothing, so it is never approved: approvedCheck is null.
  */
 export async function init(ctx: Ctx, opts: { approve?: boolean } = {}): Promise<InitResult> {
   const p = resolveProject(ctx);
   const path = join(p.root, CONFIG_FILE);
   const sandbox = detectSandbox(p.env);
+  const noCheck = (config: ProjectConfig): boolean => !config.verify.command.trim();
   const approve = (config: ProjectConfig): string | null => {
+    if (noCheck(config)) return null;
     if (opts.approve !== false) return recordConsent(p, config);
     return consentState(p, config) === "approved" ? checkCommand(config) : null;
   };
-  const approval = opts.approve === false ? "did not approve the check" : "approved the check";
+  const approval = (config: ProjectConfig): string => (noCheck(config) ? "no check to approve" : opts.approve === false ? "did not approve the check" : "approved the check");
   if (existsSync(path)) {
     const { config } = loadConfig(p.root);
     const approvedCheck = approve(config);
-    audit(p, "init", null, `kept existing settings, ${approval}`);
+    audit(p, "init", null, `kept existing settings, ${approval(config)}`);
     return { configPath: path, created: false, verifyCommand: config.verify.command, verifySetup: config.verify.setup, network: config.verify.network, sandbox: sandbox?.name ?? null, approvedCheck };
   }
   const command = guessCommand(p.root);
@@ -98,7 +100,8 @@ config:
   plain: []
 `;
   writeFileSync(path, yaml, { flag: "wx" });
-  const approvedCheck = approve(loadConfig(p.root).config);
-  audit(p, "init", null, `created settings, ${approval}`);
+  const { config } = loadConfig(p.root);
+  const approvedCheck = approve(config);
+  audit(p, "init", null, `created settings, ${approval(config)}`);
   return { configPath: path, created: true, verifyCommand: command, verifySetup: setup, network, sandbox: sandbox?.name ?? null, approvedCheck };
 }

@@ -38,9 +38,12 @@ export function looksSecret(text: string): boolean {
   return PATTERNS.some((p) => p.test(text));
 }
 
-/** Free text (a prompt, a command) made safe to store: one line, clipped, hidden when it looks like a secret. */
+// C0/C1 controls (terminal escapes, NUL, BEL) and bidi controls that could restyle or reorder shown text.
+const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+
+/** Free text (a prompt, a command) made safe to store and show: one line, no control characters, clipped, hidden when it looks like a secret. */
 export function clipSafe(text: string, n: number, hidden = "(text hidden: it looked like it contained a secret)"): string {
-  const one = text.replace(/\s+/g, " ").trim();
+  const one = text.replace(/\s+/g, " ").replace(UNSAFE_CHARS, "").trim();
   if (looksSecret(text) || looksSecret(one)) return hidden;
   // Count code points, so an emoji is never cut in half.
   const chars = Array.from(one);
