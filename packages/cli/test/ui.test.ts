@@ -51,7 +51,10 @@ describe("local browser boundary", () => {
     expect((await raw(s, "/api/call", { ...auth(s), Authorization: "Bearer wrong" }, '{"method":"bootstrap"}')).status).toBe(401);
     const boot = await call(s, { method: "bootstrap" });
     expect(boot.status).toBe(200);
-    expect(JSON.parse(boot.body)).toMatchObject({ ok: true, data: { runtime: "browser", preview: false, projects: [], hotkeyActive: false } });
+    const data = JSON.parse(boot.body).data;
+    expect(data).toMatchObject({ preview: false, projects: [], license: { active: expect.any(Boolean), freeProjectLimit: expect.any(Number) } });
+    // The browser app is the only runtime, so the desktop-only fields are gone.
+    for (const gone of ["runtime", "hotkey", "hotkeyActive"]) expect(data, gone).not.toHaveProperty(gone);
     expect(shell.headers["access-control-allow-origin"]).toBeUndefined();
   });
   test("rejects rebinding, foreign and null origins, and cross-site fetches even with the bearer token", async () => {

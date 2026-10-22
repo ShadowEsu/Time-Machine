@@ -2,7 +2,7 @@
 // (the dial scene, or the plain sheet), Compare, Agents, Storage, Settings, onboarding and the Inspector.
 // Plain TypeScript, one render function.
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
-import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, ShortcutAction, StorageRow, TmBridge, Verdict } from "../shared/api.js";
+import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, StorageRow, TmBridge, Verdict } from "../shared/api.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, plural, pointClock, pointTitle, pointWhen, seconds, shortTitle, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
 import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
@@ -138,9 +138,6 @@ interface State {
   isolation: IsolationInfo | null;
   /** A store clean up: first a preview of what goes, then the real removal. One project at a time. */
   cleanup: { projectId: string; result: CleanStoreResult | null; working: boolean } | null;
-  /** The shortcut being typed in Settings, before Save. */
-  hotkeyDraft: string | null;
-  hotkeyActive: boolean;
   hookSheet: { projectId: string; preview: HookPreview; done: string | null; error: string | null; working: boolean } | null;
   toast: string | null;
   demoBusy: boolean;
@@ -292,9 +289,8 @@ function toast(text: string): void {
 // Small view helpers
 
 const isMac = (): boolean => st.boot.platform === "darwin";
-const isBrowser = (): boolean => st.boot.runtime === "browser";
-const device = (): string => isBrowser() ? "this computer" : "this Mac";
-const revealLabel = (recovery = false): string => isBrowser() ? (recovery ? "Copy recovery folder path" : "Copy local path") : (recovery ? "Show the recovery copy in Finder" : "Show in Finder");
+const device = (): string => "this computer";
+const revealLabel = (recovery = false): string => recovery ? "Copy recovery folder path" : "Copy local path";
 
 /**
  * Provider marks appear only in a private local preview (`TM_UI_BRAND_MARKS=1`); publishing them needs each
@@ -434,7 +430,7 @@ function navigation(): string {
 
 function connectionBanner(): string {
   const c = st.connection;
-  if (!isBrowser() || !c || c.state === "connected") return "";
+  if (!c || c.state === "connected") return "";
   return `<div class="connection-banner" role="status"><span class="connection-dot" aria-hidden="true"></span><div><b>${c.state === "connecting" ? "Connecting to your local app" : "Disconnected from your local app"}</b><p>${esc(c.message ?? "Keep tm ui running in your terminal. Live history and actions need that connection.")}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
 }
 
@@ -445,7 +441,7 @@ function welcome(): string {
     <p class="lede">Time Machine saves your project before your agent acts and checks each save point with your own tests, in a safe copy. When something breaks, it brings back the newest one that passes, on a new branch. Your folder and branch are not touched.</p>
     <div class="row-btns"><button class="btn dark big" data-act="demo">Try the demo</button><button class="btn big" data-act="add">Add a project</button></div>
     <p class="foot">Runs on ${device()}. Your project is not uploaded. Time Machine is not universal undo: every result says what was not restored.</p>
-    ${isBrowser() ? '<p class="foot local-note">Local browser app · Keep <span class="mono">tm ui</span> running in your terminal.</p>' : '<p class="foot unsigned">Not signed or notarized by Apple yet, so macOS warns on first open. Signing is planned.</p>'}
+    <p class="foot local-note">Local browser app · Keep <span class="mono">tm ui</span> running in your terminal.</p>
   </div></div>`;
 }
 
@@ -666,7 +662,7 @@ function detail(): string {
     ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>${esc(goBackLabel(c, points()))}</button>`
     : `<button class="btn big dark" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>`;
   const opened = st.openResult && st.openResult.id === c.id
-    ? `<div class="note">A safe copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div>${st.settings.showGitDetails || isBrowser() ? `<div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div>` : ""}</div>`
+    ? `<div class="note">A safe copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div><div class="mono muted" style="margin-top:6px">${esc(st.openResult.dir)}</div></div>`
     : "";
   const git = st.settings.showGitDetails
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div><div><span class="k">commit</span> ${esc(c.commit)}</div><div><span class="k">branch</span> ${esc(c.branch ?? "(detached)")}${c.dirty ? " · had uncommitted changes" : ""}</div><div><span class="k">trigger</span> ${esc(c.trigger)}</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div><div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div></div>`
@@ -909,7 +905,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
         <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
         <div class="endline"><span>Your current version was saved first. Nothing was pushed, merged, deployed or deleted.</span></div>
         <div class="row-btns"><button class="btn link" data-act="reveal" data-path="${esc(res.copyDir)}">${revealLabel(true)}</button><button class="btn link" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy the report as text</button></div>
-        ${isBrowser() ? `<p class="small muted">Open this local folder in your editor: <span class="mono sel-text">${esc(res.copyDir)}</span></p>` : ""}
+        <p class="small muted">Open this local folder in your editor: <span class="mono sel-text">${esc(res.copyDir)}</span></p>
       </div>
       ${git ? `<div class="git"><div><span class="k">new branch</span> ${esc(res.branch)} (local only)</div><div><span class="k">recovery copy</span> ${esc(res.copyDir)}</div><div><span class="k">saved first</span> ${esc(res.savedBefore)}</div><div><span class="k">report</span> ${esc(res.reportPath)}</div></div>` : ""}
       ${undoNote(res)}`,
@@ -954,7 +950,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn’t confirm this version works. You can still go back to it, but it is not proven.</div>`
       : !proven ? `<div class="note">No passing check is recorded for this version. Try it first: we open it in a safe copy and run your check.</div>` : "";
   const opened = r.openResult && r.openResult.id === c.id
-    ? `<div class="note">A copy you can open is ready. Your folder was not touched.${git || isBrowser() ? ` <span class="mono sel-text">${esc(r.openResult.dir)}</span>` : ""} <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">${revealLabel()}</button></div>` : "";
+    ? `<div class="note">A copy you can open is ready. Your folder was not touched. <span class="mono sel-text">${esc(r.openResult.dir)}</span> <button class="btn" data-act="reveal" data-path="${esc(r.openResult.dir)}">${revealLabel()}</button></div>` : "";
   const busy = r.trying || r.recovering || !!st.busy;
   const notNewest = !!newest && newest.id !== c.id;
   const all = points();
@@ -1225,13 +1221,11 @@ function settings(): string {
   if (st.pageError) return pageFailure("Settings");
   const s = st.settings;
   const seg = (v: Settings["theme"], label: string): string => `<button class="${s.theme === v ? "on" : ""}" data-act="theme" data-v="${v}">${label}</button>`;
-  const sw = (key: "showGitDetails" | "overlayCards" | "agentPill", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
+  const sw = (key: "showGitDetails", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
   const iso = st.isolation;
   const network = !iso ? LOADING
     : iso.networkSandbox ? `When a project turns the network off for checks, ${esc(iso.networkSandbox)} blocks it.`
       : `Nothing on ${device()} can block the network during a check. A project that asks for no network gets Needs something, never Works.`;
-  const hk = s.hotkey;
-  const hotkeyState = st.boot.preview ? "The browser preview has no shortcut." : !hk ? "Off." : st.hotkeyActive ? "On." : "Not active. Another app may already use it.";
   return `<div class="page"><div class="col">
     <div><h1>Settings</h1></div>
     <div class="panel"><h3>Appearance</h3>
@@ -1242,16 +1236,7 @@ function settings(): string {
       <div class="setrow"><span class="l">Going back</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.</span></div></div>
     </div>
     ${st.projects.map((p) => `<div class="panel"><h3>Features for ${esc(p.name)}</h3><div class="mount" data-mount="features:${esc(p.id)}"></div></div>`).join("")}
-    ${isBrowser() ? '<div class="panel browser-capabilities"><h3>Local browser app</h3><p class="muted">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal. Global shortcuts, the menu bar timeline, corner cards and the floating agent pill are available only in the desktop app.</p><p class="small muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>' : `<div class="panel"><h3>Shortcut</h3>
-      <div class="setrow"><span class="l">Open Time Machine</span><div style="display:grid;gap:6px">
-        <div class="row-btns"><input class="field hotkey" data-model="hotkey" aria-label="Shortcut" placeholder="for example: Control+Alt+T" value="${esc(st.hotkeyDraft ?? hk ?? "")}"><button class="btn" data-act="hotkey-save">Save</button>${hk ? '<button class="btn ghost" data-act="hotkey-off">Turn off</button>' : ""}</div>
-        <span class="muted">Works from any app. ${esc(hotkeyState)} Use two modifier keys, one of them Control or Command, plus a key.</span></div></div>
-      <div class="setrow"><span class="l">Timeline strip</span><div class="muted">Open it from the menu bar.</div></div>
-    </div>
-    <div class="panel"><h3>Overlays</h3>
-      <div class="setrow"><span class="l">Corner cards</span><div class="toggle">${sw("overlayCards", s.overlayCards, "Corner cards")}<span class="muted">Only when a project that worked breaks. It never takes focus and hides on its own.</span></div></div>
-      <div class="setrow"><span class="l">Agent pill</span><div class="toggle">${sw("agentPill", s.agentPill, "Agent pill")}<span class="muted">A small pill while a connected agent is working. It goes away when the turn ends.</span></div></div>
-    </div>`}
+    <div class="panel browser-capabilities"><h3>Local browser app</h3><p class="muted">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="small muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>
     <div class="panel"><h3>Checks</h3>
       <div class="setrow"><span class="l">Where checks run</span><div>In a safe copy on ${device()}, never in your folder. Checks use the tools installed on ${device()}.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}</div></div>
       <div class="setrow"><span class="l">Network during checks</span><div>${network}</div></div>
@@ -1264,15 +1249,15 @@ function onboarding(): string {
   const o = st.onboarding;
   let body = "";
   if (o.step === 1) {
-    body = `<div><h1>Which project should we look after?</h1><p class="lede">${isBrowser() ? "Connect a local Git project. Your files stay on this computer; this is not an upload." : "Pick the folder of a project that uses Git. We only read the folder you pick."}</p></div>
-      <div class="panel">${isBrowser() ? `<form id="local-project-form" class="path-form" data-form="local-project" aria-busy="${o.working}">
+    body = `<div><h1>Which project should we look after?</h1><p class="lede">Connect a local Git project. Your files stay on this computer; this is not an upload.</p></div>
+      <div class="panel"><form id="local-project-form" class="path-form" data-form="local-project" aria-busy="${o.working}">
         <label for="local-project-path">Absolute folder path</label>
         <input id="local-project-path" class="field" data-model="ob-path" type="text" value="${esc(o.path ?? "")}" placeholder="${st.boot.platform === "win32" ? "C:\\Users\\you\\project" : "/Users/you/projects/my-project"}" autocomplete="off" autocapitalize="none" spellcheck="false" required maxlength="4096" aria-describedby="local-project-help${o.error ? " onboarding-error" : ""}" aria-invalid="${!!o.error}" ${o.working ? "disabled" : ""}>
         <p id="local-project-help" class="small muted">Paste the full path to an existing folder on the computer running tm ui, not a URL or a browser upload. Git is required today. You can copy the path from your terminal with <span class="mono">pwd</span>.</p>
         <div class="row-btns"><button type="submit" class="btn dark" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Add project"}</button><button type="button" class="btn ghost" data-act="ob-cancel" ${o.working ? "disabled" : ""}>Cancel</button>${o.working ? '<span class="spin" role="status" aria-label="Setting up project"></span>' : ""}</div>
-      </form>` : `<div class="row-btns"><button class="btn dark" data-act="ob-choose" ${o.working ? "disabled" : ""}>${o.working ? "Setting up…" : "Choose folder…"}</button>${o.working ? '<span class="spin"></span>' : ""}<span class="mono muted">${esc(o.path ?? "No folder chosen")}</span></div>`}
-      <p class="small muted">Setup starts when you ${isBrowser() ? "add the project" : "pick it"}. We’ll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
-      <div class="row-btns ob-acts">${!isBrowser() && o.path && o.error && !o.working ? '<button class="btn" data-act="ob-next1">Try again</button>' : ""}<button class="btn ghost" data-act="demo" ${o.working ? "disabled" : ""}>Try the demo instead</button></div>`;
+      </form>
+      <p class="small muted">Setup starts when you add the project. We’ll add one small settings file, timemachine.yml, to this folder and make your first save point. Nothing else in it changes. Save points are stored outside it.</p></div>
+      <div class="row-btns ob-acts"><button class="btn ghost" data-act="demo" ${o.working ? "disabled" : ""}>Try the demo instead</button></div>`;
   } else if (o.step === 2 && o.project) {
     const detected = o.init?.verifyCommand ?? "";
     const setup = o.init?.verifySetup.trim() ?? "";
@@ -1301,7 +1286,7 @@ function onboarding(): string {
     const a = hookStepActions(h, !!o.hookDone);
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
-        <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app${isBrowser() ? ", or choose Save now from More actions." : ", or from the menu bar."}</div></span><span></span></label>
+        <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or choose Save now from More actions.</div></span><span></span></label>
         <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code’s settings for this project. You can also do this later from Agents.</div>
           ${h ? hookLines(h) : ""}
           ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn’t prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">recommended</span></div>
@@ -2166,30 +2151,15 @@ async function runDemo(): Promise<void> {
   }
 }
 
-async function obChoose(): Promise<void> {
-  let path: string | null = null;
-  try {
-    path = await api({ method: "chooseFolder" });
-  } catch (e) {
-    st.onboarding.error = msg(e);
-  }
-  if (!path) return render();
-  st.onboarding = { ...st.onboarding, path, error: null };
-  // Picking the folder is the go-ahead: setup starts at once, with no extra Continue.
-  await obNext1();
-}
-
 async function obNext1(): Promise<void> {
   const o = st.onboarding;
   if (o.working) return;
-  if (isBrowser()) {
-    o.path = o.path?.trim() ?? "";
-    if (!o.path.startsWith("/") && !/^[A-Za-z]:\\/.test(o.path)) {
-      o.error = "Enter the full absolute folder path, such as /Users/you/projects/my-project. Relative paths and ~ are not supported.";
-      render();
-      root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
-      return;
-    }
+  o.path = o.path?.trim() ?? "";
+  if (!o.path.startsWith("/") && !/^[A-Za-z]:\\/.test(o.path)) {
+    o.error = "Enter the full absolute folder path, such as /Users/you/projects/my-project. Relative paths and ~ are not supported.";
+    render();
+    root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
+    return;
   }
   if (!o.path) return;
   o.working = true;
@@ -2208,8 +2178,8 @@ async function obNext1(): Promise<void> {
     st.onboarding = { ...o, working: false, error: msg(e) };
   }
   render();
-  if (isBrowser() && st.onboarding.error) root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
-  else if (isBrowser() && st.onboarding.step === 2) root.querySelector<HTMLButtonElement>('[data-act="ob-try"]')?.focus();
+  if (st.onboarding.error) root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
+  else if (st.onboarding.step === 2) root.querySelector<HTMLButtonElement>('[data-act="ob-try"]')?.focus();
 }
 
 function obCommand(): string {
@@ -2378,10 +2348,6 @@ async function loadLastTurns(): Promise<void> {
 async function setSetting(patch: Partial<Settings>): Promise<void> {
   try {
     st.settings = await api({ method: "setSettings", patch });
-    if ("hotkey" in patch) {
-      st.hotkeyActive = patch.hotkey != null;
-      st.hotkeyDraft = null;
-    }
     applyTheme();
   } catch (e) {
     toast(msg(e));
@@ -2412,7 +2378,7 @@ function startAdd(): void {
   st.onboarding = emptyOnboarding();
   st.screen = "onboarding";
   render();
-  if (isBrowser()) root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
+  root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
 }
 
 function cancelAdd(): void {
@@ -2555,9 +2521,8 @@ async function onClick(el: HTMLElement): Promise<void> {
       return runDiff();
     case "reveal":
       if (d.path) {
-        const r = await bridge.call(isBrowser() ? { method: "copy", text: d.path } : { method: "reveal", path: d.path });
-        if (!r.ok) toast(r.error.message);
-        else if (isBrowser()) toast("Local path copied. Open it in your editor or file manager.");
+        const r = await bridge.call({ method: "copy", text: d.path });
+        toast(r.ok ? "Local path copied. Open it in your editor or file manager." : r.error.message);
       }
       return;
     case "copy":
@@ -2581,15 +2546,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       return setSetting({ theme: d.v === "light" || d.v === "dark" ? d.v : "system" });
     case "toggle":
       if (d.key === "showGitDetails") return setSetting({ showGitDetails: !st.settings.showGitDetails });
-      if (d.key === "overlayCards") return setSetting({ overlayCards: !st.settings.overlayCards });
-      if (d.key === "agentPill") return setSetting({ agentPill: !st.settings.agentPill });
       return;
-    case "hotkey-save": {
-      const v = (st.hotkeyDraft ?? st.settings.hotkey ?? "").trim();
-      return setSetting({ hotkey: v || null });
-    }
-    case "hotkey-off":
-      return setSetting({ hotkey: null });
     case "clean-preview":
       if (d.id) await cleanStore(d.id, false);
       return;
@@ -2623,8 +2580,6 @@ async function onClick(el: HTMLElement): Promise<void> {
       st.hookSheet = null;
       if (st.screen === "agents") st.agents = await api({ method: "agents" }).catch(() => st.agents);
       return render();
-    case "ob-choose":
-      return obChoose();
     case "ob-next1":
       return obNext1();
     case "ob-choice":
@@ -2648,6 +2603,9 @@ async function onClick(el: HTMLElement): Promise<void> {
       return;
   }
 }
+
+/** The in-page keyboard shortcuts. */
+type ShortcutAction = "save" | "check" | "rewind" | "inspector" | "settings" | "add" | "compare";
 
 function shortcut(action: ShortcutAction): void {
   const inProject = !!project() && st.screen !== "onboarding" && st.screen !== "rewind";
@@ -2764,7 +2722,7 @@ function onKey(e: KeyboardEvent): void {
     render();
     return;
   }
-  if (k === "escape" && isBrowser() && st.screen === "onboarding" && st.onboarding.step === 1) {
+  if (k === "escape" && st.screen === "onboarding" && st.onboarding.step === 1) {
     e.preventDefault();
     cancelAdd();
     return;
@@ -2848,9 +2806,6 @@ function onEvent(ev: AppEvent): void {
       applyTheme();
       render();
       return;
-    case "shortcut":
-      shortcut(ev.action);
-      return;
   }
 }
 
@@ -2881,12 +2836,11 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
     askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
-    agents: null, isolation: null, cleanup: null, hotkeyDraft: null, hotkeyActive: boot.data.hotkeyActive,
+    agents: null, isolation: null, cleanup: null,
     hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
   };
   if (isMac()) document.documentElement.classList.add("mac");
-  if (!o.preview && !isBrowser()) document.documentElement.classList.add("native");
-  if (isBrowser()) document.documentElement.classList.add("browser-runtime");
+  document.documentElement.classList.add("browser-runtime");
   applyTheme();
   root.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
@@ -2926,10 +2880,6 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
       st.onboarding.path = t.value;
       return;
     }
-    if (t.dataset.model === "hotkey") {
-      st.hotkeyDraft = t.value;
-      return;
-    }
     if (t.dataset.model === "pal" && st.palette) {
       st.palette = { q: t.value, i: 0 };
       const list = root.querySelector(".pal-list");
@@ -2961,7 +2911,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
       render();
     } else fitSessions();
   });
-  if (isBrowser()) window.addEventListener("tm:connection", (e) => {
+  window.addEventListener("tm:connection", (e) => {
     const before = st.connection?.state;
     st.connection = (e as CustomEvent<NonNullable<State["connection"]>>).detail;
     render();

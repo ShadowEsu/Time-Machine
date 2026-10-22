@@ -119,7 +119,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
       v.problem = !boot.ok ? boot.error.message : !creds.ok ? creds.error.message : "That project is no longer in the list.";
       return draw();
     }
-    Object.assign(v, { phase: "ready", ask: p.features.ask, link: p.features.vercel, keys: creds.data, runtime: boot.data.runtime });
+    Object.assign(v, { phase: "ready", ask: p.features.ask, link: p.features.vercel, keys: creds.data, runtime: "browser" });
     if (v.link || !v.keys.vercel) v.options = null;
     draw();
   };

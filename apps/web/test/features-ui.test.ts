@@ -56,7 +56,7 @@ describe("pages the app opens in the browser", () => {
 
   test("the preview refuses the same pages", async () => {
     const r = await new FakeEngine().call({ method: "openExternal", url: "https://evil.com" });
-    expect(r).toMatchObject({ ok: false, error: { message: expect.stringMatching(/Only Vercel pages/) } });
+    expect(r).toMatchObject({ ok: false, error: { message: expect.stringMatching(/Only the Time Machine site, Vercel pages/) } });
   });
 });
 

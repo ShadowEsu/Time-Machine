@@ -121,17 +121,12 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
     switch (call.method) {
       case "bootstrap": {
         const localBrandMarks = process.env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
-        const data: Bootstrap = { runtime: "browser", localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, hotkey: "", hotkeyActive: false, storeDir: home, preview: false };
+        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
         return { ok: true, data };
       }
-      case "chooseFolder":
-        return { ok: false, error: { kind: "usage", message: "Browsers cannot choose a local folder path. Use Add project and enter its absolute local path." } };
       case "setCredential":
         return { ok: false, error: { kind: "usage", message: "The browser app does not store API keys. Set GEMINI_API_KEY or VERCEL_TOKEN in the environment before running tm ui." } };
       case "setSettings": {
-        if (call.patch.hotkey !== undefined || call.patch.overlayCards !== undefined || call.patch.agentPill !== undefined) {
-          return { ok: false, error: { kind: "usage", message: "Global shortcuts and menu-bar overlays are available only in the desktop app." } };
-        }
         const settings = state.updateSettings(call.patch);
         send({ type: "settings", settings });
         return { ok: true, data: settings };
@@ -140,8 +135,6 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
         if (!state.find(call.projectId)) return { ok: false, error: { kind: "not_found", message: "That project is no longer in the list." } };
         state.activeId = call.projectId;
         return { ok: true, data: true };
-      case "reveal":
-        return { ok: false, error: { kind: "usage", message: "A browser cannot reveal a local folder. Copy the displayed path and open it in your file manager." } };
       case "copy":
         return { ok: false, error: { kind: "usage", message: "Use the browser Clipboard API to copy text." } };
       case "openExternal":

@@ -91,7 +91,7 @@ export class FakeEngine implements TmBridge {
   private added = true;
   private seed: Point | null = null;
   private stopping = false;
-  settings: Settings = { showGitDetails: false, overlayCards: true, theme: "system", onboarded: true, simpleRewind: false, hotkey: "Control+Alt+T", agentPill: true, verdictTipSeen: false };
+  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null } };
   /** Whether each key is set. The preview never holds a real key. */
   private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
@@ -279,12 +279,7 @@ export class FakeEngine implements TmBridge {
   private async dispatch(call: Call): Promise<unknown> {
     switch (call.method) {
       case "bootstrap":
-        // A browser page can't own a global shortcut, so it is never active here.
-        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project] : [], hotkey: this.settings.hotkey ?? "", hotkeyActive: false, storeDir: "~/.timemachine", preview: true };
-      case "chooseFolder":
-        // The new-user walkthrough picks the sample folder. Real folders need the app.
-        if (this.scenario === "new") return ROOT;
-        throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
+        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project] : [], storeDir: "~/.timemachine", preview: true };
       case "addProject":
         if (this.scenario !== "new") throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
         this.added = true;
@@ -403,8 +398,6 @@ export class FakeEngine implements TmBridge {
       case "setSettings":
         this.settings = { ...this.settings, ...call.patch };
         return this.settings;
-      case "reveal":
-        throw new Error("The preview has no folders to show. In the app this opens Finder.");
       case "readReport":
         if (!this.lastRecover) throw new Error("No report yet.");
         return this.report(this.lastRecover);
