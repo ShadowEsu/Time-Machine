@@ -2,7 +2,7 @@ import { parseArgs, type ParseArgsConfig } from "node:util";
 import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtStatus, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
 import { runUi } from "./ui/server.js";
@@ -50,6 +50,7 @@ Usage: tm <command> [options]
 
   init [--no-approve]   Create timemachine.yml with a guessed check, or keep yours, and approve
                         its check for the Claude Code plugin; --no-approve only writes the file
+  status                Say if this project is set up and its check approved on this computer
   demo [dir]            Build a broken demo project and watch it get rescued
   checkpoint [-m note]  Save a checkpoint of the project as it is now
                         --if-changed skips it when nothing changed, --trigger names the source
@@ -89,6 +90,7 @@ const OPTIONS = {
 
 const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
   init: { args: [0, 0], flags: ["no-approve"] },
+  status: { args: [0, 0], flags: [] },
   checkpoint: { args: [0, 0], flags: ["message", "trigger", "if-changed"] },
   demo: { args: [0, 1], flags: [] },
   hook: { args: [1, 1], flags: ["if-initialized"] },
@@ -146,6 +148,11 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "init": {
         const r = await tm.init(ctx, { approve: values["no-approve"] !== true });
         print(r, fmtInit(r));
+        return 0;
+      }
+      case "status": {
+        const r = tm.status(ctx);
+        print(r, fmtStatus(r));
         return 0;
       }
       case "checkpoint": {

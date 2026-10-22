@@ -1,6 +1,6 @@
 // Human output. Every line is built from the same result object the --json flag prints,
 // so the two can never disagree.
-import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, LogResult, OpenResult, RecoverResult, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
+import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, LogResult, OpenResult, RecoverResult, StatusResult, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -29,17 +29,31 @@ const when = (iso: string): string => {
 };
 const list = (title: string, items: string[]): string[] => (items.length ? [`${title}`, ...items.map((i) => `  ${i}`)] : []);
 
+const NO_CHECK = "No test command found, so save points can't be checked yet. Set verify.command in timemachine.yml, then run tm init again to approve it.";
+
 export function fmtInit(r: InitResult): string {
+  const noCheck = !r.verifyCommand.trim();
   return [
     r.created ? `Created ${r.configPath}` : `Kept your existing ${r.configPath}`,
-    `  Check     ${r.verifyCommand || "(none yet, add verify.command)"}`,
+    `  Check     ${noCheck ? "(none)" : r.verifyCommand}`,
     ...(r.verifySetup ? [`  Setup     ${r.verifySetup}   (runs first in each fresh copy)`] : []),
     `  Network   ${r.network === "deny" ? `off during checks (${r.sandbox})` : "on during checks"}`,
-    r.approvedCheck === null
-      ? "  Approval  not recorded. When the check above is right, run tm init to let plugin hooks and MCP tools run it on this computer."
-      : `  Approved  ${r.approvedCheck || "(no check yet)"}   (plugin hooks and MCP tools may run it on this computer)`,
-    "Next: tm checkpoint -m \"first save point\"",
+    ...(noCheck
+      ? [NO_CHECK]
+      : [
+          r.approvedCheck === null
+            ? "  Approval  not recorded. When the check above is right, run tm init to let plugin hooks and MCP tools run it on this computer."
+            : `  Approved  ${r.approvedCheck}   (plugin hooks and MCP tools may run it on this computer)`,
+          "Next: tm checkpoint -m \"first save point\"",
+        ]),
   ].join("\n");
+}
+
+export function fmtStatus(r: StatusResult): string {
+  if (!r.initialized) return "Not set up: this project has no timemachine.yml. Run tm init.";
+  if (r.check === null) return "Set up, but there is no check yet. Set verify.command in timemachine.yml, then run tm init to approve it.";
+  if (!r.approved) return ["Set up, but the check is not approved on this computer.", `  Check     ${r.check}`, "When the check is right, run tm init to approve it."].join("\n");
+  return ["Set up. The check is approved on this computer.", `  Check     ${r.check}`].join("\n");
 }
 
 export function fmtCheckpoint(r: CheckpointResult): string {
@@ -143,6 +157,13 @@ export function fmtDemo(r: DemoResult, s: Style): string {
     "Try it yourself:",
     `  cd ${r.dir}`,
     "  tm timeline",
+    "",
+    "Now protect your own project:",
+    "  cd <your project>",
+    "  tm init",
+    "Then add the Claude Code plugin, so it saves before each prompt and risky command:",
+    "  /plugin marketplace add ShadowEsu/Time-Machine",
+    "  /plugin install time-machine@time-machine",
   ].join("\n");
 }
 

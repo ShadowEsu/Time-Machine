@@ -53,6 +53,8 @@ describe("tm hook --if-initialized", () => {
 
   test("tm init --no-approve writes the file, records no consent, and says how to approve", async () => {
     const { dir, env } = folder(true);
+    // An empty check is never approved, so this project needs a test script for init to guess.
+    write(dir, "package.json", JSON.stringify({ name: "app", scripts: { test: "node --test" } }));
     const input = JSON.stringify({ cwd: dir, prompt: "x" });
     const r = await run(dir, env, ["init", "--no-approve"]);
     expect(r.code).toBe(0);

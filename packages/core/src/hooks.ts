@@ -150,8 +150,13 @@ export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: 
     if (event === "pre-bash") {
       const command = data.tool_input?.command ?? "";
       if (!isRisky(command)) return none(event);
-      const r = await checkpoint(c, { note: `Before risky command: ${clip(screened(p, command))}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
-      return { event, exitCode: 0, checkpoint: r.checkpoint.id, verdict: null, message: "" };
+      const shown = screened(p, command);
+      const r = await checkpoint(c, { note: `Before risky command: ${clip(shown)}`, trigger: "claude-code:pre-bash", agent: claude(turnPrompt(p)), skipIfUnchanged: true });
+      const result: HookResult = { event, exitCode: 0, checkpoint: r.checkpoint.id, verdict: null, message: "" };
+      if (r.skipped) return result;
+      // The one line the user sees in Claude Code, only when a new save point was made: protection at the risky moment.
+      const what = shown === command ? clipSafe(command, 60, "a risky command") : "a risky command";
+      return { ...result, systemMessage: `Time Machine saved ${r.checkpoint.id} before ${what}${what.endsWith("...") ? "" : "."}` };
     }
     // stop: save, check, and compare with the newest earlier verdict. The turn is over either way.
     audit(p, "agent-turn", null, "ended");
