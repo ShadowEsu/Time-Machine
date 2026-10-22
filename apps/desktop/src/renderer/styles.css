@@ -253,6 +253,8 @@ kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-var
 .entry.on { background: var(--mist); }
 .entry.lit { background: var(--accent-bg); }
 .entry .when { font: 400 11.5px/24px var(--font); color: var(--ink-3); text-align: right; padding-right: 10px; font-variant-numeric: tabular-nums; }
+/* Save points that share a minute show seconds; the label may wrap to two short lines inside the time column. */
+.entry .when.secs { font-size: 10.5px; line-height: 13px; padding-top: 5px; }
 .entry .gl { position: relative; display: grid; justify-items: center; padding-top: 8px; }
 .entry .gl .g { box-shadow: 0 0 0 3px var(--paper); }
 .entry .gl .g.v-none { box-shadow: inset 0 0 0 1.5px var(--ink-4), 0 0 0 3px var(--paper); background: var(--paper); }
@@ -575,7 +577,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .det .g.v-fail { width: 7px; height: 7px; }
 .det.on .g { transform: scale(1.45); }
 .det.on .g.v-fail { transform: rotate(45deg) scale(1.45); }
-.det b { position: absolute; left: -26px; top: -140px; width: 52px; text-align: center; font: 500 9.5px/1 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.det b { position: absolute; left: -38px; top: -140px; width: 76px; text-align: center; font: 500 9.5px/1 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .det b.on { color: var(--ink); }
 .knob { position: absolute; left: 28px; top: 28px; width: 180px; height: 180px; border-radius: 50%; outline: none;
   background: repeating-conic-gradient(from 0deg, var(--knob-1) 0 1.5deg, var(--knob-2) 1.5deg 3deg);
@@ -784,7 +786,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .ch-n { font-size: 14px; }
   .entry, .fold { grid-template-columns: 42px 18px minmax(0, 1fr); }
   .entry::before, .fold::before { left: 50px; }
-  .entry .when { font-size: 10px; padding-right: 6px; }
+  .entry .when, .entry .when.secs { font-size: 10px; padding-right: 6px; }
   .entry .body, .fold .body { padding-left: 6px; }
   .entry h3 { font-size: 14px; }
   .meta { gap: 6px; font-size: 12px; }

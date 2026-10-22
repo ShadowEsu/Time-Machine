@@ -180,6 +180,20 @@ describe("project status", () => {
     expect(s.primary.act).toBe("check");
   });
 
+  test("save points in the same minute are told apart by seconds, and by number when they share a second", () => {
+    const sec = (h: number, m: number, s: number): string => new Date(2026, 9, 14, h, m, s).toISOString();
+    // The fixed date is not today, so labels carry the day in front, like `when`.
+    const withSeconds = (iso: string): string => `${new Date(iso).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} ${new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
+    const sameMinute = [pt(1, "PASS", sec(18, 4, 5), "Works"), pt(2, "FAIL", sec(18, 4, 40), "Broke it")];
+    const s = projectStatus(sameMinute);
+    expect(s.head).toBe(`Broken since ${withSeconds(sec(18, 4, 40))}.`);
+    expect(s.primary.label).toBe(`Go back to the ${withSeconds(sec(18, 4, 5))} version`);
+    expect(s.primary.label).not.toContain(withSeconds(sec(18, 4, 40)));
+    const sameSecond = [pt(1, "PASS", sec(18, 4, 5), "Works"), pt(2, "FAIL", sec(18, 4, 5), "Broke it"), pt(3, null, sec(19, 0, 0), "Later")];
+    expect(projectStatus(sameSecond).secondary?.label).toBe(`Go back to the ${withSeconds(sec(18, 4, 5))} #1 version`);
+    expect(projectStatus(sameSecond).body).toBe(`Saved at ${when(sec(19, 0, 0))}. We don’t know yet if this version works.`);
+  });
+
   test("a save point names its agent once: dropped beside an author line, kept without one", () => {
     const stop = { note: "After agent turn", trigger: "claude-code:stop", agent: { name: "Claude Code", prompt: "add dark mode" } };
     expect(pointTitle(stop)).toBe("Claude Code: add dark mode");

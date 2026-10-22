@@ -2,7 +2,7 @@
 // from the save points alone, so the app, the tests and the palette always agree.
 import type { TimelineEntry } from "@timetm/core";
 import type { Verdict } from "../shared/api.js";
-import { shortTitle, when } from "../shared/format.js";
+import { pointWhen, shortTitle, when } from "../shared/format.js";
 
 export type StatusPoint = Pick<TimelineEntry, "id" | "verdict" | "createdAt" | "note" | "trigger" | "agent">;
 
@@ -37,7 +37,8 @@ export function brokenSince<T extends StatusPoint>(points: T[]): T | null {
   return points.slice(lastPass + 1).find((c) => c.verdict === "FAIL") ?? null;
 }
 
-export const goBackLabel = (c: StatusPoint): string => `Go back to the ${when(c.createdAt)} version`;
+/** `peers` are the project's save points, so two versions saved in the same minute never get the same label. */
+export const goBackLabel = (c: StatusPoint, peers: readonly StatusPoint[]): string => `Go back to the ${pointWhen(c, peers)} version`;
 
 /**
  * The status sentence and exactly one primary button, plus at most one secondary.
@@ -49,28 +50,29 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
   const check: StatusButton = { label: "Check it works", act: "check" };
   if (!newest) return { v: null, head: "No save points yet.", em: "", body: "Save now to make the first one. Then check that it works.", primary: save, secondary: null };
   const lw = lastWorking(points);
-  const goBack: StatusButton | null = lw ? { label: goBackLabel(lw), act: "rewind-to", id: lw.id } : null;
+  const at = (c: StatusPoint): string => pointWhen(c, points);
+  const goBack: StatusButton | null = lw ? { label: goBackLabel(lw, points), act: "rewind-to", id: lw.id } : null;
   switch (newest.verdict) {
     case "FAIL": {
-      const em = `since ${when((brokenSince(points) ?? newest).createdAt)}.`;
+      const em = `since ${at(brokenSince(points) ?? newest)}.`;
       const head = `Broken ${em}`;
       if (!lw) return { v: "FAIL", head, em, body: "No earlier version has passed a check yet. We can check older ones for you.", primary: { label: "Find the last working version", act: "rewind" }, secondary: null };
       return {
         v: "FAIL",
         head,
         em,
-        body: `The last version that works is from ${when(lw.createdAt)}: ${shortTitle(lw)}. Going back takes two clicks and saves this version first.`,
-        primary: { label: goBackLabel(lw), act: "rewind-to", id: lw.id },
+        body: `The last version that works is from ${at(lw)}: ${shortTitle(lw)}. Going back takes two clicks and saves this version first.`,
+        primary: { label: goBackLabel(lw, points), act: "rewind-to", id: lw.id },
         secondary: { label: "See what changed", act: "compare", a: lw.id, b: "now" },
       };
     }
     case "PASS": {
-      const em = checkedAt ? `checked at ${when(checkedAt)}.` : `as of ${when(newest.createdAt)}.`;
+      const em = checkedAt ? `checked at ${when(checkedAt)}.` : `as of ${at(newest)}.`;
       return {
         v: "PASS",
         head: `Works, ${em}`,
         em,
-        body: `Your newest save point, ${when(newest.createdAt)} ${shortTitle(newest)}, passed its check in a safe copy. Save again after your next change.`,
+        body: `Your newest save point, ${at(newest)} ${shortTitle(newest)}, passed its check in a safe copy. Save again after your next change.`,
         primary: save,
         secondary: check,
       };
@@ -86,7 +88,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
         v: null,
         head: "Not checked yet.",
         em: "checked yet.",
-        body: `Saved at ${when(newest.createdAt)}. We don’t know yet if this version works.`,
+        body: `Saved at ${at(newest)}. We don’t know yet if this version works.`,
         primary: check,
         secondary: goBack,
       };
