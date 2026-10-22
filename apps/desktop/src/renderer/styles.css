@@ -73,7 +73,7 @@ h1, h2, h3, h4 { margin: 0; letter-spacing: -.015em; text-wrap: balance; }
 p { margin: 0; text-wrap: pretty; }
 /* Shortcut hints are quiet but readable: ink-3 meets AA on every paper; on ink they keep the button's own color. */
 kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.btn.dark kbd, .pill kbd { color: inherit; opacity: .78; }
+.btn.dark kbd, .pill kbd { color: inherit; }
 .btn kbd { margin-left: 1px; }
 /* Headlines speak in Newsreader. Italic is an accent, never a paragraph. Body stays Inter, technical facts Geist Mono. */
 .hero-h, .page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--serif); font-weight: 400; letter-spacing: -.02em; }
