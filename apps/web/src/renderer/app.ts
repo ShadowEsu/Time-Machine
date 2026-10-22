@@ -369,13 +369,18 @@ function plainNotSaved(line: string): string {
   return line;
 }
 
-/** A line of what a rewind brought back, in plain words. Git details add the commit. */
-function plainRestored(line: string): string {
+/** A line of what a rewind brought back, in plain words. Git details add the commit. `dirty`: the save point held work that was not committed yet. */
+function plainRestored(line: string, dirty: boolean): string {
   const code = /^Code at commit (\S+)$/.exec(line);
-  if (code) return st.settings.showGitDetails ? `Code, commit ${code[1]}` : "Code";
+  if (code) return codeLine(st.settings.showGitDetails ? code[1]! : null, dirty);
   const files = /^(\d+) saved files?$/.exec(line);
   if (files) return otherFiles(Number(files[1]));
   return line.startsWith("Config: ") ? `Settings: ${line.slice(8)}` : line;
+}
+
+/** The code line in what comes back. A revert brings back commits; this says when uncommitted work comes back too. */
+function codeLine(commit: string | null, dirty: boolean): string {
+  return `${commit ? `Code, commit ${commit}` : "Code"}${dirty ? ", including work that was not committed yet" : ""}`;
 }
 
 /** Files Git does not track, said without Git. Git details add the Git words. */
@@ -807,7 +812,7 @@ function stageId(): string | null {
 /** What a rewind to this save point brings back, in plain words. From the engine's coverage report. */
 function comesBackLines(c: TimelineEntry): string[] {
   return c.coverage.restorable.map((line) => {
-    if (line === "Code") return st.settings.showGitDetails ? `Code, commit ${short(c.commit)}` : "Code";
+    if (line === "Code") return codeLine(st.settings.showGitDetails ? short(c.commit) : null, c.dirty);
     const files = /^(\d+) saved files?$/.exec(line);
     if (files) return otherFiles(Number(files[1]));
     if (line.startsWith("Config values: ")) return `Settings: ${line.slice(15)}`;
@@ -901,7 +906,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
         <p class="tv-lede">It is on a new branch, with a recovery copy next to your project. Your folder was not touched, so switching is your call.</p>
         <div class="tv-ev">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a safe copy on ${device()}.` : "Not checked yet. Run Check it works before you rely on it."}</span></div></div>
       <div class="report"><h3>What came back</h3>
-        ${cols("Brought back", "Not brought back", res.restored.map(plainRestored), res.notRestored.map(plainNotSaved))}
+        ${cols("Brought back", "Not brought back", res.restored.map((line) => plainRestored(line, entry(res.id)?.dirty ?? false)), res.notRestored.map(plainNotSaved))}
         <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
         <div class="endline"><span>Your current version was saved first. Nothing was pushed, merged, deployed or deleted.</span></div>
         <div class="row-btns"><button class="btn link" data-act="reveal" data-path="${esc(res.copyDir)}">${revealLabel(true)}</button><button class="btn link" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy the report as text</button></div>
