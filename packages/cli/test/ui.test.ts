@@ -1,8 +1,10 @@
+import { generateKeyPairSync } from "node:crypto";
 import { request } from "node:http";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
+import { signLicense } from "@timetm/core";
 import { startUiServer, type UiServer } from "../src/ui/server.ts";
 import { main } from "../src/main.ts";
 
@@ -109,6 +111,35 @@ describe("local browser boundary", () => {
     expect(JSON.parse((await call(next, { method: "chooseFolder" })).body).ok).toBe(false);
     await next.close();
     await expect(fetch(next.origin)).rejects.toThrow();
+  });
+  test("checks license keys against TM_LICENSE_PUBLIC_KEY, the same override the CLI honours", async () => {
+    const pair = (): { pub: string; priv: string } => {
+      const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+      return { pub: publicKey.export({ type: "spki", format: "der" }).subarray(-32).toString("base64url"), priv: privateKey.export({ type: "pkcs8", format: "der" }).subarray(-32).toString("base64url") };
+    };
+    const seller = pair();
+    const stranger = pair();
+    const payload = { v: 1 as const, id: "cs_test_uiwebkey", plan: "web" as const, issued: "2026-10-22" };
+    const saved = { home: process.env.TM_HOME, key: process.env.TM_LICENSE_PUBLIC_KEY };
+    const root = mkdtempSync(join(tmpdir(), "tm-ui-license-"));
+    roots.push(root);
+    process.env.TM_HOME = join(root, "store");
+    try {
+      process.env.TM_LICENSE_PUBLIC_KEY = seller.pub;
+      const s = await start();
+      const foreign = JSON.parse((await call(s, { method: "setLicense", key: signLicense(payload, stranger.priv) })).body);
+      expect(foreign.ok).toBe(false);
+      const active = JSON.parse((await call(s, { method: "setLicense", key: signLicense(payload, seller.priv) })).body);
+      expect(active).toMatchObject({ ok: true, data: { active: true, id: "cs_test_uiwebkey", issued: "2026-10-22", problem: null } });
+      expect(JSON.parse((await call(s, { method: "license" })).body).data.active).toBe(true);
+      process.env.TM_LICENSE_PUBLIC_KEY = "short";
+      await expect(start()).rejects.toThrow("TM_LICENSE_PUBLIC_KEY must be a raw Ed25519 public key");
+    } finally {
+      for (const [name, value] of [["TM_HOME", saved.home], ["TM_LICENSE_PUBLIC_KEY", saved.key]] as const) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
   });
   test("CLI rejects invalid UI ports and flags before starting a server", async () => {
     for (const args of [["ui", "--port", "0"], ["ui", "--port", "65536"], ["ui", "--port", "1e3"], ["ui", "extra"], ["ui", "--json"], ["timeline", "--no-open"]]) {

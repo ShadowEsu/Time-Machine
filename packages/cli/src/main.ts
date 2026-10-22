@@ -110,18 +110,6 @@ const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
   license: { args: [0, 1], flags: ["remove"] },
 };
 
-/**
- * The public key that license keys are checked against. TM_LICENSE_PUBLIC_KEY replaces the embedded
- * seller key with another raw Ed25519 public key (base64url). Tests use it to sign with a throwaway
- * keypair, and a user can pin a different seller key with it. It is never read from anywhere else.
- */
-function licensePublicKey(env: NodeJS.ProcessEnv): string {
-  const override = env.TM_LICENSE_PUBLIC_KEY;
-  if (override === undefined || override === "") return tm.LICENSE_PUBLIC_KEY;
-  if (!/^[A-Za-z0-9_-]{43}$/.test(override)) throw new tm.TmError("usage", "TM_LICENSE_PUBLIC_KEY must be a raw Ed25519 public key, 32 bytes as base64url.");
-  return override;
-}
-
 class UsageError extends Error {}
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -256,7 +244,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
           print(r, `License removed from this computer.\n${fmtLicense(r)}`);
           return 0;
         }
-        const publicKey = licensePublicKey(io.env);
+        const publicKey = tm.licensePublicKeyFromEnv(io.env);
         if (key === undefined) {
           const r = tm.licenseStatus(ctx, publicKey);
           print(r, fmtLicense(r));

@@ -79,7 +79,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
   const engine = new Engine(state, {
     candidates: process.env.TM_HOOK_COMMAND ? [process.env.TM_HOOK_COMMAND] : [...(own ? [own] : []), ...tm.npxHookCandidates(VERSION)],
     version: VERSION,
-  }, { credentials, fetch: globalThis.fetch });
+  }, { credentials, fetch: globalThis.fetch, licensePublicKey: tm.licensePublicKeyFromEnv(process.env) });
   const token = randomBytes(32).toString("hex");
   const expectedAuth = Buffer.from(`Bearer ${token}`);
   const streams = new Set<ServerResponse>();

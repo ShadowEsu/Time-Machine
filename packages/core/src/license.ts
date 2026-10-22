@@ -12,6 +12,19 @@ import type { Ctx } from "./types.js";
 
 /** Raw Ed25519 public key, base64url. The matching private key lives only with the seller. */
 export const LICENSE_PUBLIC_KEY = "Q_PPODTar9QhyhsdEruxYVIpPl-kSZnrfTQtcAzHqoA";
+
+/**
+ * The public key license keys are checked against, for the CLI and the web app alike. TM_LICENSE_PUBLIC_KEY
+ * replaces the embedded seller key with another raw Ed25519 public key (base64url): tests sign with a throwaway
+ * keypair, and a user can pin a different seller key. It is never read from anywhere else.
+ */
+export function licensePublicKeyFromEnv(env: NodeJS.ProcessEnv): string {
+  const override = env.TM_LICENSE_PUBLIC_KEY;
+  if (override === undefined || override === "") return LICENSE_PUBLIC_KEY;
+  if (!/^[A-Za-z0-9_-]{43}$/.test(override)) throw new TmError("usage", "TM_LICENSE_PUBLIC_KEY must be a raw Ed25519 public key, 32 bytes as base64url.");
+  return override;
+}
+
 /** Projects the free web app lists at once. Everything else, including every restore, is free. */
 export const FREE_PROJECT_LIMIT = 3;
 const PREFIX = "TM1";
