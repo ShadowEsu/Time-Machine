@@ -5,14 +5,15 @@ import { existsSync, opendirSync, readdirSync, readFileSync, statSync } from "no
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import * as tm from "@timetm/core";
-import type { AgentRow, Call, HookPreview, IsolationInfo, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
+import type { AgentRow, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
+import { PRICING_URL } from "../shared/links.js";
 import { askHistory } from "./ask.js";
 import type { Credentials } from "./credentials.js";
 import { agentTurnStart, firstRunning } from "./rules.js";
 import type { AppState } from "./state.js";
 import { matchDeployments, Vercel } from "./vercel.js";
 
-type EngineCall = Exclude<Call, { method: "bootstrap" | "chooseFolder" | "setSettings" | "reveal" | "copy" | "setActive" | "openExternal" }>;
+type EngineCall = Exclude<Call, { method: "bootstrap" | "setSettings" | "copy" | "setActive" | "openExternal" }>;
 
 /** The commands the Claude Code hooks may call, best first, and the version they must answer with. */
 export interface HookSetup {
@@ -20,10 +21,12 @@ export interface HookSetup {
   version: string;
 }
 
-/** What the opt-in features reach outside this Mac with. Tests pass a fake fetch. */
+/** What the opt-in features reach outside this computer with. Tests pass a fake fetch and their own license key pair. */
 export interface Services {
   credentials: Credentials;
   fetch: typeof fetch;
+  /** The seller's public key that license keys are checked against. Tests pass a generated one. */
+  licensePublicKey?: string;
 }
 
 export class Engine {
@@ -47,6 +50,15 @@ export class Engine {
 
   ctx(p: ProjectEntry): tm.Ctx {
     return { cwd: p.path, env: process.env };
+  }
+
+  /** The license is computer wide, under the store root, so any existing folder works as the base. */
+  private licenseCtx(): tm.Ctx {
+    return { cwd: process.cwd(), env: process.env };
+  }
+
+  license(): LicenseStatus {
+    return tm.licenseStatus(this.licenseCtx(), this.services.licensePublicKey);
   }
 
   private project(id: string): ProjectEntry {
@@ -98,17 +110,21 @@ export class Engine {
 
   async addProject(path: string, demo = false): Promise<ProjectEntry> {
     if (!existsSync(path) || !statSync(path).isDirectory()) throw new tm.TmError("usage", "That folder does not exist.");
-    // Without this, a folder macOS keeps from the app (Documents, Desktop, an external disk) or
-    // one with no read permission would be reported as "not inside a Git repository".
+    // Without this, a folder with no read permission would be reported as "not inside a Git repository".
     try {
       opendirSync(path).closeSync();
     } catch {
-      throw new tm.TmError("usage", `Time Machine can't read ${path}. Allow Time Machine in System Settings, Privacy & Security, Files and Folders, or check the folder's permissions, then try again.`);
+      throw new tm.TmError("usage", `Time Machine can't read ${path}. Check the folder's permissions, then try again.`);
     }
     // The engine resolves the Git root, so the app and the CLI agree on which project this is.
     const root = (await tm.timeline({ cwd: path, env: process.env })).project;
     const existing = this.state.projects.find((p) => p.path === root);
     if (existing) return existing;
+    // The free app lists a few projects. The demo is never refused; it counts like any other project after.
+    const license = this.license();
+    if (!demo && !license.active && this.state.projects.length >= license.freeProjectLimit) {
+      throw new tm.TmError("usage", `The free web app lists up to ${license.freeProjectLimit} projects. Remove one, or buy Time Machine once for $50 at ${PRICING_URL} to add more. Every restore stays free.`);
+    }
     const entry: ProjectEntry = { id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo, features: { ask: false, vercel: null } };
     this.state.projects.push(entry);
     this.state.saveProjects();
@@ -235,6 +251,12 @@ export class Engine {
         return { configured: this.services.credentials.status()[call.name] };
       case "vercelProjects":
         return this.vercel.projects();
+      case "license":
+        return this.license();
+      case "setLicense":
+        return tm.activateLicense(this.licenseCtx(), call.key, this.services.licensePublicKey);
+      case "removeLicense":
+        return tm.removeLicense(this.licenseCtx());
       case "stopCheck": {
         // Never queued behind the check it stops. False when nothing was running.
         const c = this.stops.get(call.projectId);
@@ -307,7 +329,7 @@ export class Engine {
         return this.serial(p.id, "Connecting Claude Code", async () => {
           const h = await this.hookPreview(p);
           if (!h.runs) {
-            throw new tm.TmError("usage", `The hook command does not run on this Mac yet (${h.command} --version did not answer ${this.hook.version}), so nothing was added. From a source checkout, run pnpm build first.`);
+            throw new tm.TmError("usage", `The hook command does not run on this computer yet (${h.command} --version did not answer ${this.hook.version}), so nothing was added. From a source checkout, run pnpm build first.`);
           }
           return tm.hookInstall(ctx, { command: h.command });
         });

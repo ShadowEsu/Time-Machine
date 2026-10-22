@@ -32,7 +32,6 @@ const AbsPath = z.string().min(1).max(4096).refine((s) => s.startsWith("/") || /
 
 export const ThemeSchema = z.enum(["system", "light", "dark"]);
 
-
 /**
  * Settings kept in settings.json. Unknown keys are dropped, not refused: a file written by an older
  * version (with the Mac app's hotkey or overlay keys) still loads and keeps its theme.

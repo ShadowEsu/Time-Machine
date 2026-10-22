@@ -30,7 +30,7 @@ export class AppState {
   private readonly settingsPath: string;
   projects: ProjectEntry[];
   settings: Settings;
-  /** The project the user looked at last. The tray and hotkey act on it. */
+  /** The project the user looked at last. Store change events name it. */
   activeId: string | null = null;
 
   constructor(dir: string) {

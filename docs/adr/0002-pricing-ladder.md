@@ -1,5 +1,7 @@
 # ADR 0002: Pricing, "The Ladder"
 
+Status: superseded by ADR 0013 (one-time price for the web app). Kept for the record.
+
 Date: 14 October 2026. Status: accepted by the founder. Planned, not built.
 
 ## Decision
