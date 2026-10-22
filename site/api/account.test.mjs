@@ -15,7 +15,7 @@ const TOKEN = "synthetic.access.token-0123456789";
 const AUTH = `Bearer ${TOKEN}`;
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const session = (id, extra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, ...extra });
+const session = (id, extra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, ...extra });
 const user = () => json({ id: "00000000-0000-4000-8000-000000000000", email: EMAIL, role: "authenticated" });
 
 // Routes each fetch by URL: the Supabase user call, then one or more Stripe pages.
@@ -32,7 +32,7 @@ beforeEach(() => resetRateLimits());
 describe("account handler", () => {
   it("lists one key per paid one-time session, the same key the thanks page gives, and nothing else from Stripe", async () => {
     const pages = [
-      { data: [session("cs_test_one1234567890"), session("cs_test_sub1234567890", { mode: "subscription" }), session("cs_test_unpaid234567890", { payment_status: "unpaid" })], has_more: true },
+      { data: [session("cs_test_one1234567890"), session("cs_test_sub1234567890", { mode: "subscription" }), session("cs_test_other234567890", { metadata: { product: "unvibe-lifetime" }, amount_subtotal: 100, amount_total: 100 }), session("cs_test_unpaid234567890", { payment_status: "unpaid" })], has_more: true },
       { data: [session("cs_test_two1234567890")], has_more: false },
     ];
     const { fetch, deps } = setup({ pages });
@@ -93,6 +93,9 @@ describe("account handler", () => {
     expect((await handleAccount(request(), noSigning.deps)).body.error).toBe("checkout_closed");
     expect(noAuth.fetch).not.toHaveBeenCalled();
     expect(noStripe.fetch).not.toHaveBeenCalled();
+    const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" } });
+    expect((await handleAccount(request(), live.deps)).body.error).toBe("checkout_closed");
+    expect(live.fetch).not.toHaveBeenCalled();
   });
 
   it("answers 502 on Stripe trouble with the secret kept out of the log, and limits per client", async () => {

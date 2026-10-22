@@ -4,17 +4,28 @@
 // signs it, so the CLI and the web app verify it offline with the embedded public key.
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
-import { isCheckoutConfigured, reply, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
+import { isCheckoutConfigured, PRICE_CENTS, PRODUCT_TAG, reply, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
 
 const PKCS8_HEADER = Buffer.from("302e020100300506032b657004220420", "hex");
 const SessionIdSchema = z.string().regex(/^cs_[A-Za-z0-9_]{10,200}$/);
 // Only the fields the decision needs. Everything else Stripe sends is dropped here.
-const SessionSchema = z.object({
-  id: z.string(),
+export const SessionSchema = z.object({
+  id: z.string().min(1),
   mode: z.string(),
   payment_status: z.string(),
   created: z.number().int().nonnegative(),
+  metadata: z.object({ product: z.string() }).partial().nullish(),
+  currency: z.string().nullish(),
+  amount_subtotal: z.number().int().nullish(),
 });
+
+// A paid one-time Time Machine purchase: made by this site's checkout (the product tag), in dollars, for
+// the full price before any promotion code (amount_subtotal is the amount before discounts). Any other
+// paid session on the same Stripe account never becomes a key.
+export function isTmPurchase(session) {
+  return session.mode === "payment" && session.payment_status === "paid" && session.metadata?.product === PRODUCT_TAG
+    && session.currency === "usd" && typeof session.amount_subtotal === "number" && session.amount_subtotal >= PRICE_CENTS;
+}
 
 // Signs {v:1,id,plan,issued} in that key order with the raw Ed25519 private key (32 bytes, base64url).
 // Byte for byte the same as core's signLicense, which the license test proves with parseLicenseKey.
@@ -71,7 +82,7 @@ export async function handleLicense(req, deps) {
     log("license: stripe returned an unexpected shape");
     return reply(502, { ok: false, error: "stripe_error" });
   }
-  if (parsed.data.mode !== "payment" || parsed.data.payment_status !== "paid") return reply(402, { ok: false, error: "not_paid" });
+  if (!isTmPurchase(parsed.data)) return reply(402, { ok: false, error: "not_paid" });
 
   return reply(200, { ok: true, ...licenseFor(parsed.data, deps.env.TM_LICENSE_PRIVATE_KEY) });
 }

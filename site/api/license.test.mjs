@@ -20,6 +20,7 @@ const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 const paid = (extra = {}) => json({
   id: SESSION, object: "checkout.session", mode: "payment", payment_status: "paid", created: CREATED,
+  metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000,
   customer_details: { email: "buyer@example.test", name: "Synthetic Buyer" }, ...extra,
 });
 
@@ -76,6 +77,30 @@ describe("license handler", () => {
       const { deps } = setup({ response: () => paid(extra) });
       expect(await handleLicense(request(), deps)).toEqual({ status: 402, headers: {}, body: { ok: false, error: "not_paid" } });
     }
+  });
+
+  it("gives no key for another product's paid session on the same Stripe account", async () => {
+    const foreign = [
+      { metadata: { product: "unvibe-lifetime" }, amount_subtotal: 100, amount_total: 100, client_reference_id: "someone-else" },
+      { metadata: {} },
+      { metadata: null },
+      { metadata: { product: "tm-web" }, currency: "eur" },
+      { metadata: { product: "tm-web" }, amount_subtotal: 100, amount_total: 100 },
+      { metadata: { product: "tm-web" }, amount_subtotal: null },
+    ];
+    for (const extra of foreign) {
+      const { deps } = setup({ response: () => paid(extra) });
+      expect(await handleLicense(request(), deps)).toEqual({ status: 402, headers: {}, body: { ok: false, error: "not_paid" } });
+    }
+    // A promotion code lowers what was charged, not the price the session was opened at, so it still counts.
+    const promo = setup({ response: () => paid({ amount_total: 2500, total_details: { amount_discount: 2500 } }) });
+    expect((await handleLicense(request(), promo.deps)).status).toBe(200);
+  });
+
+  it("never asks Stripe with a live key until live mode is approved", async () => {
+    const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" } });
+    expect(await handleLicense(request(), live.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(live.fetch).not.toHaveBeenCalled();
   });
 
   it("validates the session id, the method, and the Stripe shape before signing", async () => {

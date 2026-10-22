@@ -8,14 +8,20 @@ export const STRIPE_API = "https://api.stripe.com/v1";
 export const UPSTREAM_TIMEOUT_MS = 8000;
 export const PRICE_CENTS = 5000;
 export const PRODUCT_NAME = "Time Machine web app (one-time)";
+// Every session this site creates carries this tag, and only tagged sessions become keys.
+export const PRODUCT_TAG = "tm-web";
+// Live mode stays locked until the attorney and Preston approve it in writing (docs/launch/CHECKOUT_SETUP.md, section 6).
+// That approval is recorded by setting STRIPE_LIVE_OK to exactly this value; until then only test keys open checkout.
+export const LIVE_APPROVAL = "yes-attorney-cleared";
 
 export const reply = (status, body, headers = {}) => ({ status, headers, body });
 
-// The Stripe secret key is present and the signing key decodes to 32 raw Ed25519 bytes.
-// Checkout stays closed until both hold, so nobody can pay for a key the site cannot sign.
-// Used by both checkout endpoints and by /api/health.
+// The Stripe secret key is a test key (or live mode is approved) and the signing key decodes to 32
+// raw Ed25519 bytes. Checkout stays closed until both hold, so nobody can pay for a key the site cannot
+// sign, and a live key set by mistake takes no money. Used by checkout, license, account and /api/health.
 export function isCheckoutConfigured(env) {
   if (!env || !env.STRIPE_SECRET_KEY || !env.TM_LICENSE_PRIVATE_KEY) return false;
+  if (!/^(sk|rk)_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY) && env.STRIPE_LIVE_OK !== LIVE_APPROVAL) return false;
   if (!/^[A-Za-z0-9_-]{43}$/.test(env.TM_LICENSE_PRIVATE_KEY)) return false;
   return Buffer.from(env.TM_LICENSE_PRIVATE_KEY, "base64url").length === 32;
 }
@@ -77,6 +83,8 @@ export async function handleCheckout(req, deps) {
   form.set("success_url", `${site}/thanks?session={CHECKOUT_SESSION_ID}`);
   form.set("cancel_url", `${site}/#pricing`);
   form.set("allow_promotion_codes", "true");
+  form.set("metadata[product]", PRODUCT_TAG);
+  form.set("payment_intent_data[metadata][product]", PRODUCT_TAG);
 
   let res;
   try {

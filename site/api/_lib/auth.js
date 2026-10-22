@@ -4,7 +4,7 @@
 // Rules: never log the email, the code, the token, the anon key or the Stripe key. Never fake a key.
 import { z } from "zod";
 import { isCheckoutConfigured, reply, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
-import { licenseFor } from "./license.js";
+import { isTmPurchase, licenseFor, SessionSchema } from "./license.js";
 import { clientId, isAllowedOrigin, isValidEmail, normalizeEmail, readJsonObject, supabaseOrigin } from "./waitlist.js";
 
 export const MAX_AUTH_BYTES = 2048;
@@ -47,7 +47,7 @@ const AuthBody = z.discriminatedUnion("action", [
 const VerifyReply = z.object({ access_token: z.string().min(1), expires_in: z.number().int().positive() });
 const UserReply = z.object({ email: z.string().max(254).transform(normalizeEmail).refine(isValidEmail) });
 const SessionsPage = z.object({
-  data: z.array(z.object({ id: z.string().min(1), mode: z.string(), payment_status: z.string(), created: z.number().int().nonnegative() })),
+  data: z.array(SessionSchema),
   has_more: z.boolean(),
 });
 
@@ -167,7 +167,7 @@ export async function handleAccount(req, deps) {
       return reply(502, { ok: false, error: "stripe_error" });
     }
     for (const session of parsed.data.data) {
-      if (session.mode === "payment" && session.payment_status === "paid") licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
+      if (isTmPurchase(session)) licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
     }
     const last = parsed.data.data[parsed.data.data.length - 1];
     if (!parsed.data.has_more || !last) break;

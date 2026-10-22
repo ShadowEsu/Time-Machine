@@ -26,7 +26,7 @@ It prints a public key and a private key and writes nothing.
 
 1. Create or open the Stripe account. Finish the business details Stripe asks for.
 2. Stay in **test mode** for the whole setup. Copy the test secret key (it starts with `sk_test_`).
-3. Optional: make a product and a one-time price of $50 and copy its price id (`price_...`). Without it, the site sends the price inline on each checkout.
+3. Optional: make a product and a one-time price of exactly $50 USD and copy its price id (`price_...`). Without it, the site sends the price inline on each checkout. Either way the site tags each session it creates as `tm-web` and only turns tagged, paid, full-price USD sessions into keys, so other products on the same Stripe account never mint a Time Machine key.
 
 ## 3. Vercel settings on `time-machine-site`
 
@@ -34,7 +34,7 @@ Project `time-machine-site`, team `shadowesus-projects`. Settings, Environment V
 
 | Name | Value | Required |
 |---|---|---|
-| `STRIPE_SECRET_KEY` | The Stripe secret key. Test key first, live key later | yes |
+| `STRIPE_SECRET_KEY` | The Stripe **test** secret key (`sk_test_` or `rk_test_`). Checkout stays closed with any other key, see step 6 | yes |
 | `TM_LICENSE_PRIVATE_KEY` | The private key from step 1, exactly as printed | yes |
 | `SITE_ORIGIN` | `https://time-machine-site.vercel.app`, or the custom domain | no. Without it the site uses the request host |
 | `STRIPE_PRICE_ID` | The `price_...` id from step 2 | no |
@@ -43,7 +43,7 @@ Redeploy after saving. Environment variables apply to new deployments only.
 
 ## 4. Check health
 
-Open https://time-machine-site.vercel.app/api/health. It must show `"checkout": true`. If it shows `false`, one of the two required settings is missing or the private key is not 43 base64url characters. No secret value is ever shown there.
+Open https://time-machine-site.vercel.app/api/health. It must show `"checkout": true`. If it shows `false`, one of the two required settings is missing, the Stripe key is not a test key, or the private key is not 43 base64url characters. No secret value is ever shown there.
 
 ## 5. One test purchase
 
@@ -55,7 +55,9 @@ Open https://time-machine-site.vercel.app/api/health. It must show `"checkout": 
 
 ## 6. Live mode: locked
 
-Live mode is locked. Do not put a live key (`sk_live_` or `rk_live_`) in Vercel, and do not take real payments, until the attorney and Preston both approve it in writing. That needs, at least: a seller of record who can sign (see `docs/legal/README.md`), lawyer-reviewed terms and privacy with one refund rule, and a code lock in `site/api/_lib/checkout.js` that refuses any key that is not a test key unless that approval is recorded.
+Live mode is locked. Do not put a live key (`sk_live_` or `rk_live_`) in Vercel, and do not take real payments, until the attorney and Preston both approve it in writing. That needs, at least: a seller of record who can sign (see `docs/legal/README.md`) and lawyer-reviewed terms and privacy with one refund rule.
+
+The code enforces this: `isCheckoutConfigured` in `site/api/_lib/checkout.js` refuses any Stripe key that is not a test key, so checkout, license and account answer `checkout_closed` and never call Stripe. The written approval is recorded by setting `STRIPE_LIVE_OK` to `yes-attorney-cleared` in Vercel. Nobody sets it before that approval exists.
 
 Until then, everything above runs in Stripe test mode only, with test keys (`sk_test_`) and test cards.
 

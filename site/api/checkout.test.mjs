@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
-import { handleCheckout, isCheckoutConfigured, PRICE_CENTS, PRODUCT_NAME, siteOrigin } from "./_lib/checkout.js";
+import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, siteOrigin } from "./_lib/checkout.js";
 
 // Synthetic values only. The signing key is 32 arbitrary bytes; it never signs anything here.
 const SIGNING = Buffer.alloc(32, 3).toString("base64url");
@@ -41,8 +41,11 @@ describe("checkout handler", () => {
       success_url: `https://${HOST}/thanks?session={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://${HOST}/#pricing`,
       allow_promotion_codes: "true",
+      "metadata[product]": "tm-web",
+      "payment_intent_data[metadata][product]": "tm-web",
     });
     expect(PRICE_CENTS).toBe(5000);
+    expect(PRODUCT_TAG).toBe("tm-web");
     expect(form.mode).not.toBe("subscription");
   });
 
@@ -64,6 +67,19 @@ describe("checkout handler", () => {
       expect(fetch).not.toHaveBeenCalled();
     }
     expect(isCheckoutConfigured(ENV)).toBe(true);
+  });
+
+  it("stays closed with a live or unknown Stripe key until live mode is approved, and calls nothing", async () => {
+    for (const key of ["sk_live_SYNTHETIC0123456789", "rk_live_SYNTHETIC0123456789", "pk_test_SYNTHETIC0123456789", "sk_SYNTHETIC", "sk_test_"]) {
+      for (const env of [{ ...ENV, STRIPE_SECRET_KEY: key }, { ...ENV, STRIPE_SECRET_KEY: key, STRIPE_LIVE_OK: "yes" }]) {
+        const { fetch, deps } = setup({ env });
+        expect(isCheckoutConfigured(env)).toBe(false);
+        expect(await handleCheckout(request(), deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+        expect(fetch).not.toHaveBeenCalled();
+      }
+    }
+    expect(isCheckoutConfigured({ ...ENV, STRIPE_SECRET_KEY: "rk_test_Synthetic0123" })).toBe(true);
+    expect(isCheckoutConfigured({ ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789", STRIPE_LIVE_OK: LIVE_APPROVAL })).toBe(true);
   });
 
   it("refuses other methods and other origins before calling Stripe", async () => {
