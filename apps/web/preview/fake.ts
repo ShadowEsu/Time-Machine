@@ -364,10 +364,10 @@ export class FakeEngine implements TmBridge {
       case "log":
         return { entries: this.audit };
       case "hookPreview": {
-        // What a source checkout run of the app writes: its own copy of the CLI, run by its own Node.
-        const command = "ELECTRON_RUN_AS_NODE=1 '/Users/you/code/Time-Machine/apps/web/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron' '/Users/you/code/Time-Machine/apps/web/out/tm.mjs'";
+        // What a source checkout run of tm ui writes: its own copy of the CLI, run by its own Node.
+        const command = "'/usr/local/bin/node' '/Users/you/code/Time-Machine/packages/cli/dist/tm.js'";
         return {
-          settingsPath: `${ROOT}/.claude/settings.json`, command, runs: true,
+          settingsPath: `${ROOT}/.claude/settings.json`, command, runs: true, plugin: false,
           lines: [{ event: "UserPromptSubmit", command: `${command} hook prompt` }, { event: "PreToolUse (Bash)", command: `${command} hook pre-bash` }, { event: "Stop", command: `${command} hook stop` }],
         };
       }
@@ -392,7 +392,7 @@ export class FakeEngine implements TmBridge {
         await wait(200);
         return { files: [], bytes: 0, applied: call.apply };
       case "agents":
-        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }] : [];
+        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", via: "settings", pluginOff: false, check: "npm test", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }] : [];
       case "isolation":
         return { mode: "host", networkSandbox: "sandbox-exec" };
       case "setSettings":

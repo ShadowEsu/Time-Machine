@@ -1168,15 +1168,31 @@ function agentsScreen(): string {
     "not-running": "Connected, but the command does not run yet. Nothing is saved until it does.",
     partial: "Partly connected.",
     "not-connected": "Not connected.",
+    "needs-approval": "The Time Machine plugin is installed, but this project’s check is not approved on this computer, so the plugin does nothing here yet.",
     unreadable: "Its .claude/settings.json is not plain JSON, so we left it alone.",
     unavailable: "We can’t read this project right now.",
   };
+  const pluginWords: { [K in AgentRow["claudeCode"]]?: string } = {
+    connected: "Connected through the Time Machine plugin. It saves before each prompt and risky command, and checks after each turn.",
+    "not-running": "The Time Machine plugin is on, but the tm on your PATH is missing or is another program, so nothing is saved. Put Time Machine’s tm on your PATH, then reload.",
+  };
   const rows = st.agents
     ? st.agents.map((a) => {
-        const words = a.claudeCode === "partial" ? `Partly connected. Missing: ${a.missing.join(", ")}.` : agentWords[a.claudeCode];
+        const words =
+          a.claudeCode === "partial"
+            ? `Partly connected. Missing: ${a.missing.join(", ")}.`
+            : ((a.via === "plugin" ? pluginWords[a.claudeCode] : undefined) ?? agentWords[a.claudeCode]) + (a.pluginOff ? " The Time Machine plugin is installed but turned off for this project." : "");
         const working = a.working ? `<div class="small">Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</div>` : "";
-        const btn = a.claudeCode === "not-connected" || a.claudeCode === "partial" ? `<button class="btn dark" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect"}</button>` : "<span></span>";
-        return `<div class="tr"><div><div class="t1">${esc(a.name)}</div><div class="small muted">Claude Code: ${esc(words)}</div>${working}${st.settings.showGitDetails && a.settingsPath ? `<div class="mono muted">${esc(a.settingsPath)}</div>` : ""}</div>${btn}</div>`;
+        const approve = a.claudeCode === "needs-approval" && a.check ? `<div class="small">The check it would run: <code class="mono">${esc(a.check)}</code></div>` : "";
+        const btn =
+          a.claudeCode === "needs-approval"
+            ? a.check
+              ? `<button class="btn dark" data-act="approve-check" data-id="${a.projectId}">Approve this check</button>`
+              : `<button class="btn" data-act="project" data-id="${a.projectId}">Set a check first</button>`
+            : a.claudeCode === "not-connected" || a.claudeCode === "partial"
+              ? `<button class="btn dark" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect"}</button>`
+              : "<span></span>";
+        return `<div class="tr"><div><div class="t1">${esc(a.name)}</div><div class="small muted">Claude Code: ${esc(words)}</div>${approve}${working}${st.settings.showGitDetails && a.settingsPath ? `<div class="mono muted">${esc(a.settingsPath)}</div>` : ""}</div>${btn}</div>`;
       }).join("") || NO_PROJECTS
     : LOADING;
   const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Idle", partial: "Partly connected", "not-connected": "Not connected", planned: "Planned" };
@@ -1287,9 +1303,9 @@ function onboarding(): string {
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.</p></div>
       <div class="panel">
         <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or choose Save now from More actions.</div></span><span></span></label>
-        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. We add three lines to Claude Code’s settings for this project. You can also do this later from Agents.</div>
-          ${h ? hookLines(h) : ""}
-          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn’t prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">recommended</span></div>
+        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. ${h?.plugin ? "The Time Machine plugin is already on in Claude Code, so nothing is added here. Choosing the check in the last step approved it on this computer, so the plugin runs that check in this project." : "We add three lines to Claude Code’s settings for this project. You can also do this later from Agents."}</div>
+          ${h && !h.plugin ? hookLines(h) : ""}
+          ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn’t prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.plugin && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">${h?.plugin ? "on" : "recommended"}</span></div>
         <div class="opt"><span></span><span><div class="t">Every hour while files are changing</div><div class="d">Not built yet.</div></span><span class="planned">Planned</span></div>
       </div>
       <div class="row-btns ob-acts"><button class="btn dark" data-act="${a.primary.act}" ${o.working ? "disabled" : ""}>${o.working ? "Finishing…" : esc(a.primary.label)}</button>${a.skip ? `<button class="btn" data-act="ob-finish" ${o.working ? "disabled" : ""}>${esc(a.skip)}</button>` : ""}<button class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button></div>`;
@@ -2310,6 +2326,19 @@ async function doHook(): Promise<void> {
   render();
 }
 
+/** Approves the project's current check on this computer, the same as tm init. The plugin acts there from the next prompt. */
+async function approveCheck(projectId: string): Promise<void> {
+  const name = st.projects.find((p) => p.id === projectId)?.name ?? "this project";
+  try {
+    const r = await api({ method: "init", projectId });
+    toast(r.approvedCheck ? `Approved. The Time Machine plugin now saves and checks in ${name}.` : `${name} has no check to approve. Set one first.`);
+  } catch (e) {
+    toast(msg(e));
+  }
+  st.agents = await api({ method: "agents" }).catch(() => st.agents);
+  render();
+}
+
 function pageFailure(title: string): string {
   return `<div class="page"><div class="col"><h1>${esc(title)}</h1><div class="note bad" role="alert">${esc(st.pageError ?? "Couldn’t read local data.")}</div><div><button class="btn" data-act="page-retry">Try again</button></div></div></div>`;
 }
@@ -2573,6 +2602,9 @@ async function onClick(el: HTMLElement): Promise<void> {
       return;
     case "hook":
       if (d.id) await openHookSheet(d.id);
+      return;
+    case "approve-check":
+      if (d.id) await approveCheck(d.id);
       return;
     case "hook-do":
       return doHook();

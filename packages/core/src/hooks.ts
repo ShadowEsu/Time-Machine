@@ -1,6 +1,7 @@
 // C15: Claude Code hooks. Save before agent turns and risky commands, check after.
-import { exec } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { exec, execFile } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
@@ -334,4 +335,81 @@ export async function hookStatus(ctx: Ctx, opts: { command: string; version: str
   const runs = await probeHookCommand(opts.command, opts.version, p.root, p.env);
   const state: HookState = !runs ? "not-running" : missing.length ? "partial" : "connected";
   return { settingsPath, readable: true, present, missing, runs, state };
+}
+
+/** The plugin's id in our marketplace, as `claude plugin install time-machine@time-machine` records it. */
+export const CLAUDE_PLUGIN_ID = "time-machine@time-machine";
+
+export interface ClaudePluginStatus {
+  /** Claude Code recorded an install that covers this project: user scope, or project/local scope for this folder. */
+  installed: boolean;
+  /** Installed and not turned off by enabledPlugins. Only then do its hooks run here. */
+  enabled: boolean;
+  scope: "user" | "project" | "local" | null;
+  version: string | null;
+}
+
+const InstalledPluginsSchema = z.looseObject({
+  plugins: z.record(
+    z.string(),
+    z.array(z.looseObject({ scope: z.string(), version: z.string().optional(), projectPath: z.string().optional() })),
+  ),
+});
+const EnabledSchema = z.looseObject({ enabledPlugins: z.record(z.string(), z.boolean()).optional() });
+
+function readJson<T>(path: string, schema: z.ZodType<T>): T | null {
+  try {
+    const r = schema.safeParse(JSON.parse(readFileSync(path, "utf8")));
+    return r.success ? r.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function samePath(a: string, b: string): boolean {
+  try {
+    return realpathSync(a) === realpathSync(b);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether the Time Machine Claude Code plugin runs its hooks in this project. Reads only Claude Code's own
+ * records: installed_plugins.json under the plugins root ($CLAUDE_CODE_PLUGIN_CACHE_DIR or ~/.claude/plugins),
+ * then enabledPlugins in .claude/settings.local.json, .claude/settings.json and ~/.claude/settings.json, in
+ * that order of precedence. No entry means on, the plugin's default. Never writes. Managed settings are not read.
+ */
+export function claudePluginStatus(ctx: Ctx): ClaudePluginStatus {
+  const none: ClaudePluginStatus = { installed: false, enabled: false, scope: null, version: null };
+  const p = resolveProject(ctx);
+  const env = ctx.env ?? process.env;
+  const home = env.HOME || homedir();
+  const root = env.CLAUDE_CODE_PLUGIN_CACHE_DIR || join(home, ".claude", "plugins");
+  const installed = readJson(join(root, "installed_plugins.json"), InstalledPluginsSchema);
+  const entries = installed?.plugins[CLAUDE_PLUGIN_ID] ?? [];
+  // A folder install beats the user install, because that is the copy Claude Code loads here.
+  const folder = entries.find((e) => (e.scope === "local" || e.scope === "project") && e.projectPath !== undefined && samePath(e.projectPath, p.root));
+  const entry = folder ?? entries.find((e) => e.scope === "user");
+  if (!entry) return none;
+  const files = [join(p.root, ".claude", "settings.local.json"), join(p.root, ".claude", "settings.json"), join(home, ".claude", "settings.json")];
+  const setting = files.map((f) => readJson(f, EnabledSchema)?.enabledPlugins?.[CLAUDE_PLUGIN_ID]).find((v) => v !== undefined);
+  return { installed: true, enabled: setting ?? true, scope: entry.scope as "user" | "project" | "local", version: entry.version ?? null };
+}
+
+/** The first line of `tm --help`. The plugin's tm-hook runs a tm only when its help starts with this line. */
+export const TM_HELP_MARKER = "tm: save points for your project, checked with your own tests.";
+
+/**
+ * Whether the plugin's hooks can reach Time Machine: the same test its tm-hook script makes, the `tm` on
+ * PATH printing TM_HELP_MARKER first. False when tm is missing or is another program, which is when the
+ * plugin silently does nothing.
+ */
+export async function probePluginTm(cwd: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  try {
+    const { stdout } = await promisify(execFile)("tm", ["--help"], { cwd, env, timeout: 15_000, encoding: "utf8" });
+    return stdout.split("\n")[0]?.trim() === TM_HELP_MARKER;
+  } catch {
+    return false;
+  }
 }

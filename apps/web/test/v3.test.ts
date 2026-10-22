@@ -31,7 +31,7 @@ describe("rewind dial", () => {
 
 describe("agent channels", () => {
   const row = (over: Partial<AgentRow>): AgentRow => ({
-    projectId: "p1", name: "marigold-tips", claudeCode: "connected", settingsPath: "/x/.claude/settings.json", missing: [], working: false, workingSince: null, ...over,
+    projectId: "p1", name: "marigold-tips", claudeCode: "connected", via: "settings", pluginOff: false, check: "npm test", settingsPath: "/x/.claude/settings.json", missing: [], working: false, workingSince: null, ...over,
   });
   const now = new Date(2026, 9, 16, 18, 0);
   const at = (h: number, m: number): string => new Date(2026, 9, 16, h, m).toISOString();

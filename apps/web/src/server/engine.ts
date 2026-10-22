@@ -139,6 +139,7 @@ export class Engine {
       settingsPath: join(p.path, ".claude", "settings.json"),
       command,
       runs,
+      plugin: tm.claudePluginStatus(this.ctx(p)).enabled,
       lines: [
         { event: "UserPromptSubmit", command: `${command} hook prompt` },
         { event: "PreToolUse (Bash)", command: `${command} hook pre-bash` },
@@ -162,9 +163,10 @@ export class Engine {
   }
 
   /**
-   * Claude Code connection per project, read from its .claude/settings.json. Never writes.
-   * The lines are looked up for each command the app could have written, and "connected"
-   * needs the command to answer, so a missing CLI shows as connected but not running.
+   * Claude Code connection per project. Never writes. Our lines in .claude/settings.json come first: they are looked
+   * up for each command the app could have written, and "connected" needs the command to answer, so a missing CLI
+   * shows as connected but not running. Without lines, the Claude Code plugin counts when it is installed and on for
+   * this project; it acts only once this computer approved the check, and only when the tm on PATH is Time Machine.
    */
   async agents(): Promise<AgentRow[]> {
     return Promise.all(
@@ -180,9 +182,14 @@ export class Engine {
           }
           if (!s) throw new Error("no hook command");
           const since = agentTurnStart((await tm.log(ctx)).entries, Date.now());
-          return { ...base, claudeCode: s.state, settingsPath: s.settingsPath, missing: s.missing, working: since !== null, workingSince: since };
+          const plugin = tm.claudePluginStatus(ctx);
+          const status = tm.status(ctx);
+          const row = { ...base, settingsPath: s.settingsPath, missing: s.missing, working: since !== null, workingSince: since, check: status.check, pluginOff: plugin.installed && !plugin.enabled };
+          if (s.state !== "not-connected" || !plugin.enabled) return { ...row, claudeCode: s.state, via: s.present.length ? "settings" : null };
+          const claudeCode = !status.approved ? "needs-approval" : (await tm.probePluginTm(p.path, process.env)) ? "connected" : "not-running";
+          return { ...row, claudeCode, via: "plugin", missing: [] };
         } catch {
-          return { ...base, claudeCode: "unavailable", settingsPath: null, missing: [], working: false, workingSince: null };
+          return { ...base, claudeCode: "unavailable", via: null, pluginOff: false, check: null, settingsPath: null, missing: [], working: false, workingSince: null };
         }
       }),
     );

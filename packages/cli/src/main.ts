@@ -44,7 +44,8 @@ function hookCommand(io: Io): { command: string; absolute: boolean } {
   return { command: `${tm.shellQuote(process.execPath)} ${tm.shellQuote(script)}`, absolute: true };
 }
 
-const HELP = `tm: save points for your project, checked with your own tests.
+// The first line is what the Claude Code plugin's tm-hook checks before it runs this tm (TM_HELP_MARKER).
+const HELP = `${tm.TM_HELP_MARKER}
 
 Usage: tm <command> [options]
 

@@ -39,6 +39,6 @@ export function claudeChannel(rows: AgentRow[], lastEnded: ReadonlyMap<string, s
     const where = connected.length === 1 ? (connected[0]?.name ?? "") : plural(connected.length, "project");
     return { ...base, state: "idle", line: ended ? `Idle. Last turn ended ${when(ended.at, now)} in ${ended.name}.` : `Connected to ${where}. No turn recorded yet.` };
   }
-  if (rows.some((r) => r.claudeCode === "partial" || r.claudeCode === "not-running")) return { ...base, state: "partial", line: "Partly connected. Open Agents to finish." };
+  if (rows.some((r) => r.claudeCode === "partial" || r.claudeCode === "not-running" || r.claudeCode === "needs-approval")) return { ...base, state: "partial", line: "Partly connected. Open Agents to finish." };
   return { ...base, state: "not-connected", line: rows.length ? "Not connected to any project." : "Add a project first." };
 }

@@ -11,11 +11,11 @@ export interface HookStepActions {
 
 /**
  * With lines ready to add and a command that runs, the filled button connects and finishes in one
- * click, and skipping is one quiet click. Already connected, no lines (the preview failed), or a
- * command that does not run: there is nothing to add, so the only button is Finish.
+ * click, and skipping is one quiet click. Already connected, the plugin already on, no lines (the
+ * preview failed), or a command that does not run: there is nothing to add, so the only button is Finish.
  */
 export function hookStepActions(hook: HookPreview | null, connected: boolean): HookStepActions {
-  if (connected || !hook || !hook.runs) return { primary: { act: "ob-finish", label: "Finish" }, skip: null };
+  if (connected || !hook || hook.plugin || !hook.runs) return { primary: { act: "ob-finish", label: "Finish" }, skip: null };
   return { primary: { act: "ob-connect-finish", label: "Connect Claude Code and finish" }, skip: "Skip, finish without it" };
 }
 

@@ -5,10 +5,11 @@ import type { HookPreview } from "../src/shared/api.ts";
 import { checkLede, hookStepActions } from "../src/renderer/first-run.ts";
 import { FakeEngine } from "../preview/fake.ts";
 
-const hook = (runs: boolean): HookPreview => ({
+const hook = (runs: boolean, plugin = false): HookPreview => ({
   settingsPath: "/Users/you/code/acme/.claude/settings.json",
   command: "tm",
   runs,
+  plugin,
   lines: [{ event: "Stop", command: "tm hook stop" }],
 });
 
@@ -28,6 +29,8 @@ describe("the last onboarding step", () => {
     expect(hookStepActions(null, false)).toEqual(finishOnly);
     // The command does not run on this Mac, so the app adds nothing.
     expect(hookStepActions(hook(false), false)).toEqual(finishOnly);
+    // The Claude Code plugin already covers the project once its check is approved, so no lines are added.
+    expect(hookStepActions(hook(true, true), false)).toEqual(finishOnly);
   });
 });
 

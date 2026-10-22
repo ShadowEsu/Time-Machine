@@ -176,6 +176,8 @@ export interface HookPreview {
   command: string;
   /** True when `command --version` answered with this version on this computer. Nothing is added when false. */
   runs: boolean;
+  /** The Time Machine plugin is installed and on in Claude Code for this project, so no lines are needed. */
+  plugin: boolean;
   lines: { event: string; command: string }[];
 }
 
@@ -186,12 +188,23 @@ export interface StorageRow {
   storeDir: string;
 }
 
-/** Claude Code hook lines in one project's .claude/settings.json. */
+/** How Claude Code reaches Time Machine in one project: our lines in its .claude/settings.json, or the Claude Code plugin. */
 export interface AgentRow {
   projectId: string;
   name: string;
-  /** "partial": some of our three lines are there. "not-running": our lines are there, but the command did not answer. "unreadable": the file is not plain JSON, so it was left alone. "unavailable": the project could not be read. */
-  claudeCode: HookState | "unavailable";
+  /**
+   * "partial": some of our three lines are there. "not-running": the lines or the plugin are there, but tm did not answer.
+   * "needs-approval": the plugin covers this project, but this computer has not approved its check, so the plugin does
+   * nothing here. "unreadable": the settings file is not plain JSON, so it was left alone. "unavailable": the project
+   * could not be read.
+   */
+  claudeCode: HookState | "needs-approval" | "unavailable";
+  /** Where the connection comes from. Project lines win: the plugin steps aside where they exist. */
+  via: "settings" | "plugin" | null;
+  /** The plugin is installed for this project but turned off in enabledPlugins. */
+  pluginOff: boolean;
+  /** The check the plugin would run, shown before anyone approves it. Null without a check. */
+  check: string | null;
   settingsPath: string | null;
   /** Hook events still missing: UserPromptSubmit, PreToolUse, Stop. */
   missing: string[];
