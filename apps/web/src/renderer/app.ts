@@ -17,6 +17,7 @@ import { renderFeatureSettings } from "./feature-settings.js";
 import { checkLede, hookStepActions } from "./first-run.js";
 import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
+import { ToastTimer } from "./toast.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -140,7 +141,6 @@ interface State {
   /** A store clean up: first a preview of what goes, then the real removal. One project at a time. */
   cleanup: { projectId: string; result: CleanStoreResult | null; working: boolean } | null;
   hookSheet: { projectId: string; preview: HookPreview; done: string | null; error: string | null; working: boolean } | null;
-  toast: string | null;
   demoBusy: boolean;
   openResult: OpenResult | null;
   /** The last check result per save point in this session, for evidence lines (time taken, network). */
@@ -171,7 +171,9 @@ let bridge: TmBridge;
 let opts: StartOptions;
 let st: State;
 let root: HTMLElement;
-let toastTimer: ReturnType<typeof setTimeout> | undefined;
+/** The toast host lives outside the redraw tree, so a redraw never restarts a toast, moves focus off Dismiss, or repeats it to a screen reader. */
+let toastHost: HTMLElement;
+const toastTimer = new ToastTimer(() => dismissToast());
 let announcer: HTMLElement;
 const dialogFocus = new DialogFocus();
 let addReturn: { screen: Screen; focus: string | null } | null = null;
@@ -279,14 +281,30 @@ async function selectProject(id: string, screen: Screen = "history"): Promise<vo
   render();
 }
 
-function toast(text: string): void {
-  st.toast = text;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    st.toast = null;
-    render();
-  }, 4200);
-  render();
+/** A short note in the work area, never over the rail. A verdict, when the note is about one, leads with its glyph. */
+function toast(text: string, verdict?: Verdict | null): void {
+  const card = document.createElement("div");
+  card.className = "toast enter";
+  card.innerHTML = `${verdict !== undefined ? glyph(verdict) : ""}<span class="toast-t">${esc(text)}</span><button type="button" class="btn link toast-x">Dismiss</button>`;
+  card.addEventListener("pointerenter", () => toastTimer.hold("hover"));
+  card.addEventListener("pointerleave", () => toastTimer.release("hover"));
+  card.addEventListener("focusin", () => toastTimer.hold("focus"));
+  card.addEventListener("focusout", (e) => {
+    if (!(e.relatedTarget instanceof Node && card.contains(e.relatedTarget))) toastTimer.release("focus");
+  });
+  card.querySelector("button")?.addEventListener("click", dismissToast);
+  toastHost.replaceChildren(card);
+  toastTimer.start();
+}
+
+function dismissToast(): void {
+  toastTimer.stop();
+  const card = toastHost.querySelector<HTMLElement>(".toast:not(.leave)");
+  if (!card) return;
+  if (reducedMotion()) return card.remove();
+  card.classList.add("leave");
+  card.inert = true;
+  card.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(6px)" }], { duration: LEAVE_MS, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" }).onfinish = () => card.remove();
 }
 
 // Small view helpers
@@ -320,6 +338,15 @@ function verdictTip(): string {
 }
 function glyph(v: Verdict | null): string {
   return `<i class="g v-${verdictKey(v)}" aria-hidden="true"></i>`;
+}
+/** A time label as two parts that each stay whole, "2:08:06" and "AM", so a narrow column breaks only between them. */
+function timeParts(t: string): string {
+  const m = /^(\S+)\s+(.+)$/.exec(t);
+  return m ? `<span>${esc(m[1] ?? "")}</span><span>${esc(m[2] ?? "")}</span>` : `<span>${esc(t)}</span>`;
+}
+/** Times inside a sentence never break in the middle: "2:08:05 AM" stays on one line. Takes and returns escaped HTML. */
+function keepTimes(html: string): string {
+  return html.replace(/\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AaPp]\.?[Mm]\.?)?(?: #\d+)?/g, (t) => `<span class="nw">${t}</span>`);
 }
 function li(items: string[], empty: string): string {
   return items.length ? items.map((x) => `<div class="li"><span>${esc(x)}</span></div>`).join("") : `<div class="muted small">${esc(empty)}</div>`;
@@ -520,7 +547,7 @@ function journalEntry(c: TimelineEntry, first: boolean, lastGood: boolean): stri
   const facts = [checkSummary(c), changed?.length ? plural(changed.length, "file") : ""].filter(Boolean).join(" · ");
   const cls = ["entry", first ? "first" : "", st.drawer && c.id === st.selected ? "on" : "", st.lit === c.id ? "lit" : ""].filter(Boolean).join(" ");
   return `<article class="${cls}" id="e-${esc(c.id)}" data-act="open" data-id="${esc(c.id)}">
-    <div class="when${ptClock(c) === clock(c.createdAt) ? "" : " secs"}">${esc(ptClock(c))}</div><div class="gl">${glyph(c.verdict)}</div>
+    <div class="when">${timeParts(ptClock(c))}</div><div class="gl">${glyph(c.verdict)}</div>
     <div class="body">
       <h3><button class="e-t" data-act="open" data-id="${esc(c.id)}">${esc(title(c, author))}</button>${lastGood ? '<span class="wayback">Last version that works</span>' : ""}</h3>
       <div class="meta">${authorChip(author)}${badge(c.verdict)}${facts ? `<span>${esc(facts)}</span>` : ""}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(c.id)} · ${esc(short(c.commit))}${c.dirty ? " + uncommitted" : ""}</span>` : ""}</div>
@@ -549,7 +576,12 @@ function homeRuler(all: TimelineEntry[]): string {
   const marks: number[] = [];
   for (const i of [n - 1, lw ? pts.indexOf(lw) : -1, cur, 0]) if (i >= 0 && marks.every((m) => Math.abs(x(m) - x(i)) > 9)) marks.push(i);
   const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
-  const labels = marks.map((i) => { const c = pts[i]; const t = c ? ptClock(c) : ""; return `<span class="rlab ${i === cur ? "on" : ""}" style="left:${x(i)}%;transform:translateX(${shift(i)}%)">${esc(i === n - 1 && c?.id === points().at(-1)?.id ? `Now ${t}` : t)}</span>`; }).join("");
+  const labels = marks.map((i) => {
+    const c = pts[i];
+    const t = esc(c ? ptClock(c) : "");
+    const now = i === n - 1 && c?.id === points().at(-1)?.id;
+    return `<span class="rlab${i === cur ? " on" : ""}${now ? " now" : ""}" style="left:${x(i)}%;transform:translateX(${shift(i)}%)">${now ? `Now<span class="rl-t"> ${t}</span>` : t}</span>`;
+  }).join("");
   return `<div class="hruler" role="group" aria-label="Save points, oldest on the left">
     <div class="lane">${clips}</div><div class="base" aria-hidden="true"></div>${ticks}
     <span class="ph" style="left:${x(cur)}%" aria-hidden="true"></span>${labels}</div>`;
@@ -571,14 +603,14 @@ function history(): string {
   const working = st.agents?.some((a) => a.projectId === p.id && a.working);
   const head = esc(s.head);
   const facts = (rows: [string, string[]][]): string =>
-    `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v.map(esc).join(" · ")}</dd>`).join("")}</dl>`;
+    `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${keepTimes(v.map(esc).join(" · "))}</dd>`).join("")}</dl>`;
   const honest =
     s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${ptWhen(lw)}, unless you redo them. They stay saved in History.`]]])
       : newest ? facts([["Saved", savedLines(newest)], ["Not saved", notSavedLines(newest)]]) : "";
   const header = `<section class="hero">
     <div class="eyebrow hero-e">${glyph(s.v)}<span>${esc(p.name)}</span>${st.settings.showGitDetails ? `<span class="path">${newest?.branch ? `${esc(newest.branch)} · ` : ""}${esc(p.path)}</span>` : ""}</div>
-    <h1 class="hero-h">${head}</h1>
-    <p class="hero-p">${esc(s.body)}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
+    <h1 class="hero-h">${keepTimes(head)}</h1>
+    <p class="hero-p">${keepTimes(esc(s.body))}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
     <div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>
     ${honest}
   </section>`;
@@ -616,7 +648,7 @@ function history(): string {
     rows.push(journalEntry(c, i === 0, c.id === lw?.id && newest?.verdict !== "PASS"));
     const older = newestFirst[i + 1];
     // Only say "broke here" when two neighbouring checks prove it.
-    if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span></span><span class="line"><span>Broke here: ${esc(ptWhen(older))} works, ${esc(ptWhen(c))} is broken</span></span></div>`);
+    if (older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span></span><span class="line"><span>${keepTimes(esc(`Broke here: ${ptWhen(older)} works, ${ptWhen(c)} is broken`))}</span></span></div>`);
   }
   return `<div class="page proj"><div class="doc">${header}${undoBar}
     ${homeRuler(pts)}
@@ -636,7 +668,7 @@ function pointName(id: string): string {
 function statusButton(b: StatusButton, primary: boolean): string {
   const data = `${b.id ? ` data-id="${esc(b.id)}"` : ""}${b.a ? ` data-a="${esc(b.a)}"` : ""}${b.b ? ` data-b="${esc(b.b)}"` : ""}`;
   const key = { save: "Mod+S", check: "Mod+Enter", "rewind-to": "Mod+Shift+R", rewind: "Mod+Shift+R", compare: "" }[b.act];
-  return `<button class="btn ${primary ? "big dark" : "link"}" data-act="${b.act}"${data} ${st.busy ? "disabled" : ""}>${esc(b.label)}${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
+  return `<button class="btn ${primary ? "big dark" : "link"}" data-act="${b.act}"${data} ${st.busy ? "disabled" : ""}><span>${keepTimes(esc(b.label))}</span>${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
 }
 
 /** One plain sentence on what a verdict means for this save point. Isolation names only with Git details. */
@@ -696,10 +728,10 @@ function detail(): string {
   </aside>`;
 }
 
-/** A ⋯ button with a small menu. One menu is open at a time. */
-function menuButton(key: string, label: string, items: string[]): string {
+/** A ⋯ button with a small menu. One menu is open at a time. `cls` marks a menu that only phones show. */
+function menuButton(key: string, label: string, items: string[], cls = ""): string {
   const open = st.menu === key;
-  return `<span class="mn"><button class="btn ghost mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" aria-expanded="${open}">⋯</button>${open ? `<div class="mn-l" role="group" aria-label="${esc(label)}">${items.join("")}</div>` : ""}</span>`;
+  return `<span class="mn${cls ? ` ${cls}` : ""}"><button class="btn ghost mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" aria-expanded="${open}">⋯</button>${open ? `<div class="mn-l" role="group" aria-label="${esc(label)}">${items.join("")}</div>` : ""}</span>`;
 }
 
 function checkSheet(): string {
@@ -879,7 +911,7 @@ function versionHead(c: TimelineEntry, v: Verdict | null): string {
   const rest: { [K in Verdict | "none"]: string } = {
     PASS: "works.", FAIL: "is broken.", INCOMPLETE: "couldn’t be checked.", BLOCKED: "needs something before it can be checked.", ERROR: "had a check that crashed.", none: "is not checked yet.",
   };
-  return `The ${esc(pointName(c.id))} version ${esc(rest[v ?? "none"])}`;
+  return keepTimes(`The ${esc(pointName(c.id))} version ${esc(rest[v ?? "none"])}`);
 }
 
 /** Use, said before anyone presses it. This is the confirmation: nothing here touches the folder, and Undo is one key. */
@@ -1523,7 +1555,7 @@ function focusKey(): string | null {
   return null;
 }
 
-/** The bar above every screen: where you are, Back to now when you are looking at the past, Jump to, Ask, and ⋯ for the rest. */
+/** The bar above every screen: where you are, Back to now when you are looking at the past, Jump to, Ask, and ⋯ for the rest. On phones Jump to, Ask and the shortcuts move into ⋯. */
 function toolbar(): string {
   const p = project();
   const inProject = !!p && PROJECT_SCREENS.includes(st.screen);
@@ -1532,15 +1564,21 @@ function toolbar(): string {
   const newest = points().at(-1);
   const past = inProject && (st.screen === "compare" || (st.drawer && !!st.selected && st.selected !== newest?.id));
   const busy = st.busy ? "disabled" : "";
-  const more = inProject && newest
-    ? menuButton("tools", "More actions", [
+  const tools = inProject && newest
+    ? [
         `<button data-act="save" ${busy}>Save now<kbd>${esc(keys("Mod+S"))}</kbd></button>`,
         `<button data-act="check" ${busy}>Check it works<kbd>${esc(keys("Mod+Enter"))}</kbd></button>`,
         `<button data-act="find" ${busy}>Find the last working version</button>`,
         `<button data-act="compare">Compare with now<kbd>${esc(keys("Mod+Shift+C"))}</kbd></button>`,
         `<button data-act="inspector">Open Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`,
-      ])
-    : "";
+      ]
+    : [];
+  const phoneOnly = [
+    '<button class="mn-phone" data-act="palette">Jump to…</button>',
+    inProject ? `<button class="mn-phone" data-act="ask-toggle">${st.askOpen ? "Hide Ask" : "Ask"}</button>` : "",
+    '<button class="mn-phone" data-act="keys">Keyboard shortcuts</button>',
+  ];
+  const more = menuButton("tools", "More actions", [...phoneOnly, ...tools], tools.length ? "" : "mn-phone-only");
   const ask = inProject ? `<button class="jump ask-t ${st.askOpen ? "on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}"><span>Ask</span><kbd>${esc(keys("Mod+J"))}</kbd></button>` : "";
   return `<div class="toolbar"><button class="btn ghost nav-toggle" data-act="nav-toggle" aria-label="Open navigation" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>Projects</button><nav class="crumb" aria-label="Where you are">${crumb}</nav>
     ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
@@ -1762,7 +1800,7 @@ function placeLeaving(old: Leaving[]): void {
       const timing: KeyframeAnimationOptions = { duration: LEAVE_MS, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" };
       const sheet = el.querySelector<HTMLElement>(":scope > .sheet, :scope > .pal");
       sheet?.animate([{ transform: "none" }, { transform: "scale(.97)" }], timing);
-      const to = el.classList.contains("drawer") ? "translateX(24px)" : el.classList.contains("toast") ? "translateY(6px)" : "none";
+      const to = el.classList.contains("drawer") ? "translateX(24px)" : "none";
       el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: to }], timing).onfinish = () => el.remove();
     }
     host.append(el);
@@ -1799,7 +1837,9 @@ function render(): void {
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
   root.innerHTML = `<div class="shell">
     ${opts.preview ? `<div class="banner"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${st.toast ? `<div class="toast ${once(`toast:${st.toast}`)}" data-leave="toast">${esc(st.toast)}</div>` : ""}</div></div>`;
+    ${connectionBanner()}<div class="app ${appCls}">${scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar()}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${st.check ? checkSheet() : ""}${hookSheet()}${busyScrim()}</main>${right}${scene ? timeView() : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}</div></div>`;
+  // The toast sits over the work area: past the rail, and short of a right column when one is open.
+  toastHost.dataset.right = appCls;
   seenOnce = drawOnce;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
@@ -1809,10 +1849,10 @@ function render(): void {
   applyFlash();
   applyEntrances(scene);
   dialogFocus.sync(root, focus);
-  const announcement = st.toast ?? (st.demoBusy ? "Building the demo…"
+  const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${st.check.result.reason}`
       : st.check ? "Checking your project in a safe copy…"
-        : st.screen === "rewind" ? root.querySelector(".tv-head")?.textContent ?? "" : ""));
+        : st.screen === "rewind" ? root.querySelector(".tv-head")?.textContent ?? "" : "");
   if (announcer.textContent !== announcement) announcer.textContent = announcement;
   placeLeaving(leaving);
 }
@@ -1854,7 +1894,7 @@ async function saveNow(): Promise<void> {
     await loadTimeline();
     st.selected = r.checkpoint.id;
     st.busy = null;
-    toast(`Saved at ${when(r.checkpoint.createdAt)}. Not checked yet.`);
+    toast(`Saved at ${when(r.checkpoint.createdAt)}. Not checked yet.`, null);
   } catch (e) {
     st.busy = null;
     toast(msg(e));
@@ -1976,7 +2016,8 @@ async function findGood(): Promise<void> {
   await refreshStatuses();
   if (st.screen !== "rewind" && st.rewind) {
     const found = st.rewind.find?.found;
-    toast(found ? `Found it. The ${pointName(found)} version is the last one that works. Press ${keys("Mod+Shift+R")} to see it.` : st.rewind.find?.stopped ? "Search stopped. No save point was marked as working." : "We could not find a version that passes its check.");
+    if (found) toast(`Found it. The ${pointName(found)} version is the last one that works. Press ${keys("Mod+Shift+R")} to see it.`, "PASS");
+    else toast(st.rewind.find?.stopped ? "Search stopped. No save point was marked as working." : "We could not find a version that passes its check.");
     return;
   }
   render();
@@ -1997,7 +2038,7 @@ function exitRewind(): void {
   if (list) list.scrollTop = back.listScroll;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = back.pageScroll;
-  if (finished) toast(`The ${pointName(finished.id)} version is ready on a new branch. Your folder was not touched. Nothing was pushed. ${keys("Mod+Z")} undoes it.`);
+  if (finished) toast(`The ${pointName(finished.id)} version is ready on a new branch. Your folder was not touched. Nothing was pushed. ${keys("Mod+Z")} undoes it.`, finished.lastVerdict);
 }
 
 /** Put the Time View playhead on another save point. Nothing runs until Try or Use. */
@@ -2357,7 +2398,7 @@ async function obFinish(): Promise<void> {
     await refreshStatuses();
     await selectProject(id);
     const v = points().at(-1)?.verdict ?? null;
-    toast(v === "PASS" ? "You’re set. Your newest save point passed its check." : v ? `You’re set. Your newest save point is ${verdictWord(v).toLowerCase()}.` : "You’re set. Your newest save point is saved, not checked. A tick turns green only after a check passes.");
+    toast(v === "PASS" ? "You’re set. Your newest save point passed its check." : v ? `You’re set. Your newest save point is ${verdictWord(v).toLowerCase()}.` : "You’re set. Your newest save point is saved, not checked. A tick turns green only after a check passes.", v);
   } catch (e) {
     o.error = msg(e);
     o.working = false;
@@ -2926,6 +2967,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   announcer.setAttribute("aria-live", "polite");
   announcer.setAttribute("aria-atomic", "true");
   document.body.append(announcer);
+  toastHost = document.createElement("div");
+  toastHost.className = "toast-host";
+  toastHost.setAttribute("role", "status");
+  document.body.append(toastHost);
   const boot = await b.call({ method: "bootstrap" });
   if (!boot.ok) {
     root.innerHTML = `<main class="launch-error"><span class="mark" aria-hidden="true"></span><h1>Can’t connect to Time Machine</h1><p role="alert">${esc(boot.error.message)}</p><p class="muted">For the local browser app, keep tm ui running in your terminal and reopen the complete local URL it printed. In the desktop app, try reopening the window.</p><button class="btn dark" id="retry-launch">Try again</button></main>`;
@@ -2940,7 +2985,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, isolation: null, cleanup: null,
-    hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
+    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
     license: { status: boot.data.license, draft: "", working: false, error: null },
   };
   if (isMac()) document.documentElement.classList.add("mac");
