@@ -110,8 +110,9 @@ function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
     const { config } = loadConfig(p.root);
     const state = consentState(p, config);
     if (state === "approved") return null;
-    // The notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
-    // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent, as does pre-bash.
+    // The changed-check notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
+    // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent. Pre-bash
+    // speaks only to name a save point it just made (see runHook).
     return state === "changed" && event === "prompt" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
   } catch {
     return "";
