@@ -1357,7 +1357,7 @@ function licensePanel(): string {
   }
   const problem = s.problem ? `<div class="note warn">${esc(s.problem)}</div>` : "";
   return `<div class="panel" id="license"><h3>License</h3>
-    <div class="setrow"><span class="l">This computer</span><div>Free: up to ${esc(plural(s.freeProjectLimit, "project"))} at once. A license lets you add more. Every restore stays free. <button class="btn link" data-act="license-buy">Buy once for $50</button></div></div>
+    <div class="setrow"><span class="l">This computer</span><div class="lic-free"><p>Free: up to ${esc(plural(s.freeProjectLimit, "project"))} at once. A license lets you add more. Every restore stays free.</p><button class="btn link" data-act="license-buy">Buy once for $50</button></div></div>
     ${problem}
     <form class="setrow" data-form="license" novalidate><label class="l" for="license-key">Your key</label><div class="toggle"><input id="license-key" class="field mono" data-model="license-key" type="text" value="${esc(l.draft)}" placeholder="TM1.…" autocomplete="off" spellcheck="false" ${busy}><button class="btn dark" type="submit" ${busy}>${l.working ? "Saving…" : "Save key"}</button></div></form>
     <p class="small muted">The key is checked on this computer, with no network call. It is saved under your Time Machine folder.</p>
