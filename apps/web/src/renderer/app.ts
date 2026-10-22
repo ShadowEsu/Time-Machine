@@ -2,7 +2,8 @@
 // (the dial scene, or the plain sheet), Compare, Agents, Storage, Settings, onboarding and the Inspector.
 // Plain TypeScript, one render function.
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerifyResult } from "@timetm/core";
-import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, Method, ProjectEntry, ProjectStatus, Results, Settings, StorageRow, TmBridge, Verdict } from "../shared/api.js";
+import type { AgentRow, AppEvent, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, LicenseStatus, Method, ProjectEntry, ProjectStatus, Results, Settings, StorageRow, TmBridge, Verdict } from "../shared/api.js";
+import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, plural, pointClock, pointTitle, pointWhen, seconds, shortTitle, triggerLabel, triggerSentence, verdictKey, verdictWord, when } from "../shared/format.js";
 import { goBackLabel, lastWorking as lastWorkingOf, projectStatus, type StatusButton } from "./status.js";
@@ -150,6 +151,8 @@ interface State {
   flash: { sel: string; until: number } | null;
   /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
   undo: { projectId: string; result: RecoverResult; working: boolean } | null;
+  /** The license on this computer, the key being pasted in Settings, and the last save or remove error. */
+  license: { status: LicenseStatus; draft: string; working: boolean; error: string | null };
 }
 
 class ApiFailure extends Error {}
@@ -1263,7 +1266,63 @@ function settings(): string {
       <div class="setrow"><span class="l">Network during checks</span><div>${network}</div></div>
       <p class="small muted"><span class="planned">Planned</span> Stronger isolation with Docker or Apple container.</p>
     </div>
+    ${licensePanel()}
   </div></div>`;
+}
+
+/** Settings, then License: what this computer has, and where to paste or remove a key. Restores never depend on it. */
+function licensePanel(): string {
+  const l = st.license;
+  const s = l.status;
+  const busy = l.working ? "disabled" : "";
+  const error = l.error ? `<div class="note bad" role="alert">${esc(l.error)}</div>` : "";
+  if (s.active) {
+    return `<div class="panel" id="license"><h3>License</h3>
+      <div class="setrow"><span class="l">This computer</span><div>Licensed. Purchase <span class="mono sel-text">${esc(s.id ?? "")}</span>, issued ${esc(s.issued ?? "")}. Add as many projects as you like.</div></div>
+      <div class="setrow"><span class="l">Remove</span><div class="toggle"><button class="btn" data-act="license-remove" ${busy}>${l.working ? "Removing…" : "Remove from this computer"}</button><span class="muted">The app goes back to ${esc(plural(s.freeProjectLimit, "project"))}. Keep a copy of the key if you want to use it again.</span></div></div>
+      ${error}
+    </div>`;
+  }
+  const problem = s.problem ? `<div class="note warn">${esc(s.problem)}</div>` : "";
+  return `<div class="panel" id="license"><h3>License</h3>
+    <div class="setrow"><span class="l">This computer</span><div>Free: up to ${esc(plural(s.freeProjectLimit, "project"))} at once. A license lets you add more. Every restore stays free. <button class="btn link" data-act="license-buy">Buy once for $50</button></div></div>
+    ${problem}
+    <form class="setrow" data-form="license" novalidate><label class="l" for="license-key">Your key</label><div class="toggle"><input id="license-key" class="field mono" data-model="license-key" type="text" value="${esc(l.draft)}" placeholder="TM1.…" autocomplete="off" spellcheck="false" ${busy}><button class="btn dark" type="submit" ${busy}>${l.working ? "Saving…" : "Save key"}</button></div></form>
+    <p class="small muted">The key is checked on this computer, with no network call. It is saved under your Time Machine folder.</p>
+    ${error}
+  </div>`;
+}
+
+async function saveLicense(): Promise<void> {
+  const key = st.license.draft.trim();
+  if (!key) {
+    st.license.error = "Paste the key from your purchase page first. It starts with TM1.";
+    render();
+    root.querySelector<HTMLInputElement>("#license-key")?.focus();
+    return;
+  }
+  st.license = { ...st.license, working: true, error: null };
+  render();
+  try {
+    st.license = { status: await api({ method: "setLicense", key }), draft: "", working: false, error: null };
+    toast("License saved on this computer.");
+  } catch (e) {
+    st.license = { ...st.license, working: false, error: msg(e) };
+  }
+  render();
+  if (st.license.error) root.querySelector<HTMLInputElement>("#license-key")?.focus();
+}
+
+async function removeLicenseKey(): Promise<void> {
+  st.license = { ...st.license, working: true, error: null };
+  render();
+  try {
+    st.license = { status: await api({ method: "removeLicense" }), draft: "", working: false, error: null };
+    toast("License removed from this computer.");
+  } catch (e) {
+    st.license = { ...st.license, working: false, error: msg(e) };
+  }
+  render();
 }
 
 function onboarding(): string {
@@ -2363,7 +2422,10 @@ async function openPage(screen: "agents" | "storage" | "settings"): Promise<void
     else if (screen === "agents") {
       st.agents = await api({ method: "agents" });
       await loadLastTurns();
-    } else st.isolation = await api({ method: "isolation" });
+    } else {
+      st.isolation = await api({ method: "isolation" });
+      if (!st.license.working) st.license = { ...st.license, status: await api({ method: "license" }) };
+    }
   } catch (e) {
     if (st.screen === screen) st.pageError = msg(e);
   }
@@ -2576,6 +2638,10 @@ async function onClick(el: HTMLElement): Promise<void> {
         }
       }
       return;
+    case "license-remove":
+      return removeLicenseKey();
+    case "license-buy":
+      return void bridge.call({ method: "openExternal", url: PRICING_URL });
     case "theme":
       return setSetting({ theme: d.v === "light" || d.v === "dark" ? d.v : "system" });
     case "toggle":
@@ -2875,6 +2941,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, isolation: null, cleanup: null,
     hookSheet: null, toast: null, demoBusy: false, openResult: null, verifyResults: new Map(), changes: new Map(), flash: null, undo: null,
+    license: { status: boot.data.license, draft: "", working: false, error: null },
   };
   if (isMac()) document.documentElement.classList.add("mac");
   document.documentElement.classList.add("browser-runtime");
@@ -2907,7 +2974,13 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     }
   });
   root.addEventListener("submit", (e) => {
-    if (!(e.target instanceof HTMLFormElement) || e.target.dataset.form !== "local-project") return;
+    if (!(e.target instanceof HTMLFormElement)) return;
+    if (e.target.dataset.form === "license") {
+      e.preventDefault();
+      void saveLicense();
+      return;
+    }
+    if (e.target.dataset.form !== "local-project") return;
     e.preventDefault();
     void obNext1();
   });
@@ -2915,6 +2988,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     const t = e.target as HTMLInputElement;
     if (t.dataset.model === "ob-path") {
       st.onboarding.path = t.value;
+      return;
+    }
+    if (t.dataset.model === "license-key") {
+      st.license.draft = t.value;
       return;
     }
     if (t.dataset.model === "pal" && st.palette) {

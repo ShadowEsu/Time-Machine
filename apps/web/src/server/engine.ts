@@ -123,7 +123,7 @@ export class Engine {
     // The free app lists a few projects. The demo is never refused; it counts like any other project after.
     const license = this.license();
     if (!demo && !license.active && this.state.projects.length >= license.freeProjectLimit) {
-      throw new tm.TmError("usage", `The free web app lists up to ${license.freeProjectLimit} projects. Remove one, or buy Time Machine once for $50 at ${PRICING_URL} to add more. Every restore stays free.`);
+      throw new tm.TmError("usage", `The free web app lists up to ${license.freeProjectLimit} projects. Remove one, or buy Time Machine once for $50 at ${PRICING_URL} to add more. If you already have a key, paste it in Settings, then License. Every restore stays free.`);
     }
     const entry: ProjectEntry = { id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo, features: { ask: false, vercel: null } };
     this.state.projects.push(entry);
