@@ -402,14 +402,17 @@ nav.ft-col a:hover { color: var(--ink); }
 .term-block figcaption { margin-top: 12px; color: var(--ink-3); font: 400 var(--t-cap)/1.5 var(--font-body); }
 .cards + .term-block { margin-top: 12px; }
 
-/* The gap, with its source: title left, the quote and what it means right. */
+/* The gap: title left; what Time Machine adds, then the documented limits with their sources, right. */
 .why { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px clamp(32px, 6vw, 96px); align-items: start; }
 .why h2 { grid-row: 1 / span 2; }
-.why blockquote { margin: 0; padding: 0 0 0 24px; border-left: 2px solid var(--ink); }
-.why blockquote p { margin: 0; font: 400 italic clamp(24px, 1rem + 1.2vw, 32px)/1.25 var(--font-display); text-wrap: balance; }
-.why blockquote footer a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; color: var(--ink-3); font: 500 13px/1.4 var(--font-body); }
 .why .lead { max-width: 48ch; }
 .why .lead code { white-space: nowrap; }
+.why-gaps { padding-left: 24px; border-left: 2px solid var(--line-2); }
+.why-gaps-h { margin: 0; color: var(--ink); font-weight: 500; }
+.why-gaps ul { display: grid; gap: 8px; margin: 12px 0 0; padding: 0 0 0 18px; color: var(--ink-2); font-size: 16px; line-height: 1.5; }
+.why-gaps li::marker { color: var(--ink-3); }
+.why-gaps a { color: var(--ink); text-underline-offset: 3px; }
+.why-gaps-note { margin: 12px 0 0; color: var(--ink-3); font-size: var(--t-cap); }
 
 .words { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 clamp(24px, 3vw, 40px); margin: 0; }
 .words div { padding: 24px 0 0; border-top: 1px solid var(--line-2); }
@@ -421,6 +424,13 @@ nav.ft-col a:hover { color: var(--ink); }
 .end::before { content: ""; position: absolute; z-index: -1; left: 50%; bottom: 0; width: min(900px, 100%); height: 70%; transform: translateX(-50%); pointer-events: none;
   background: radial-gradient(50% 60% at 50% 60%, rgba(255, 255, 255, .05), transparent 70%); }
 .end h2 { max-width: 16ch; margin: 0 auto 32px; font-size: clamp(38px, 1.4rem + 3.6vw, 76px); }
+/* What Time Machine is not: four short lines between the last word and the button. */
+.not { max-width: 880px; margin: 0 auto 40px; text-align: left; }
+.not-h { margin: 0 0 12px; color: var(--ink-3); font-size: var(--t-cap); }
+.not ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(24px, 3vw, 40px); margin: 0; padding: 0; list-style: none; }
+.not li { padding: 14px 0; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 16px; line-height: 1.5; }
+.not b { display: block; color: var(--ink); font-weight: 500; }
+@media (max-width: 600px) { .not ul { grid-template-columns: minmax(0, 1fr); } }
 
 /* Comparison table: scrolls sideways inside its own box on phones, never the page. */
 .cmp-wrap { margin: 0; overflow-x: auto; border-radius: 16px; border: 1px solid var(--line); background: #201f1c; scrollbar-color: var(--ink-3) var(--card); }

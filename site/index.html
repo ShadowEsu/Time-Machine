@@ -309,12 +309,19 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 
   <section class="block" aria-labelledby="why-h">
     <div class="why">
-      <h2 id="why-h">Claude Code’s rewind skips shell changes</h2>
-      <blockquote>
-        <p>“Checkpointing does not track files modified by Bash commands.”</p>
-        <footer><a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Claude Code docs, Checkpointing</a></footer>
-      </blockquote>
-      <p class="lead">When an agent runs <code>rm</code>, <code>mv</code> or <code>sed -i</code>, that rewind cannot bring the files back. Time Machine saves before risky commands, outside your project, so a deleted folder does not take your save points with it.</p>
+      <h2 id="why-h">Where Claude Code’s rewind stops</h2>
+      <p class="lead">Time Machine runs your own tests on each save point in a separate copy. It brings the working one back on a new branch without touching your folder, and lists what did not come back. It saves before every prompt, and again right before commands like <code>rm -rf</code> and <code>git reset --hard</code>. So an <code>mv</code> or <code>sed -i</code> during a turn can be undone from the save point made before that prompt.</p>
+      <div class="why-gaps">
+        <p class="why-gaps-h">What Claude Code’s checkpointing docs say it does not cover:</p>
+        <ul>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Files changed by Bash commands</a> are not tracked.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#subagent-edits-not-restored" rel="noopener">Edits made by most subagents</a> are usually not captured.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#external-changes-not-tracked" rel="noopener">Changes made outside Claude Code</a>, or in other sessions, are normally not captured.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#symlinked-and-hard-linked-paths-not-restored" rel="noopener">Symlinked and hard-linked files</a> are skipped on restore.</li>
+          <li><a href="https://code.claude.com/docs/en/checkpointing#automatic-tracking" rel="noopener">File snapshots are deleted</a> about 30 days after the session, by default.</li>
+        </ul>
+        <p class="why-gaps-note">Read on 22 October 2026.</p>
+      </div>
     </div>
   </section>
 
@@ -329,7 +336,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <caption class="sr-only">What Claude Code’s rewind, Git and Time Machine each do</caption>
         <thead><tr><th scope="col"><span class="sr-only">Capability</span></th><th scope="col">Claude Code rewind</th><th scope="col">Git</th><th scope="col" class="tm" translate="no">Time Machine</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="no">Not tracked</td><td class="part">Only what you committed</td><td class="yes">Saved before risky commands</td></tr>
+          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="no">Not tracked</td><td class="part">Only what you committed</td><td class="yes">Saved before each prompt and before commands like <code>rm -rf</code></td></tr>
           <tr><th scope="row">Saves automatically while the agent works</th><td class="yes">Yes</td><td class="no">No, you commit</td><td class="yes">Yes, with Claude Code hooks</td></tr>
           <tr><th scope="row">Tells you which version passes your tests</th><td class="no">No</td><td class="no">No, you test by hand</td><td class="yes">Yes, each in a separate copy</td></tr>
           <tr><th scope="row">Going back leaves your current work alone</th><td class="no">Restores in place</td><td class="part">Depends on the command</td><td class="yes">New branch and a copy</td></tr>
@@ -355,6 +362,15 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
   <section class="block end" aria-labelledby="end-h">
     <div>
       <h2 id="end-h">Keep a way back while your agent works</h2>
+      <div class="not">
+        <p class="not-h" id="not-h">Time Machine is not</p>
+        <ul aria-labelledby="not-h">
+          <li><b>A backup or a Git replacement.</b> Keep committing, and keep a disk backup.</li>
+          <li><b>An account or a cloud service.</b> The <code translate="no">tm</code> CLI and <code translate="no">tm ui</code> run on your computer.</li>
+          <li><b>A restore in place.</b> You get a separate copy on a new branch.</li>
+          <li><b>Another approval prompt.</b> The hooks save and check without asking you to approve each step.</li>
+        </ul>
+      </div>
       <a class="btn btn-warm" href="#waitlist">Join the waitlist</a>
     </div>
   </section>
@@ -410,6 +426,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <li><a href="security.html">Security</a></li>
         <li><a href="company.html">Company</a></li>
         <li><a href="blog/index.html">Blog</a></li>
+        <li><a href="changelog.html">Changelog</a></li>
         <li><a href="privacy.html">Privacy (draft)</a></li>
         <li><a href="terms.html">Terms (draft)</a></li>
       </ul>
