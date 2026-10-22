@@ -2,7 +2,7 @@
 // and Try the demo in the preview rescues the story the same way the engine does. Synthetic data.
 import { describe, expect, test } from "vitest";
 import type { HookPreview } from "../src/shared/api.ts";
-import { hookStepActions } from "../src/renderer/first-run.ts";
+import { checkLede, hookStepActions } from "../src/renderer/first-run.ts";
 import { FakeEngine } from "../preview/fake.ts";
 
 const hook = (runs: boolean): HookPreview => ({
@@ -28,6 +28,15 @@ describe("the last onboarding step", () => {
     expect(hookStepActions(null, false)).toEqual(finishOnly);
     // The command does not run on this Mac, so the app adds nothing.
     expect(hookStepActions(hook(false), false)).toEqual(finishOnly);
+  });
+});
+
+describe("the check step", () => {
+  test("with no test command found it says so plainly; otherwise it says where the check came from", () => {
+    expect(checkLede({ verifyCommand: "", created: true })).toBe("No test command found, so save points can’t be checked yet. Type the command that shows your project works, or pick Build it.");
+    expect(checkLede({ verifyCommand: "  ", created: false })).toMatch(/^No test command found/);
+    expect(checkLede({ verifyCommand: "npm test", created: true })).toBe("We picked one from your project. Change it if it is not right.");
+    expect(checkLede({ verifyCommand: "npm test", created: false })).toBe("Your timemachine.yml already has one. Change it if it is not right.");
   });
 });
 

@@ -13,7 +13,7 @@ import { renderAskPanel } from "./ask-panel.js";
 import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
-import { hookStepActions } from "./first-run.js";
+import { checkLede, hookStepActions } from "./first-run.js";
 import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 
@@ -1282,7 +1282,7 @@ function onboarding(): string {
     const firstNote = o.first
       ? `<div class="first-sp">${glyph(fv)}<span><b>Your first save point is made.</b> ${fv ? `Checked: ${esc(verdictWord(fv))}.` : "Saved, not checked. Try the check below to find out if it works."}</span></div>`
       : "";
-    body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works. ${!detected ? "We could not guess one from your project, so type yours." : o.init?.created ? "We picked one from your project. Change it if it is not right." : "Your timemachine.yml already has one. Change it if it is not right."}</p></div>
+    body = `<div><h1>How should we check that ${esc(o.project.name)} works?</h1><p class="lede">A check is a command. If it finishes without an error, the version works. ${esc(checkLede({ verifyCommand: detected, created: !!o.init?.created }))}</p></div>
       ${firstNote}
       <div class="panel">
         ${detected ? optRow("detected", detected === "npm run build" ? "Build it" : "Run the tests", detected, true, checkSource(detected, !!o.init?.created)) : ""}
