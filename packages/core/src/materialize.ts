@@ -1,11 +1,11 @@
-import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { TmError } from "./errors.js";
 import { git, gitTry, short } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import type { Project } from "./project.js";
 import { safeTarget } from "./paths.js";
-import { getBlob } from "./store.js";
+import { getBlob, sha256 } from "./store.js";
 
 export interface Materialized {
   dir: string;
@@ -82,6 +82,22 @@ export function materialize(p: Project, m: Manifest, dir: string, opts: { branch
     const restored = [`Code at commit ${short(m.git.snapshot)}`];
     if (written) restored.push(plural(written, "saved file"));
     if (plainNames.length) restored.push(`Config: ${plainNames.join(", ")}`);
+    // Lockfiles and environment definition files count as restored only when the copy holds the exact recorded bytes.
+    const lost = new Set(missing.map((x) => x.split(" (")[0]));
+    const matching = (list: { path: string; sha256: string }[]): string[] => list.filter((d) => {
+      if (lost.has(d.path)) return false;
+      const full = join(dir, d.path);
+      try {
+        if (!lstatSync(full).isFile() || sha256(readFileSync(full)) !== d.sha256) return false;
+      } catch {
+        return false;
+      }
+      return true;
+    }).map((d) => d.path);
+    const lockfiles = matching(m.environment.lockfiles);
+    if (lockfiles.length) restored.push(`Dependencies: ${lockfiles.join(", ")}`);
+    const definitions = matching(m.environment.definitions);
+    if (definitions.length) restored.push(`Environment definition: ${definitions.join(", ")}`);
     return { dir, restored, missing, manual, plainEnv };
   } catch (e) {
     removeWorktree(p, dir);

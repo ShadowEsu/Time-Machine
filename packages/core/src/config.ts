@@ -37,7 +37,7 @@ const ConfigFilesSchema = z.strictObject({
 });
 
 const EnvironmentSchema = z.strictObject({
-  files: z.array(z.string()).default(ENV_FILES),
+  files: z.array(z.string().refine(isSafeRelPath, "must be a path inside the project")).default(ENV_FILES),
 });
 
 export const ProjectConfigSchema = z.strictObject({

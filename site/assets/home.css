@@ -1,11 +1,11 @@
-/* Home: one dark page around the real product. The recording is the hero's proof, the rewind
+/* Home: one dark page around the real product. The web app screen is the hero's proof, the rewind
    instrument the one playful moment, and everything else is quiet type on a 1200 px grid.
    Shared tokens and components (buttons, waitlist form, referral card) live in site.css. */
 
 body.home {
   /* Colours come from site.css (warm charcoal and ivory). Home adds one raised surface. */
   --raised: #201f1c;
-  /* Clay, the main-action colour, also lights the product and playback progress. */
+  /* Clay, the main-action colour, also lights the product. */
   --ember: var(--clay);
   /* Type scale: display, section title, step title, lead, body, caption. */
   --t-display: clamp(40px, 1.25rem + 3.4vw, 72px);
@@ -80,49 +80,35 @@ body.home .bar-cta { background: transparent; color: var(--ink); box-shadow: ins
    and the rest only moves, so nothing on the first screen starts invisible. */
 @media (prefers-reduced-motion: no-preference) {
   :root.js .hero-act { animation: settle .8s .1s var(--ease-out) both; }
-  :root.js .recording { animation: settle-frame 1s .2s var(--ease-out) both; }
+  :root.js .appshot { animation: settle-frame 1s .2s var(--ease-out) both; }
 }
 @keyframes settle { from { transform: translateY(12px); } }
 @keyframes settle-frame { from { transform: translateY(28px) scale(.985); } }
 
-/* The real recording, in a bezel with its chapters. Native controls, no autoplay and
-   no video bytes until the visitor chooses to watch. */
-.recording { position: relative; margin-top: clamp(32px, 4vw, 56px); }
-.recording::before { content: ""; position: absolute; z-index: -1; left: 8%; right: 8%; top: 12%; height: 70%; pointer-events: none; filter: blur(40px);
+/* The web app, as one real screen with three short notes under it. */
+.appshot { position: relative; margin-top: clamp(32px, 4vw, 56px); }
+.appshot::before { content: ""; position: absolute; z-index: -1; left: 8%; right: 8%; top: 12%; height: 70%; pointer-events: none; filter: blur(40px);
   background: radial-gradient(50% 50% at 50% 50%, rgba(217, 119, 87, .18), transparent 70%); }
-.recording-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; margin-bottom: 16px; }
-.recording-head h2 { margin: 0; font: 400 clamp(22px, 1rem + .8vw, 28px)/1.2 var(--font-display); letter-spacing: -.015em; }
-.recording-head p { max-width: 52ch; margin: 0; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.55; }
-.recording-stage { display: grid; grid-template-columns: minmax(0, 1fr) 316px; gap: 12px; padding: 12px; border-radius: 24px;
+.appshot-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 32px; margin-bottom: 16px; }
+.appshot-head h2 { margin: 0; font: 400 clamp(22px, 1rem + .8vw, 28px)/1.2 var(--font-display); letter-spacing: -.015em; }
+.appshot-head p { max-width: 52ch; margin: 0; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.55; }
+.appshot-head code { color: var(--ink-2); }
+.appshot-stage { margin: 0; padding: 12px; border-radius: 24px;
   background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .025) 60%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), inset 0 1px 0 rgba(255, 255, 255, .08), 0 50px 120px -50px rgba(0, 0, 0, .95); }
-.recording-player { margin: 0; min-width: 0; }
-.recording-player video { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; border-radius: 12px; background: #1a1918; outline: 1px solid rgba(250, 249, 245, .08); outline-offset: -1px; }
-.recording-player video:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-.recording-player figcaption { margin: 12px 4px 2px; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.55; }
-.recording-player figcaption b { color: var(--ink-2); font-weight: 500; }
-.recording-chapters { min-width: 0; padding: 6px 0 4px; }
-.recording-chapters h3 { margin: 0 12px 8px; color: var(--ink-3); font: 500 var(--t-cap)/1.4 var(--font-body); }
-.recording-chapters ol { display: grid; margin: 0; padding: 0; list-style: none; }
-.recording-chapters button { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-3); text-align: left; font: 400 14px/1.45 var(--font-body); cursor: pointer; overflow: hidden; transition: background-color .15s, color .15s; }
-.recording-chapters .ch-t { color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: 13px; line-height: 1.6; }
-.recording-chapters button::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--ember); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); opacity: 0; }
-@media (hover: hover) and (pointer: fine) { .recording-chapters button:hover { background: rgba(255, 255, 255, .045); color: var(--ink-2); } }
-.recording-chapters button[aria-current="true"] { background: rgba(255, 255, 255, .07); color: var(--ink); }
-.recording-chapters button[aria-current="true"] .ch-t { color: var(--ink); }
-.recording-chapters button[aria-current="true"]::after { opacity: 1; }
-.recording-chapters button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-/* After the recording: the next step, quieter than the hero's filled button. */
-.recording-next { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 20px 0 0; color: var(--ink-3); font-size: var(--t-cap); }
-@media (max-width: 1100px) {
-  .recording-stage { grid-template-columns: minmax(0, 1fr); }
-  .recording-chapters { padding: 4px 0 0; }
-}
+.appshot-stage img { display: block; width: 100%; height: auto; border-radius: 12px; background: #1a1918; outline: 1px solid rgba(250, 249, 245, .08); outline-offset: -1px; }
+.appshot-stage figcaption { margin: 12px 4px 2px; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.55; }
+.appshot-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(24px, 3vw, 40px); margin: 28px 0 0; }
+.appshot-notes div { padding: 16px 0 0; border-top: 1px solid var(--line-2); }
+.appshot-notes dt { color: var(--ink); font-weight: 500; font-size: 16px; }
+.appshot-notes dd { margin: 6px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.55; }
+/* After the screen: the next step, quieter than the hero's filled button. */
+.appshot-next { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 24px 0 0; color: var(--ink-3); font-size: var(--t-cap); }
 @media (max-width: 760px) {
-  .recording-head { display: grid; }
-  .recording-stage { padding: 6px; border-radius: 16px; }
-  .recording-player video { border-radius: 10px; }
-  .recording-chapters button { grid-template-columns: 36px minmax(0, 1fr); padding: 10px 8px; font-size: 14px; }
+  .appshot-head { display: grid; }
+  .appshot-stage { padding: 6px; border-radius: 16px; }
+  .appshot-stage img { border-radius: 10px; }
+  .appshot-notes { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
 /* Three steps of one loop: Save, Check, Bring back. Raised panels, not floating tiles. */
@@ -432,6 +418,37 @@ nav.ft-col a:hover { color: var(--ink); }
 .not b { display: block; color: var(--ink); font-weight: 500; }
 @media (max-width: 600px) { .not ul { grid-template-columns: minmax(0, 1fr); } }
 
+/* What comes back and what does not, in the engine's own report wording. */
+.back { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px clamp(32px, 6vw, 96px); }
+.back-h { margin: 0 0 4px; color: var(--ink); font: 400 24px/1.2 var(--font-display); letter-spacing: -.01em; }
+.back ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.back li { padding: 16px 0; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 16px; line-height: 1.55; }
+.back li b { display: block; margin-bottom: 4px; color: var(--ink); font-weight: 500; }
+.back li code, .back-note code { display: block; width: fit-content; max-width: 100%; margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: var(--term-bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--term-ink); font: 400 12.5px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.back li code + code { margin-top: 6px; }
+.back-note { max-width: 70ch; margin: 32px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.55; }
+@media (max-width: 760px) { .back { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+
+/* Pay once: two plain columns, the paid one raised. The button is wired by buy.js. */
+.plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.plan { display: flex; flex-direction: column; gap: 10px; padding: 28px; border-radius: 20px; background: linear-gradient(180deg, #24231f, #1f1e1b); box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(250, 249, 245, .06); }
+.plan-paid { box-shadow: inset 0 0 0 1px rgba(217, 119, 87, .45), inset 0 1px 0 rgba(250, 249, 245, .06); }
+.plan-k { margin: 0; color: var(--ink-3); font: 500 var(--t-cap)/1.4 var(--font-body); }
+.plan-price { margin: 0; color: var(--ink); font: 400 clamp(36px, 1.4rem + 2vw, 52px)/1 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.03em; }
+.plan-price span { color: var(--ink-3); font-size: 20px; letter-spacing: 0; }
+.plan ul { display: grid; gap: 0; margin: 12px 0 0; padding: 0; list-style: none; }
+.plan li { padding: 12px 0; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 16px; line-height: 1.5; }
+.plan li a { color: var(--ink); }
+.plan .btn { align-self: start; margin-top: auto; padding-top: 0; }
+.plan ul + .btn { margin-top: 20px; }
+.plan .btn[disabled] { opacity: .6; }
+.plan-status { margin: 0; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+.plan-status:empty { display: none; }
+.plan-status a { color: var(--ink); }
+.plan-note { max-width: 70ch; margin: 28px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.55; }
+.plan-note b { color: var(--ink); font-weight: 500; }
+@media (max-width: 760px) { .plans { grid-template-columns: minmax(0, 1fr); } .plan { padding: 22px; } }
+
 /* Comparison table: scrolls sideways inside its own box on phones, never the page. */
 .cmp-wrap { margin: 0; overflow-x: auto; border-radius: 16px; border: 1px solid var(--line); background: #201f1c; scrollbar-color: var(--ink-3) var(--card); }
 .cmp { width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0; font-size: 16px; }
@@ -464,6 +481,7 @@ nav.ft-col a:hover { color: var(--ink); }
 .term-block pre.term-scroll { white-space: pre; overflow-wrap: normal; }
 .install-note { max-width: 62ch; margin: 14px 0 0; color: var(--ink-2); font-size: 16px; line-height: 1.6; }
 .install-note code, .facts code { color: var(--ink); overflow-wrap: anywhere; }
+.install-ui { margin-top: 28px; }
 .try-side { display: grid; gap: 40px; min-width: 0; }
 .agent-setup { padding: 22px 24px 18px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
 .agent-setup-h { margin: 0; color: var(--ink); font-weight: 500; font-size: 16px; }
@@ -500,7 +518,7 @@ nav.ft-col a:hover { color: var(--ink); }
   .card { padding: 22px; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .stage::before, .recording::before, .end::before { display: none; }
+  .stage::before, .appshot::before, .end::before { display: none; }
   .bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (max-width: 370px) {

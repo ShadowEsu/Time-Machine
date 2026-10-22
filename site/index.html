@@ -35,6 +35,7 @@
     <a href="security.html">Security</a>
     <a href="story.html">The story</a>
     <a href="blog/index.html">Blog</a>
+    <a href="#pricing">Pay once</a>
   </nav>
   <a class="bar-cta" href="#waitlist">Join the waitlist</a>
 </header>
@@ -61,38 +62,24 @@
       </div>
     </div>
 
-    <section class="recording" id="app-recording" aria-labelledby="recording-h">
-      <div class="recording-head">
-        <h2 id="recording-h">A real recovery, recorded in the Mac app</h2>
-        <p>Checks run locally. Recovery creates a separate copy. Your current folder stays unchanged.</p>
+    <section class="appshot" id="web-app" aria-labelledby="app-h">
+      <div class="appshot-head">
+        <h2 id="app-h">The web app</h2>
+        <p>Open it with <code translate="no">tm ui</code>. It runs on your computer, in your browser. Nothing is hosted, and there is no account.</p>
       </div>
-      <div class="recording-stage">
-        <figure class="recording-player">
-          <video controls playsinline preload="none" width="1280" height="800"
-            poster="assets/demo/recovery-poster.jpg" aria-label="Time Machine Mac app recovery demonstration"
-            aria-describedby="recording-caption">
-            <source src="assets/demo/recovery.mp4" type="video/mp4" media="(min-width: 1100px)">
-            <source src="assets/demo/recovery-1280.mp4" type="video/mp4">
-            <track kind="captions" src="assets/demo/recovery.en.vtt" srclang="en" label="English" default>
-            Your browser cannot play this video. Read the transcript next to it.
-          </video>
-          <figcaption id="recording-caption"><b>The Claude Code edit is scripted. The hooks, save points, checks and recovery are real.</b> The real Mac app on a synthetic project. <span class="num">68 seconds</span>, captions, no sound.</figcaption>
-        </figure>
-        <div class="recording-chapters">
-          <h3 id="chapters-h">Chapters and transcript</h3>
-          <ol aria-labelledby="chapters-h" data-chapters>
-            <li><button type="button" data-seek="0.589" data-end="11.174"><span class="ch-t"><span class="sr-only">Play from </span>0:00</span><span class="ch-x">Marigold Tips, a synthetic project. Every save point was checked with its own tests.</span></button></li>
-            <li><button type="button" data-seek="11.174" data-end="20.233"><span class="ch-t"><span class="sr-only">Play from </span>0:11</span><span class="ch-x">A Claude Code turn starts. Time Machine saves the project first.</span></button></li>
-            <li><button type="button" data-seek="20.233" data-end="24.848"><span class="ch-t"><span class="sr-only">Play from </span>0:20</span><span class="ch-x">The turn ends. Its save point is checked in a safe copy.</span></button></li>
-            <li><button type="button" data-seek="24.848" data-end="35.661"><span class="ch-t"><span class="sr-only">Play from </span>0:24</span><span class="ch-x">Broken. The app says since when, and names the last version that works.</span></button></li>
-            <li><button type="button" data-seek="35.661" data-end="44.862"><span class="ch-t"><span class="sr-only">Play from </span>0:35</span><span class="ch-x">Go back. First, review what comes back and what does not.</span></button></li>
-            <li><button type="button" data-seek="44.862" data-end="51.306"><span class="ch-t"><span class="sr-only">Play from </span>0:44</span><span class="ch-x">Secret values and anything outside the project do not come back. It says so first.</span></button></li>
-            <li><button type="button" data-seek="51.306" data-end="58.424"><span class="ch-t"><span class="sr-only">Play from </span>0:51</span><span class="ch-x">Bring it back. It lands as a separate copy on a new branch.</span></button></li>
-            <li><button type="button" data-seek="58.424" data-end="67.658"><span class="ch-t"><span class="sr-only">Play from </span>0:58</span><span class="ch-x">The working version is back. Your folder was not touched.</span></button></li>
-          </ol>
-        </div>
-      </div>
-      <p class="recording-next"><a class="btn btn-ghost" href="#waitlist" data-waitlist-focus>Join the waitlist</a> <span>We write to the list when the CLI is on npm. Nothing else.</span></p>
+      <figure class="appshot-stage">
+        <picture>
+          <source media="(max-width: 600px)" srcset="assets/img/app/history-390.jpg" width="390" height="844">
+          <img src="assets/img/app/history-1440.jpg" width="1440" height="900" decoding="async" fetchpriority="high" alt="The Time Machine web app on a synthetic project. The status bar says the newest save point is broken and names the last one that works. The history lists each save point with its own verdict, and a Rewind button leads to the version that passed.">
+        </picture>
+        <figcaption>Real screen, synthetic project. Opened with <code translate="no">tm ui</code> from a source install.</figcaption>
+      </figure>
+      <dl class="appshot-notes">
+        <div><dt>The status bar</dt><dd>Says whether the newest save point works or is broken, since when, and names the last version that passed.</dd></div>
+        <div><dt>The history</dt><dd>Every save point with its own verdict, when it was made, and what it saved and did not save.</dd></div>
+        <div><dt>The rewind</dt><dd>Shows what comes back and what does not, then brings the passing version back as a separate copy on a new branch.</dd></div>
+      </dl>
+      <p class="appshot-next"><a class="btn btn-ghost" href="#waitlist" data-waitlist-focus>Join the waitlist</a> <span>We write to the list when the CLI is on npm. Nothing else.</span></p>
     </section>
 
     <figure id="rewind-demo" class="rewind-story" data-rewind data-phase="broken" aria-labelledby="rs-title" aria-describedby="rs-caption">
@@ -192,7 +179,7 @@
   <section class="block" id="try" aria-labelledby="try-h">
     <div class="block-head">
       <h2 id="try-h">Install from source and run the demo</h2>
-      <p class="lead">The Mac app is still in development. The <code translate="no">tm</code> CLI works today on macOS and Linux. Build it from source, then run the demo, or open the same app in your browser with <code translate="no">tm ui</code>.</p>
+      <p class="lead">The <code translate="no">tm</code> CLI works today on macOS and Linux. Build it from source, run the demo, then open the web app in your browser with <code translate="no">tm ui</code>.</p>
     </div>
     <div class="term-block install" data-copy-box>
       <p class="install-h">In a terminal <span class="tag-s">Not on npm yet</span></p>
@@ -207,7 +194,15 @@ tm demo</pre>
       </div>
       <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
       <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. Timed by hand in two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took <span class="num">24 and 45 seconds</span>. Most of that is downloading and building.</p>
-      <p class="install-note"><code translate="no">tm ui</code> opens Time Machine in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. Tested on macOS so far.</p>
+    </div>
+    <div class="term-block install install-ui" data-copy-box>
+      <p class="install-h">Then the web app</p>
+      <pre id="ui-cmd" class="term-scroll" tabindex="0" role="region" aria-label="Web app command" translate="no">tm ui</pre>
+      <div class="copy-row">
+        <button class="btn btn-ghost btn-sm" type="button" data-copy="ui-cmd" hidden>Copy</button>
+        <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
+      </div>
+      <p class="install-note"><code translate="no">tm ui</code> opens the web app in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. Free for up to 3 projects. <a href="#pricing">Pay once for unlimited projects</a>.</p>
     </div>
     <div class="try-side">
       <div class="agent-setup" data-copy-box>
@@ -220,7 +215,7 @@ tm demo</pre>
         </div>
       </div>
       <ul class="facts">
-        <li><b>Save points stay on your computer, in <code translate="no">~/.timemachine</code>. Nothing is uploaded.</b> The optional Ask feature in the Mac app sends a short summary to Google only after you turn it on.</li>
+        <li><b>Save points stay on your computer, in <code translate="no">~/.timemachine</code>. Nothing is uploaded.</b> The optional Ask feature in the web app sends a short summary to Google only after you turn it on.</li>
         <li><b>Time Machine is not a backup and not a replacement for Git.</b> Keep committing, and keep a disk backup.</li>
       </ul>
     </div>
@@ -229,32 +224,32 @@ tm demo</pre>
   <section class="block" aria-labelledby="plain-h">
     <div class="block-head">
       <h2 id="plain-h">No code needed to get the working version back</h2>
-      <p class="lead">Time Machine keeps a copy of your project before the AI touches it, checks which copies still work, and gives you the last good one back. In the app you use buttons, not commands. The Mac app is coming; today <code translate="no">tm ui</code> shows the same screens after a source install.</p>
+      <p class="lead">Time Machine keeps a copy of your project before the AI touches it, checks which copies still work, and gives you the last good one back. In the web app you use buttons, not commands. Open it with <code translate="no">tm ui</code> after a source install.</p>
     </div>
     <ol class="story">
       <li class="story-row">
         <div class="story-text">
           <p class="story-n">1</p>
-          <h3>See which versions work and which broke</h3>
-          <p>Every change gets a save point. The app shows plainly which ones work and which are broken, and the last one that worked.</p>
+          <h3>Add your project and pick the check</h3>
+          <p>Point the web app at your project folder. It guesses the command that shows your project works, such as <code translate="no">npm test</code>, and you confirm it.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-broken-m.jpg" width="900" height="900"><img src="assets/img/app-broken.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The Mac app shows a failed check, the last save point that passed, a Go back button, recovery limits and a history of checked versions."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+        <figure class="shot"><img src="assets/img/app/welcome-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The web app's first screen asks for a project folder and shows the check it found, with a button to confirm it."><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
       <li class="story-row flip">
         <div class="story-text">
           <p class="story-n">2</p>
-          <h3>Dial back to the last version that works</h3>
-          <p>Before anything happens, you see what comes back and what does not, like passwords or your database.</p>
+          <h3>See which versions work and which broke</h3>
+          <p>Every change gets a save point. The history shows plainly which ones work and which are broken, and the last one that worked.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-dial-m.jpg" width="700" height="1100"><img src="assets/img/app-review-wide.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The recovery review shows the save point that passed, files that return, secret values and database contents that do not, and the dial with its Go back button."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/history-390.jpg" width="390" height="844"><img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The history screen lists each save point with its verdict. The newest is broken. An earlier one passed, and a button leads back to it."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
       <li class="story-row">
         <div class="story-text">
           <p class="story-n">3</p>
-          <h3>Go back in a separate copy</h3>
-          <p>The good version comes back next to your work. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
+          <h3>Rewind to the last version that works, in a separate copy</h3>
+          <p>Before anything happens, you see what comes back and what does not, like passwords or your database. The good version then comes back next to your work. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
         </div>
-        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app-done-m.jpg" width="900" height="786"><img src="assets/img/app-done.jpg" width="1600" height="882" loading="lazy" decoding="async" alt="The recovery report shows a separate copy is ready on a new local branch, what returned, and remaining manual steps. The original folder was not switched."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+        <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/rewind-390.jpg" width="390" height="844"><img src="assets/img/app/rewind-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The rewind screen shows the save point that passed, what comes back, the secret values and database contents that do not, and the button that brings it back as a separate copy."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
       </li>
     </ol>
   </section>
@@ -262,7 +257,7 @@ tm demo</pre>
   <section class="block" aria-labelledby="dev-h">
     <div class="block-head">
       <h2 id="dev-h">One engine behind the app, the CLI and the hooks</h2>
-      <p class="lead">The Mac app, the <code translate="no">tm</code> CLI, the Claude Code hooks and the MCP server call the same engine, so their answers always match.</p>
+      <p class="lead">The web app, the <code translate="no">tm</code> CLI, the Claude Code hooks and the MCP server call the same engine, so their answers always match.</p>
     </div>
     <ul class="cards">
       <li class="card">
@@ -307,6 +302,35 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
     </figure>
   </section>
 
+  <section class="block" id="comes-back" aria-labelledby="back-h">
+    <div class="block-head">
+      <h2 id="back-h">More than a commit comes back</h2>
+      <p class="lead">A save point is a Git commit pinned under <code translate="no">refs/tm</code>, plus a Git bundle in a store outside your project, plus what Git alone would miss. Every recovery report lists both columns, in these words.</p>
+    </div>
+    <div class="back">
+      <div class="back-col">
+        <p class="back-h">Comes back</p>
+        <ul>
+          <li><b>Your code, with uncommitted edits.</b> The commit is made from your working tree, so edits you had not committed are in it. <code translate="no">Code: commit a1b2c3d on main, including 4 uncommitted changes</code></li>
+          <li><b>Files not in Git.</b> New files you had not added yet, up to a size limit you set. <code translate="no">Files: 3 files not in Git</code></li>
+          <li><b>Config, by key name.</b> Keys you allowlist come back with their values. Every other key comes back as its name and a fingerprint, so you can tell what changed without the value ever being stored. <code translate="no">Config: 6 keys in .env (1 saved, 5 name only)</code></li>
+          <li><b>Lockfile digests and runtime versions.</b> A digest of each lockfile, the Node version, and a digest of environment files such as a Dockerfile, so you can tell when the environment moved. <code translate="no">Dependencies: package-lock.json</code> <code translate="no">Environment: node 22.22.0</code></li>
+          <li><b>A Git bundle in the store.</b> Kept in <code translate="no">~/.timemachine</code>, so the save point survives the project folder being deleted.</li>
+        </ul>
+      </div>
+      <div class="back-col">
+        <p class="back-h">Does not come back</p>
+        <ul>
+          <li><b>Secret values.</b> Never stored, not even on your own computer. The report names the keys you set again by hand. <code translate="no">Secret values in .env: STRIPE_SECRET_KEY</code></li>
+          <li><b>Files that look like secrets.</b> An edited tracked file that looks like it holds a secret keeps its last committed version instead. A file named like a secrets file is not saved. <code translate="no">.env.local is a secrets file by name, so it was not saved</code></li>
+          <li><b>Files your .gitignore skips.</b> Folders like <code translate="no">node_modules</code> or build output, unless you ask for them. <code translate="no">Files your .gitignore skips were not saved: dist</code></li>
+          <li><b>Database contents, deployed versions and external services.</b> Emails sent, payments made, anything on a server. <code translate="no">Databases, deployed versions and external services are not captured</code></li>
+        </ul>
+      </div>
+    </div>
+    <p class="back-note">Every report ends with the same line: <code translate="no">Restored: code, captured files, config. Not restored: database, deployed version, secret values.</code> An unchecked save point is shown as not checked, never as working.</p>
+  </section>
+
   <section class="block" aria-labelledby="why-h">
     <div class="why">
       <h2 id="why-h">Where Claude Code’s rewind stops</h2>
@@ -347,6 +371,40 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
     <p class="cmp-note">Claude Code behavior from its <a href="https://code.claude.com/docs/en/checkpointing" rel="noopener">checkpointing docs</a>. Other agents are planned, not built.</p>
   </section>
 
+  <section class="block" id="pricing" aria-labelledby="pricing-h">
+    <div class="block-head">
+      <h2 id="pricing-h">Pay once</h2>
+      <p class="lead">The CLI is free and MIT licensed. The web app is free for up to 3 projects. One payment of $50 unlocks unlimited projects. No subscription, no account.</p>
+    </div>
+    <div class="plans">
+      <div class="plan">
+        <p class="plan-k">Free</p>
+        <p class="plan-price">$0</p>
+        <ul>
+          <li>The <code translate="no">tm</code> CLI under the MIT license: save points, checks, find-good, recover, Claude Code hooks and the MCP server.</li>
+          <li>Unlimited projects in the CLI.</li>
+          <li>Every restore. Restores are never behind the paywall.</li>
+          <li>The web app, <code translate="no">tm ui</code>, with up to 3 projects.</li>
+        </ul>
+        <a class="btn btn-ghost" href="#try">Install from source</a>
+      </div>
+      <div class="plan plan-paid">
+        <p class="plan-k">Web app</p>
+        <p class="plan-price">$50 <span>once</span></p>
+        <ul>
+          <li>Unlimited projects in the web app.</li>
+          <li>Updates while we ship them.</li>
+          <li>A key that works offline. No account.</li>
+          <li>Refund within 14 days by email. <a href="terms.html#license">Terms (draft)</a></li>
+        </ul>
+        <button class="btn btn-warm" type="button" data-buy disabled>Buy once for $50</button>
+        <p class="plan-status" data-buy-status role="status" aria-live="polite"></p>
+        <noscript><p class="plan-status">Checkout needs JavaScript. Email preston@unvibe.site instead.</p></noscript>
+      </div>
+    </div>
+    <p class="plan-note"><b>Why pay once.</b> No subscription to cancel, no account to protect. The web app runs on your computer, and so does the key.</p>
+  </section>
+
   <section class="block" aria-labelledby="words-h">
     <div class="block-head">
       <h2 id="words-h">Four words you’ll see in the app</h2>
@@ -384,8 +442,8 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <p class="ft-mail"><a href="mailto:preston@unvibe.site">preston@unvibe.site</a></p>
       <dl class="ft-status">
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
-        <div><dt>Browser app</dt><dd><code translate="no">tm ui</code>. Works from source. Tested on macOS.</dd></div>
-        <div><dt>Mac app</dt><dd>In development. Not signed by Apple yet.</dd></div>
+        <div><dt>Web app</dt><dd><code translate="no">tm ui</code>. Works from source. Free for up to 3 projects.</dd></div>
+        <div><dt>Price</dt><dd>$50 once for unlimited web app projects. Checkout is not open yet.</dd></div>
         <div><dt>Tests</dt><dd><span class="num">365</span> automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
         <div><dt>License</dt><dd>MIT. <a href="https://github.com/ShadowEsu/Time-Machine" rel="noopener">Source on GitHub</a></dd></div>
       </dl>
@@ -415,7 +473,8 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <details><summary>Why not the agent’s own rewind?</summary><p>Claude Code’s docs say checkpointing does not track files changed by Bash commands. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Read the Claude Code docs</a></p></details>
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
       <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; Preston writes to the list himself when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
-      <details><summary>What will it cost?</summary><p>Nothing is for sale. The CLI is free and MIT licensed. Restores will never be behind a paywall.</p></details>
+      <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and there is no account.</p></details>
+      <details><summary>What does the $50 buy?</summary><p>Unlimited projects in the web app, and updates while we ship them. One payment, no subscription, no account. The CLI stays free and MIT licensed, and every restore stays free. Checkout is not open yet, so nothing is for sale today.</p></details>
     </div>
 
     <nav class="ft-col" aria-label="Footer">
@@ -426,6 +485,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <li><a href="security.html">Security</a></li>
         <li><a href="company.html">Company</a></li>
         <li><a href="blog/index.html">Blog</a></li>
+        <li><a href="#pricing">Pay once</a></li>
         <li><a href="changelog.html">Changelog</a></li>
         <li><a href="privacy.html">Privacy (draft)</a></li>
         <li><a href="terms.html">Terms (draft)</a></li>
@@ -439,10 +499,10 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Time Machine","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux","description":"Saves your project before an AI coding agent acts, runs your own tests on each save point in a separate copy, and brings back the newest one that passes.","url":"https://time-machine-site.vercel.app/","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Preston Susanto","email":"preston@unvibe.site"},"codeRepository":"https://github.com/ShadowEsu/Time-Machine"}</script>
 <script src="assets/motion.js" defer></script>
-<script src="assets/recording.js" defer></script>
 <script src="assets/rewind.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
 <script src="assets/copy.js" defer></script>
+<script src="assets/buy.js" defer></script>
 <script src="assets/agent-preview.js" defer></script>
 </body>
 </html>

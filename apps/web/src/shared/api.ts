@@ -1,4 +1,4 @@
-// The narrow bridge between the window and the engine. The main process validates every
+// The narrow bridge between the browser page and the engine. The tm ui server validates every
 // call with these schemas before it touches the engine. The preview build fakes this API.
 import { z } from "zod";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "./links.js";
@@ -11,6 +11,7 @@ import type {
   HookInstallResult,
   HookState,
   InitResult,
+  LicenseStatus,
   LogResult,
   OpenResult,
   RecoverResult,
@@ -21,7 +22,7 @@ import type {
   VerifyResult,
 } from "@timetm/core";
 
-export type { Verdict };
+export type { LicenseStatus, Verdict };
 
 export const ProjectId = z.string().uuid();
 export const CheckpointId = z.string().regex(/^cp-\d{4,}$/);
@@ -31,47 +32,18 @@ const AbsPath = z.string().min(1).max(4096).refine((s) => s.startsWith("/") || /
 
 export const ThemeSchema = z.enum(["system", "light", "dark"]);
 
-const MODIFIERS = new Set(["Command", "Cmd", "Control", "Ctrl", "CommandOrControl", "CmdOrCtrl", "Alt", "Option", "Shift", "Super", "Meta"]);
-/** Modifiers that make a key a command rather than typing. Without one, Option and Shift type characters. */
-const COMMAND_MODIFIERS = new Set(["Command", "Cmd", "Control", "Ctrl", "CommandOrControl", "CmdOrCtrl", "Super", "Meta"]);
-/** Copy, paste, cut, undo, quit, close and select all stay with the app in front, with any extra modifier. */
-const RESERVED_KEYS = new Set(["C", "V", "X", "Z", "Q", "W", "A"]);
-const HOTKEY_KEY = /^(?:[A-Z0-9]|F(?:[1-9]|1\d|2[0-4])|Space|Tab|Backspace|Delete|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Plus|[,./;'[\]\\`=-])$/;
 
 /**
- * A global shortcut in Electron accelerator form, such as Control+Alt+T. Two modifiers, one
- * of them Control or Command, so it can't swallow typing, and never a key other apps rely on.
+ * Settings kept in settings.json. Unknown keys are dropped, not refused: a file written by an older
+ * version (with the Mac app's hotkey or overlay keys) still loads and keeps its theme.
  */
-export const HotkeySchema = z
-  .string()
-  .max(60)
-  .refine((s) => {
-    const parts = s.split("+");
-    const key = parts.pop() ?? "";
-    return (
-      HOTKEY_KEY.test(key) &&
-      parts.length >= 2 &&
-      parts.every((m) => MODIFIERS.has(m)) &&
-      new Set(parts).size === parts.length &&
-      parts.some((m) => COMMAND_MODIFIERS.has(m)) &&
-      !RESERVED_KEYS.has(key)
-    );
-  }, "Use two modifier keys, one of them Control or Command, and one key, like Control+Alt+T. Copy, paste, cut, undo, quit, close and select all are kept for other apps.");
-
-export const DEFAULT_HOTKEY = "Control+Alt+T";
-
-export const SettingsSchema = z.strictObject({
+export const SettingsSchema = z.object({
   showGitDetails: z.boolean().default(false),
-  overlayCards: z.boolean().default(true),
   /** New installs open dark. A saved choice, including System or Light, is kept. */
   theme: ThemeSchema.default("dark"),
   onboarded: z.boolean().default(false),
   /** Use the plain step by step sheet instead of the Time View. Reduce motion turns it on by itself. */
   simpleRewind: z.boolean().default(false),
-  /** Shows the app window from any app. Null turns it off. */
-  hotkey: HotkeySchema.nullable().default(DEFAULT_HOTKEY),
-  /** The small "Claude Code is working" pill while an agent turn is in progress. */
-  agentPill: z.boolean().default(true),
   /** The one-time tip that explains the verdict words, shown with the first verdict until it is hidden. */
   verdictTipSeen: z.boolean().default(false),
 });
@@ -80,12 +52,9 @@ export type Settings = z.infer<typeof SettingsSchema>;
 /** A change to some settings. No defaults here, so a patch never resets what it leaves out. */
 export const SettingsPatchSchema = z.strictObject({
   showGitDetails: z.boolean().optional(),
-  overlayCards: z.boolean().optional(),
   theme: ThemeSchema.optional(),
   onboarded: z.boolean().optional(),
   simpleRewind: z.boolean().optional(),
-  hotkey: HotkeySchema.nullable().optional(),
-  agentPill: z.boolean().optional(),
   verdictTipSeen: z.boolean().optional(),
 });
 
@@ -133,7 +102,6 @@ const FeatureChange = z.discriminatedUnion("feature", [
 /** Every call the window can make. One schema per method. */
 export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("bootstrap") }),
-  z.strictObject({ method: z.literal("chooseFolder") }),
   z.strictObject({ method: z.literal("addProject"), path: AbsPath }),
   z.strictObject({ method: z.literal("removeProject"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("statuses") }),
@@ -165,7 +133,6 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("agents") }),
   z.strictObject({ method: z.literal("isolation") }),
   z.strictObject({ method: z.literal("setSettings"), patch: SettingsPatchSchema }),
-  z.strictObject({ method: z.literal("reveal"), path: AbsPath }),
   z.strictObject({ method: z.literal("readReport"), path: AbsPath }),
   z.strictObject({ method: z.literal("copy"), text: z.string().max(200_000) }),
   z.strictObject({ method: z.literal("setActive"), projectId: ProjectId }),
@@ -176,6 +143,10 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("ask"), projectId: ProjectId, question: z.string().trim().min(1).max(500) }),
   z.strictObject({ method: z.literal("vercelProjects") }),
   z.strictObject({ method: z.literal("deployments"), projectId: ProjectId }),
+  z.strictObject({ method: z.literal("license") }),
+  /** A pasted key. Verified offline by the engine; never logged. */
+  z.strictObject({ method: z.literal("setLicense"), key: z.string().trim().min(10).max(4000) }),
+  z.strictObject({ method: z.literal("removeLicense") }),
 ]);
 export type Call = z.infer<typeof CallSchema>;
 export type Method = Call["method"];
@@ -190,17 +161,13 @@ export interface ProjectStatus {
 }
 
 export interface Bootstrap {
-  /** Absent in older desktop and preview bridges. Browser mode uses the same local engine. */
-  runtime?: "browser" | "desktop";
   /** True only for a private local preview that bundled the provider marks. Public builds never set it. */
   localBrandMarks?: boolean;
   platform: string;
   settings: Settings;
   projects: ProjectEntry[];
-  /** The shortcut that shows the app window. Empty when it is off. */
-  hotkey: string;
-  /** False when the shortcut is set but another app already owns it. */
-  hotkeyActive: boolean;
+  /** The one-time license on this computer. The free app lists a few projects; restores are never behind it. */
+  license: LicenseStatus;
   storeDir: string;
   preview: boolean;
 }
@@ -208,7 +175,7 @@ export interface Bootstrap {
 export interface HookPreview {
   settingsPath: string;
   command: string;
-  /** True when `command --version` answered with this version on this Mac. Nothing is added when false. */
+  /** True when `command --version` answered with this version on this computer. Nothing is added when false. */
   runs: boolean;
   lines: { event: string; command: string }[];
 }
@@ -235,9 +202,9 @@ export interface AgentRow {
 }
 
 export interface IsolationInfo {
-  /** The only mode implemented. Checks run in a separate Git worktree on this Mac. */
+  /** The only mode implemented. Checks run in a separate Git worktree on this computer. */
   mode: "host";
-  /** What blocks the network during checks when a project asks for it, or null when nothing on this Mac can. */
+  /** What blocks the network during checks when a project asks for it, or null when nothing on this computer can. */
   networkSandbox: string | null;
 }
 
@@ -298,7 +265,6 @@ export interface DeploymentsResult {
 /** What each method returns. */
 export interface Results {
   bootstrap: Bootstrap;
-  chooseFolder: string | null;
   addProject: ProjectEntry;
   removeProject: ProjectEntry[];
   statuses: ProjectStatus[];
@@ -323,7 +289,6 @@ export interface Results {
   agents: AgentRow[];
   isolation: IsolationInfo;
   setSettings: Settings;
-  reveal: true;
   readReport: string;
   copy: true;
   setActive: true;
@@ -335,6 +300,9 @@ export interface Results {
   vercelProjects: VercelProjectOption[];
   /** Null when the project is not linked to a Vercel project. */
   deployments: DeploymentsResult | null;
+  license: LicenseStatus;
+  setLicense: LicenseStatus;
+  removeLicense: LicenseStatus;
 }
 
 export interface ApiError {
@@ -346,71 +314,15 @@ export type Res<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
 export type CallOf<M extends Method> = Extract<Call, { method: M }>;
 
-/** Things the main process tells the window. */
+/** Things the server tells the page. */
 export type AppEvent =
   | { type: "navigate"; projectId: string; screen: "rewind" | "compare" | "history"; target?: string; a?: string; b?: string }
   | { type: "progress"; projectId: string; checkpoint: string; verdict: string }
   | { type: "changed"; projectId: string }
   | { type: "settings"; settings: Settings }
-  | { type: "shortcut"; action: ShortcutAction };
-
-export type ShortcutAction = "save" | "check" | "rewind" | "inspector" | "settings" | "add" | "compare";
+  | { type: "license"; license: LicenseStatus };
 
 export interface TmBridge {
   call<M extends Method>(call: CallOf<M>): Promise<Res<Results[M]>>;
   onEvent(cb: (e: AppEvent) => void): () => void;
-}
-
-// Overlay window
-
-export type OverlayAction =
-  | { kind: "rewind"; projectId: string; target: string }
-  | { kind: "compare"; projectId: string; a: string; b: string }
-  | { kind: "history"; projectId: string; target?: string }
-  | { kind: "dismiss" };
-
-export const OverlayActionSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("rewind"), projectId: ProjectId, target: CheckpointId }),
-  z.strictObject({ kind: z.literal("compare"), projectId: ProjectId, a: CheckpointId, b: CheckpointId }),
-  z.strictObject({ kind: z.literal("history"), projectId: ProjectId, target: CheckpointId.optional() }),
-  z.strictObject({ kind: z.literal("dismiss") }),
-]);
-
-export interface CardButton {
-  label: string;
-  action: OverlayAction;
-}
-
-export type OverlayContent =
-  | {
-      kind: "card";
-      /** The verdict the card rests on. Null for cards that are not about a check. */
-      verdict: Verdict | null;
-      projectName: string;
-      title: string;
-      body: string;
-      primary: CardButton | null;
-      secondary: CardButton | null;
-      /** Milliseconds before it hides on its own, unless hovered. */
-      hideAfterMs: number;
-    }
-  | {
-      kind: "strip";
-      projectId: string;
-      projectName: string;
-      points: { id: string; verdict: Verdict | null; note: string; createdAt: string }[];
-      hideAfterMs: number;
-    }
-  | {
-      /** Shown only while an agent turn is in progress. It never hides on a timer. */
-      kind: "pill";
-      projectId: string;
-      projectName: string;
-      agent: string;
-    };
-
-export interface OverlayBridge {
-  onContent(cb: (c: OverlayContent) => void): void;
-  act(a: OverlayAction): void;
-  hover(on: boolean): void;
 }

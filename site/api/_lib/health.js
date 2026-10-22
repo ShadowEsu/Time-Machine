@@ -1,6 +1,8 @@
 // Health check core. Pure: no Vercel, no globals. Fetch and env are injected.
 // `waitlist` says the two Supabase settings are present. `database` says whether a real, read-only
 // call to the waitlist database just worked, so "configured" is never reported as "working".
+// `checkout` says the Stripe key and the license signing key are both present. No Stripe call is made.
+import { isCheckoutConfigured } from "./checkout.js";
 import { isConfigured, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
 
 const UPSTREAM_TIMEOUT_MS = 3000;
@@ -11,12 +13,13 @@ const PROBE_CODE = "";
 /**
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void }} deps
- * @returns {Promise<{ ok: true, waitlist: boolean, database: "reachable"|"unreachable"|"not_configured", email: false }>}
+ * @returns {Promise<{ ok: true, waitlist: boolean, database: "reachable"|"unreachable"|"not_configured", email: false, checkout: boolean }>}
  */
 export async function checkHealth(deps) {
   const log = deps.log ?? (() => {});
   const waitlist = isConfigured(deps.env);
-  if (!waitlist) return { ok: true, waitlist, database: "not_configured", email: false };
+  const checkout = isCheckoutConfigured(deps.env);
+  if (!waitlist) return { ok: true, waitlist, database: "not_configured", email: false, checkout };
 
   let database = "unreachable";
   try {
@@ -32,5 +35,5 @@ export async function checkHealth(deps) {
   } catch (err) {
     log(`health: upstream request failed (${err && err.name ? err.name : "Error"})`);
   }
-  return { ok: true, waitlist, database, email: false };
+  return { ok: true, waitlist, database, email: false, checkout };
 }

@@ -51,6 +51,12 @@ importers:
         specifier: ^4.1.5
         version: 4.6.7
 
+  site:
+    dependencies:
+      zod:
+        specifier: ^4.1.5
+        version: 4.6.7
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':
