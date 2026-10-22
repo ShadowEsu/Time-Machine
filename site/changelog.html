@@ -54,6 +54,10 @@
     <h2 class="cl-date" id="d-2026-10-22"><time datetime="2026-10-22">22 October 2026</time></h2>
     <ol class="cl-list">
       <li>
+        <h3 class="h4">See Time Machine save before a risky command</h3>
+        <p>When Time Machine saves before a risky command such as <code translate="no">git reset --hard</code>, Claude Code now shows you one line: "Time Machine saved cp-0007 before git reset --hard." Prompts and the end of a turn stay quiet. <code translate="no">tm demo</code> now ends with the next step for your own project. When <code translate="no">tm init</code> finds no test command, it says so plainly. <code translate="no">tm status</code> tells you, and the plugin's setup skill, what is missing.</p>
+      </li>
+      <li>
         <h3 class="h4">Save points from the same minute are easy to tell apart</h3>
         <p>When two save points share a minute, the app shows their seconds as well. The save point number breaks any remaining tie.</p>
         <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/26">PR #26</a></p>

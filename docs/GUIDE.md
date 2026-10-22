@@ -58,6 +58,8 @@ tm demo
 
 Then it runs `find-good` and `recover` so you see the whole rescue in under a minute. It lands on cp-0003 and creates the branch `tm/recover/cp-0003`. Pass a folder name to choose where the demo goes. The demo uses your normal store, so its save points show up next to your own projects. All data in it is fake.
 
+The demo ends with the next step: `cd` into your own project, run `tm init`, then add the Claude Code plugin (section 9). `tm demo --json` prints the same result as before, with no next step in it.
+
 ## 4. Your own project in ten minutes
 
 Your project must be a Git repository.
@@ -77,7 +79,7 @@ Created /home/you/my-app/timemachine.yml
 Next: tm checkpoint -m "first save point"
 ```
 
-`init` guesses the check: `npm test`, then `npm run build`, then `cargo test`, `go test ./...` or `pytest`. If it finds nothing, the check is empty. Open `timemachine.yml` and set `verify.command`.
+`init` guesses the check: `npm test`, then `npm run build`, then `cargo test`, `go test ./...` or `pytest`. If it finds nothing, the check is empty and `init` says so: "No test command found, so save points can't be checked yet. Set verify.command in timemachine.yml, then run tm init again to approve it." An empty check is never approved, so the Claude Code plugin stays off in that project until you set one.
 
 Checks run in a fresh copy with no `node_modules`, so `init` also guesses the install step for Node projects with dependencies: `npm ci` with a `package-lock.json`, `pnpm install --frozen-lockfile` with a `pnpm-lock.yaml`, `yarn install --frozen-lockfile` with a `yarn.lock`, otherwise `npm install`. It is written as `verify.setup` and you can change it. Setup always has the network.
 
@@ -162,6 +164,7 @@ Every command takes `--json`. The JSON and the human output come from the same r
 | Command | What it does |
 |---|---|
 | `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. Approves the current check on this computer for the Claude Code plugin and the MCP `verify` and `find_good` tools. Run it again to approve a changed check. `--no-approve` only writes or keeps the file, and prints how to approve. |
+| `tm status` | Says if this project has `timemachine.yml` and if this computer approved its check. Changes nothing. `--json` prints `{"initialized", "approved", "check"}`; `check` is null when there is no `verify.command`. The plugin's setup skill uses it. |
 | `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. |
 | `tm timeline` | Lists save points, newest first, with verdicts. |
 | `tm diff <a> <b>` | Compares code, files, config keys, dependencies and environment. |
@@ -286,7 +289,7 @@ tm hook install
 This adds hooks to the project's `.claude/settings.json`. Your existing settings stay.
 
 - **Before each prompt:** saves a save point. It is skipped if nothing changed.
-- **Before risky shell commands** like `rm -rf` or `git reset --hard`: saves a save point first.
+- **Before risky shell commands** like `rm -rf` or `git reset --hard`: saves a save point first. Claude Code then shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." The command is clipped to about 60 characters, and replaced by "a risky command" when it holds a secret. Nothing is shown when nothing changed since the last save point, and the prompt and Stop hooks show nothing.
 - **When Claude stops:** saves and runs the check. If the check passed before and fails now, it tells Claude which save point last worked.
 
 Hooks never block the agent because of their own errors. Prompt text and the risky command in a save point's note are hidden when they look like a secret, hold a current secret value from your config files such as `.env`, or have a URL with a user and password in it.
@@ -302,7 +305,7 @@ Instead of `tm hook install`, you can add the Time Machine plugin to Claude Code
 /plugin install time-machine@time-machine
 ```
 
-It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`, which acts only where you approved the check:
+It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. The skill first runs `tm status --json` and tells you what is missing: no `timemachine.yml`, no check, or a check not approved on this computer. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`, which acts only where you approved the check:
 
 - **A `timemachine.yml` alone is not consent.** A cloned repo can ship one. `tm init` (or setting the check in the app) records `consent.json` in the project's store, `~/.timemachine/projects/<id>/`, outside the repo: a SHA-256 hash of `verify.setup`, `verify.command` and `verify.network`, encoded as a JSON array so the fields cannot run together. All three hooks need it, because save points copy files like `.env` and Stop runs the check. `tm init --no-approve` writes the file without approving it, so you can read the guessed check first.
 - **A changed check stops the hooks.** When `verify.setup`, `verify.command` or `verify.network` no longer matches the approval (for example a pulled change from `deny` to `allow`), the hooks save nothing and run nothing. Once per changed check, the next prompt hook prints `{"systemMessage":"Time Machine: the check in timemachine.yml changed; run tm init to approve it."}`, which Claude Code shows you as a warning. The pre-bash and Stop hooks stay silent. `tm init` keeps the file as it is, approves the new check and prints it on the `Approved` line.
