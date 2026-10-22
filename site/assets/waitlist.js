@@ -182,4 +182,18 @@
         }
       }, function () {});
   }
+
+  // A link marked data-waitlist-focus brings its form (href="#id") into view and puts the cursor in the email field.
+  var jumps = document.querySelectorAll("a[data-waitlist-focus]");
+  for (var n = 0; n < jumps.length; n++) {
+    jumps[n].addEventListener("click", function (ev) {
+      var form = document.getElementById(this.getAttribute("href").slice(1));
+      var field = form && form.querySelector('input[name="email"]');
+      if (!field || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      form.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      field.focus({ preventScroll: true });
+    });
+  }
 })();

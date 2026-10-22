@@ -1,7 +1,7 @@
 /* Typing and small premium touches. Reduced motion: none of this runs and the text is plain.
    [data-type]            types its text character by character with a caret when it comes into view.
    [data-type="term"]     types like a terminal: commands key in, output lines appear one by one.
-   [data-type-now]        types as soon as the opening screen leaves (or right away if there is none).
+   [data-type-now]        types as soon as the page is ready.
    .card, .shot           a soft light follows the pointer (fine pointers only).
    .ft-word               a light sweeps across the wordmark once, when it comes into view.
    Text stays in the page the whole time, so search engines and screen readers read it as written. */
@@ -99,15 +99,9 @@
   document.addEventListener("DOMContentLoaded", function () {
     // Everything that types now, then everything that types on scroll.
     var now = document.querySelectorAll("[data-type-now]");
-    var plays = [];
-    for (var i = 0; i < now.length; i++) plays.push(prep(now[i]));
-    var startNow = function () { for (var j = 0; j < plays.length; j++) plays[j](); };
-    var intro = document.querySelector(".intro-word[data-type]");
-    if (intro && root.getAttribute("data-intro") === "play") prep(intro)();
-    if (root.getAttribute("data-intro") === "play") document.addEventListener("tm:intro-end", function () { setTimeout(startNow, 260); }, { once: true });
-    else startNow();
+    for (var i = 0; i < now.length; i++) prep(now[i])();
 
-    var later = document.querySelectorAll("[data-type]:not([data-type-now]):not(.intro-word)");
+    var later = document.querySelectorAll("[data-type]:not([data-type-now])");
     if ("IntersectionObserver" in window) {
       var io = new IntersectionObserver(function (entries) {
         for (var e = 0; e < entries.length; e++) {
