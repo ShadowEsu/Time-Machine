@@ -12,9 +12,10 @@ const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), "../packages/cli
 const pkg = JSON.parse(readFileSync(join(cliDir, "package.json"), "utf8"));
 const work = mkdtempSync(join(tmpdir(), "tm-pack-"));
 const baseFiles = ["LICENSE", "README.md", "dist/tm.js", "package.json"];
-const requiredAssets = ["index.html", "app.js", "renderer/index.js", "styles.css", "features.css", "browser.css", "agents/claude.svg", "agents/openai.svg", "agents/gemini.svg", "agents/cursor.svg"];
+const requiredAssets = ["index.html", "app.js", "renderer/index.js", "styles.css", "features.css", "browser.css"];
 // An asset manifest is not an escape hatch: names, count, byte sizes and the exact tarball list are checked.
-const allowedAsset = /^(?:index\.html|app\.js|renderer\/index\.js|(?:styles|features|browser)\.css|agents\/(?:claude|openai|gemini|cursor)\.svg|fonts\/[A-Za-z0-9_-]+\.(?:woff2|txt))$/;
+// Provider marks are never allowed: publishing them needs each provider's permission (site/assets/agents/SOURCES.md).
+const allowedAsset = /^(?:index\.html|app\.js|renderer\/index\.js|(?:styles|features|browser)\.css|fonts\/[A-Za-z0-9_-]+\.(?:woff2|txt))$/;
 let child;
 let packed;
 let files;

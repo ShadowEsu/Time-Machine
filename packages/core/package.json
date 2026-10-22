@@ -4,7 +4,10 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./verdict": { "types": "./dist/verdict.d.ts", "default": "./dist/verdict.js" }
+  },
   "dependencies": {
     "yaml": "^2.8.1",
     "zod": "^4.1.5"

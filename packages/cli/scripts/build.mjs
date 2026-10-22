@@ -27,9 +27,15 @@ await build({ ...web, entryPoints: [join(renderer, "index.ts")], outfile: join(u
 for (const name of ["styles.css", "features.css"]) copyFileSync(join(renderer, name), join(ui, name));
 copyFileSync(join(cli, "src/ui/browser.css"), join(ui, "browser.css"));
 cpSync(join(renderer, "fonts"), join(ui, "fonts"), { recursive: true });
-const html = readFileSync(join(renderer, "index.html"), "utf8")
-  .replace("connect-src 'none'", "connect-src 'self'")
-  .replace('<script src="renderer.js"></script>', '<script type="module" src="app.js"></script>')
+/** Each rewrite must apply; a silent miss would ship the Electron script tag or a CSP that blocks the API. */
+function swap(text, from, to) {
+  if (!text.includes(from)) throw new Error(`apps/desktop/src/renderer/index.html no longer contains: ${from}`);
+  return text.replace(from, to);
+}
+let html = readFileSync(join(renderer, "index.html"), "utf8");
+html = swap(html, "connect-src 'none'", "connect-src 'self'");
+html = swap(html, '<link rel="stylesheet" href="features.css">', '<link rel="stylesheet" href="features.css">\n<link rel="stylesheet" href="browser.css">');
+html = swap(html, '<script src="renderer.js"></script>', '<script type="module" src="app.js"></script>');
 // Marks stay out of public packages; a private local preview must opt in at build AND runtime.
 if (process.env.TM_UI_BRAND_MARKS === "1" && existsSync(join(renderer, "agents"))) {
   mkdirSync(join(ui, "agents"), { recursive: true });

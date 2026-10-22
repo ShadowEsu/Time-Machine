@@ -2,7 +2,7 @@ import { CallSchema } from "../../../../apps/desktop/src/shared/api.js";
 import type { AppEvent, CallOf, Method, Res, Results, TmBridge } from "../../../../apps/desktop/src/shared/api.js";
 
 type Connection = { state: "connecting" | "connected" | "disconnected"; message?: string };
-const browserWindow = window as Window & { tm: TmBridge; tmConnection?: Connection };
+const browserWindow = window as unknown as Window & { tm: TmBridge; tmConnection?: Connection };
 const REOPEN = "Open the full URL printed by tm ui, including its #token fragment, to connect this browser.";
 
 /** Installs the transport before the shared renderer is imported. No preview/mock engine exists here. */

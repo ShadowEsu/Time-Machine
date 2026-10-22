@@ -56,7 +56,8 @@ describe("local browser boundary", () => {
   });
   test("rejects rebinding, foreign and null origins, and cross-site fetches even with the bearer token", async () => {
     const s = await start();
-    for (const headers of [{ Host: "attacker.example" }, { Origin: "https://attacker.example" }, { Origin: "null" }, { "Sec-Fetch-Site": "cross-site" }, { "Sec-Fetch-Site": "same-site" }]) {
+    const variants: Record<string, string>[] = [{ Host: "attacker.example" }, { Origin: "https://attacker.example" }, { Origin: "null" }, { "Sec-Fetch-Site": "cross-site" }, { "Sec-Fetch-Site": "same-site" }];
+    for (const headers of variants) {
       expect((await raw(s, "/api/call", { ...auth(s), ...headers }, '{"method":"bootstrap"}')).status).toBe(403);
     }
     expect((await raw(s, "/", { Host: "localhost" })).status).toBe(403);
