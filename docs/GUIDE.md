@@ -302,7 +302,7 @@ Instead of `tm hook install`, you can add the Time Machine plugin to Claude Code
 /plugin install time-machine@time-machine
 ```
 
-It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`: they act only in a project with `timemachine.yml`, and do nothing when `tm` is missing. Do not also run `tm hook install` in the same project, or each save would happen twice.
+It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:setup` skill that runs `tm init` with you. `tm` must be installed and on your PATH. The plugin hooks run in every Claude Code session, so they call `tm hook <event> --if-initialized`: they act only in a project with `timemachine.yml`, and do nothing when `tm` is missing. If a project also has hooks from `tm hook install` in `.claude/settings.json` or `.claude/settings.local.json`, the plugin steps aside there, so nothing saves twice.
 
 ### MCP server
 

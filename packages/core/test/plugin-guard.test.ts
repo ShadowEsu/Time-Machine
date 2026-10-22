@@ -1,6 +1,6 @@
 // The Claude Code plugin runs its hooks in every session in every folder. With requireConfig a hook
 // acts only in a project the user opted into with tm init, and is silent everywhere else.
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -52,5 +52,39 @@ describe("hooks guarded by requireConfig", () => {
     const { dir, ctx } = repo();
     const r = await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" });
     expect(r.checkpoint).toBe("cp-0001");
+  });
+
+  test.each(["settings.json", "settings.local.json"])("an initialized repo with tm hook install lines in .claude/%s: the guarded prompt steps aside, the unguarded one saves", async (file) => {
+    const { dir, ctx } = repo();
+    writeConfig(dir);
+    await tm.hookInstall(ctx, { command: "tm" });
+    if (file !== "settings.json") {
+      const own = join(dir, ".claude", "settings.json");
+      writeFileSync(join(dir, ".claude", file), readFileSync(own, "utf8"));
+      writeFileSync(own, "{}\n");
+    }
+    const guardedRun = await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" }, guarded);
+    expect(guardedRun).toEqual({ event: "prompt", exitCode: 0, checkpoint: null, verdict: null, message: "" });
+    expect((await tm.timeline(ctx)).checkpoints).toEqual([]);
+    const own = await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" });
+    expect(own.checkpoint).toBe("cp-0001");
+  });
+
+  test("own hooks for another event do not stop the guarded hook", async () => {
+    const { dir, ctx } = repo();
+    writeConfig(dir);
+    mkdirSync(join(dir, ".claude"));
+    writeFileSync(join(dir, ".claude", "settings.json"), JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "tm hook stop" }] }] } }));
+    expect((await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" }, guarded)).checkpoint).toBe("cp-0001");
+  });
+
+  test("a malformed .claude/settings.json does not block the guarded prompt", async () => {
+    const { dir, ctx } = repo();
+    writeConfig(dir);
+    mkdirSync(join(dir, ".claude"));
+    writeFileSync(join(dir, ".claude", "settings.json"), "{ // not JSON\n");
+    writeFileSync(join(dir, ".claude", "settings.local.json"), JSON.stringify({ hooks: "tm hook prompt" }));
+    const r = await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" }, guarded);
+    expect(r).toMatchObject({ exitCode: 0, checkpoint: "cp-0001", message: "" });
   });
 });

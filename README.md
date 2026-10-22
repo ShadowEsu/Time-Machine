@@ -69,7 +69,9 @@ With `tm` installed (see above), add Time Machine to Claude Code from this repo,
 
 The plugin brings the Claude Code hooks, the MCP server and a `/time-machine:setup` skill that runs `tm init` with you. Its hooks run in every Claude Code session, but they act only in projects that have `timemachine.yml` (made by `tm init`). Everywhere else, and when `tm` is not on your PATH, they do nothing.
 
-Do not also run `tm hook install` in a project while the plugin is on. Both sets of hooks would run, so each save would happen twice.
+If a project also has hooks from `tm hook install`, the plugin steps aside there, so nothing saves twice.
+
+Without `tm` on your PATH, Claude Code lists the `timemachine` MCP server as failed to connect. That is harmless.
 
 ## Open the local web app
 

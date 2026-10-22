@@ -76,11 +76,29 @@ function screened(p: Project, text: string): string {
   return holdsSecretValue(text, secretValues([p.root], loadConfig(p.root).config)) ? "(text hidden: it contained a secret value from this project)" : text;
 }
 
-/** True when ctx.cwd is inside a Git repository whose root has timemachine.yml. Never throws. */
-function optedIn(ctx: Ctx): boolean {
+const CLAUDE_EVENT: Record<HookEvent, string> = { prompt: "UserPromptSubmit", "pre-bash": "PreToolUse", stop: "Stop" };
+
+/** True when the project's own .claude settings already run this Time Machine hook (from tm hook install). Unreadable files count as no hook. */
+function hasOwnHook(root: string, event: HookEvent): boolean {
+  return ["settings.json", "settings.local.json"].some((file) => {
+    try {
+      const r = SettingsSchema.safeParse(JSON.parse(readFileSync(join(root, ".claude", file), "utf8")));
+      const groups = r.success ? (r.data.hooks?.[CLAUDE_EVENT[event]] ?? []) : [];
+      return groups.some((g) => g.hooks.some((h) => h.command !== undefined && installedCommand.test(h.command) && h.command.endsWith(` hook ${event}`)));
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Whether a plugin hook (requireConfig) should act: ctx.cwd is in a Git repository whose root has
+ * timemachine.yml, and the project has no hook of its own for this event. Never throws.
+ */
+function pluginShouldAct(ctx: Ctx, event: HookEvent): boolean {
   try {
     const root = gitRoot(ctx);
-    return root !== null && existsSync(join(root, CONFIG_FILE));
+    return root !== null && existsSync(join(root, CONFIG_FILE)) && !hasOwnHook(root, event);
   } catch {
     return false;
   }
@@ -91,13 +109,14 @@ function optedIn(ctx: Ctx): boolean {
  * Only "stop" can return exit 2, to tell the agent a working state just broke.
  * With requireConfig (the Claude Code plugin, whose hooks fire in every folder) it does nothing,
  * silently, unless the project has timemachine.yml: no save point, no audit line, no store.
+ * It also steps aside when the project's own tm hook install hooks run this event, so nothing saves twice.
  */
 export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: { requireConfig?: boolean } = {}): Promise<HookResult> {
   try {
     const parsed = HookInputSchema.safeParse(input);
     const data = parsed.success ? parsed.data : {};
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
-    if (opts.requireConfig && !optedIn(c)) return none(event);
+    if (opts.requireConfig && !pluginShouldAct(c, event)) return none(event);
     const p = resolveProject(c);
     const turnFile = join(p.store, TURN_FILE);
     if (event === "prompt") {

@@ -27,17 +27,13 @@ Run `tm init`. It writes `timemachine.yml` at the Git root with a guessed check 
 
 Show the user the `verify` section of `timemachine.yml`: `verify.command` and, if present, `verify.setup`. Ask the user to confirm that `verify.command` is the command that tells them the project works. If they want a different command, edit `verify.command` in `timemachine.yml` to what they say. Do not guess further.
 
-## 5. Look for hooks from an earlier `tm hook install`
-
-If `.claude/settings.json` in this project has commands ending in `hook prompt`, `hook pre-bash` or `hook stop`, Time Machine hooks were installed there before. With the plugin enabled, each would run twice. Tell the user, and ask before removing those lines.
-
-## 6. Optional: the demo
+## 5. Optional: the demo
 
 Run `tm demo` only if the user asks for it. It builds a small synthetic project in a temporary folder and does not touch this project.
 
 ## Never do this
 
-- Never run `tm hook install`. The plugin already provides the hooks, so installing them again in `.claude/settings.json` would make every save point twice.
+- Never run `tm hook install`. The plugin already provides the hooks. If a project also has hooks from `tm hook install`, the plugin steps aside there, so nothing saves twice.
 - Never run destructive commands, `tm recover`, or anything that changes the user's branch as part of setup.
 
 ## When you are done
