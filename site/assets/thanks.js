@@ -3,15 +3,15 @@
 (function () {
   "use strict";
 
-  var FOUNDER = "preston@unvibe.site";
+  var CONTACT = "preston@unvibe.site";
   var SESSION_RE = /^cs_[A-Za-z0-9_]{10,200}$/;
   var MSG = {
     loading: "Fetching your key…",
-    noSession: "This page needs the link Stripe opens after payment. If you paid and lost that link, email " + FOUNDER + " with the time of your purchase.",
-    notPaid: "Stripe has not marked this purchase as paid yet. Wait a minute and reload this page. If it stays like this, email " + FOUNDER + " with the time of your purchase.",
-    notFound: "We could not find this purchase. Check that you opened the link Stripe gave you, or email " + FOUNDER + ".",
-    closed: "Checkout is not open yet, so no key can be issued. If you did pay, email " + FOUNDER + ".",
-    upstream: "The license service did not answer. Reload this page in a minute. If it keeps failing, email " + FOUNDER + " and Preston sends your key by hand.",
+    noSession: "This page needs the link Stripe opens after payment. If you paid and lost that link, email " + CONTACT + " with the time of your purchase.",
+    notPaid: "Stripe has not marked this purchase as paid yet. Wait a minute and reload this page. If it stays like this, email " + CONTACT + " with the time of your purchase.",
+    notFound: "We could not find this purchase. Check that you opened the link Stripe gave you, or email " + CONTACT + ".",
+    closed: "Checkout is not open yet, so no key can be issued. If you did pay, email " + CONTACT + ".",
+    upstream: "The license service did not answer. Reload this page in a minute. If it keeps failing, email " + CONTACT + " and we send your key by hand.",
     network: "We could not reach the server. Check your connection and reload this page."
   };
 
@@ -24,12 +24,12 @@
 
   function say(text, state) {
     status.textContent = "";
-    var parts = text.split(FOUNDER);
+    var parts = text.split(CONTACT);
     status.appendChild(document.createTextNode(parts[0]));
     if (parts.length > 1) {
       var a = document.createElement("a");
-      a.href = "mailto:" + FOUNDER + "?subject=" + encodeURIComponent("Time Machine license");
-      a.textContent = FOUNDER;
+      a.href = "mailto:" + CONTACT + "?subject=" + encodeURIComponent("Time Machine license");
+      a.textContent = CONTACT;
       status.appendChild(a);
       status.appendChild(document.createTextNode(parts[1]));
     }

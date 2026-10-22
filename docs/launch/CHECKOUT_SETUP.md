@@ -53,12 +53,11 @@ Open https://time-machine-site.vercel.app/api/health. It must show `"checkout": 
 4. On your computer run `tm license <key>`. It must print `License saved on this computer.` and `tm license` must then say `Licensed`.
 5. `tm license --remove` forgets it again.
 
-## 6. Go live
+## 6. Live mode: locked
 
-1. In Stripe, switch to live mode and finish activation.
-2. Replace `STRIPE_SECRET_KEY` in Vercel with the live key (`sk_live_`). Keep the same `TM_LICENSE_PRIVATE_KEY`.
-3. Redeploy, check `/api/health` again, and buy once for real with your own card, then refund it in Stripe.
-4. Update the legal drafts before the first paid user: `docs/legal/TERMS.md` still describes subscriptions.
+Live mode is locked. Do not put a live key (`sk_live_` or `rk_live_`) in Vercel, and do not take real payments, until the attorney and Preston both approve it in writing. That needs, at least: a seller of record who can sign (see `docs/legal/README.md`), lawyer-reviewed terms and privacy with one refund rule, and a code lock in `site/api/_lib/checkout.js` that refuses any key that is not a test key unless that approval is recorded.
+
+Until then, everything above runs in Stripe test mode only, with test keys (`sk_test_`) and test cards.
 
 ## 7. Sign-in so a buyer can see their key again
 

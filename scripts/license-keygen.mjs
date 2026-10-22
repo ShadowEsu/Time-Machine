@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Prints a fresh Ed25519 keypair for signing web app license keys. Writes nothing to disk.
 // Run it once. Keep the private key off the repository: it goes into the Vercel setting
-// TM_LICENSE_PRIVATE_KEY and into the founder's private notes only.
+// TM_LICENSE_PRIVATE_KEY and into a private password manager only.
 import { generateKeyPairSync } from "node:crypto";
 
 // Node exports keys as DER. The raw 32 key bytes are the last 32 bytes of each export, after the

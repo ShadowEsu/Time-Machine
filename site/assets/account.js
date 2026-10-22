@@ -3,7 +3,7 @@
 (function () {
   "use strict";
 
-  var FOUNDER = "preston@unvibe.site";
+  var CONTACT = "preston@unvibe.site";
   var TOKEN_KEY = "tm-account-token";
   var TOKEN_RE = /^[A-Za-z0-9._-]{20,4000}$/;
   var KEY_RE = /^TM1[A-Za-z0-9._-]{8,400}$/;
@@ -19,7 +19,7 @@
     badCode: "That code did not match, or it expired. Check the newest email, or ask for a new code.",
     expired: "Your sign-in ended. Sign in again.",
     rateLimited: "Too many tries. Wait a minute, then try again.",
-    upstream: "We couldn't do that just now. Try again in a minute, or email " + FOUNDER + ".",
+    upstream: "We couldn't do that just now. Try again in a minute, or email " + CONTACT + ".",
     network: "We couldn't reach the server. Check your connection and try again.",
     none: "No purchase found for this email. Use the email you gave at checkout."
   };
@@ -49,12 +49,12 @@
 
   function say(text, state) {
     status.textContent = "";
-    var parts = text.split(FOUNDER);
+    var parts = text.split(CONTACT);
     status.appendChild(document.createTextNode(parts[0]));
     if (parts.length > 1) {
       var a = document.createElement("a");
-      a.href = "mailto:" + FOUNDER + "?subject=" + encodeURIComponent("Time Machine license");
-      a.textContent = FOUNDER;
+      a.href = "mailto:" + CONTACT + "?subject=" + encodeURIComponent("Time Machine license");
+      a.textContent = CONTACT;
       status.appendChild(a);
       status.appendChild(document.createTextNode(parts[1]));
     }

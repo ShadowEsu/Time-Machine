@@ -4,11 +4,11 @@
 (function () {
   "use strict";
 
-  var FOUNDER = "preston@unvibe.site";
+  var CONTACT = "preston@unvibe.site";
   var MSG = {
     soon: "The price is set. Checkout is not open yet, so nothing is for sale today. Join the waitlist to hear when it opens.",
     starting: "Opening checkout…",
-    failed: "We couldn't start checkout just now. Try again in a minute, or email " + FOUNDER + ".",
+    failed: "We couldn't start checkout just now. Try again in a minute, or email " + CONTACT + ".",
     network: "We couldn't reach the server. Check your connection and try again."
   };
 
@@ -45,7 +45,7 @@
 
   function fail(text) {
     open();
-    say(text, { text: FOUNDER, href: "mailto:" + FOUNDER + "?subject=" + encodeURIComponent("Time Machine web app") });
+    say(text, { text: CONTACT, href: "mailto:" + CONTACT + "?subject=" + encodeURIComponent("Time Machine web app") });
   }
 
   if (location.protocol === "file:") return closed();
