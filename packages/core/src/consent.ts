@@ -21,8 +21,9 @@ export function checkCommand(cfg: ProjectConfig): string {
   return cfg.verify.setup ? `${cfg.verify.setup} && ${cfg.verify.command}` : cfg.verify.command;
 }
 
+/** What the user approves: the install step, the check, and the network rule it runs under. A JSON array keeps the fields apart. */
 function verifyHash(cfg: ProjectConfig): string {
-  return createHash("sha256").update(`${cfg.verify.setup}\0${cfg.verify.command}`).digest("hex");
+  return createHash("sha256").update(JSON.stringify([cfg.verify.setup, cfg.verify.command, cfg.verify.network])).digest("hex");
 }
 
 /** Records that the user approved this project's current check on this computer. Returns the approved command. */

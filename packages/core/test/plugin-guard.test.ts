@@ -161,7 +161,43 @@ describe("plugin hooks need consent pinned to the check", () => {
     expect(r).toMatchObject({ created: false, approvedCheck: "true && node --test" });
     expect(readFileSync(join(dir, "timemachine.yml"), "utf8")).toBe(before);
     const consent: unknown = JSON.parse(readFileSync(join(tm.storeDirFor(ctx), "consent.json"), "utf8"));
-    expect(consent).toEqual({ verifyHash: createHash("sha256").update("true\0node --test").digest("hex"), at: expect.any(String) });
+    const verifyHash = createHash("sha256").update(JSON.stringify(["true", "node --test", "allow"])).digest("hex");
+    expect(consent).toEqual({ verifyHash, at: expect.any(String) });
+  });
+
+  test("turning the network from deny to allow needs a fresh approval", async () => {
+    const { dir, ctx, marker } = markerRepo();
+    const command = `echo ran > ${marker}`;
+    writeConfig(dir, { command, network: "deny" });
+    await tm.init(ctx);
+    writeConfig(dir, { command, network: "allow" });
+    expect(await tm.runHook(ctx, "stop", { cwd: dir }, guarded)).toEqual({ event: "stop", exitCode: 0, checkpoint: null, verdict: null, message: "" });
+    expect(await tm.runHook(ctx, "prompt", { cwd: dir, prompt: "x" }, guarded)).toMatchObject({ checkpoint: null, systemMessage: CHANGED });
+    expect(ran(marker)).toBeNull();
+    await tm.init(ctx);
+    expect(await tm.runHook(ctx, "stop", { cwd: dir }, guarded)).toMatchObject({ verdict: "PASS" });
+    expect(ran(marker)).toBe("ran");
+  });
+
+  test("tm init with approve: false writes or keeps the file and records no consent", async () => {
+    const { dir, ctx, marker } = markerRepo();
+    const before = readFileSync(join(dir, "timemachine.yml"), "utf8");
+    expect(await tm.init(ctx, { approve: false })).toMatchObject({ created: false, approvedCheck: null });
+    expect(readFileSync(join(dir, "timemachine.yml"), "utf8")).toBe(before);
+    expect(existsSync(join(tm.storeDirFor(ctx), "consent.json"))).toBe(false);
+    expect(await tm.runHook(ctx, "stop", { cwd: dir }, guarded)).toEqual({ event: "stop", exitCode: 0, checkpoint: null, verdict: null, message: "" });
+    expect(ran(marker)).toBeNull();
+    // Approved later, it reports the approval it finds and leaves the record as it is.
+    await tm.init(ctx);
+    const record = readFileSync(join(tm.storeDirFor(ctx), "consent.json"), "utf8");
+    expect(await tm.init(ctx, { approve: false })).toMatchObject({ approvedCheck: `echo ran > ${marker}` });
+    expect(readFileSync(join(tm.storeDirFor(ctx), "consent.json"), "utf8")).toBe(record);
+
+    const fresh = repo();
+    const made = await tm.init(fresh.ctx, { approve: false });
+    expect(made).toMatchObject({ created: true, approvedCheck: null });
+    expect(existsSync(join(fresh.dir, "timemachine.yml"))).toBe(true);
+    expect(existsSync(join(tm.storeDirFor(fresh.ctx), "consent.json"))).toBe(false);
   });
 
   test("setting the check from the app approves the check it writes", async () => {

@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { audit } from "./audit.js";
-import { CONFIG_FILE, loadConfig } from "./config.js";
-import { recordConsent } from "./consent.js";
+import { CONFIG_FILE, loadConfig, type ProjectConfig } from "./config.js";
+import { checkCommand, consentState, recordConsent } from "./consent.js";
 import { resolveProject } from "./project.js";
 import { detectSandbox } from "./sandbox.js";
 import type { Ctx, InitResult } from "./types.js";
@@ -52,15 +52,22 @@ export function guessSetup(root: string): string {
 /**
  * Writes timemachine.yml, or keeps an existing one untouched, and approves its current check on
  * this computer. Running it again after the check changed is how the user approves the new one.
+ * With approve: false it only writes or keeps the file; approvedCheck then reports an approval that
+ * already matches, or null.
  */
-export async function init(ctx: Ctx): Promise<InitResult> {
+export async function init(ctx: Ctx, opts: { approve?: boolean } = {}): Promise<InitResult> {
   const p = resolveProject(ctx);
   const path = join(p.root, CONFIG_FILE);
   const sandbox = detectSandbox(p.env);
+  const approve = (config: ProjectConfig): string | null => {
+    if (opts.approve !== false) return recordConsent(p, config);
+    return consentState(p, config) === "approved" ? checkCommand(config) : null;
+  };
+  const approval = opts.approve === false ? "did not approve the check" : "approved the check";
   if (existsSync(path)) {
     const { config } = loadConfig(p.root);
-    const approvedCheck = recordConsent(p, config);
-    audit(p, "init", null, "kept existing settings, approved the check");
+    const approvedCheck = approve(config);
+    audit(p, "init", null, `kept existing settings, ${approval}`);
     return { configPath: path, created: false, verifyCommand: config.verify.command, verifySetup: config.verify.setup, network: config.verify.network, sandbox: sandbox?.name ?? null, approvedCheck };
   }
   const command = guessCommand(p.root);
@@ -91,7 +98,7 @@ config:
   plain: []
 `;
   writeFileSync(path, yaml, { flag: "wx" });
-  const approvedCheck = recordConsent(p, loadConfig(p.root).config);
-  audit(p, "init", null, "created settings, approved the check");
+  const approvedCheck = approve(loadConfig(p.root).config);
+  audit(p, "init", null, `created settings, ${approval}`);
   return { configPath: path, created: true, verifyCommand: command, verifySetup: setup, network, sandbox: sandbox?.name ?? null, approvedCheck };
 }

@@ -40,10 +40,16 @@ Go to your project folder and run:
 
 ```sh
 cd path/to/your-project
+tm init --no-approve
+```
+
+`tm init --no-approve` writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`), or keeps the one the project already has. Open the file and confirm the check is the command that tells you the project works, and that `verify.setup`, `verify.command` and `verify.network` are safe to run on this computer. Then approve it:
+
+```sh
 tm init
 ```
 
-`tm init` writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`). Open the file and confirm the check is the command that tells you the project works.
+`tm init` keeps the file as it is and records your approval outside the project. The Claude Code plugin and the MCP `verify` and `find_good` tools run only a check you approved. If the check changes later, run `tm init` again after you have read it.
 
 Optional, for Claude Code, pick one of these two:
 

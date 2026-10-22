@@ -48,7 +48,8 @@ const HELP = `tm: save points for your project, checked with your own tests.
 
 Usage: tm <command> [options]
 
-  init                  Create timemachine.yml with a guessed check
+  init [--no-approve]   Create timemachine.yml with a guessed check, or keep yours, and approve
+                        its check for the Claude Code plugin; --no-approve only writes the file
   demo [dir]            Build a broken demo project and watch it get rescued
   checkpoint [-m note]  Save a checkpoint of the project as it is now
                         --if-changed skips it when nothing changed, --trigger names the source
@@ -83,10 +84,11 @@ const OPTIONS = {
   "if-initialized": { type: "boolean" },
   port: { type: "string" },
   "no-open": { type: "boolean" },
+  "no-approve": { type: "boolean" },
 } as const satisfies ParseArgsConfig["options"];
 
 const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
-  init: { args: [0, 0], flags: [] },
+  init: { args: [0, 0], flags: ["no-approve"] },
   checkpoint: { args: [0, 0], flags: ["message", "trigger", "if-changed"] },
   demo: { args: [0, 1], flags: [] },
   hook: { args: [1, 1], flags: ["if-initialized"] },
@@ -124,7 +126,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const spec = ALLOWED[command];
     if (!spec) throw new UsageError(`Unknown command "${command}". Run tm --help.`);
     if (args.length < spec.args[0] || args.length > spec.args[1]) throw new UsageError(`Wrong number of arguments for ${command}. Run tm --help.`);
-    for (const flag of ["message", "trigger", "dir", "if-changed", "if-initialized", "port", "no-open"] as const) {
+    for (const flag of ["message", "trigger", "dir", "if-changed", "if-initialized", "port", "no-open", "no-approve"] as const) {
       if (values[flag] !== undefined && !spec.flags.includes(flag)) throw new UsageError(`--${flag} does not apply to ${command}.`);
     }
     if (command === "ui" && values.json) throw new UsageError("--json does not apply to ui.");
@@ -142,7 +144,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
         return await runUi(io, { open: values["no-open"] !== true, ...(port !== undefined ? { port: Number(port) } : {}) });
       }
       case "init": {
-        const r = await tm.init(ctx);
+        const r = await tm.init(ctx, { approve: values["no-approve"] !== true });
         print(r, fmtInit(r));
         return 0;
       }

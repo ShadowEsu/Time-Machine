@@ -51,6 +51,21 @@ describe("tm hook --if-initialized", () => {
     expect(r.code).toBe(0);
   });
 
+  test("tm init --no-approve writes the file, records no consent, and says how to approve", async () => {
+    const { dir, env } = folder(true);
+    const input = JSON.stringify({ cwd: dir, prompt: "x" });
+    const r = await run(dir, env, ["init", "--no-approve"]);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("Created ");
+    expect(r.out).toContain("Approval  not recorded. When the check above is right, run tm init");
+    expect(r.out).not.toContain("Approved  ");
+    expect(JSON.parse((await run(dir, env, ["init", "--no-approve", "--json"])).out)).toMatchObject({ created: false, approvedCheck: null });
+    expect(await run(dir, env, ["hook", "prompt", "--if-initialized"], input)).toEqual({ code: 0, out: "", err: "" });
+    expect((await run(dir, env, ["init"])).out).toContain("Approved  ");
+    expect(JSON.parse((await run(dir, env, ["hook", "prompt", "--if-initialized", "--json"], input)).out)).toMatchObject({ checkpoint: "cp-0001" });
+    expect((await run(dir, env, ["timeline", "--no-approve"])).code).toBe(64);
+  });
+
   test("a check changed after tm init: the prompt hook tells the user once with systemMessage JSON, stop stays silent", async () => {
     const { dir, env } = folder(true);
     writeConfig(dir);
