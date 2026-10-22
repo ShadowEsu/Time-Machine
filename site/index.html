@@ -62,7 +62,7 @@
         </form>
         <ul class="hero-facts">
           <li>Save points stay on your computer.</li>
-          <li>No account and no cloud service.</li>
+          <li>No account needed and no cloud service.</li>
         </ul>
         <p class="hero-alt"><a href="#try">Install from source</a> <span>Works on macOS and Linux. Needs Node 22 and Git.</span></p>
       </div>
@@ -70,7 +70,7 @@
         <span class="hero-lights" aria-hidden="true"><i></i><i></i><i></i></span>
         <picture>
           <source media="(max-width: 700px)" srcset="assets/img/hero-app-card.webp" width="758" height="650">
-          <img src="assets/img/hero-app-window.webp" width="1540" height="990" fetchpriority="high" alt="The Time Machine Mac app on a demo project. It says Broken since 9:06 AM and offers one button: Go back to the 9:06 AM version, the last one that passed its check.">
+          <img src="assets/img/hero-app-window.webp" width="1540" height="990" fetchpriority="high" alt="Time Machine on a demo project. It says Broken since 9:06 AM and offers one button: Go back to the 9:06 AM version, the last one that passed its check.">
         </picture>
       </figure>
     </div>
@@ -78,7 +78,7 @@
     <section class="appshot" id="web-app" aria-labelledby="app-h">
       <div class="appshot-head">
         <h2 id="app-h">The web app</h2>
-        <p>Open it with <code translate="no">tm ui</code>. It runs on your computer, in your browser. Nothing is hosted, and there is no account.</p>
+        <p>Open it with <code translate="no">tm ui</code>. It runs on your computer, in your browser. Nothing is hosted, and you don’t need an account to use it.</p>
       </div>
       <figure class="appshot-stage">
         <picture>
@@ -335,7 +335,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <div class="back-col">
         <p class="back-h">Does not come back</p>
         <ul>
-          <li><b>Secret values.</b> Never stored, not even on your own computer. The report names the keys you set again by hand. <code class="line" translate="no">Secret values in .env: STRIPE_SECRET_KEY</code></li>
+          <li><b>Secret values.</b> Values from config files like .env are never stored, not even on your own computer, only key names and a fingerprint. The report names the keys you set again by hand. <code class="line" translate="no">Secret values in .env: STRIPE_SECRET_KEY</code></li>
           <li><b>Files that look like secrets.</b> An edited tracked file that looks like it holds a secret keeps its last committed version instead. A file named like a secrets file is not saved. <code class="line" translate="no">.env.local is a secrets file by name, so it was not saved</code></li>
           <li><b>Files your .gitignore skips.</b> Folders like <code translate="no">node_modules</code> or build output, unless you ask for them. <code class="line" translate="no">Files your .gitignore skips were not saved: dist</code></li>
           <li><b>Database contents, deployed versions and external services.</b> Emails sent, payments made, anything on a server. <code class="line" translate="no">Databases, deployed versions and external services are not captured</code></li>
@@ -388,20 +388,20 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
   <section class="block" id="pricing" aria-labelledby="pricing-h">
     <div class="block-head">
       <h2 id="pricing-h">Pay once</h2>
-      <p class="lead">The web app needs a license key to open. One payment, one key, yours for good. No subscription.</p>
+      <p class="lead">The web app is free for up to 3 projects at a time. One payment of $50 lets it list as many as you like. No subscription.</p>
     </div>
     <div class="plans">
       <div class="plan plan-paid">
         <p class="plan-k">The web app</p>
         <p class="plan-price">$50 <span>once</span></p>
         <ul>
-          <li>The web app on any number of your own computers and projects.</li>
+          <li>The web app for as many projects as you like, on any number of your own computers.</li>
           <li>Updates while we ship them.</li>
           <li>A key verified offline, on your computer.</li>
           <li>No subscription.</li>
           <li>Refund within 14 days by email. <a href="terms.html#license">Terms (draft)</a></li>
         </ul>
-        <button class="btn btn-warm" type="button" data-buy disabled>Buy once for $50</button>
+        <button class="btn btn-primary" type="button" data-buy disabled>Buy once for $50</button>
         <p class="plan-status" data-buy-status role="status" aria-live="polite"></p>
         <noscript><p class="plan-status">Checkout needs JavaScript. Email preston@unvibe.site instead.</p></noscript>
       </div>
@@ -481,7 +481,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
       <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; Preston writes to the list himself when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
       <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and nothing on it needs a password.</p></details>
-      <details><summary>What does the $50 buy?</summary><p>The license key the web app needs to open, for any number of your own computers and projects, with updates while we ship them. One payment, no subscription. <code translate="no">tm ui</code> asks for the key the first time; <code translate="no">tm license &lt;key&gt;</code> also works. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall. Checkout is not open yet, so nothing is for sale today.</p></details>
+      <details><summary>What does the $50 buy?</summary><p>A license key that lets the web app list as many projects as you like, instead of 3 at a time, on any number of your own computers, with updates while we ship them. One payment, no subscription. Paste the key in <code translate="no">tm ui</code> under Settings, then License, or run <code translate="no">tm license &lt;key&gt;</code>. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall. Checkout is not open yet, so nothing is for sale today.</p></details>
     </div>
 
     <nav class="ft-col" aria-label="Footer">

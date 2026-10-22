@@ -6,7 +6,7 @@
 
   var CONTACT = "preston@unvibe.site";
   var MSG = {
-    soon: "The price is set. Checkout is not open yet, so nothing is for sale today. Join the waitlist to hear when it opens.",
+    soon: "The price is set. Checkout is not open yet, so nothing is for sale today.",
     starting: "Opening checkout…",
     failed: "We couldn't start checkout just now. Try again in a minute, or email " + CONTACT + ".",
     network: "We couldn't reach the server. Check your connection and try again."
@@ -35,7 +35,7 @@
   function closed() {
     button.disabled = true;
     button.textContent = "Checkout opens soon";
-    say(MSG.soon, { text: "Join the waitlist", href: "#waitlist" });
+    say(MSG.soon);
   }
 
   function open() {

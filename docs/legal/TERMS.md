@@ -40,7 +40,7 @@ Your code and files stay on your computer. We do not upload them. You own your p
 
 **What you get.** One person may use the web app with any number of their own projects, on any number of their own computers. Updates are included while we ship them. We do not promise updates for any length of time.
 
-**No free version.** The web app does not run without a license key. The `tm` command line tool is separate and free under its open source license.
+**Free use.** Without a license key, the web app lists up to 3 projects at a time. Restoring or recovering a save point never needs a key. The `tm` command line tool is separate and free under its open source license.
 
 **Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. To see it again, sign in on the website with the email you gave at checkout. Signing in sends a one-time code to that email and keeps no password.
 
