@@ -104,6 +104,11 @@ export function installBrowserBridge(): boolean {
     }
   };
   window.addEventListener("pagehide", () => { stopped = true; for (const controller of controllers) controller.abort(); }, { once: true });
+  // Pasting a restarted server's URL into this tab only changes the fragment, which browsers do not reload.
+  // Reload so the new token is read, stored and scrubbed from the address bar like a fresh open.
+  window.addEventListener("hashchange", () => {
+    if (new URLSearchParams(location.hash.slice(1)).has("token")) location.reload();
+  });
   if (token) void stream();
   return Boolean(token);
 }
