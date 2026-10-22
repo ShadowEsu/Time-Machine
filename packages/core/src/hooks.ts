@@ -8,6 +8,7 @@ import { audit } from "./audit.js";
 import { checkpoint } from "./checkpoint.js";
 import { TmError } from "./errors.js";
 import { CONFIG_FILE, loadConfig } from "./config.js";
+import { changedWarningDue, consentState } from "./consent.js";
 import { gitRoot, resolveProject, type Project } from "./project.js";
 import { clipSafe, holdsSecretValue } from "./secrets.js";
 import type { Ctx, HookEvent, HookInstallResult, HookResult } from "./types.js";
@@ -91,32 +92,45 @@ function hasOwnHook(root: string, event: HookEvent): boolean {
   });
 }
 
+const CHECK_CHANGED = "Time Machine: the check in timemachine.yml changed; run tm init to approve it.";
+
 /**
- * Whether a plugin hook (requireConfig) should act: ctx.cwd is in a Git repository whose root has
- * timemachine.yml, and the project has no hook of its own for this event. Never throws.
+ * Why a plugin hook (requireConfig) stays out, or null when it should act. It acts only when ctx.cwd
+ * is in a Git repository whose root has timemachine.yml, this computer approved that exact check
+ * with tm init, and the project has no hook of its own for this event. Returns "" to stay silent,
+ * or a one-time warning when the check changed after it was approved. Never throws.
  */
-function pluginShouldAct(ctx: Ctx, event: HookEvent): boolean {
+function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
   try {
     const root = gitRoot(ctx);
-    return root !== null && existsSync(join(root, CONFIG_FILE)) && !hasOwnHook(root, event);
+    if (root === null || !existsSync(join(root, CONFIG_FILE)) || hasOwnHook(root, event)) return "";
+    const p = resolveProject(ctx);
+    const { config } = loadConfig(p.root);
+    const state = consentState(p, config);
+    if (state === "approved") return null;
+    return state === "changed" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
   } catch {
-    return false;
+    return "";
   }
 }
 
 /**
  * Runs one hook. Never throws and never blocks the agent because of its own errors.
  * Only "stop" can return exit 2, to tell the agent a working state just broke.
- * With requireConfig (the Claude Code plugin, whose hooks fire in every folder) it does nothing,
- * silently, unless the project has timemachine.yml: no save point, no audit line, no store.
- * It also steps aside when the project's own tm hook install hooks run this event, so nothing saves twice.
+ * With requireConfig (the Claude Code plugin, whose hooks fire in every folder) it does nothing unless
+ * the user approved this project's check with tm init on this computer: no save point, no check, no
+ * audit line, no store. It also steps aside when the project's own tm hook install hooks run this event,
+ * so nothing saves twice.
  */
 export async function runHook(ctx: Ctx, event: HookEvent, input: unknown, opts: { requireConfig?: boolean } = {}): Promise<HookResult> {
   try {
     const parsed = HookInputSchema.safeParse(input);
     const data = parsed.success ? parsed.data : {};
     const c: Ctx = { ...ctx, cwd: data.cwd ?? ctx.cwd };
-    if (opts.requireConfig && !pluginShouldAct(c, event)) return none(event);
+    if (opts.requireConfig) {
+      const skip = pluginSkip(c, event);
+      if (skip !== null) return none(event, skip);
+    }
     const p = resolveProject(c);
     const turnFile = join(p.store, TURN_FILE);
     if (event === "prompt") {

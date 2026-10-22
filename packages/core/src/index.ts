@@ -2,6 +2,7 @@ export * from "./verdict.js";
 export * from "./errors.js";
 export * from "./types.js";
 export { init } from "./init.js";
+export { approvedCheck, type ConsentState } from "./consent.js";
 export { setCheck } from "./setCheck.js";
 export { checkpoint } from "./checkpoint.js";
 export { timeline } from "./timeline.js";

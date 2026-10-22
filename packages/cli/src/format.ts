@@ -35,6 +35,7 @@ export function fmtInit(r: InitResult): string {
     `  Check     ${r.verifyCommand || "(none yet, add verify.command)"}`,
     ...(r.verifySetup ? [`  Setup     ${r.verifySetup}   (runs first in each fresh copy)`] : []),
     `  Network   ${r.network === "deny" ? `off during checks (${r.sandbox})` : "on during checks"}`,
+    `  Approved  ${r.approvedCheck || "(no check yet)"}   (plugin hooks and MCP tools may run it on this computer)`,
     "Next: tm checkpoint -m \"first save point\"",
   ].join("\n");
 }

@@ -3,13 +3,15 @@ import { join } from "node:path";
 import { parseDocument } from "yaml";
 import { audit } from "./audit.js";
 import { CONFIG_FILE, ProjectConfigSchema } from "./config.js";
+import { recordConsent } from "./consent.js";
 import { TmError } from "./errors.js";
 import { resolveProject } from "./project.js";
 import type { Ctx, SetCheckResult } from "./types.js";
 
 /**
  * Changes the check (verify.command) in timemachine.yml and keeps the rest of the file,
- * comments included. The audit log records that it changed, never the command itself.
+ * comments included. The user chose this check, so it is approved on this computer too.
+ * The audit log records that it changed, never the command itself.
  */
 export async function setCheck(ctx: Ctx, command: string): Promise<SetCheckResult> {
   const p = resolveProject(ctx);
@@ -28,6 +30,7 @@ export async function setCheck(ctx: Ctx, command: string): Promise<SetCheckResul
   const r = ProjectConfigSchema.safeParse(doc.toJS());
   if (!r.success) throw new TmError("usage", `${CONFIG_FILE} has a problem, so it was left alone.`);
   writeFileSync(path, doc.toString());
+  recordConsent(p, r.data);
   audit(p, "set-check", null, "changed the check");
   return { configPath: path, verifyCommand: r.data.verify.command };
 }

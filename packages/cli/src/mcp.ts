@@ -19,6 +19,8 @@ interface Tool {
   args: z.ZodType<Record<string, unknown>>;
   inputSchema: Record<string, unknown>;
   readOnly: boolean;
+  /** Runs the project's check from timemachine.yml, so it needs this computer's approval and names the command. */
+  runsCheck?: true;
   run: (ctx: tm.Ctx, args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -26,6 +28,13 @@ const id = z.string().regex(/^cp-\d{4,}$/);
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 const obj = (properties: Record<string, unknown>, required: string[] = []): Record<string, unknown> => ({ type: "object", properties, required, additionalProperties: false });
 const cpId = { type: "string", pattern: "^cp-\\d{4,}$", description: "Checkpoint ID, like cp-0003" };
+
+/** The check an agent may run here. Throws when this computer never approved this exact check with tm init. */
+function approved(ctx: tm.Ctx): string {
+  const check = tm.approvedCheck(ctx);
+  if (check.state !== "approved") throw new tm.TmError("usage", "Run tm init in this project to approve its check first.");
+  return check.command;
+}
 
 const TOOLS: Tool[] = [
   {
@@ -47,19 +56,27 @@ const TOOLS: Tool[] = [
   },
   {
     name: "verify",
-    description: "Run the project's check on a checkpoint in a separate copy. Returns PASS, FAIL, INCOMPLETE, BLOCKED or ERROR. Never touches the working folder.",
+    description: "Run the project's check from timemachine.yml (verify.setup, then verify.command) on a checkpoint in a separate copy. Returns PASS, FAIL, INCOMPLETE, BLOCKED or ERROR and the command it ran. Never touches the working folder. Needs tm init in this project first.",
     args: z.strictObject({ id: id.optional() }),
     inputSchema: obj({ id: cpId }),
     readOnly: false,
-    run: (ctx, a) => tm.verify(ctx, typeof a.id === "string" ? a.id : undefined),
+    runsCheck: true,
+    run: async (ctx, a) => {
+      const command = approved(ctx);
+      return { ...(await tm.verify(ctx, typeof a.id === "string" ? a.id : undefined)), command };
+    },
   },
   {
     name: "find_good",
-    description: "Walk back from the newest checkpoint, checking each, until one passes. Never touches the working folder.",
+    description: "Walk back from the newest checkpoint, running the project's check from timemachine.yml (verify.setup, then verify.command) on each, until one passes. Returns the command it ran. Never touches the working folder. Needs tm init in this project first.",
     args: z.strictObject({}),
     inputSchema: obj({}),
     readOnly: false,
-    run: (ctx) => tm.findGood(ctx),
+    runsCheck: true,
+    run: async (ctx) => {
+      const command = approved(ctx);
+      return { ...(await tm.findGood(ctx)), command };
+    },
   },
   {
     name: "recover",
@@ -103,10 +120,17 @@ export async function handleMcp(message: unknown, ctx: tm.Ctx): Promise<Response
     }
     case "ping":
       return ok(rid, {});
-    case "tools/list":
+    case "tools/list": {
+      let runs = "";
+      try {
+        runs = ` Here it runs: ${tm.approvedCheck(ctx).command || "(no check set yet)"}`;
+      } catch {
+        // Not inside a project with a readable timemachine.yml: the general description stands.
+      }
       return ok(rid, {
-        tools: TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema, annotations: { readOnlyHint: t.readOnly, destructiveHint: false } })),
+        tools: TOOLS.map((t) => ({ name: t.name, description: t.runsCheck ? t.description + runs : t.description, inputSchema: t.inputSchema, annotations: { readOnlyHint: t.readOnly, destructiveHint: false } })),
       });
+    }
     case "tools/call": {
       const call = z.object({ name: z.string(), arguments: z.record(z.string(), z.unknown()).optional() }).safeParse(params);
       if (!call.success) return fail(rid, -32602, "Invalid params");

@@ -59,6 +59,8 @@ export interface InitResult {
   verifySetup: string;
   network: "allow" | "deny";
   sandbox: string | null;
+  /** The command this computer now trusts the Claude Code plugin and MCP tools to run: setup, then the check. */
+  approvedCheck: string;
 }
 
 export interface SetCheckResult {

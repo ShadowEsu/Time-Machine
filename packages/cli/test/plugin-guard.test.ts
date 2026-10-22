@@ -38,12 +38,27 @@ describe("tm hook --if-initialized", () => {
     expect(existsSync(tmHome)).toBe(false);
   });
 
-  test("after tm init a prompt makes a save point", async () => {
+  test("a timemachine.yml alone is not consent; after tm init a prompt makes a save point", async () => {
     const { dir, env } = folder(true);
     writeConfig(dir);
-    const r = await run(dir, env, ["hook", "prompt", "--if-initialized", "--json"], JSON.stringify({ cwd: dir, prompt: "x" }));
+    const input = JSON.stringify({ cwd: dir, prompt: "x" });
+    expect(await run(dir, env, ["hook", "prompt", "--if-initialized"], input)).toEqual({ code: 0, out: "", err: "" });
+    const init = await run(dir, env, ["init"]);
+    expect(init.code).toBe(0);
+    expect(init.out).toContain("Approved  node --test");
+    const r = await run(dir, env, ["hook", "prompt", "--if-initialized", "--json"], input);
     expect(JSON.parse(r.out)).toMatchObject({ event: "prompt", exitCode: 0, checkpoint: "cp-0001" });
     expect(r.code).toBe(0);
+  });
+
+  test("a check changed after tm init prints one line on stderr, once", async () => {
+    const { dir, env } = folder(true);
+    writeConfig(dir);
+    await run(dir, env, ["init"]);
+    writeConfig(dir, { command: "npm test" });
+    const input = JSON.stringify({ cwd: dir });
+    expect(await run(dir, env, ["hook", "stop", "--if-initialized"], input)).toEqual({ code: 0, out: "", err: "Time Machine: the check in timemachine.yml changed; run tm init to approve it.\n" });
+    expect(await run(dir, env, ["hook", "stop", "--if-initialized"], input)).toEqual({ code: 0, out: "", err: "" });
   });
 
   test("outside any Git repo it exits 0 and prints nothing", async () => {
