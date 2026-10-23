@@ -1992,11 +1992,22 @@ function fitDialLabels(): void {
   const c = rectOf(card);
   const frame = { left: c.left + 8, top: c.top + 8, right: c.right - 8, bottom: c.bottom - 8 };
   const labs = [...dial.querySelectorAll<HTMLElement>(".dl")];
+  const first = labs[0];
+  if (!first) return;
+  // The dial is zoomed on small windows, so measure where the layer's corner is and how many screen
+  // pixels one of its CSS pixels covers, instead of assuming 1.
+  first.style.left = "0px";
+  first.style.top = "0px";
+  const origin = rectOf(first);
+  first.style.left = "100px";
+  const scale = (rectOf(first).left - origin.left) / 100 || 1;
+  first.style.left = "0px";
   const cands = labs.map((el) => {
     const dot = dots[Number(el.dataset.i)];
+    const r = el.getBoundingClientRect();
     if (!dot) return [];
     const half = (dot.right - dot.left) / 2;
-    return dialCandidates({ x: dot.left + half, y: (dot.top + dot.bottom) / 2 }, center, el.offsetWidth, el.offsetHeight, half + 3, frame);
+    return dialCandidates({ x: dot.left + half, y: (dot.top + dot.bottom) / 2 }, center, r.width, r.height, half + 3, frame);
   });
   const words = [...card.querySelectorAll(".silk span")].map(rectOf);
   placeLabels(cands, frame, [...dots, ...words], 6).forEach((k, i) => {
@@ -2004,8 +2015,8 @@ function fitDialLabels(): void {
     const b = k === null ? undefined : cands[i]?.[k];
     if (!el) return;
     if (!b) return void (el.style.visibility = "hidden");
-    el.style.left = `${b.left - d.left}px`;
-    el.style.top = `${b.top - d.top}px`;
+    el.style.left = `${(b.left - origin.left) / scale}px`;
+    el.style.top = `${(b.top - origin.top) / scale}px`;
     el.style.visibility = "visible";
   });
 }
