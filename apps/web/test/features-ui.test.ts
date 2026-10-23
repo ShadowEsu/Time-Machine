@@ -111,7 +111,7 @@ describe("the Ask panel", () => {
   });
 
   test("off without a key says so and points to Settings > Features", () => {
-    expect(askPanelHtml(view({ phase: "off", hasKey: false }))).toContain("There is no Gemini API key on this Mac yet.");
+    expect(askPanelHtml(view({ phase: "off", hasKey: false }))).toContain("There is no Gemini API key on this computer yet.");
     expect(askPanelHtml(view({ phase: "off", hasKey: false }))).toContain('data-fa="settings"');
     expect(askPanelHtml(view({ phase: "off", hasKey: false, canOpenSettings: false }))).not.toContain('data-fa="settings"');
   });
@@ -223,7 +223,7 @@ describe("Settings > Features", () => {
       expect(i).toContain('type="password"');
       expect(i).not.toMatch(/\svalue=/);
     }
-    expect(html).toContain("Set on this Mac.");
+    expect(html).toContain("Set on this computer.");
     expect(html.match(/data-fa="remove-key"/g)).toHaveLength(2);
   });
 

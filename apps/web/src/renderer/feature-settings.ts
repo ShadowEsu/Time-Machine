@@ -35,21 +35,21 @@ function keyRow(v: FeatureSettingsView, name: CredentialName, help: string): str
     <span class="ft-muted">${help}</span>
   </div></div>`;
   return `<div class="setrow"><span class="l">${label}</span><div class="ft-stack">
-    <div class="ft-keystate">${set ? `<i class="ft-dot on" aria-hidden="true"></i>Set on this Mac. Used for every project.` : `<i class="ft-dot" aria-hidden="true"></i>Not set.`}</div>
+    <div class="ft-keystate">${set ? `<i class="ft-dot on" aria-hidden="true"></i>Set on this computer. Used for every project.` : `<i class="ft-dot" aria-hidden="true"></i>Not set.`}</div>
     <form class="row-btns" data-key-form="${name}">
       <input class="field" type="password" data-keep="key-${name}" autocomplete="off" spellcheck="false" aria-label="${esc(`Paste a ${label}`)}" placeholder="${set ? "Paste a new one to replace it" : `Paste your ${label}`}"${dis}>
       <button type="submit" class="btn"${dis}>Save</button>
       ${set ? `<button type="button" class="btn ghost" data-fa="remove-key" data-name="${name}"${dis}>Remove</button>` : ""}
     </form>
-    <span class="ft-muted">${help} Stored encrypted on this Mac and never shown again.</span>
+    <span class="ft-muted">${help} Stored encrypted on this computer and never shown again.</span>
   </div></div>`;
 }
 
 function consentDetails(open: boolean): string {
   const list = (items: readonly string[]): string => `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
   return `<details class="ft-details"${open ? " open" : ""}><summary>What is sent and what is never sent</summary>
-    <h4>What is sent</h4>${list(ASK_CONSENT.sent)}
-    <h4>Never sent</h4>${list(ASK_CONSENT.neverSent)}
+    <h3>What is sent</h3>${list(ASK_CONSENT.sent)}
+    <h3>Never sent</h3>${list(ASK_CONSENT.neverSent)}
     <p>${esc(ASK_CONSENT.where)}</p>
     <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
     <p>${esc(ASK_CONSENT.accuracy)}</p>
@@ -93,8 +93,8 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
       ${consentDetails(!v.ask)}
       <span class="ft-muted">${esc(ASK_CONSENT.off)}</span>
     </div></div>
-    ${keyRow(v, "gemini", `Your own key from Google AI Studio. Questions go from ${v.runtime === "browser" ? "this computer" : "this Mac"} straight to Google.`)}
-    <h4 class="ft-sec">Vercel deploys</h4>
+    ${keyRow(v, "gemini", "Your own key from Google AI Studio. Questions go from this computer straight to Google.")}
+    <h3 class="ft-sec">Vercel deploys</h3>
     <p class="ft-ro-note">Read only. Time Machine reads deploys from Vercel to show them next to your save points. It never deploys, promotes or rolls back anything.</p>
     ${keyRow(v, "vercel", `A token from <button type="button" class="ft-link" data-fa="tokens">vercel.com/account/tokens</button>. It is only used to read projects and deploys.`)}
     ${vercelProjectRow(v)}
@@ -172,8 +172,8 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
           const r = await api.call({ method: "setCredential", name, value: null });
           if (!r.ok) throw new Error(r.error.message);
           return r.data.configured
-            ? `Removed from this Mac. ${ENV_NAME[name]} is still set in the environment, so that key is still used.`
-            : `${KEY_LABEL[name]} removed from this Mac.`;
+            ? `Removed from this computer. ${ENV_NAME[name]} is still set in the environment, so that key is still used.`
+            : `${KEY_LABEL[name]} removed from this computer.`;
         });
       }
       case "pick":

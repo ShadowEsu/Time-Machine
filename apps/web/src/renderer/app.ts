@@ -1324,16 +1324,16 @@ function settings(): string {
       : `Nothing on ${device()} can block the network during a check. A project that asks for no network gets Needs something, never Works.`;
   return `<div class="page"><div class="col">
     <div><h1>Settings</h1></div>
-    <div class="panel"><h3>Appearance</h3>
+    <div class="panel"><h2>Appearance</h2>
       <div class="setrow"><span class="l">Theme</span><div class="seg">${seg("system", "System")}${seg("light", "Light")}${seg("dark", "Dark")}</div></div>
       <div class="setrow"><span class="l">Show Git details</span><div class="toggle">${sw("showGitDetails", s.showGitDetails, "Show Git details")}<span class="muted">Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.</span></div></div>
     </div>
-    <div class="panel"><h3>Rewind style</h3>
+    <div class="panel"><h2>Rewind style</h2>
       <div class="setrow"><span class="l">Going back</span><div class="toggle"><div class="seg"><button class="${s.simpleRewind ? "" : "on"}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" data-act="rewind-style" data-v="sheet">Simple</button></div><span class="muted">Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.</span></div></div>
     </div>
-    ${st.projects.map((p) => `<div class="panel"><h3>Features for ${esc(p.name)}</h3><div class="mount" data-mount="features:${esc(p.id)}"></div></div>`).join("")}
-    <div class="panel browser-capabilities"><h3>Local browser app</h3><p class="muted">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="small muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>
-    <div class="panel"><h3>Checks</h3>
+    ${st.projects.map((p) => `<div class="panel"><h2>Features for ${esc(p.name)}</h2><div class="mount" data-mount="features:${esc(p.id)}"></div></div>`).join("")}
+    <div class="panel browser-capabilities"><h2>Local browser app</h2><p class="muted">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="small muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>
+    <div class="panel"><h2>Checks</h2>
       <div class="setrow"><span class="l">Where checks run</span><div>In a safe copy on ${device()}, never in your folder. Checks use the tools installed on ${device()}.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}</div></div>
       <div class="setrow"><span class="l">Network during checks</span><div>${network}</div></div>
       <p class="small muted"><span class="planned">Planned</span> Stronger isolation with Docker or Apple container.</p>
@@ -1349,14 +1349,14 @@ function licensePanel(): string {
   const busy = l.working ? "disabled" : "";
   const error = l.error ? `<div class="note bad" role="alert">${esc(l.error)}</div>` : "";
   if (s.active) {
-    return `<div class="panel" id="license"><h3>License</h3>
+    return `<div class="panel" id="license"><h2>License</h2>
       <div class="setrow"><span class="l">This computer</span><div>Licensed. Purchase <span class="mono sel-text">${esc(s.id ?? "")}</span>, issued ${esc(s.issued ?? "")}. Add as many projects as you like.</div></div>
       <div class="setrow"><span class="l">Remove</span><div class="toggle"><button class="btn" data-act="license-remove" ${busy}>${l.working ? "Removing…" : "Remove from this computer"}</button><span class="muted">The app goes back to ${esc(plural(s.freeProjectLimit, "project"))}. Keep a copy of the key if you want to use it again.</span></div></div>
       ${error}
     </div>`;
   }
   const problem = s.problem ? `<div class="note warn">${esc(s.problem)}</div>` : "";
-  return `<div class="panel" id="license"><h3>License</h3>
+  return `<div class="panel" id="license"><h2>License</h2>
     <div class="setrow"><span class="l">This computer</span><div class="lic-free"><p>Free: up to ${esc(plural(s.freeProjectLimit, "project"))} at once. A license lets you add more. Every restore stays free.</p><button class="btn link" data-act="license-buy">Buy once for $50</button></div></div>
     ${problem}
     <form class="setrow" data-form="license" novalidate><label class="l" for="license-key">Your key</label><div class="toggle"><input id="license-key" class="field mono" data-model="license-key" type="text" value="${esc(l.draft)}" placeholder="TM1.…" autocomplete="off" spellcheck="false" ${busy}><button class="btn dark" type="submit" ${busy}>${l.working ? "Saving…" : "Save key"}</button></div></form>

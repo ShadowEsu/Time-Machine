@@ -149,9 +149,10 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .toolbar > * { -webkit-app-region: no-drag; }
 .crumb { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; }
 .crumb > span[aria-hidden] { color: var(--ink-4); }
-.cr-p { border: 0; background: none; padding: 2px 4px; margin-left: -4px; border-radius: var(--r-sm); font-weight: 500; color: var(--ink-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+.cr-p { border: 0; background: none; padding: 2px 4px; margin-left: -4px; border-radius: var(--r-sm); font-weight: 500; color: var(--ink-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; min-width: 40px; }
 .cr-p:hover { background: var(--sel); color: var(--ink); }
 .cr-p:active { background: var(--press); }
+.setup-hide { min-width: 40px; }
 .tb-sp { flex: 1; -webkit-app-region: drag; }
 .pill { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
 .pill:hover { background: color-mix(in srgb, var(--ink) 86%, var(--paper)); }
@@ -238,7 +239,8 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .hruler .clip { position: absolute; top: 0; height: 18px; border-radius: 5px; background: var(--mist); box-shadow: inset 0 0 0 1px var(--line); font: 500 12px/18px var(--mono); color: var(--ink-3); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hruler .clip span { overflow: hidden; text-overflow: ellipsis; display: block; }
 .hruler .base { position: absolute; left: 0; right: 0; top: 34px; height: 1px; background: var(--line-2); }
-.rt-tk { position: absolute; top: 24px; width: 22px; height: 22px; margin-left: -11px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; border-radius: 50%; }
+/* 24 px ticks meet WCAG 2.5.8 on their own; each one also has its journal entry, a full-size control. */
+.rt-tk { position: absolute; top: 23px; width: 24px; height: 24px; margin-left: -12px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; border-radius: 50%; }
 .rt-tk .g { width: 9px; height: 9px; transition: transform .14s var(--ease); }
 .rt-tk .g.v-none { background: var(--paper); }
 .rt-tk .g.v-fail { width: 8px; height: 8px; }
@@ -276,7 +278,8 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .entry h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 500 14px/1.5 var(--font); letter-spacing: -.015em; }
 .e-t { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; border-radius: 4px; }
 /* Text controls keep their line, with a 40 px tall hit area: the padding is taken back by the margin. */
-.e-t, summary { padding-block: 10px; margin-block: -10px; }
+.e-t { padding-block: 10px; margin-block: -10px; }
+summary { padding-block: 12px; margin-block: -12px; }
 .wayback { font: 500 12px/1 var(--font); color: var(--pass-fg); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 5px; color: var(--ink-3); font-size: 12.5px; }
 .meta .mono { font-size: 12px; }
@@ -308,7 +311,7 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 
 /* ⋯ menus */
 .mn { position: relative; }
-.mn-b { width: 32px; padding: 0; font-size: 16px; letter-spacing: .05em; }
+.mn-b { width: 40px; padding: 0; font-size: 16px; letter-spacing: .05em; }
 .mn-l { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; min-width: 220px; display: grid; padding: 5px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); }
 .mn-l button { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; border: 0; border-radius: 7px; background: none; text-align: left; cursor: pointer; font-size: 13px; color: var(--ink); white-space: nowrap; }
 .mn-l button:hover:not([disabled]) { background: var(--sel); }
@@ -333,7 +336,7 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .page h1 { font-size: 38px; line-height: 1.08; }
 .lede { color: var(--ink-3); font-size: 14px; }
 .panel { border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-md); padding: 16px; display: grid; gap: 12px; }
-.panel h3 { font-size: 14px; font-weight: 600; }
+.panel > h2 { font-size: 14px; font-weight: 600; }
 .steps { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink-3); flex-wrap: wrap; }
 .steps .s { display: inline-flex; align-items: center; gap: 7px; }
 .steps .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--ink-5); }
@@ -906,6 +909,9 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .toast { width: 100%; max-width: none; }
   /* Every control is at least 44 px tall on a phone. */
   .btn, .btn.link, .it, .pill, .cr-p, .seg button, .sec-b, .pal-i, .mn-l button, .tv-x { min-height: 44px; }
+  .cr-p, .setup-hide { min-width: 44px; }
+  .e-t { padding-block: 12px; margin-block: -12px; }
+  summary { padding-block: 14px; margin-block: -14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }

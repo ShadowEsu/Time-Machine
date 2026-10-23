@@ -37,7 +37,7 @@
 /* Ask off: the consent card. */
 .ft-consent { display: grid; gap: 12px; padding: 4px 0 16px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
 .ft-consent h3 { font: 400 22px/1.15 var(--serif); color: var(--ink); letter-spacing: -.01em; }
-.ft-consent h4, .ft-details h4 { font: 500 12px/1.2 var(--font); color: var(--ink-3); margin-top: 4px; }
+.ft-consent h4, .ft-details h3 { font: 500 12px/1.2 var(--font); color: var(--ink-3); margin-top: 4px; }
 .ft-consent ul, .ft-details ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
 .ft-consent .btn { justify-self: start; margin-top: 4px; }
 
@@ -47,6 +47,7 @@
 .ft-err { font-size: 12.5px; line-height: 1.5; color: var(--fail-fg); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ft-status { font-size: 12.5px; color: var(--ink-2); }
 .ft-link { border: 0; background: none; padding: 11px 0; margin: -11px 0; color: var(--accent, var(--ink)); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+@media (max-width: 600px) { .ft-link { padding-block: 13px; margin-block: -13px; } }
 .ft-link:hover { color: var(--ink); }
 
 /* Vercel deploy chips: neutral, dashed, never green. A Vercel state is not a check result. */

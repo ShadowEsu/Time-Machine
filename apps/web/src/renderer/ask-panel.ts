@@ -103,7 +103,7 @@ function consentCard(v: AskView): string {
     <p>${esc(ASK_CONSENT.where)}</p>
     <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
     <p class="ft-muted">${esc(ASK_CONSENT.accuracy)} ${esc(ASK_CONSENT.off)}</p>
-    ${v.hasKey ? "" : settingsPointer(v, "There is no Gemini API key on this Mac yet. Add your own key in Settings > Features before you ask.")}
+    ${v.hasKey ? "" : settingsPointer(v, "There is no Gemini API key on this computer yet. Add your own key in Settings > Features before you ask.")}
     <button type="button" class="btn dark big" data-fa="on"${v.busy ? " disabled" : ""}>Turn on Ask for this project</button>
   </div>`;
 }
