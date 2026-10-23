@@ -68,11 +68,11 @@ This opens the Time Machine web app in your browser. The server runs on your own
 
 Open the full address that `tm ui` prints. It includes a private session key. Do not share it.
 
-The web app needs a one-time $50 license key to open. It asks for the key the first time. Checkout is not open yet. The `tm` command line tool is open source (MIT) and never needs a key.
+The web app is free for up to 3 projects at a time. A $50 one-time license lifts that limit. Checkout is not open yet. The `tm` command line tool is open source (MIT) and never needs a key.
 
 ## 5. Enter your license key
 
-If you bought a key, enter it once per computer, either when `tm ui` asks for it or with:
+If you bought a key, enter it once per computer with:
 
 ```sh
 tm license <key>
