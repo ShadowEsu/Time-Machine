@@ -139,9 +139,10 @@ nav.ft-col a:hover { color: var(--ink); }
 .ft-word { margin: 48px auto 0; padding: .08em .06em; max-width: 1200px; font: 400 min(12vw, 180px)/1.05 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.045em; white-space: nowrap; text-align: center; color: var(--ink-2); }
 .ft-word em { color: var(--ink); }
 /* One light sweep when the wordmark comes into view (motion.js adds .sweep). */
-.ft-word.sweep { background: linear-gradient(100deg, #a8a59a 40%, #faf9f5 50%, #a8a59a 60%) 120% 0 / 250% 100% no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sweep 2.2s .2s var(--ease-inout) forwards; }
+.ft-word.sweep { background: linear-gradient(100deg, #a8a59a 40%, #faf9f5 50%, #a8a59a 60%) 100% 0 / 250% 100% no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sweep 2.2s .2s var(--ease-inout) forwards; }
 .ft-word.sweep em { color: transparent; }
-@keyframes sweep { to { background-position: -20% 0; } }
+/* The gradient stays under the whole word from start to end, so no letter is ever unfilled. */
+@keyframes sweep { to { background-position: 0% 0; } }
 .ft-legal { max-width: 1200px; margin: 18px auto 0; color: var(--ink-3); font-size: 13px; }
 
 /* The home instrument reuses the story page's aluminium, layered case and knurled dial,

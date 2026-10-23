@@ -309,7 +309,9 @@
       const [a, b, c, d] = it.r;
       let i = a === b ? (p >= a ? 1 : 0) : seg(p, a, b);
       let o = c == null ? 0 : seg(p, c, d);
-      if (RM) { i = i > 0 ? 1 : 0; o = o >= 1 ? 1 : 0; }
+      // Reduced motion: no fades. A line shows once its range starts and goes as soon as its exit starts,
+      // so two lines stacked in one place never overlap.
+      if (RM) { i = i > 0 ? 1 : 0; o = o > 0 ? 1 : 0; }
       const op = i * (1 - o), y = (1 - ease(i)) * 26 - ease(o) * 22;
       const key = op.toFixed(3) + "|" + y.toFixed(1);
       if (key !== it.last) {
@@ -333,9 +335,12 @@
     const m = M[n];
     let p = clamp((y - m.top) / Math.max(1, m.h - vh));
     let h = clamp((y - (m.top + m.h - vh)) / vh);
+    // Reduced motion: the device, clock and proof cards stay on each act's final still, but text still steps
+    // through its own range (snapped, no fades or slides), so lines that give way to later ones are seen first.
+    const rp = p;
     if (RM) { p = n === 0 ? 0 : 1; h = h < 0.5 ? 0 : 1; }
-    reveal(m, p);
-    if (M[n + 1]) reveal(M[n + 1], RM ? 1 : 0);
+    reveal(m, rp);
+    if (M[n + 1]) reveal(M[n + 1], 0);
 
     // device
     if (n <= 5) {

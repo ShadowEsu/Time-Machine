@@ -149,7 +149,7 @@ main { position: relative; }
 /* proof: the editorial cards next to the receipt */
 .pf { position: absolute; left: var(--gut); top: calc(50% + 28px); transform: translateY(-50%); width: min(56vw, 800px); }
 .pf-words { margin: 0 0 6px; min-height: 1.05em; font: 400 clamp(40px, 4.5vw, 72px)/1.02 var(--serif); letter-spacing: -.02em; }
-.pw { display: inline-block; opacity: 0; will-change: transform, opacity; }
+.pw { display: inline-block; will-change: transform, opacity; }
 .pw-b { color: var(--broken-fg); }
 .pw-g { color: var(--works-fg); }
 .pf-subs { display: grid; }
@@ -162,15 +162,17 @@ main { position: relative; }
 .pc-m { margin: 0; font: 400 13px/1.3 var(--mono); color: var(--ink-3); }
 .pc-bar { position: absolute; left: 14px; right: 14px; bottom: 48px; height: 3px; border-radius: 3px; overflow: hidden; background: var(--mist); }
 .pc-bar i { position: absolute; inset: 0; background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); }
-.pc-s { position: absolute; left: 14px; right: 14px; bottom: 12px; margin: 0; font: 400 13px/1.3 var(--sans); color: var(--ink-2); opacity: 0; }
-.stamp { position: absolute; right: 10px; bottom: 58px; display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 5px 10px; border: 2px solid currentColor; border-radius: 7px; font: 650 13px/1 var(--sans); opacity: 0; will-change: transform, opacity; }
+.pc-s { position: absolute; left: 14px; right: 14px; bottom: 12px; margin: 0; font: 400 13px/1.3 var(--sans); color: var(--ink-2); }
+.stamp { position: absolute; right: 10px; bottom: 58px; display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 5px 10px; border: 2px solid currentColor; border-radius: 7px; font: 650 13px/1 var(--sans); will-change: transform, opacity; }
 .st-broken { color: var(--broken-fg); background: var(--broken-bg); }
 .st-works { color: var(--works-fg); background: var(--works-bg); }
 .sh { width: 7px; height: 7px; background: currentColor; }
 .st-works .sh { border-radius: 50%; }
 .st-broken .sh { transform: rotate(45deg) scale(.86); border-radius: 1px; }
 .term { margin-top: 14px; padding: 13px 18px; border-radius: 12px; background: var(--term-bg); color: var(--term-ink); font: 13px/1.7 var(--mono); box-shadow: 0 0 0 1px var(--term-line), 0 24px 50px -30px rgba(0, 0, 0, .6); }
-.tl { margin: 0; opacity: 0; white-space: pre-wrap; }
+.tl { margin: 0; white-space: pre-wrap; }
+/* story.js fades these in as the proof plays; without JavaScript they show in their final state. */
+.js .pw, .js .pc-s, .js .stamp, .js .tl { opacity: 0; }
 .tl-row { display: grid; grid-template-columns: 74px 52px 1fr; padding-left: 16px; }
 .tl .pr { color: var(--term-dim); }
 .term b { font-weight: 600; }
