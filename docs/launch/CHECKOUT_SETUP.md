@@ -1,12 +1,12 @@
 # Checkout setup
 
-Not done yet. Checkout stays closed until the founder completes these steps. While it is closed, `POST /api/checkout` and `GET /api/license` answer `503 checkout_closed` and `/api/health` shows `checkout: false`. Nothing can be bought by mistake.
+Not done yet. Checkout stays closed until these steps are done. While it is closed, `POST /api/checkout` and `GET /api/license` answer `503 checkout_closed` and `/api/health` shows `checkout: false`. Nothing can be bought by mistake.
 
 What is sold: a one-time $50 license for the web app (`tm ui`), one plan. See ADR 0013. Without a license the web app lists up to 3 projects at a time; the key lifts that limit. The `tm` command line tool stays free and open source and never needs a key, so recovery is always possible with it.
 
 ## Who does this
 
-An adult account holder. Stripe needs one, and `docs/legal/README.md` explains why a minor cannot be the seller of record. A parent or guardian, or a company with an adult officer, holds the Stripe account.
+The seller of record: an adult account holder, or a company with an adult officer. Stripe needs one. See `docs/legal/README.md`.
 
 ## 1. Make the keypairs
 
