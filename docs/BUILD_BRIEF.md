@@ -195,7 +195,7 @@ CLI MVP is about 7 to 9 weeks. The desktop app is about 8 to 10 more.
 | Plan | Price |
 |---|---|
 | CLI, hooks, MCP | Free and open source (MIT) |
-| Web app | $50 once, no free plan. Any number of your own computers and projects, updates while we ship them, key verified offline. Sign in on the site with the checkout email to see the key again |
+| Web app | Free for up to 3 projects at a time; $50 once lifts the limit. Any number of your own computers and projects, updates while we ship them, key verified offline. Sign in on the site with the checkout email to see the key again |
 | Team | Later, if agencies ask |
 
 The open source CLI can always restore. Checkout is not open until an adult signer and a Stripe account exist (`docs/launch/CHECKOUT_SETUP.md`).

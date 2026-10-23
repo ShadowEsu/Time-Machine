@@ -2,6 +2,8 @@
 
 Date: 22 October 2026. Status: accepted (founder decision). Supersedes ADR 0002.
 
+Update, 22 October 2026: the shipped code (`FREE_PROJECT_LIMIT = 3` in `packages/core/src/license.ts`) lets the web app list up to 3 projects at a time without a license, and the README, site and docs say so. The "no free tier" line below records the original decision; the code and its copy are what users get until that decision is revisited.
+
 ## Decision
 
 - The product is the open source `tm` command line tool plus the local web app (`tm ui`). The Mac app is gone.

@@ -123,7 +123,7 @@ What is different: a verdict, not a list of snapshots. We rebuild each save poin
 
 The command line tool is free. Restores are never paywalled.
 
-Price: the web app costs $50 once, with no free plan (ADR 0013). Checkout opens once the seller of record is set. A team plan comes later.
+Price: the web app is free for up to 3 projects at a time; $50 once lifts the limit (ADR 0013). Checkout opens once the seller of record is set. A team plan comes later.
 
 Planned, not built: an action connector that keeps a record and an honest way back for what agents do in other apps, like email and Slack (ADR 0007). Nothing of it exists yet.
 
