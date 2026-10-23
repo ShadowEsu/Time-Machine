@@ -214,6 +214,8 @@ main { position: relative; }
 .app-bar i { width: 11px; height: 11px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 16%, transparent); }
 .app-bar span { flex: 1; margin-right: 47px; text-align: center; }
 .app-win img { width: 100%; height: auto; }
+/* At 860 px and below the 390 px capture is shown at phone size, as on the home page. */
+@media (max-width: 860px) { .app-win { max-width: 280px; margin-inline: auto; } }
 .app-fig figcaption { margin-top: 14px; font: 13px/1.5 var(--sans); color: var(--ink-3); }
 
 /* pay once */
