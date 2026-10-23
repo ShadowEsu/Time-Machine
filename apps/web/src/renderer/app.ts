@@ -19,7 +19,7 @@ import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { ToastTimer } from "./toast.js";
 import { confirmButtons, type ConfirmCopy } from "./confirm.js";
-import { dialCandidates, placeLabels, rowCandidates, type Box } from "./label-fit.js";
+import { dialCandidates, fitRow, placeLabels, type Box } from "./label-fit.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -585,16 +585,16 @@ function homeRuler(all: TimelineEntry[]): string {
   const ticks = pts
     .map((c, i) => `<button class="rt-tk ${i > cur ? "after" : ""}" style="left:${x(i)}%" data-act="open" data-id="${esc(c.id)}" title="${esc(`${ptWhen(c)} · ${title(c)} · ${verdictWord(c.verdict)}`)}" aria-label="${esc(`${ptWhen(c)}, ${title(c)}, ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`)
     .join("");
-  // Labels for the selected, the last working, the newest and the first save point, most important first.
-  // fitRulerLabels measures them after the draw and moves or hides the less important one when two touch.
+  // Labels for Now, the last working, the selected and the first save point, in that order of importance.
+  // fitRulerLabels measures them after the draw: a less important one hides, the last working one moves.
   const lwi = lw ? pts.indexOf(lw) : -1;
-  const marks = [...new Set([cur, lwi, n - 1, 0])].filter((i) => i >= 0);
+  const marks = [...new Set([n - 1, lwi, cur, 0])].filter((i) => i >= 0);
   const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
   const labels = marks.map((i) => {
     const c = pts[i];
     const t = esc(c ? ptClock(c) : "");
     const now = i === n - 1 && c?.id === points().at(-1)?.id;
-    return `<span class="rlab${i === cur ? " on" : ""}${now ? " now" : ""}" style="left:${x(i)}%;transform:translateX(${shift(i)}%)">${now ? `Now<span class="rl-t"> ${t}</span>` : t}</span>`;
+    return `<span class="rlab${i === cur ? " on" : ""}${now ? " now" : ""}" data-i="${i}"${i === lwi ? " data-lw" : ""} style="left:${x(i)}%;transform:translateX(${shift(i)}%)">${now ? `Now<span class="rl-t"> ${t}</span>` : t}</span>`;
   }).join("");
   return `<div class="hruler" role="group" aria-label="Save points, oldest on the left">
     <div class="lane">${clips}</div><div class="base" aria-hidden="true"></div>${ticks}
@@ -1308,10 +1308,14 @@ function storageScreen(): string {
     if (!c.result) return "";
     if (c.result.applied) return `<span class="small muted">Removed ${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}.</span>`;
     if (!c.result.files.length) return '<span class="small muted">Nothing to clean up.</span>';
-    return `<span class="clean-ask"><span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-cancel" data-id="${projectId}">Never mind</button><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button></span>`;
+    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-cancel" data-id="${projectId}">Never mind</button><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
   };
   const rows = st.storage
-    ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on ${device()}</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || NO_PROJECTS
+    ? st.storage.map((r) => {
+        // The clean-up choice goes on its own line under the row, away from the row's Remove from app.
+        const asking = st.cleanup?.projectId === r.projectId && !st.cleanup.working && !!st.cleanup.result?.files.length && !st.cleanup.result.applied;
+        return `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on ${device()}</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${asking ? "" : cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span>${asking ? `<div class="row-btns clean-ask">${cleanRow(r.projectId)}</div>` : ""}</div>`;
+      }).join("") || NO_PROJECTS
     : LOADING;
   return `<div class="page"><div class="col">
     <div><h1>Storage</h1><p class="lede">Save points are stored on ${device()}, outside your project folders, so deleting a project does not delete its history. This is not a full computer backup.</p></div>
@@ -1943,8 +1947,9 @@ function rectOf(el: Element): Box {
 }
 
 /**
- * Ruler labels never touch. Most important first (the selected one, the last working one, Now, the first),
- * each stays by its tick, moves by up to half its width, drops Now's time, or hides.
+ * Ruler labels never touch. In order (Now, the last working one, the selected one, the first) a label
+ * that comes within 8 px of one already kept hides; the last working one moves left of its tick instead,
+ * and Now drops its time if that is still not enough (the hero already names that time).
  */
 function fitRulerLabels(): void {
   const ruler = document.querySelector<HTMLElement>(".hruler");
@@ -1955,25 +1960,25 @@ function fitRulerLabels(): void {
     el.classList.remove("rl-c", "rl-hide");
   }
   const shown = labs.filter((el) => el.getClientRects().length > 0);
-  const variants = shown.map((el) => {
-    const base = rectOf(el);
-    const full = rowCandidates(base).map((box) => ({ box, dx: box.left - base.left, compact: false }));
-    const time = el.querySelector(".rl-t");
-    if (!time || !time.getClientRects().length) return full;
-    el.classList.add("rl-c");
-    const small = rectOf(el);
-    el.classList.remove("rl-c");
-    return [...full, ...rowCandidates(small).map((box) => ({ box, dx: box.left - small.left, compact: true }))];
+  const ticks = ruler.querySelectorAll(".rt-tk");
+  const row = shown.map((el) => {
+    const box = rectOf(el);
+    const tick = ticks[Number(el.dataset.i)];
+    const t = tick ? rectOf(tick) : box;
+    const now = el.classList.contains("now");
+    let short: Box | null = null;
+    if (now && el.querySelector(".rl-t")?.getClientRects().length) {
+      el.classList.add("rl-c");
+      short = rectOf(el);
+      el.classList.remove("rl-c");
+    }
+    return { box, tickX: (t.left + t.right) / 2, lastWorking: "lw" in el.dataset, now, short };
   });
-  const r = rectOf(ruler);
-  const frame = { left: r.left - 16, right: r.right + 16, top: -Infinity, bottom: Infinity };
-  placeLabels(variants.map((v) => v.map((x) => x.box)), frame, [], 8).forEach((k, i) => {
-    const el = shown[i];
-    const v = k === null ? undefined : variants[i]?.[k];
-    if (!el) return;
-    if (!v) return void el.classList.add("rl-hide");
-    el.classList.toggle("rl-c", v.compact);
-    el.style.marginLeft = `${v.dx}px`;
+  const fit = fitRow(row);
+  shown.forEach((el, i) => {
+    if (fit.hidden[i]) el.classList.add("rl-hide");
+    if (fit.dx[i]) el.style.marginLeft = `${fit.dx[i]}px`;
+    if (fit.nowShort && el.classList.contains("now")) el.classList.add("rl-c");
   });
 }
 
@@ -2041,7 +2046,7 @@ async function saveNow(): Promise<void> {
     st.busy = null;
     // The same name the journal gives this save point, with seconds when two share a minute.
     const saved = entry(r.checkpoint.id);
-    toast(`Saved at ${saved ? ptClock(saved) : when(r.checkpoint.createdAt)}. Not checked yet.`, null);
+    toast(`Saved at ${saved ? ptWhen(saved) : when(r.checkpoint.createdAt)}. Not checked yet.`, null);
   } catch (e) {
     st.busy = null;
     toast(msg(e));

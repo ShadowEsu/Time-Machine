@@ -257,8 +257,8 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 /* Set after measuring, so two labels never touch: Now without its time, or a label that gives way. */
 .rlab.rl-c .rl-t { display: none; }
 .rlab.rl-hide { visibility: hidden; }
-/* The clean-up choice is its own boxed group, apart from the row's Remove from app. */
-.clean-ask { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; margin-right: 6px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-2); }
+/* The clean-up choice sits on its own line under its row, apart from the row's Remove from app. */
+.table .tr .clean-ask { grid-column: 1 / -1; justify-self: start; padding: 6px 6px 6px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-2); }
 
 /* The journal: time in the margin, the verdict glyph on a hairline, then the entry. */
 .journal { padding-bottom: 8px; }
