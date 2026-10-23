@@ -210,9 +210,8 @@ main { position: relative; }
 .app-h { margin: 0 0 18px; font: 340 clamp(36px, 3.6vw, 58px)/1 var(--serif); font-variation-settings: "opsz" 72; letter-spacing: -.03em; }
 .app-fig { margin: 0; }
 .app-win { overflow: hidden; border-radius: var(--r-window); background: var(--card); box-shadow: var(--shadow-window); transform: perspective(1600px) rotateX(var(--tilt, 0deg)) translateY(var(--lift, 0px)); transform-origin: 50% 100%; }
-.app-bar { display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-bottom: 1px solid var(--line); font: 500 13px/1 var(--sans); color: var(--ink-3); }
-.app-bar i { width: 11px; height: 11px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 16%, transparent); }
-.app-bar span { flex: 1; margin-right: 47px; text-align: center; }
+.app-bar { display: flex; align-items: center; height: 34px; padding: 0 14px; border-bottom: 1px solid var(--line); font: 500 13px/1 var(--sans); color: var(--ink-3); }
+.app-bar span { flex: 1; text-align: center; }
 .app-win img { width: 100%; height: auto; }
 /* At 860 px and below the 390 px capture is shown at phone size, as on the home page. */
 @media (max-width: 860px) { .app-win { max-width: 280px; margin-inline: auto; } }
@@ -468,7 +467,6 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .spec-list dd { padding-top: 0; }
   .vs-row { grid-template-columns: 1fr; gap: 8px; }
   .vs-bar span { font-size: 13px; }
-  .app-bar span { margin-right: 0; }
 
   .a-pay { padding: 12vh 0 10vh; }
 
