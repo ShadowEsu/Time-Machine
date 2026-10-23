@@ -851,8 +851,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   /* The main hero buttons: full width and 48 px, so the one action that matters is the easy one to hit. */
   .hero-acts .btn.big, .welcome .row-btns .btn.big { min-height: 48px; font-size: 14px; }
   .welcome .row-btns { display: grid; gap: 8px; justify-self: stretch; }
-  /* The ruler names only the selected save point and Now. */
-  .rlab:not(.on):not(.now) { display: none; }
+  /* The ruler names Now, the last working save point and the selected one; fitRulerLabels keeps them apart. */
+  .rlab:not(.on):not(.now):not([data-lw]) { display: none; }
   .rlab.now:not(.on) .rl-t { display: none; }
   .setrow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .panel { padding: 16px; }
