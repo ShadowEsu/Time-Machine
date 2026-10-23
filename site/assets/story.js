@@ -254,6 +254,8 @@
   /* ---------- render ---------- */
   const cache = new Map();
   const setText = (el, v) => { if (cache.get(el) !== v) { cache.set(el, v); el.textContent = v; } };
+  // Screen labels are sentence case; the state words stay lowercase in state() because they double as class names.
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   const setCls = (el, c, on) => { if (el.classList.contains(c) !== !!on) el.classList.toggle(c, !!on); };
   const styleCache = new WeakMap();
   const setStyle = (el, k, v) => { let m = styleCache.get(el); if (!m) styleCache.set(el, (m = {})); if (m[k] !== v) { m[k] = v; el.style[k] = v; } };
@@ -276,7 +278,7 @@
       if (!L) { userSel = null; userAngle = null; checked = {}; checking = null; if (rig.contains(document.activeElement)) document.activeElement.blur(); }
     }
     const d = s.scr;
-    setText(D.mode, d.mode); setText(D.clock, d.clock); setText(D.id, d.id); setText(D.note, d.note); setText(D.stat, d.stat);
+    setText(D.mode, cap(d.mode)); setText(D.clock, d.clock); setText(D.id, d.id); setText(D.note, d.note); setText(D.stat, cap(d.stat));
     const cls = "scr-stat " + (d.sc || "");
     if (D.stat.className !== cls) D.stat.className = cls;
     setCls(screen, "mode-log", !!d.log);
