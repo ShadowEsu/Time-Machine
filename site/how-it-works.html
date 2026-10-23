@@ -52,11 +52,11 @@
     <div class="rv" style="--d:2">
       <div class="stagebox">
         <div class="mod tilt" data-stepper data-angles="-120,-40,40,120" role="group" aria-label="The loop, step by step">
-          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">loop · v0</span><span class="grille"></span></div>
+          <div class="mod-top" aria-hidden="true"><span class="silk wm" translate="no">Time Machine</span><span class="silk">Loop · v0</span><span class="grille"></span></div>
           <div class="loop-body">
             <div class="scr" aria-live="polite">
               <div data-pane>
-                <p class="st"><span>01 save</span><span>10:42:07</span></p>
+                <p class="st"><span>01 Save</span><span>10:42:07</span></p>
                 <p><span class="c">$</span> tm checkpoint -m "Added dark mode"</p>
                 <p>Saved cp-0003 "Added dark mode"</p>
                 <p class="c">Code, 1 file, 2 config keys</p>
@@ -64,14 +64,14 @@
                 <p>Not checked yet.</p>
               </div>
               <div data-pane hidden>
-                <p class="st"><span>02 check</span><span>safe copy</span></p>
+                <p class="st"><span>02 Check</span><span>Safe copy</span></p>
                 <p><span class="c">$</span> tm verify cp-0003</p>
                 <p><span class="g">PASS</span> cp-0003 works</p>
                 <p class="c">host mode, network on, 1.4 s</p>
                 <p class="c">The check passed.</p>
               </div>
               <div data-pane hidden>
-                <p class="st"><span>03 find</span><span>newest first</span></p>
+                <p class="st"><span>03 Find</span><span>Newest first</span></p>
                 <p><span class="c">$</span> tm find-good</p>
                 <p>cp-0006 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
                 <p>cp-0005 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
@@ -79,7 +79,7 @@
                 <p>cp-0003 <span class="g">PASS</span> newest that works</p>
               </div>
               <div data-pane hidden>
-                <p class="st"><span>04 recover</span><span>new branch</span></p>
+                <p class="st"><span>04 Recover</span><span>New branch</span></p>
                 <p><span class="c">$</span> tm recover cp-0003</p>
                 <p>Branch tm/recover/cp-0003</p>
                 <p class="c">Saved first: cp-0007</p>
@@ -92,10 +92,10 @@
               <button class="knob" type="button" data-knob aria-label="Next step"><span class="knob-rot"></span></button>
             </div>
             <div class="keys">
-              <button class="mk" type="button" data-step aria-pressed="true"><span class="mk-cap"><i></i>01</span><span class="silk">save</span></button>
-              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>02</span><span class="silk">check</span></button>
-              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>03</span><span class="silk">find</span></button>
-              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>04</span><span class="silk">recover</span></button>
+              <button class="mk" type="button" data-step aria-pressed="true"><span class="mk-cap"><i></i>01</span><span class="silk">Save</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>02</span><span class="silk">Check</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>03</span><span class="silk">Find</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>04</span><span class="silk">Recover</span></button>
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@ Saved first cp-0007
       </div>
       <div class="v-side rv" style="--d:1">
         <div class="mod" data-stepper data-rows="#vt tbody tr" role="group" aria-label="Exit code readout">
-          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">exit code</span><span class="grille"></span></div>
+          <div class="mod-top" aria-hidden="true"><span class="silk wm" translate="no">Time Machine</span><span class="silk">Exit code</span><span class="grille"></span></div>
           <div class="scr" aria-live="polite">
             <div data-pane class="exit-scr"><span class="seg">0</span><p class="seg-w g">PASS</p><p class="c">Works</p><p class="c">The check passed.</p></div>
             <div data-pane class="exit-scr" hidden><span class="seg">1</span><p class="seg-w r">FAIL</p><p class="c">Broken</p><p class="c">The check failed.</p></div>
@@ -218,13 +218,13 @@ Saved first cp-0007
             <div data-pane class="exit-scr" hidden><span class="seg">4</span><p class="seg-w">ERROR</p><p class="c">Check crashed</p><p class="c">Crash, timeout or integrity.</p></div>
           </div>
           <div class="keys exit-keys">
-            <button class="mk" type="button" data-step data-v="works" aria-pressed="true"><span class="mk-cap"><i></i>0</span><span class="silk">pass</span></button>
-            <button class="mk" type="button" data-step data-v="broken" aria-pressed="false"><span class="mk-cap"><i></i>1</span><span class="silk">fail</span></button>
-            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>2</span><span class="silk">incomplete</span></button>
-            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>3</span><span class="silk">blocked</span></button>
-            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>4</span><span class="silk">error</span></button>
+            <button class="mk" type="button" data-step data-v="works" aria-pressed="true"><span class="mk-cap"><i></i>0</span><span class="silk">Pass</span></button>
+            <button class="mk" type="button" data-step data-v="broken" aria-pressed="false"><span class="mk-cap"><i></i>1</span><span class="silk">Fail</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>2</span><span class="silk">Incomplete</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>3</span><span class="silk">Blocked</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>4</span><span class="silk">Error</span></button>
           </div>
-          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">verdict</span></div>
+          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">Verdict</span></div>
         </div>
         <p class="cap-note">Press a code to light up its row.</p>
       </div>

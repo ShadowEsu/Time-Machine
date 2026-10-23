@@ -152,7 +152,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .skip:focus { top: 10px; }
 .wrap { max-width: var(--max-page); margin: 0 auto; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); }
 .mono, code, kbd, samp { font-family: var(--font-mono); font-variant-ligatures: none; }
-code { font-size: .92em; }
+code { font-size: max(.92em, 13px); }
 em { font-style: italic; }
 ::selection { background: var(--accent-tint); }
 
