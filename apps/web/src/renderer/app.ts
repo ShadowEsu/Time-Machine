@@ -19,6 +19,7 @@ import { entranceDelay, LEAVE_MS, PAGE_IN_MS, rowDelay } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { ToastTimer } from "./toast.js";
 import { confirmButtons, type ConfirmCopy } from "./confirm.js";
+import { dialCandidates, placeLabels, rowCandidates, type Box } from "./label-fit.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -584,9 +585,10 @@ function homeRuler(all: TimelineEntry[]): string {
   const ticks = pts
     .map((c, i) => `<button class="rt-tk ${i > cur ? "after" : ""}" style="left:${x(i)}%" data-act="open" data-id="${esc(c.id)}" title="${esc(`${ptWhen(c)} · ${title(c)} · ${verdictWord(c.verdict)}`)}" aria-label="${esc(`${ptWhen(c)}, ${title(c)}, ${verdictWord(c.verdict)}`)}">${glyph(c.verdict)}</button>`)
     .join("");
-  // Labels for the first, the last working and the newest save point, never two on top of each other.
-  const marks: number[] = [];
-  for (const i of [n - 1, lw ? pts.indexOf(lw) : -1, cur, 0]) if (i >= 0 && marks.every((m) => Math.abs(x(m) - x(i)) > 9)) marks.push(i);
+  // Labels for the selected, the last working, the newest and the first save point, most important first.
+  // fitRulerLabels measures them after the draw and moves or hides the less important one when two touch.
+  const lwi = lw ? pts.indexOf(lw) : -1;
+  const marks = [...new Set([cur, lwi, n - 1, 0])].filter((i) => i >= 0);
   const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
   const labels = marks.map((i) => {
     const c = pts[i];
@@ -1124,13 +1126,19 @@ function dialModule(pts: TimelineEntry[], cur: number, still: boolean, key: stri
   const n = pts.length;
   const checking = checkingId();
   const lw = lastWorking();
-  const named = new Set([0, n - 1, cur, lw ? pts.indexOf(lw) : -1]);
+  const lwi = lw ? pts.indexOf(lw) : -1;
   const dets = pts
     .map((c, i) => {
       const a = dialAngle(i, n);
       const dot = c.id === checking ? '<i class="g v-checking-tick"></i>' : glyph(shownVerdict(c));
-      const label = named.has(i) && (i === cur || Math.abs(i - cur) > Math.max(1, n * 0.08)) ? `<b class="${i === cur ? "on" : ""}" style="transform:rotate(${-a}deg)">${esc(ptClock(c))}</b>` : "";
-      return `<span class="det ${i === cur ? "on" : ""}" style="transform:rotate(${a}deg)"><span class="dg" style="transform:rotate(${-a}deg)">${dot}</span>${label}</span>`;
+      return `<span class="det ${i === cur ? "on" : ""}" style="transform:rotate(${a}deg)"><span class="dg" style="transform:rotate(${-a}deg)">${dot}</span></span>`;
+    })
+    .join("");
+  // Labels for the selected, the last working, the newest and the first one, most important first. fitDialLabels places them.
+  const labels = [...new Set([cur, lwi, n - 1, 0])]
+    .map((i) => {
+      const p = pts[i];
+      return p ? `<b class="dl${i === cur ? " on" : ""}" data-i="${i}">${esc(ptClock(p))}</b>` : "";
     })
     .join("");
   const c = pts[cur];
@@ -1138,7 +1146,7 @@ function dialModule(pts: TimelineEntry[], cur: number, still: boolean, key: stri
   return `<section class="dialmod" aria-label="Choose a save point">
     <div class="silk"><span>Save points</span><span>${esc(String(n))}</span></div>
     <div class="dial ${still ? "still" : ""} ${dialDrag ? "drag" : ""}">
-      <div class="dets" aria-hidden="true">${dets}</div>
+      <div class="dets" aria-hidden="true">${dets}</div><div class="dlabs" aria-hidden="true">${labels}</div>
       <div class="knob" role="slider" tabindex="0" data-carry="knob" style="transform:rotate(${a}deg)" aria-label="Save point. Turn it, or press J and L or the arrow keys." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${ptClock(c)}, ${title(c)}, ${verdictWord(shownVerdict(c))}` : "")}" ${still ? 'aria-disabled="true"' : ""}></div>
     </div>
     <div class="silk hint"><span>Turn, or J and L</span><span>← → to step</span></div>
@@ -1300,7 +1308,7 @@ function storageScreen(): string {
     if (!c.result) return "";
     if (c.result.applied) return `<span class="small muted">Removed ${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}.</span>`;
     if (!c.result.files.length) return '<span class="small muted">Nothing to clean up.</span>';
-    return `<span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-cancel" data-id="${projectId}">Never mind</button><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button>`;
+    return `<span class="clean-ask"><span class="small muted">${esc(plural(c.result.files.length, "old check log"))}, ${esc(bytes(c.result.bytes))}</span><button class="btn" data-act="clean-cancel" data-id="${projectId}">Never mind</button><button class="btn dark" data-act="clean-apply" data-id="${projectId}">Remove them</button></span>`;
   };
   const rows = st.storage
     ? st.storage.map((r) => `<div class="tr"><div><div class="t1">${esc(r.name)}</div><div class="small muted">${esc(bytes(r.bytes))} on ${device()}</div>${st.settings.showGitDetails ? `<div class="mono muted">${esc(r.storeDir)}</div>` : ""}</div><span class="row-btns">${cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span></div>`).join("") || NO_PROJECTS
@@ -1895,6 +1903,8 @@ function render(): void {
   if (page) page.scrollTop = pageScroll;
   placeMounts(mountFocus, scrolled);
   fitSessions();
+  fitRulerLabels();
+  fitDialLabels();
   applyCarry();
   applyFlash();
   applyEntrances(scene);
@@ -1926,6 +1936,80 @@ function fitSessions(): void {
   });
 }
 
+/** A measured box, as a plain object so it can be copied and moved. */
+function rectOf(el: Element): Box {
+  const r = el.getBoundingClientRect();
+  return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+}
+
+/**
+ * Ruler labels never touch. Most important first (the selected one, the last working one, Now, the first),
+ * each stays by its tick, moves by up to half its width, drops Now's time, or hides.
+ */
+function fitRulerLabels(): void {
+  const ruler = document.querySelector<HTMLElement>(".hruler");
+  if (!ruler) return;
+  const labs = [...ruler.querySelectorAll<HTMLElement>(".rlab")];
+  for (const el of labs) {
+    el.style.marginLeft = "";
+    el.classList.remove("rl-c", "rl-hide");
+  }
+  const shown = labs.filter((el) => el.getClientRects().length > 0);
+  const variants = shown.map((el) => {
+    const base = rectOf(el);
+    const full = rowCandidates(base).map((box) => ({ box, dx: box.left - base.left, compact: false }));
+    const time = el.querySelector(".rl-t");
+    if (!time || !time.getClientRects().length) return full;
+    el.classList.add("rl-c");
+    const small = rectOf(el);
+    el.classList.remove("rl-c");
+    return [...full, ...rowCandidates(small).map((box) => ({ box, dx: box.left - small.left, compact: true }))];
+  });
+  const r = rectOf(ruler);
+  const frame = { left: r.left - 16, right: r.right + 16, top: -Infinity, bottom: Infinity };
+  placeLabels(variants.map((v) => v.map((x) => x.box)), frame, [], 8).forEach((k, i) => {
+    const el = shown[i];
+    const v = k === null ? undefined : variants[i]?.[k];
+    if (!el) return;
+    if (!v) return void el.classList.add("rl-hide");
+    el.classList.toggle("rl-c", v.compact);
+    el.style.marginLeft = `${v.dx}px`;
+  });
+}
+
+/** Dial labels stay inside the card, off every dot, the card's own words and each other. A less important one hides first. */
+function fitDialLabels(): void {
+  const dial = document.querySelector<HTMLElement>(".dial");
+  const card = dial?.closest<HTMLElement>(".dialmod");
+  if (!dial || !card) return;
+  const d = rectOf(dial);
+  const center = { x: (d.left + d.right) / 2, y: (d.top + d.bottom) / 2 };
+  // Each dot with 3 px around it, so a selected dot (drawn 1.45 times larger) is covered too.
+  const dots = [...dial.querySelectorAll(".det .dg")].map((el) => {
+    const b = rectOf(el);
+    return { left: b.left - 3, top: b.top - 3, right: b.right + 3, bottom: b.bottom + 3 };
+  });
+  const c = rectOf(card);
+  const frame = { left: c.left + 8, top: c.top + 8, right: c.right - 8, bottom: c.bottom - 8 };
+  const labs = [...dial.querySelectorAll<HTMLElement>(".dl")];
+  const cands = labs.map((el) => {
+    const dot = dots[Number(el.dataset.i)];
+    if (!dot) return [];
+    const half = (dot.right - dot.left) / 2;
+    return dialCandidates({ x: dot.left + half, y: (dot.top + dot.bottom) / 2 }, center, el.offsetWidth, el.offsetHeight, half + 3, frame);
+  });
+  const words = [...card.querySelectorAll(".silk span")].map(rectOf);
+  placeLabels(cands, frame, [...dots, ...words], 6).forEach((k, i) => {
+    const el = labs[i];
+    const b = k === null ? undefined : cands[i]?.[k];
+    if (!el) return;
+    if (!b) return void (el.style.visibility = "hidden");
+    el.style.left = `${b.left - d.left}px`;
+    el.style.top = `${b.top - d.top}px`;
+    el.style.visibility = "visible";
+  });
+}
+
 function applyTheme(): void {
   if (st.settings.theme === "system") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", st.settings.theme);
@@ -1944,7 +2028,9 @@ async function saveNow(): Promise<void> {
     await loadTimeline();
     st.selected = r.checkpoint.id;
     st.busy = null;
-    toast(`Saved at ${when(r.checkpoint.createdAt)}. Not checked yet.`, null);
+    // The same name the journal gives this save point, with seconds when two share a minute.
+    const saved = entry(r.checkpoint.id);
+    toast(`Saved at ${saved ? ptClock(saved) : when(r.checkpoint.createdAt)}. Not checked yet.`, null);
   } catch (e) {
     st.busy = null;
     toast(msg(e));
@@ -3172,13 +3258,22 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   });
   window.addEventListener("keydown", onKey);
   let layoutBand = window.innerWidth < 861 ? 0 : window.innerWidth < 1100 ? 1 : 2;
+  // Labels are measured; measure them again once the mono font is in, since its widths differ from the fallback's.
+  void document.fonts?.ready.then(() => {
+    fitRulerLabels();
+    fitDialLabels();
+  });
   window.addEventListener("resize", () => {
     const band = window.innerWidth < 861 ? 0 : window.innerWidth < 1100 ? 1 : 2;
     if (band !== layoutBand) {
       layoutBand = band;
       if (band !== 0) st.navOpen = false;
       render();
-    } else fitSessions();
+    } else {
+      fitSessions();
+      fitRulerLabels();
+      fitDialLabels();
+    }
   });
   window.addEventListener("tm:connection", (e) => {
     const before = st.connection?.state;

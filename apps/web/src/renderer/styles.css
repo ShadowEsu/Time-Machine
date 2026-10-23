@@ -254,6 +254,11 @@ kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-varia
 .hruler .ph.now::before { border-top-color: var(--clay); }
 .rlab { position: absolute; top: 52px; transform: translateX(-50%); font: 400 12px/1 var(--mono); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rlab.on { color: var(--ink); font-weight: 500; }
+/* Set after measuring, so two labels never touch: Now without its time, or a label that gives way. */
+.rlab.rl-c .rl-t { display: none; }
+.rlab.rl-hide { visibility: hidden; }
+/* The clean-up choice is its own boxed group, apart from the row's Remove from app. */
+.clean-ask { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; margin-right: 6px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-2); }
 
 /* The journal: time in the margin, the verdict glyph on a hairline, then the entry. */
 .journal { padding-bottom: 8px; }
@@ -301,7 +306,8 @@ summary { padding-block: 12px; margin-block: -12px; }
 .fold:active { background: var(--sel); }
 .broke-rule { display: grid; grid-template-columns: 76px 22px minmax(0, 1fr); align-items: center; margin: 4px 0; color: var(--fail-fg); font: 500 12px/1 var(--mono); letter-spacing: .02em; }
 .broke-rule .line { grid-column: 2 / 4; height: 0; border-top: 1px dashed var(--fail-dot); position: relative; }
-.broke-rule .line span { position: absolute; right: 0; top: -7px; padding-left: 8px; background: var(--paper); }
+/* Only the sentence is pinned above the rule; the time spans inside it stay in the line. */
+.broke-rule .line > span { position: absolute; right: 0; top: -7px; padding-left: 8px; background: var(--paper); }
 
 /* The entry detail in the right column */
 .sp-h { font-size: 28px; line-height: 1.12; text-wrap: balance; }
@@ -609,8 +615,10 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .det .g.v-fail { width: 7px; height: 7px; }
 .det.on .g { transform: scale(1.45); }
 .det.on .g.v-fail { transform: rotate(45deg) scale(1.45); }
-.det b { position: absolute; left: -42px; top: -141px; width: 84px; text-align: center; font: 500 12px/1 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.det b.on { color: var(--ink); }
+/* Dial labels are placed after measuring: outside their dot, inside the card, never on another label or dot. */
+.dlabs { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.dl { position: absolute; left: 0; top: 0; visibility: hidden; padding: 1px 4px; border-radius: 4px; background: var(--surface); font: 500 12px/14px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dl.on { color: var(--ink); }
 .knob { position: absolute; left: 28px; top: 28px; width: 180px; height: 180px; border-radius: 50%; outline: none;
   background: repeating-conic-gradient(from 0deg, var(--knob-1) 0 1.5deg, var(--knob-2) 1.5deg 3deg);
   box-shadow: 0 14px 26px -8px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.06);
@@ -858,7 +866,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .meta { gap: 6px; font-size: 12px; }
   .broke-rule { display: block; margin: 8px 0 8px 78px; line-height: 1.5; }
   .broke-rule .line { display: block; height: auto; padding-top: 4px; }
-  .broke-rule .line span { position: static; padding: 0; }
+  .broke-rule .line > span { position: static; padding: 0; }
   .day span { font-size: 12px; }
   .honest { font-size: 12px; line-height: 1.6; }
   .cmp-sides { grid-template-columns: minmax(0, 1fr); }
