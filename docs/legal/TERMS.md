@@ -72,7 +72,7 @@ To the extent the law allows, we are not liable for lost data, lost profits, or 
 
 ## 13. Ending these terms
 
-You can stop using Time Machine at any time. If you break these terms, your license ends and we stop providing updates and support for it. Your local save points stay on your computer either way.
+You can stop using Time Machine at any time. If you break these terms, your license ends and we stop supporting it. Your local save points stay on your computer either way.
 
 ## 14. Changes to these terms
 
