@@ -608,7 +608,8 @@ function homeRuler(all: TimelineEntry[]): string {
 function setupView(p: ProjectEntry, pts: TimelineEntry[]): string {
   if (p.demo || !pts.length) return "";
   const row = st.agents?.find((a) => a.projectId === p.id);
-  const strip = setupStrip({ verdict: pts.some((x) => x.verdict), connected: st.agents ? row?.claudeCode === "connected" : null, hidden: st.settings.setupHidden.includes(p.id) });
+  // Only a check that ran and gave Works or Broken ticks "Check it works"; Couldn't check and the others do not.
+  const strip = setupStrip({ verdict: pts.some((x) => x.verdict === "PASS" || x.verdict === "FAIL"), connected: st.agents ? row?.claudeCode === "connected" : null, hidden: st.settings.setupHidden.includes(p.id) });
   if (!strip) return "";
   const done = '<span class="n" aria-hidden="true">✓</span><span class="sr-only">Done: </span>';
   const num = (n: number): string => `<span class="n" aria-hidden="true">${n}</span>`;
@@ -1009,8 +1010,8 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   if (r.find && !r.find.found && !r.target) {
     const last = r.find.tried.at(-1);
     const why =
-      r.find.stopped ? (r.find.tried.length ? `You stopped the search. None of the ${plural(r.find.tried.length, "save point")} checked before that passed.` : "You stopped the search before any save point was checked.")
-        : r.find.verdict === "FAIL" ? `None of the ${plural(r.find.tried.length, "save point")} passed its check.`
+      r.find.stopped ? (r.find.tried.length === 1 ? "You stopped the search. The one save point checked before that did not pass." : r.find.tried.length ? `You stopped the search. None of the ${plural(r.find.tried.length, "save point")} checked before that passed.` : "You stopped the search before any save point was checked.")
+        : r.find.verdict === "FAIL" ? (r.find.tried.length === 1 ? "The only save point did not pass its check." : `None of the ${plural(r.find.tried.length, "save point")} passed its check.`)
         : r.find.verdict === "BLOCKED" ? `We had to stop. ${last?.reason ?? ""}`
           : `We couldn’t check every save point, so we won’t call any of them working. ${last?.reason ?? ""}`;
     return {
