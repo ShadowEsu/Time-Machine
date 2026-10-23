@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var CONTACT = "preston@unvibe.site";
+  var FOUNDER = "preston@unvibe.site";
   var CODE_RE = /^[a-z0-9]{10}$/;
   var MSG = {
     ok: "Saved as pending and unconfirmed. No email has been sent.",
@@ -18,8 +18,8 @@
     upstream: "We couldn't save that just now. Please try again in a minute.",
     network: "We couldn't reach the server. Check your connection and try again.",
     rateLimited: "The waitlist is busy. Please try again in a minute.",
-    soon: "The waitlist opens soon. It is not saving emails yet. Email " + CONTACT + " and we add you by hand.",
-    down: "Signups may not save right now. If yours fails, email " + CONTACT + " and we add you by hand."
+    soon: "The waitlist opens soon. It is not saving emails yet. Email " + FOUNDER + " and Preston adds you by hand.",
+    down: "Signups may not save right now. If yours fails, email " + FOUNDER + " and Preston adds you by hand."
   };
 
   // The API sits next to the assets folder, so blog pages and the home page hit the same URLs.
@@ -66,12 +66,12 @@
   function say(status, form, state, text) {
     status.textContent = "";
     var line = document.createElement("span");
-    var parts = text.split(CONTACT);
+    var parts = text.split(FOUNDER);
     line.appendChild(document.createTextNode(parts[0]));
     if (parts.length > 1) {
       var link = document.createElement("a");
-      link.href = "mailto:" + CONTACT + "?subject=" + encodeURIComponent("Time Machine waitlist");
-      link.textContent = CONTACT;
+      link.href = "mailto:" + FOUNDER + "?subject=" + encodeURIComponent("Time Machine waitlist");
+      link.textContent = FOUNDER;
       line.appendChild(link);
       line.appendChild(document.createTextNode(parts[1]));
     }
