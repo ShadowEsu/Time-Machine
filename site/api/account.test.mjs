@@ -2,7 +2,8 @@ import { generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLicenseKey } from "../../packages/core/src/license.ts";
 import { GET } from "./account.js";
-import { handleAccount, LIMITS, resetRateLimits } from "./_lib/auth.js";
+import { handleAccount } from "./_lib/auth.js";
+import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 import { handleLicense, purchaseId } from "./_lib/license.js";
 
 // Synthetic values only. A throwaway signing keypair per test file.

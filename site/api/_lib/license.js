@@ -5,6 +5,8 @@
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
 import { isCheckoutConfigured, PKCS8_HEADER, PRICE_CENTS, PRODUCT_TAG, reply, signsReleaseKeys, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
+import { instanceClient, rateLimited } from "./ratelimit.js";
+import { rateLimitReply } from "./waitlist.js";
 
 const SessionIdSchema = z.string().regex(/^cs_[A-Za-z0-9_]{10,200}$/);
 // Only the fields the decision needs. Everything else Stripe sends is dropped here.
@@ -121,7 +123,7 @@ export async function paymentStanding(session, deps, scope) {
 
 /**
  * GET ?session=cs_... returns the license key for a paid Checkout Session.
- * @param {{ method: string, session?: string|null }} req
+ * @param {{ method: string, session?: string|null, ip?: string|null }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string }} deps
  * @returns {Promise<{ status: number, headers: Record<string, string>, body: object }>}
  */
@@ -131,6 +133,7 @@ export async function handleLicense(req, deps) {
   const session = SessionIdSchema.safeParse(req.session);
   if (!session.success) return reply(400, { ok: false, error: "invalid_session" });
   if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(503, { ok: false, error: "checkout_closed" });
+  if (rateLimited("license", instanceClient(req.ip))) return rateLimitReply();
 
   let res;
   try {

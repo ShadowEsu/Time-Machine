@@ -3,10 +3,17 @@
 // the Stripe secret key, never return Stripe's error text, never fake a checkout link.
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { z } from "zod";
-import { isAllowedOrigin } from "./waitlist.js";
+import { instanceClient, rateLimited } from "./ratelimit.js";
+import { isAllowedOrigin, rateLimitReply } from "./waitlist.js";
 
 export const STRIPE_API = "https://api.stripe.com/v1";
 export const UPSTREAM_TIMEOUT_MS = 8000;
+// Every Stripe call names its API version, so a Dashboard upgrade never changes the fields read here
+// (payment_intent.latest_charge and the dispute list included).
+export const STRIPE_VERSION = "2024-06-20";
+// An unpaid Checkout Session closes after this long, the shortest Stripe allows (30 minutes), plus a
+// minute so clock drift between here and Stripe never asks for less than that.
+export const SESSION_LIFETIME_S = 31 * 60;
 export const PRICE_CENTS = 5000;
 export const PRODUCT_NAME = "Time Machine web app (one-time)";
 // Every session this site creates carries this tag, and only tagged sessions become keys.
@@ -50,7 +57,7 @@ export function isCheckoutConfigured(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
 }
 
 export function stripeHeaders(env) {
-  return { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" };
+  return { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": STRIPE_VERSION };
 }
 
 // Where Stripe sends the buyer afterwards: SITE_ORIGIN, or the host this request came to over https.
@@ -81,8 +88,8 @@ const SessionSchema = z.object({
 
 /**
  * POST starts a Checkout Session and returns its link.
- * @param {{ method: string, origin?: string|null, host?: string|null }} req
- * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string }} deps
+ * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null }} req
+ * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string, now?: () => number }} deps
  * @returns {Promise<{ status: number, headers: Record<string, string>, body: object }>}
  */
 export async function handleCheckout(req, deps) {
@@ -92,6 +99,7 @@ export async function handleCheckout(req, deps) {
   if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(503, { ok: false, error: "checkout_closed" });
   const site = siteOrigin(deps.env, req.host);
   if (!site) return reply(400, { ok: false, error: "bad_request" });
+  if (rateLimited("checkout", instanceClient(req.ip))) return rateLimitReply();
 
   const form = new URLSearchParams();
   form.set("mode", "payment");
@@ -108,6 +116,7 @@ export async function handleCheckout(req, deps) {
   form.set("allow_promotion_codes", "true");
   form.set("metadata[product]", PRODUCT_TAG);
   form.set("payment_intent_data[metadata][product]", PRODUCT_TAG);
+  form.set("expires_at", String(Math.floor((deps.now ?? Date.now)() / 1000) + SESSION_LIFETIME_S));
 
   let res;
   try {

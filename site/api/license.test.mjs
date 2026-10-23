@@ -1,9 +1,10 @@
 import { generateKeyPairSync } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LICENSE_PUBLIC_KEY, parseLicenseKey, signLicense as coreSign } from "../../packages/core/src/license.ts";
 import { GET } from "./license.js";
 import { LIVE_APPROVAL, publicKeyOf, SELLER_PUBLIC_KEY } from "./_lib/checkout.js";
 import { handleLicense, issuedDate, purchaseId, signLicense } from "./_lib/license.js";
+import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
 // A throwaway keypair per test file. Synthetic values only.
 function keys() {
@@ -36,6 +37,9 @@ function setup({ env = ENV, response = paid, disputes = disputeList() } = {}) {
   return { fetch, log, deps: { env, fetch, log } };
 }
 const request = (session = SESSION, method = "GET") => ({ method, session });
+
+beforeEach(() => resetRateLimits());
+afterEach(() => vi.useRealTimers());
 
 describe("license signer", () => {
   it("signs byte for byte what core signs, and core verifies it", () => {
@@ -168,6 +172,21 @@ describe("license handler", () => {
     const down = setup({ response: () => { throw new TypeError("fetch failed"); } });
     expect((await handleLicense(request(), down.deps)).status).toBe(502);
     expect(down.log).toHaveBeenCalledWith("license: stripe request failed (TypeError)");
+  });
+
+  it("limits each client to 30 lookups per 10 minutes, answering 429 without asking Stripe (Security L2)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 9, 23, 17, 0, 0));
+    const { fetch, deps } = setup();
+    const from = (ip) => ({ ...request(), ip });
+    for (let i = 0; i < LIMITS.license; i += 1) expect((await handleLicense(from("203.0.113.7"), deps)).status).toBe(200);
+    expect(LIMITS.license).toBe(30);
+    const asked = fetch.mock.calls.length;
+    expect(await handleLicense(from("203.0.113.7"), deps)).toEqual({ status: 429, headers: { "Retry-After": "60" }, body: { ok: false, error: "rate_limited" } });
+    expect(fetch).toHaveBeenCalledTimes(asked);
+    expect((await handleLicense(from("203.0.113.8"), deps)).status).toBe(200);
+    vi.setSystemTime(Date.UTC(2026, 9, 23, 17, 10, 0));
+    expect((await handleLicense(from("203.0.113.7"), deps)).status).toBe(200);
   });
 
   it("serves the Web Request signature with no-store", async () => {

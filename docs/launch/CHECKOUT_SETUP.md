@@ -90,5 +90,6 @@ A sign-in only ever shows keys for the email that paid. Codes expire after the t
 - It never returns Stripe's error text or any secret to the browser. Those go to the Vercel function log only.
 - It never signs a key for a session that is not `paid` in `payment` mode, not tagged `tm-web`, or below the $50 price, and never signs a release key for a test-mode session.
 - It never shows a key for a payment that is fully refunded, or that has a dispute or inquiry open or lost. The thanks page and sign-in read that state from Stripe on every request, so a partial refund, a won dispute or a closed inquiry shows the key again, and a status Stripe adds later shows no key until the rule is updated. A key already saved on a computer keeps working: keys are checked offline and cannot be taken back.
+- It never lets one client keep asking Stripe: per IP, `/api/checkout` allows 10 sessions and `/api/license` 30 lookups per 10 minutes, then answers `429 rate_limited` without calling Stripe. Counts live in each function instance only. An unpaid checkout page closes after 31 minutes.
 
 To test it on the preview deployment: refund a test purchase in full in the Stripe Dashboard, reload its `/thanks` page, and check that it says the purchase was refunded and shows no key.
