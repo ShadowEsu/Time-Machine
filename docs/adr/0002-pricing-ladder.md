@@ -2,7 +2,7 @@
 
 Status: superseded by ADR 0013 (one-time price for the web app). Kept for the record.
 
-Date: 14 October 2026. Status: accepted by the founder. Planned, not built.
+Date: 14 October 2026. Was accepted; superseded on 22 October 2026 by ADR 0013. Never built.
 
 ## Decision
 

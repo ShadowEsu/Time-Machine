@@ -30,7 +30,7 @@ body.home section[id], body.home h2[id] { scroll-margin-top: 0; }
 /* The shared header lines up with home's wider 1200 px content column. */
 body.home .top .wrap { max-width: none; padding-left: var(--inline); padding-right: var(--inline); }
 
-/* Hero: the claim, the reason and one action on the left; the real Mac app, whole, beside it.
+/* Hero: the claim, the reason and one action on the left; a real capture of the web app, whole, beside it.
    Phones get one card from the app at full size instead of a shrunken window. */
 .stage { position: relative; isolation: isolate; padding: clamp(28px, 4vw, 56px) var(--inline) calc(var(--section-y) * .5); overflow: hidden; background: var(--paper); }
 .stage::before { content: ""; position: absolute; z-index: -1; inset: 0 0 auto; height: 900px; pointer-events: none;
@@ -49,8 +49,7 @@ body.home .btn-primary, .hero-form .wl-row .btn-primary { min-height: 44px; padd
 /* The one quiet second action, with what it needs right next to it. */
 .hero-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin: 8px 0 0; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.5; }
 .hero-alt a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 500; text-underline-offset: 4px; }
-/* The app window: a still of the real Mac app with its own traffic-light gap, so the lights are drawn
-   where macOS puts them (18 pt in, 12 pt wide, 8 pt apart) on the 1120 pt window the still was taken at. */
+/* The app window: a still of the real web app (tm ui), no window chrome. */
 .hero-shot { grid-area: shot; align-self: start; position: relative; width: 100%; margin: 32px 0 0; container-type: inline-size; overflow: hidden; border-radius: 12px; background: #141413; box-shadow: var(--shadow-window); }
 .hero-shot img { width: 100%; height: auto; }
 @media (min-width: 960px) {

@@ -12,7 +12,7 @@
 <meta property="og:site_name" content="Time Machine">
 <meta property="og:url" content="https://time-machine-site.vercel.app/">
 <meta property="og:title" content="Time Machine: get back the version that passed your tests">
-<meta property="og:description" content="Saves your project before Claude Code acts, checks each save point with your own tests, and brings back the newest one that passes. Early access.">
+<meta property="og:description" content="Saves your project before Claude Code acts, checks each save point with your own tests, and brings back the newest one that passes. Early: install from source.">
 <meta property="og:image" content="https://time-machine-site.vercel.app/assets/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -58,7 +58,7 @@
           </div>
           <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
           <p class="wl-status" id="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
-          <p class="wl-privacy">Joining means we write to you when the CLI is on npm, nothing else. We store your email, the page and time you joined, and referral codes, never your IP address. <a href="privacy.html">Privacy (draft)</a></p>
+          <p class="wl-privacy">Joining means we write to you when the CLI is on npm, nothing else. We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. <a href="privacy.html">Privacy (draft)</a></p>
         </form>
         <ul class="hero-facts">
           <li>Save points stay on your computer.</li>
@@ -92,7 +92,7 @@
           <div class="story-text">
             <p class="story-n">2</p>
             <h3>See which versions work and which broke</h3>
-            <p>Every change gets a save point, a copy of your project made before each request to the AI and before risky commands. The history shows plainly which ones work and which are broken, and the last one that worked.</p>
+            <p>Every agent turn gets a save point, a copy of your project made before each request to the AI and before risky commands. The history shows plainly which ones work and which are broken, and the last one that worked.</p>
             <dl class="verdicts">
               <div><dt><span class="pill pill-works">Works</span></dt><dd>Your own tests ran on it in a separate copy and passed.</dd></div>
               <div><dt><span class="pill pill-broken">Broken</span></dt><dd>Your tests ran on it and failed.</dd></div>
@@ -303,7 +303,7 @@ tm demo</pre>
         <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
       </div>
       <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
-      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. Timed by hand in two runs on a Mac with a fresh home folder on 20 October, clone to finished demo took <span class="num">24 and 45 seconds</span>. Most of that is downloading and building.</p>
+      <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. Most of the first run is downloading and building.</p>
     </div>
     <div class="term-block install install-ui" data-copy-box>
       <p class="install-h">Then the web app</p>
@@ -402,7 +402,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
         <div><dt>Web app</dt><dd><code translate="no">tm ui</code>. Works from source. Free for up to 3 projects at a time; $50 once for more.</dd></div>
         <div><dt>Price</dt><dd>$50 once. Checkout is not open yet.</dd></div>
-        <div><dt>Tests</dt><dd><span class="num">384</span> automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
+        <div><dt>Tests</dt><dd><span class="num">404</span> automated tests in CI, macOS and Linux. <a href="https://github.com/ShadowEsu/Time-Machine/actions/workflows/ci.yml" rel="noopener">Runs</a></dd></div>
         <div><dt>License</dt><dd>MIT. <a href="https://github.com/ShadowEsu/Time-Machine" rel="noopener">Source on GitHub</a></dd></div>
       </dl>
     </div>

@@ -242,7 +242,7 @@ Saved first cp-0007
       <article class="card path rv" id="builders">
         <span class="tag tag-now">Built. Open with <code>tm ui</code></span>
         <h3>For builders</h3>
-        <p class="txt">You build with Claude Code, Cursor or another agent, and you would rather not live in a terminal. The web app puts the same loop behind plain buttons. It runs on your computer, in your browser. Nothing is hosted.</p>
+        <p class="txt">You build with Claude Code (automatic saves) or another agent (save by hand), and you would rather not live in a terminal. The web app puts the same loop behind plain buttons. It runs on your computer, in your browser. Nothing is hosted.</p>
         <ul>
           <li>A history of save points, each marked Works, Broken or Not checked yet.</li>
           <li>Save point detail, with what was saved and what was not.</li>
@@ -260,7 +260,7 @@ Saved first cp-0007
       <article class="card path rv" id="developers" style="--d:1">
         <span class="tag tag-now">Built</span>
         <h3>For developers</h3>
-        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every command takes <code>--json</code>, and the JSON and the human output come from the same result.</p>
+        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every engine command takes <code>--json</code>, and the JSON and the human output come from the same result.</p>
         <h4>See the whole rescue in a minute</h4>
         <pre class="term"><span class="p">$ </span>tm demo</pre>
         <p class="txt">Builds a small synthetic app, Marigold Tips, breaks it the way an agent might, then finds and recovers the last working version with the real engine.</p>
@@ -298,10 +298,11 @@ tm demo</pre>
   <div class="wrap">
     <div class="sec-h">
       <div class="rv"><h2 class="hx2" id="cmd-h">Every command.</h2></div>
-      <p class="sub rv" style="--d:1">Twelve commands, all built and tested. <code>-h</code>, <code>--help</code> and <code>--version</code> work everywhere.</p>
+      <p class="sub rv" style="--d:1">Fifteen commands, all built and tested. <code>-h</code>, <code>--help</code> and <code>--version</code> work everywhere.</p>
     </div>
     <dl class="cmds rv">
       <div><dt>tm init</dt><dd>Writes <code>timemachine.yml</code> with a guessed check, like <code>npm test</code>. Keeps an existing file.</dd></div>
+      <div><dt>tm status</dt><dd>Says whether this project is set up and its check approved on this computer.</dd></div>
       <div><dt>tm checkpoint</dt><dd>Saves a save point. <code>-m</code> adds a note. <code>--if-changed</code> skips it when nothing changed.</dd></div>
       <div><dt>tm timeline</dt><dd>Lists save points, newest first, with their verdicts.</dd></div>
       <div><dt>tm diff a b</dt><dd>Compares code, files, config keys, dependencies and environment.</dd></div>
@@ -313,6 +314,8 @@ tm demo</pre>
       <div><dt>tm demo</dt><dd>Builds the Marigold Tips demo and runs the rescue.</dd></div>
       <div><dt>tm hook install</dt><dd>Adds the Claude Code hooks to <code>.claude/settings.json</code>. Your other settings stay.</dd></div>
       <div><dt>tm mcp</dt><dd>Runs the MCP server over stdio.</dd></div>
+      <div><dt>tm ui</dt><dd>Opens the web app in your browser, served from your own computer.</dd></div>
+      <div><dt>tm license [key]</dt><dd>Shows, saves or forgets the web app license on this computer. The CLI itself never needs one.</dd></div>
     </dl>
   </div>
 </section>

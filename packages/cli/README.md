@@ -4,18 +4,11 @@ Save points for your projects before AI agents act, checked with your own tests.
 
 When an AI agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check, rebuilds it in a separate copy, and prepares a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
-**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. The Mac app remains available from source. Website: https://time-machine-site.vercel.app
+**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. Website: https://time-machine-site.vercel.app
 
 ## Install
 
-Not on npm yet. Build from source (below). Needs Node 22 or newer and Git.
-
-Once it is published:
-
-```sh
-npx timetm demo        # builds a small broken project and rescues it, in about a minute
-npm install -g timetm  # then use the `tm` command
-```
+Not on npm yet. Build from source (below). Needs Node 22 or newer and Git. The npm commands will be listed here once the package is published.
 
 
 ## Local browser app

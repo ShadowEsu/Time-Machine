@@ -32,7 +32,7 @@ Your code and files stay on your computer. We do not upload them. You own your p
 - Checks you set up run commands on your computer. You are responsible for what those commands do.
 - Review a recovery branch before you switch to it or ship it.
 - Only use Time Machine on projects you have the right to copy and run.
-- Keep your account login safe.
+- Keep your license key private. It is the only proof of your purchase.
 
 ## 6. The web app license
 
@@ -76,7 +76,7 @@ You can stop using Time Machine at any time. We can suspend or end your account 
 
 ## 14. Changes to these terms
 
-If we make a material change, we will email you and show a notice in the app at least 30 days before it takes effect. If you do not agree, you can cancel before then.
+If we make a material change, we will post it here at least 30 days before it takes effect. If you do not agree, you can stop using Time Machine before then.
 
 ## 15. Law and disputes
 
