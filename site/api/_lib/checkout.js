@@ -34,15 +34,18 @@ export function signsReleaseKeys(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
 }
 
 // The signing key decodes to 32 raw Ed25519 bytes, and either live mode is approved, or the Stripe key is
-// a test key and the signing key is NOT the release key (test mode signs with a throwaway keypair, so a
-// test card never buys a key real releases accept). Checkout stays closed otherwise: nobody can pay for a
-// key the site cannot sign, and a live key set by mistake takes no money. Used by checkout, license,
-// account and /api/health. `sellerPublicKey` is injectable so tests can stand in for the release key.
+// a test key on a deployment that is not Production and the signing key is NOT the release key (test mode
+// signs with a throwaway keypair, so a test card never buys a key real releases accept, and the live site
+// never takes a test card for a key that release builds reject). Checkout stays closed otherwise: nobody
+// can pay for a key the site cannot sign, and a live key set by mistake takes no money. Used by checkout,
+// license, account and /api/health. `sellerPublicKey` is injectable so tests can stand in for the release key.
 export function isCheckoutConfigured(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
   if (!env || !env.STRIPE_SECRET_KEY || !env.TM_LICENSE_PRIVATE_KEY) return false;
   if (!/^[A-Za-z0-9_-]{43}$/.test(env.TM_LICENSE_PRIVATE_KEY)) return false;
   if (Buffer.from(env.TM_LICENSE_PRIVATE_KEY, "base64url").length !== 32) return false;
   if (env.STRIPE_LIVE_OK === LIVE_APPROVAL) return true;
+  // Vercel sets VERCEL_ENV to "production" on the live deployment; previews and local runs keep test mode.
+  if (env.VERCEL_ENV === "production") return false;
   return /^(sk|rk)_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY) && !signsReleaseKeys(env, sellerPublicKey);
 }
 

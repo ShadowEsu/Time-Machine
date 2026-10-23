@@ -104,6 +104,13 @@ describe("license handler", () => {
     expect(live.fetch).not.toHaveBeenCalled();
   });
 
+  it("never asks Stripe with a test key on the Production deployment", async () => {
+    const prod = setup({ env: { ...ENV, VERCEL_ENV: "production" } });
+    expect(await handleLicense(request(), prod.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(prod.fetch).not.toHaveBeenCalled();
+    expect((await handleLicense(request(), setup({ env: { ...ENV, VERCEL_ENV: "preview" } }).deps)).status).toBe(200);
+  });
+
   it("never signs a release key for a test-mode purchase", async () => {
     expect(SELLER_PUBLIC_KEY).toBe(LICENSE_PUBLIC_KEY);
     expect(publicKeyOf(K.priv)).toBe(K.pub);

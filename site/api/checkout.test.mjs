@@ -91,6 +91,17 @@ describe("checkout handler", () => {
     expect(isCheckoutConfigured({ ...ENV, STRIPE_LIVE_OK: LIVE_APPROVAL }, releasePub)).toBe(true);
   });
 
+  it("stays closed with a test key on the Production deployment, so the live site never takes a test card", async () => {
+    const prod = { ...ENV, VERCEL_ENV: "production" };
+    const { fetch, deps } = setup({ env: prod });
+    expect(isCheckoutConfigured(prod)).toBe(false);
+    expect(await handleCheckout(request(), deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(isCheckoutConfigured({ ...ENV, VERCEL_ENV: "preview" })).toBe(true);
+    expect(isCheckoutConfigured({ ...ENV, VERCEL_ENV: "development" })).toBe(true);
+    expect(isCheckoutConfigured({ ...prod, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789", STRIPE_LIVE_OK: LIVE_APPROVAL })).toBe(true);
+  });
+
   it("refuses other methods and other origins before calling Stripe", async () => {
     const { fetch, deps } = setup();
     expect((await handleCheckout(request({ method: "GET" }), deps)).status).toBe(405);
