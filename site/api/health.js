@@ -1,4 +1,4 @@
-// GET /api/health. Says whether the waitlist is set up and whether its database answers. Never returns secret values.
+// GET /api/health. Says whether the waitlist is set up, whether its database answers, and whether checkout and sign-in are set up. Never returns secret values.
 // email is always false: the site sends no email. How email is handled later is not decided.
 // Normal page loads share a 30-second Vercel CDN answer instead of each probing the database.
 import { checkHealth } from "./_lib/health.js";

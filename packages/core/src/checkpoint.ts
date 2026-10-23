@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { audit } from "./audit.js";
-import { loadConfig, LOCKFILES, type ProjectConfig } from "./config.js";
+import { loadConfig, LOCKFILES, VERSION_PINS, type ProjectConfig } from "./config.js";
 import { git, gitTry, safeRemote, short, splitZ } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import { runSync } from "./exec.js";
@@ -105,8 +105,15 @@ function untrackedCandidates(p: Project, cfg: ProjectConfig, head: string | null
   const included = cfg.capture.include.length
     ? splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...cfg.capture.include]))
     : [];
+  // Lockfiles and version pins come back even when .gitignore skips them, so a recovery rebuilds the
+  // same dependencies and runtime, not just the same code. Other environment files (Dockerfile,
+  // compose, devcontainer) can hold secrets in forms the secret scan misses (ENV, ARG, JSON), so
+  // when ignored they keep only their digest. Only exact pin names are used: environment.files
+  // entries are git pathspecs, and a glob there must never pull in other ignored files.
+  const pins = cfg.environment.files.filter((f) => VERSION_PINS.includes(f));
+  const environment = splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...LOCKFILES, ...pins]));
   const configFiles = new Set(cfg.config.files);
-  return [...new Set([...staged, ...others, ...included])].filter((f) => !configFiles.has(f)).sort();
+  return [...new Set([...staged, ...others, ...included, ...environment])].filter((f) => !configFiles.has(f)).sort();
 }
 
 function runtimeVersions(p: Project): Record<string, string> {
@@ -270,7 +277,20 @@ function finishCheckpoint(
     if (plain.length) restorable.push(`Config values: ${plain.map((k) => k.name).join(", ")}`);
     if (secret.length) manual.push(`Secret values in ${c.file}: ${secret.map((k) => k.name).join(", ")}`);
   }
-  if (environment.lockfiles.length) captured.push(`Dependencies: ${environment.lockfiles.map((l) => l.path).join(", ")}`);
+  // A digest alone is only a record. The file comes back when the snapshot commit holds it or it was saved as a file.
+  const tracked = new Set(splitZ(git(p.root, p.env, ["ls-files", "-z"])));
+  const saved = new Set(files.map((f) => f.path));
+  const comesBack = (d: { path: string }): boolean => (tracked.has(d.path) && !cfg.config.files.includes(d.path)) || saved.has(d.path);
+  if (environment.lockfiles.length) {
+    captured.push(`Dependencies: ${environment.lockfiles.map((l) => l.path).join(", ")}`);
+    const back = environment.lockfiles.filter(comesBack);
+    if (back.length) restorable.push(`Dependencies: ${back.map((l) => l.path).join(", ")}`);
+  }
+  if (environment.definitions.length) {
+    captured.push(`Environment definition: ${environment.definitions.map((d) => d.path).join(", ")}`);
+    const back = environment.definitions.filter(comesBack);
+    if (back.length) restorable.push(`Environment definition: ${back.map((d) => d.path).join(", ")}`);
+  }
   captured.push(`Environment: ${Object.entries(environment.runtimes).map(([k, v]) => `${k} ${v}`).join(", ")}`);
   // Folders like node_modules or build output that Git skips. They are not saved unless capture.include names them.
   const skip = new Set([...cfg.config.files, ...files.map((f) => f.path)]);

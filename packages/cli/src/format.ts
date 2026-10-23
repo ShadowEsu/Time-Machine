@@ -1,6 +1,6 @@
 // Human output. Every line is built from the same result object the --json flag prints,
 // so the two can never disagree.
-import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, LogResult, OpenResult, RecoverResult, StatusResult, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
+import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, LicenseStatus, LogResult, OpenResult, RecoverResult, StatusResult, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -54,6 +54,12 @@ export function fmtStatus(r: StatusResult): string {
   if (r.check === null) return "Set up, but there is no check yet. Set verify.command in timemachine.yml, then run tm init to approve it.";
   if (!r.approved) return ["Set up, but the check is not approved on this computer.", `  Check     ${r.check}`, "When the check is right, run tm init to approve it."].join("\n");
   return ["Set up. The check is approved on this computer.", `  Check     ${r.check}`].join("\n");
+}
+
+export function fmtLicense(r: LicenseStatus): string {
+  if (r.active) return `Licensed, purchase ${r.id}, issued ${r.issued}.`;
+  if (r.problem !== null) return `License problem: ${r.problem}`;
+  return `No license on this computer. The web app lists up to ${r.freeProjectLimit} projects at a time without one. A license, $50 once at https://time-machine-site.vercel.app/#pricing, lifts that limit: run tm license <key>. The tm command line tool stays free and open source.`;
 }
 
 export function fmtCheckpoint(r: CheckpointResult): string {

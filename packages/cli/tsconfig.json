@@ -1,12 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "../..", "outDir": "dist/types", "lib": ["ES2024", "DOM", "DOM.Iterable"] },
-  "include": [
-    "src", "../../apps/desktop/src/shared",
-    "../../apps/desktop/src/main/ask.ts", "../../apps/desktop/src/main/credentials.ts",
-    "../../apps/desktop/src/main/engine.ts", "../../apps/desktop/src/main/rules.ts",
-    "../../apps/desktop/src/main/state.ts", "../../apps/desktop/src/main/vercel.ts",
-    "../../apps/desktop/src/main/watch.ts"
-  ],
+  "include": ["src", "../../apps/web/src/shared", "../../apps/web/src/server"],
   "references": [{ "path": "../core" }]
 }

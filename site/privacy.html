@@ -25,14 +25,15 @@
 <aside class="draftbar" aria-label="Draft notice">DRAFT. Not in effect.</aside>
 <header class="top" id="top">
   <div class="wrap top-in">
-    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <a class="brand" href="index.html" translate="no"><img src="assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
     <nav class="nav" aria-label="Main">
       <a href="how-it-works.html">How it works</a>
       <a href="security.html">Security</a>
+      <a href="story.html">The story</a>
       <a href="company.html">Company</a>
-      <a href="blog/index.html">Blog</a>
     </nav>
-    <a class="btn btn-primary btn-sm top-cta" href="index.html#waitlist">Join the waitlist</a>
+    <a class="top-signin" href="account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="index.html#waitlist">Join the waitlist</a>
   </div>
 </header>
 <main id="main">
@@ -46,25 +47,28 @@
     <p>Short version: your code never leaves your computer. We collect as little as we can, we never sell it, and secret values from config files like <code>.env</code> are never stored anywhere, even on your own machine. Only their key names and a fingerprint are kept.</p>
 
     <h2>1. What stays on your computer</h2>
-    <p>The <code>tm</code> tool and the Mac app keep everything locally: save points, Git bundles, file copies, check logs, the audit log, and the names of settings you choose. We cannot see any of it. For settings, Time Machine stores only key names and a keyed fingerprint, never the values.</p>
+    <p>The <code>tm</code> tool and the web app keep everything locally: save points, Git bundles, file copies, check logs, the audit log, and the names of settings you choose. We cannot see any of it. For settings, Time Machine stores only key names and a keyed fingerprint, never the values. Two optional web app features talk to other services, and only after you turn them on: Ask sends a short summary of your history to Google's Gemini API with your own key, and Vercel links read your deployments with your own token.</p>
 
     <h2>2. What we collect</h2>
     <div class="tablewrap" tabindex="0" role="region" aria-label="What we collect">
       <table>
         <thead><tr><th scope="col">What</th><th scope="col">When</th><th scope="col">Why</th></tr></thead>
         <tbody>
-          <tr><td>Email address</td><td>You join the waitlist or create an account</td><td>To reach you about your account, and product news if you opt in</td></tr>
+          <tr><td>Email address</td><td>You join the waitlist</td><td>To write to you when the CLI is on npm</td></tr>
+          <tr><td>Purchase record</td><td>You buy the web app key through Stripe</td><td>To issue your key and handle a refund</td></tr>
           <tr><td>Website visits</td><td>You visit the site</td><td>Cookieless, aggregate page counts. No ad tracking</td></tr>
-          <tr><td>Usage events</td><td>Only if you turn on telemetry</td><td>To improve the product</td></tr>
           <tr><td>Support messages</td><td>You contact us</td><td>To help you</td></tr>
         </tbody>
       </table>
     </div>
-    <p><strong>Telemetry is off by default.</strong> If you turn it on, it sends event names, durations, verdict codes, app version and OS version. It never sends code, file names, paths, commit messages, branch names, setting names or values, or anything from your check output. You can turn it off at any time.</p>
+    <p><strong>No telemetry.</strong> The <code>tm</code> tool and the web app send no usage events.</p>
 
     <h2>Waitlist <span class="tag tag-plan draft-tag">Draft</span></h2>
     <p><strong>Draft, pending lawyer review.</strong> When you join the waitlist, we store your email address, that you agreed to join, the page you signed up from, the time, your own referral code, and the referral code that brought you, if any. Your signup is saved as pending and unconfirmed. The site does not send you any email. Pending signups do not count toward anyone's place in line. How confirmation and any future waitlist email will work is not decided yet, and we will update this page before it changes. We also count page visits, link shares and link copies. Each count stores only the kind of event, the page, whether the visit came through a referral link, and the time. Counts hold no email and no referral code. We do not store your IP address or user agent, and none of this uses cookies. Everything is stored in Supabase, written by a function hosted on Vercel. To have your entry deleted, email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a>.</p>
     <p>To limit requests, we store a one-way code derived from your IP address, not the IP itself. Codes older than one hour are removed in batches during later requests.</p>
+
+    <h2>Purchases <span class="tag tag-plan draft-tag">Draft</span></h2>
+    <p><strong>Draft, pending lawyer review. Checkout is not open yet.</strong> A purchase of the web app key goes through Stripe. This site never sees your card details. Stripe tells us that a checkout session was paid, and we issue a license key that holds an opaque purchase id, the plan and the issue date. The key holds no name and no email. The key is shown on the page Stripe sends you back to. To see it again, you sign in at <a href="account.html">/account</a> with a one-time code sent to the email you gave at checkout. That is the only email the site sends, and only when you ask for it. The sign-in token lives in your browser for that tab only. Stripe keeps its own record of the payment under <a href="https://stripe.com/privacy" rel="noopener">its privacy policy</a>.</p>
 
     <h2>3. What we never do</h2>
     <ul>
@@ -75,10 +79,10 @@
     </ul>
 
     <h2>4. Who we share with</h2>
-    <p>Only service providers that help us run Time Machine, under contract: payment (Stripe), email delivery, and website hosting. We may share information if the law requires it.</p>
+    <p>Only service providers that help us run Time Machine: Vercel, which hosts this site and its two functions, and Supabase, which holds the waitlist database. We will add any other provider here before we use it. We may share information if the law requires it.</p>
 
     <h2>5. How long we keep it</h2>
-    <p>Account data: while your account is open, then deleted within 90 days. Telemetry: 13 months at most. Waitlist emails: until you ask us to remove them or we launch and you do not sign up within 6 months.</p>
+    <p>Purchase records: for as long as tax and accounting law requires. Waitlist emails: until you ask us to delete yours, and we delete the whole list 6 months after launch.</p>
     <p>Anonymous website event counts older than 90 days are removed in batches when new counts arrive. If the site is inactive, older counts remain until it receives new visits.</p>
 
     <h2>6. Your rights</h2>
@@ -94,7 +98,7 @@
     <p>Our providers may process data in the United States and other countries, with legal safeguards for international transfers.</p>
 
     <h2>10. Changes</h2>
-    <p>We will email you and post a notice at least 30 days before any material change.</p>
+    <p>We will post changes here at least 30 days before they take effect.</p>
 
     <h2>11. Contact</h2>
     <p><span class="ph">[Operator]</span>, <a href="mailto:preston@unvibe.site">preston@unvibe.site</a></p>
@@ -112,6 +116,7 @@
         <a href="changelog.html">Changelog</a>
         <a href="terms.html">Terms (draft)</a>
         <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html" data-checkout-open hidden>Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>
@@ -119,5 +124,6 @@
     <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
   </div>
 </footer>
+<script src="assets/checkout.js" defer></script>
 </body>
 </html>

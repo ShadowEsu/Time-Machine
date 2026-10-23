@@ -1,3 +1,5 @@
+> Note (22 October 2026): the Mac app described here was retired in favour of the web app, `tm ui` (ADR 0012). Screens, copy and principles still apply; menu bar, overlays, global hotkey and signing do not.
+
 # Time Machine for Mac: App Design Spec (R3)
 
 Date: 14 October 2026. Design and research only. Nothing here is built.

@@ -30,14 +30,15 @@
 
 <header class="top" id="top">
   <div class="wrap top-in">
-    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <a class="brand" href="../index.html" translate="no"><img src="../assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
     <nav class="nav" aria-label="Main">
       <a href="../how-it-works.html">How it works</a>
       <a href="../security.html">Security</a>
+      <a href="../story.html">The story</a>
       <a href="../company.html">Company</a>
-      <a href="../blog/index.html" aria-current="page">Blog</a>
     </nav>
-    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+    <a class="top-signin" href="../account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="#waitlist">Join the waitlist</a>
   </div>
   <div class="top-progress" aria-hidden="true"><i></i></div>
 </header>
@@ -85,7 +86,7 @@
 <p>If the check passed before and fails now, the hook tells Claude which save point last worked. The agent hears it in the same session, while the context is still fresh.</p>
 <p>A save point holds your code, including uncommitted changes, files not in Git yet, config key names, and dependency and environment fingerprints. It lives in <code>~/.timemachine</code> with a Git bundle, so an <code>rm -rf</code> on the project does not take the save points with it.</p>
 <p>When something breaks, <code>tm find-good</code> rebuilds save points in a separate Git worktree, newest first, and runs your check on each one until one passes:</p>
-<pre class="term"><span class="p">$ </span>tm find-good
+<pre class="term" tabindex="0" role="region" aria-label="Real tm find-good output"><span class="p">$ </span>tm find-good
   cp-0006   <span class="no">FAIL</span>       The check failed with exit code 1.
   cp-0005   <span class="no">FAIL</span>       The check failed with exit code 1.
   cp-0004   <span class="no">FAIL</span>       The check failed with exit code 1.
@@ -118,7 +119,6 @@
 <section class="sec" aria-labelledby="join-h">
   <div class="wrap join-g">
     <div class="rv">
-      <p class="k">Waitlist</p>
       <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
       <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
     </div>
@@ -151,6 +151,7 @@
         <a href="../changelog.html">Changelog</a>
         <a href="../terms.html">Terms (draft)</a>
         <a href="../privacy.html">Privacy (draft)</a>
+        <a href="../account.html" data-checkout-open hidden>Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>
@@ -161,6 +162,7 @@
 
 <script src="../assets/motion.js" defer></script>
 <script src="../assets/pages.js" defer></script>
+<script src="../assets/checkout.js" defer></script>
 <script src="../assets/waitlist.js" defer></script>
 </body>
 </html>

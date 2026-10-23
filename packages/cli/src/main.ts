@@ -2,7 +2,7 @@ import { parseArgs, type ParseArgsConfig } from "node:util";
 import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLog, fmtOpen, fmtRecover, fmtStatus, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtFindGood, fmtHookInstall, fmtInit, fmtLicense, fmtLog, fmtOpen, fmtRecover, fmtStatus, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
 import { runUi } from "./ui/server.js";
@@ -44,7 +44,8 @@ function hookCommand(io: Io): { command: string; absolute: boolean } {
   return { command: `${tm.shellQuote(process.execPath)} ${tm.shellQuote(script)}`, absolute: true };
 }
 
-const HELP = `tm: save points for your project, checked with your own tests.
+// The first line is what the Claude Code plugin's tm-hook checks before it runs this tm (TM_HELP_MARKER).
+const HELP = `${tm.TM_HELP_MARKER}
 
 Usage: tm <command> [options]
 
@@ -67,6 +68,8 @@ Usage: tm <command> [options]
   mcp                   Run the MCP server on stdio for AI agents
   ui [--port N] [--no-open]
                         Open the real local browser app; Ctrl+C stops it
+  license [key]         Show the web app license on this computer, or save a key
+                        --remove forgets it. The tm command line tool needs no license
 
 Options: --json   machine readable output   -h, --help   --version
 
@@ -86,6 +89,7 @@ const OPTIONS = {
   port: { type: "string" },
   "no-open": { type: "boolean" },
   "no-approve": { type: "boolean" },
+  remove: { type: "boolean" },
 } as const satisfies ParseArgsConfig["options"];
 
 const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
@@ -103,6 +107,7 @@ const ALLOWED: Record<string, { args: [number, number]; flags: string[] }> = {
   "find-good": { args: [0, 0], flags: [] },
   recover: { args: [1, 1], flags: [] },
   log: { args: [0, 0], flags: [] },
+  license: { args: [0, 1], flags: ["remove"] },
 };
 
 class UsageError extends Error {}
@@ -128,7 +133,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const spec = ALLOWED[command];
     if (!spec) throw new UsageError(`Unknown command "${command}". Run tm --help.`);
     if (args.length < spec.args[0] || args.length > spec.args[1]) throw new UsageError(`Wrong number of arguments for ${command}. Run tm --help.`);
-    for (const flag of ["message", "trigger", "dir", "if-changed", "if-initialized", "port", "no-open", "no-approve"] as const) {
+    for (const flag of ["message", "trigger", "dir", "if-changed", "if-initialized", "port", "no-open", "no-approve", "remove"] as const) {
       if (values[flag] !== undefined && !spec.flags.includes(flag)) throw new UsageError(`--${flag} does not apply to ${command}.`);
     }
     if (command === "ui" && values.json) throw new UsageError("--json does not apply to ui.");
@@ -229,6 +234,24 @@ export async function main(argv: string[], io: Io): Promise<number> {
       case "log": {
         const r = await tm.log(ctx);
         print(r, fmtLog(r));
+        return 0;
+      }
+      case "license": {
+        const key = args[0];
+        if (values.remove === true) {
+          if (key !== undefined) throw new UsageError("--remove takes no key.");
+          const r = tm.removeLicense(ctx);
+          print(r, `License removed from this computer.\n${fmtLicense(r)}`);
+          return 0;
+        }
+        const publicKey = tm.licensePublicKeyFromEnv(io.env);
+        if (key === undefined) {
+          const r = tm.licenseStatus(ctx, publicKey);
+          print(r, fmtLicense(r));
+          return 0;
+        }
+        const r = tm.activateLicense(ctx, key, publicKey);
+        print(r, `License saved on this computer.\n${fmtLicense(r)}`);
         return 0;
       }
     }

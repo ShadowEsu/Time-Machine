@@ -28,14 +28,15 @@
 
 <header class="top" id="top">
   <div class="wrap top-in">
-    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <a class="brand" href="index.html" translate="no"><img src="assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
     <nav class="nav" aria-label="Main">
       <a href="how-it-works.html" aria-current="page">How it works</a>
       <a href="security.html">Security</a>
+      <a href="story.html">The story</a>
       <a href="company.html">Company</a>
-      <a href="blog/index.html">Blog</a>
     </nav>
-    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+    <a class="top-signin" href="account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="#waitlist">Join the waitlist</a>
   </div>
 </header>
 
@@ -43,7 +44,7 @@
 <section class="hero" aria-labelledby="hero-h">
   <div class="wrap hero-g">
     <div>
-      <p class="k rv">How it works <span class="tag tag-now">CLI built today</span></p>
+      <p class="k rv"><span class="tag tag-now">CLI built today</span></p>
       <h1 class="dx rv" style="--d:1" id="hero-h" data-type data-type-now>One loop.<br><span class="dim">Four steps.</span></h1>
       <p class="sub rv" style="--d:2">Time Machine saves your project while agents work. It checks each save point in a separate copy, finds the newest one that works, and brings it back on a new branch. Your folder is never touched.</p>
       <div class="btn-row rv" style="--d:3"><a class="btn btn-primary" href="#developers">See the commands</a><a class="btn btn-ghost" href="#verdicts">Read the verdicts</a></div>
@@ -51,11 +52,11 @@
     <div class="rv" style="--d:2">
       <div class="stagebox">
         <div class="mod tilt" data-stepper data-angles="-120,-40,40,120" role="group" aria-label="The loop, step by step">
-          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">loop · v0</span><span class="grille"></span></div>
+          <div class="mod-top" aria-hidden="true"><span class="silk wm" translate="no">Time Machine</span><span class="silk">Loop · v0</span><span class="grille"></span></div>
           <div class="loop-body">
             <div class="scr" aria-live="polite">
               <div data-pane>
-                <p class="st"><span>01 save</span><span>10:42:07</span></p>
+                <p class="st"><span>01 Save</span><span>10:42:07</span></p>
                 <p><span class="c">$</span> tm checkpoint -m "Added dark mode"</p>
                 <p>Saved cp-0003 "Added dark mode"</p>
                 <p class="c">Code, 1 file, 2 config keys</p>
@@ -63,14 +64,14 @@
                 <p>Not checked yet.</p>
               </div>
               <div data-pane hidden>
-                <p class="st"><span>02 check</span><span>safe copy</span></p>
+                <p class="st"><span>02 Check</span><span>Safe copy</span></p>
                 <p><span class="c">$</span> tm verify cp-0003</p>
                 <p><span class="g">PASS</span> cp-0003 works</p>
                 <p class="c">host mode, network on, 1.4 s</p>
                 <p class="c">The check passed.</p>
               </div>
               <div data-pane hidden>
-                <p class="st"><span>03 find</span><span>newest first</span></p>
+                <p class="st"><span>03 Find</span><span>Newest first</span></p>
                 <p><span class="c">$</span> tm find-good</p>
                 <p>cp-0006 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
                 <p>cp-0005 <span class="r">FAIL</span> <span class="c">exit code 1</span></p>
@@ -78,7 +79,7 @@
                 <p>cp-0003 <span class="g">PASS</span> newest that works</p>
               </div>
               <div data-pane hidden>
-                <p class="st"><span>04 recover</span><span>new branch</span></p>
+                <p class="st"><span>04 Recover</span><span>New branch</span></p>
                 <p><span class="c">$</span> tm recover cp-0003</p>
                 <p>Branch tm/recover/cp-0003</p>
                 <p class="c">Saved first: cp-0007</p>
@@ -91,10 +92,10 @@
               <button class="knob" type="button" data-knob aria-label="Next step"><span class="knob-rot"></span></button>
             </div>
             <div class="keys">
-              <button class="mk" type="button" data-step aria-pressed="true"><span class="mk-cap"><i></i>01</span><span class="silk">save</span></button>
-              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>02</span><span class="silk">check</span></button>
-              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>03</span><span class="silk">find</span></button>
-              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>04</span><span class="silk">recover</span></button>
+              <button class="mk" type="button" data-step aria-pressed="true"><span class="mk-cap"><i></i>01</span><span class="silk">Save</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>02</span><span class="silk">Check</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>03</span><span class="silk">Find</span></button>
+              <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>04</span><span class="silk">Recover</span></button>
             </div>
           </div>
         </div>
@@ -107,7 +108,7 @@
 <section class="sec" id="loop" aria-labelledby="loop-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">01</span> The loop</p><h2 class="hx2" id="loop-h">Save. Check.<br>Find. Recover.</h2></div>
+      <div class="rv"><h2 class="hx2" id="loop-h">Save. Check.<br>Find. Recover.</h2></div>
       <p class="sub rv" style="--d:1">Each step is one command. With the Claude Code hooks installed, the first two happen on their own while your agent works.</p>
     </div>
     <ol class="steps" style="list-style:none;margin:0;padding:0">
@@ -154,7 +155,7 @@ Saved first cp-0007
 <section class="sec" id="save-point" aria-labelledby="sp-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">02</span> A save point</p><h2 class="hx2" id="sp-h">What it holds.<br><span class="dim">What it does not.</span></h2></div>
+      <div class="rv"><h2 class="hx2" id="sp-h">What it holds.<br><span class="dim">What it does not.</span></h2></div>
       <p class="sub rv" style="--d:1">Every save point lists what it did not save. So does every recovery. Nothing that was missed is ever shown as safe.</p>
     </div>
     <div class="ledger">
@@ -189,7 +190,7 @@ Saved first cp-0007
 <section class="sec" id="verdicts" aria-labelledby="v-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">03</span> Verdicts</p><h2 class="hx2" id="v-h">Five verdicts.<br>Fixed exit codes.</h2></div>
+      <div class="rv"><h2 class="hx2" id="v-h">Five verdicts.<br>Fixed exit codes.</h2></div>
       <p class="sub rv" style="--d:1"><code>tm verify</code> and <code>tm find-good</code> exit with the verdict code, so scripts and agents can act on it. A save point that was never checked is shown as not checked, never as working.</p>
     </div>
     <div class="v-grid">
@@ -204,11 +205,11 @@ Saved first cp-0007
             <tr><td><span class="pill pill-none">ERROR</span></td><td data-l="Exit code"><span class="code">4</span></td><td data-l="In the app">Check crashed</td><td data-l="Meaning">The check crashed, timed out, or the save point failed its integrity check.</td><td data-l="What to do">Raise <code>verify.timeoutSeconds</code>, check the command is installed, or pick another save point.</td></tr>
           </tbody>
         </table>
-        <p class="cap-note"><code>find-good</code> keeps going past FAIL, INCOMPLETE and ERROR. It stops at the first PASS, or at BLOCKED. Other commands exit 0 on success and 4 on an error. Usage errors exit 64, so they never look like INCOMPLETE. The app words are for the Mac app, in development.</p>
+        <p class="cap-note"><code>find-good</code> keeps going past FAIL, INCOMPLETE and ERROR. It stops at the first PASS, or at BLOCKED. Other commands exit 0 on success and 4 on an error. Usage errors exit 64, so they never look like INCOMPLETE. The app words are what the web app shows.</p>
       </div>
       <div class="v-side rv" style="--d:1">
         <div class="mod" data-stepper data-rows="#vt tbody tr" role="group" aria-label="Exit code readout">
-          <div class="mod-top" aria-hidden="true"><span class="silk wm">time machine</span><span class="silk">exit code</span><span class="grille"></span></div>
+          <div class="mod-top" aria-hidden="true"><span class="silk wm" translate="no">Time Machine</span><span class="silk">Exit code</span><span class="grille"></span></div>
           <div class="scr" aria-live="polite">
             <div data-pane class="exit-scr"><span class="seg">0</span><p class="seg-w g">PASS</p><p class="c">Works</p><p class="c">The check passed.</p></div>
             <div data-pane class="exit-scr" hidden><span class="seg">1</span><p class="seg-w r">FAIL</p><p class="c">Broken</p><p class="c">The check failed.</p></div>
@@ -217,13 +218,13 @@ Saved first cp-0007
             <div data-pane class="exit-scr" hidden><span class="seg">4</span><p class="seg-w">ERROR</p><p class="c">Check crashed</p><p class="c">Crash, timeout or integrity.</p></div>
           </div>
           <div class="keys exit-keys">
-            <button class="mk" type="button" data-step data-v="works" aria-pressed="true"><span class="mk-cap"><i></i>0</span><span class="silk">pass</span></button>
-            <button class="mk" type="button" data-step data-v="broken" aria-pressed="false"><span class="mk-cap"><i></i>1</span><span class="silk">fail</span></button>
-            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>2</span><span class="silk">incomplete</span></button>
-            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>3</span><span class="silk">blocked</span></button>
-            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>4</span><span class="silk">error</span></button>
+            <button class="mk" type="button" data-step data-v="works" aria-pressed="true"><span class="mk-cap"><i></i>0</span><span class="silk">Pass</span></button>
+            <button class="mk" type="button" data-step data-v="broken" aria-pressed="false"><span class="mk-cap"><i></i>1</span><span class="silk">Fail</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>2</span><span class="silk">Incomplete</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>3</span><span class="silk">Blocked</span></button>
+            <button class="mk" type="button" data-step aria-pressed="false"><span class="mk-cap"><i></i>4</span><span class="silk">Error</span></button>
           </div>
-          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">verdict</span></div>
+          <div class="led-row" style="margin-top:16px"><span class="led" data-v="works" aria-hidden="true"></span><span class="silk">Verdict</span></div>
         </div>
         <p class="cap-note">Press a code to light up its row.</p>
       </div>
@@ -234,31 +235,32 @@ Saved first cp-0007
 <section class="sec" id="paths" aria-labelledby="paths-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">04</span> Two ways in</p><h2 class="hx2" id="paths-h">One engine.<br>Two ways in.</h2></div>
-      <p class="sub rv" style="--d:1">The Mac app and the command line call the same engine. They can never disagree about what works.</p>
+      <div class="rv"><h2 class="hx2" id="paths-h">One engine.<br>Two ways in.</h2></div>
+      <p class="sub rv" style="--d:1">The web app and the command line call the same engine. They can never disagree about what works.</p>
     </div>
     <div class="paths">
       <article class="card path rv" id="builders">
-        <span class="tag tag-dev">In development. Not shipped</span>
+        <span class="tag tag-now">Built. Open with <code>tm ui</code></span>
         <h3>For builders</h3>
-        <p class="txt">You build with Claude Code, Cursor or another agent, and you would rather not live in a terminal. The Mac app puts the same loop behind plain buttons.</p>
+        <p class="txt">You build with Claude Code (automatic saves) or another agent (save by hand), and you would rather not live in a terminal. The web app puts the same loop behind plain buttons. It runs on your computer, in your browser. Nothing is hosted.</p>
         <ul>
           <li>A history of save points, each marked Works, Broken or Not checked yet.</li>
           <li>Save point detail, with what was saved and what was not.</li>
           <li>Rewind and Compare, on the same engine as the CLI.</li>
-          <li>A calm menu bar dot. No badges, no streaks.</li>
+          <li>$50 once for the license key, any number of your own computers and projects. The CLI stays open source (MIT), and restores are never behind the paywall.</li>
         </ul>
         <div class="shot">
           <picture>
-            <img src="assets/img/app-01-status-broken-dark.jpg" width="1280" height="800" loading="lazy" decoding="async" alt="The real Time Machine Mac app on the synthetic Marigold Tips project. The latest save point failed its check. A Go back button leads to the earlier version that passed. History shows each save point's own verdict.">
+            <source media="(max-width: 860px)" srcset="assets/img/app/history-390.jpg" width="390" height="844">
+            <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. The newest save point failed its check. A Go back button leads to the last version that passed. The history shows each save point's own verdict.">
           </picture>
         </div>
-        <p class="cap-note">Real source-built Mac app on a synthetic project. In development, not Apple-signed or available to download.</p>
+        <p class="cap-note">Real web app screen on a synthetic project, opened with <code>tm ui</code> from a source install.</p>
       </article>
       <article class="card path rv" id="developers" style="--d:1">
         <span class="tag tag-now">Built</span>
         <h3>For developers</h3>
-        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every command takes <code>--json</code>, and the JSON and the human output come from the same result.</p>
+        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every engine command takes <code>--json</code>, and the JSON and the human output come from the same result.</p>
         <h4>See the whole rescue in a minute</h4>
         <pre class="term"><span class="p">$ </span>tm demo</pre>
         <p class="txt">Builds a small synthetic app, Marigold Tips, breaks it the way an agent might, then finds and recovers the last working version with the real engine.</p>
@@ -295,11 +297,12 @@ tm demo</pre>
 <section class="sec" id="commands" aria-labelledby="cmd-h">
   <div class="wrap">
     <div class="sec-h">
-      <div class="rv"><p class="k"><span class="n">05</span> Reference</p><h2 class="hx2" id="cmd-h">Every command.</h2></div>
-      <p class="sub rv" style="--d:1">Twelve commands, all built and tested. <code>-h</code>, <code>--help</code> and <code>--version</code> work everywhere.</p>
+      <div class="rv"><h2 class="hx2" id="cmd-h">Every command.</h2></div>
+      <p class="sub rv" style="--d:1">Fifteen commands, all built and tested. <code>-h</code>, <code>--help</code> and <code>--version</code> work everywhere.</p>
     </div>
     <dl class="cmds rv">
       <div><dt>tm init</dt><dd>Writes <code>timemachine.yml</code> with a guessed check, like <code>npm test</code>. Keeps an existing file.</dd></div>
+      <div><dt>tm status</dt><dd>Says whether this project is set up and its check approved on this computer.</dd></div>
       <div><dt>tm checkpoint</dt><dd>Saves a save point. <code>-m</code> adds a note. <code>--if-changed</code> skips it when nothing changed.</dd></div>
       <div><dt>tm timeline</dt><dd>Lists save points, newest first, with their verdicts.</dd></div>
       <div><dt>tm diff a b</dt><dd>Compares code, files, config keys, dependencies and environment.</dd></div>
@@ -311,6 +314,8 @@ tm demo</pre>
       <div><dt>tm demo</dt><dd>Builds the Marigold Tips demo and runs the rescue.</dd></div>
       <div><dt>tm hook install</dt><dd>Adds the Claude Code hooks to <code>.claude/settings.json</code>. Your other settings stay.</dd></div>
       <div><dt>tm mcp</dt><dd>Runs the MCP server over stdio.</dd></div>
+      <div><dt>tm ui</dt><dd>Opens the web app in your browser, served from your own computer.</dd></div>
+      <div><dt>tm license [key]</dt><dd>Shows, saves or forgets the web app license on this computer. The CLI itself never needs one.</dd></div>
     </dl>
   </div>
 </section>
@@ -318,7 +323,6 @@ tm demo</pre>
 <section class="sec" aria-labelledby="join-h">
   <div class="wrap join-g">
     <div class="rv">
-      <p class="k">Waitlist</p>
       <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
       <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
     </div>
@@ -351,6 +355,7 @@ tm demo</pre>
         <a href="changelog.html">Changelog</a>
         <a href="terms.html">Terms (draft)</a>
         <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html" data-checkout-open hidden>Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>
@@ -361,6 +366,7 @@ tm demo</pre>
 
 <script src="assets/motion.js" defer></script>
 <script src="assets/pages.js" defer></script>
+<script src="assets/checkout.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
 <script src="assets/copy.js" defer></script>
 </body>

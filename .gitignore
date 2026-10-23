@@ -7,5 +7,5 @@ dist/
 coverage/
 
 # Private local-preview marks. Publication requires provider permission.
-/apps/desktop/src/renderer/agents/*.svg
+/apps/web/src/renderer/agents/*.svg
 /site/assets/agents/*.svg

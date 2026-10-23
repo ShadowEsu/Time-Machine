@@ -23,7 +23,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm --filter @timetm/desktop build
+      - run: pnpm --filter @timetm/web build
       - run: node scripts/check-cli-package.mjs
   source-install:
     name: source install (ubuntu, Node 24)

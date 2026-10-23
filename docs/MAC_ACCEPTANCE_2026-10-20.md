@@ -1,3 +1,5 @@
+> Historical. The Electron Mac app was retired on 22 October 2026 (ADR 0012). The same screens now ship as the web app, `tm ui`.
+
 # Mac source-app acceptance — 20 October 2026
 
 ## Scope and isolation

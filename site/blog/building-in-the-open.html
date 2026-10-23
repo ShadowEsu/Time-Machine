@@ -30,14 +30,15 @@
 
 <header class="top" id="top">
   <div class="wrap top-in">
-    <a class="brand" href="../index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <a class="brand" href="../index.html" translate="no"><img src="../assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
     <nav class="nav" aria-label="Main">
       <a href="../how-it-works.html">How it works</a>
       <a href="../security.html">Security</a>
+      <a href="../story.html">The story</a>
       <a href="../company.html">Company</a>
-      <a href="../blog/index.html" aria-current="page">Blog</a>
     </nav>
-    <a class="btn btn-primary btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+    <a class="top-signin" href="../account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="#waitlist">Join the waitlist</a>
   </div>
   <div class="top-progress" aria-hidden="true"><i></i></div>
 </header>
@@ -68,12 +69,12 @@
 <p>There are 54 engine and CLI tests. They pass on macOS and Linux in CI. Save points live in <code>~/.timemachine</code> with a Git bundle. Secret values from config files like <code>.env</code> are never stored, only key names and a fingerprint.</p>
 <p>We also ran it on a real open source project, sindresorhus/slugify. That found something the synthetic tests did not: behind a network proxy, <code>npm install</code> failed inside the safe copy, because the clean environment dropped the proxy settings. The fix started with a failing test, like every fix here. Proxy, certificate and package manager settings now pass through.</p>
 <p>Two independent reviews of the engine found 17 bugs in total. All 17 were fixed the same way: a test that shows the bug first, then the fix.</p>
-<p>What is not done: the npm package <code>timetm</code> is not published yet, so you build from source. The Mac app is in development, and not signed or shipped yet.</p>
+<p>What is not done: the npm package <code>timetm</code> is not published yet, so you build from source. The web app, <code>tm ui</code>, runs from that same source install.</p>
 
 <h2>Gates, not dates</h2>
 <p>Dates are easy to promise and easy to miss. A gate is an outcome you can check. Each stage starts when the one before it passes its gate.</p>
 <p><b>Gate 1, engine and CLI.</b> Done when every acceptance test passes on macOS and Linux, the demo runs end to end, and your folder and current branch are byte for byte unchanged after every command. This gate is met. Publishing to npm is the last step.</p>
-<p><b>Gate 2, the Mac app.</b> Most people who build with agents do not live in a terminal. The Mac app puts the same loop behind plain buttons: a history of save points marked Works, Broken or Not checked yet, and one button to go back to the last version that works. It runs on the same engine as the CLI, so the two can never disagree. Done when someone who never opens a terminal can do a verified recovery in a signed Mac app. This is next, and in development.</p>
+<p><b>Gate 2, the web app.</b> Most people who build with agents do not live in a terminal. The web app puts the same loop behind plain buttons: a history of save points marked Works, Broken or Not checked yet, and one button to go back to the last version that works. It runs on the same engine as the CLI, so the two can never disagree, and it runs on your own computer, in your browser. Done when someone who never opens a terminal can do a verified recovery in the web app.</p>
 <p><b>Gate 3, the action connector.</b> Agents now act outside code. Through connectors in Claude and ChatGPT they can send email, post to Slack and edit documents. We have written a design for a connector that records those actions on one timeline, and reverses only what each app can really reverse. An email could be held and recalled inside a short window, but never "unsent" after delivery. A payment could be refunded, and it would be called a refund. This is Planned. It starts only when the code product is on npm, the design is signed off, and the legal and data questions are settled.</p>
 
 <h2>Why build in the open</h2>
@@ -82,14 +83,14 @@
 <h2>Why we will raise</h2>
 <p>The CLI works without money. Turning it into a product people can trust with their projects needs four things:</p>
 <ul>
-  <li><b>Full time building.</b> Focused time on the engine and the Mac app, instead of fitting it around other work.</li>
-  <li><b>A signed Mac app.</b> Shipping a signed, notarized Mac app needs the Apple Developer Program.</li>
+  <li><b>Full time building.</b> Focused time on the engine and the web app, instead of fitting it around other work.</li>
+  <li><b>Shipping the web app.</b> Publishing to npm, opening checkout, and support and updates for people who pay once.</li>
   <li><b>An outside security review.</b> A tool that touches your code should be checked by someone other than the person who wrote it. Our security page lists what we know today, but it is our own account.</li>
   <li><b>Support for design partners.</b> Time and help for the first builders who use Time Machine on real projects and tell us where it breaks.</li>
 </ul>
 
 <h2>What we will not do with it</h2>
-<p>Money changes incentives, so here are the lines we have already drawn. No streaks, countdowns or fake urgency. No alerts unless a real check failed. Restores are never behind a paywall, and the CLI stays free. Our planned Pro pricing, called The Ladder, gets cheaper the longer you stay. It is Planned, and nothing is for sale yet.</p>
+<p>Money changes incentives, so here are the lines we have already drawn. No streaks, countdowns or fake urgency. No alerts unless a real check failed. Restores are never behind a paywall, and the <code>tm</code> command line tool is open source (MIT) and stays that way. The web app is paid for once, $50, with no subscription. Checkout is not open yet, so nothing is for sale today.</p>
 
 <h2>How you can help</h2>
 <p>If you build with coding agents, try the demo from source and tell us where it confuses you or breaks. If you want to be a design partner, email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a>. And if you just want to hear when the CLI is on npm, join the waitlist below.</p>
@@ -111,7 +112,6 @@
 <section class="sec" aria-labelledby="join-h">
   <div class="wrap join-g">
     <div class="rv">
-      <p class="k">Waitlist</p>
       <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
       <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
     </div>
@@ -144,6 +144,7 @@
         <a href="../changelog.html">Changelog</a>
         <a href="../terms.html">Terms (draft)</a>
         <a href="../privacy.html">Privacy (draft)</a>
+        <a href="../account.html" data-checkout-open hidden>Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>
@@ -154,6 +155,7 @@
 
 <script src="../assets/motion.js" defer></script>
 <script src="../assets/pages.js" defer></script>
+<script src="../assets/checkout.js" defer></script>
 <script src="../assets/waitlist.js" defer></script>
 </body>
 </html>

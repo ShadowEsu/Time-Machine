@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in. Time Machine</title>
+<meta name="description" content="Sign in with the email you used at checkout to see your Time Machine web app key again.">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1918">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
+<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+</head>
+<body class="legal thanks account">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html" translate="no"><img src="assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+      <a href="security.html">Security</a>
+      <a href="story.html">The story</a>
+      <a href="company.html">Company</a>
+    </nav>
+    <a class="top-signin" href="account.html" aria-current="page" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="index.html#pricing">Pay once</a>
+  </div>
+</header>
+<main id="main" tabindex="-1">
+  <article class="wrap">
+    <h1>Sign in to see your license</h1>
+    <p>Use the email you gave at checkout. We send a one-time code to it. There is no password. Nothing here is stored beyond this browser tab.</p>
+
+    <p class="license-status" data-account-status role="status" aria-live="polite"></p>
+    <noscript><p class="license-status" data-state="error">This page needs JavaScript. Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> with the email you used at checkout and we send your key by hand.</p></noscript>
+
+    <form class="account-form" data-account-step="send" novalidate hidden>
+      <label for="account-email">Email</label>
+      <div class="account-row">
+        <input type="email" name="email" id="account-email" autocomplete="email" inputmode="email" spellcheck="false" placeholder="you@example.com" required>
+        <button class="btn btn-primary btn-sm" type="submit">Send code</button>
+      </div>
+    </form>
+
+    <form class="account-form" data-account-step="verify" novalidate hidden>
+      <p class="account-sent" data-account-sent></p>
+      <label for="account-code">The 6-digit code from the email</label>
+      <div class="account-row">
+        <input type="text" name="code" id="account-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" spellcheck="false" placeholder="123456" required>
+        <button class="btn btn-primary btn-sm" type="submit">Sign in</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" data-account-back>Use another email</button>
+    </form>
+
+    <section class="account-keys" data-account-keys hidden aria-labelledby="keys-h">
+      <div class="account-head">
+        <h2 id="keys-h" tabindex="-1">Your keys</h2>
+        <p class="account-who" data-account-email></p>
+        <button class="btn btn-ghost btn-sm" type="button" data-account-signout>Sign out</button>
+      </div>
+      <div data-account-list></div>
+      <h2>Activate a key, one of two ways</h2>
+      <ol>
+        <li><strong>In the web app.</strong> Open <code>tm ui</code>, go to Settings, then License, and paste it.</li>
+        <li><strong>In a terminal.</strong> Run <code>tm license &lt;key&gt;</code>, with your key in place of <code>&lt;key&gt;</code>.</li>
+      </ol>
+      <p>The key is verified offline, on your computer.</p>
+    </section>
+
+    <p class="account-help">Problems? Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> with the email you used at checkout.</p>
+  </article>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="story.html">The story</a>
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="changelog.html">Changelog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html" data-checkout-open hidden>Sign in</a>
+        <a href="mailto:preston@unvibe.site">Email us</a>
+      </nav>
+      <p class="foot-note">Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+<script src="assets/account.js" defer></script>
+<script src="assets/checkout.js" defer></script>
+</body>
+</html>

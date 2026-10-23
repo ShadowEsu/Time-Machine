@@ -1,5 +1,5 @@
-import { CallSchema } from "../../../../apps/desktop/src/shared/api.js";
-import type { AppEvent, CallOf, Method, Res, Results, TmBridge } from "../../../../apps/desktop/src/shared/api.js";
+import { CallSchema } from "../../../../apps/web/src/shared/api.js";
+import type { AppEvent, CallOf, Method, Res, Results, TmBridge } from "../../../../apps/web/src/shared/api.js";
 
 type Connection = { state: "connecting" | "connected" | "disconnected"; message?: string };
 const browserWindow = window as unknown as Window & { tm: TmBridge; tmConnection?: Connection };

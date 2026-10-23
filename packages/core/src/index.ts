@@ -12,7 +12,7 @@ export { verify } from "./verify.js";
 export { findGood } from "./findGood.js";
 export { recover, undoRecover } from "./recover.js";
 export { log } from "./audit.js";
-export { hookInstall, hookStatus, runHook, isRisky, NPM_PUBLISHED, npxHookCandidates, npxHookCommand, probeHookCommand, shellQuote, type HookState, type HookStatusResult } from "./hooks.js";
+export { CLAUDE_PLUGIN_ID, claudePluginStatus, hookInstall, hookStatus, runHook, isRisky, NPM_PUBLISHED, npxHookCandidates, npxHookCommand, probeHookCommand, probePluginTm, shellQuote, TM_HELP_MARKER, type ClaudePluginStatus, type HookState, type HookStatusResult } from "./hooks.js";
 export { demo } from "./demo.js";
 export { storeDirFor } from "./store.js";
 export { isSafeRelPath } from "./paths.js";
@@ -21,3 +21,4 @@ export { cleanStore, type CleanStoreOptions, type CleanStoreResult } from "./sto
 export { detectSandbox } from "./sandbox.js";
 export { checkRuns, secretScreen } from "./history.js";
 export { clipSafe } from "./secrets.js";
+export { FREE_PROJECT_LIMIT, LICENSE_PUBLIC_KEY, activateLicense, licensePublicKeyFromEnv, licenseStatus, parseLicenseKey, removeLicense, signLicense, type LicensePayload, type LicenseStatus } from "./license.js";

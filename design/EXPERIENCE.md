@@ -1,3 +1,5 @@
+> Note (22 October 2026): the Mac app described here was retired in favour of the web app, `tm ui` (ADR 0012). Screens, copy and principles still apply; menu bar, overlays, global hotkey and signing do not.
+
 # Time Machine experience principles
 
 Status: planning. Nothing is implemented yet. Distilled from the round 4 research (psychology, 36 app teardowns, pricing, two experiences). Full reports live in `.private/research/30` to `33`.

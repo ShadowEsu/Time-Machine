@@ -8,7 +8,7 @@ Time Machine saves your project before Claude Code acts. It runs your own tests 
 
 Website and waitlist: **https://time-machine-site.vercel.app**
 
-> **Status: early.** The `tm` CLI, local browser app, Claude Code hooks and MCP server work from source. **Not on npm yet** (build below). The Mac app remains available from source and is not signed by Apple.
+> **Status: early.** The `tm` CLI, the web app (`tm ui`), the Claude Code hooks and the MCP server work from source. **Not on npm yet** (build below). The web app is free for up to 3 projects at a time; a $50 one-time license lifts that limit. Checkout is not open yet.
 
 ## 30 seconds: watch it rescue a broken project
 
@@ -75,7 +75,7 @@ If a project also has hooks from `tm hook install`, the plugin steps aside there
 
 Without `tm` on your PATH, Claude Code lists the `timemachine` MCP server as failed to connect. That is harmless.
 
-## Open the local web app
+## Open the web app
 
 ```sh
 tm ui
@@ -85,7 +85,9 @@ This opens Time Machine in your browser. The server binds to `127.0.0.1` on your
 
 Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the address without opening a browser, and `tm ui --port 4388` chooses a port. Open the complete address printed for this run; it includes a private session key. Do not share it or expose the port through a tunnel. To open the browser, `tm ui` passes that address to your system's launcher (`open` or `xdg-open`), so other accounts on the same computer could see it in a process list for the moment the launcher runs. On a shared computer, use `tm ui --no-open` and paste the address yourself.
 
-The browser app does not need Electron or Apple signing. The Mac app stays available for native menu-bar and overlay features. Browser shortcuts work while the page is focused; a browser tab cannot provide the Mac app's global shortcut or desktop overlays.
+The web app is the only app. There is no Mac app and no installer, and you need no account to use it. Browser shortcuts work while the page is focused.
+
+**Price.** The web app is free for up to 3 projects at a time. A license, $50 paid once with no subscription, lets it list as many as you like, on any number of your own computers, with updates while we ship them. The key is verified offline. Paste it in `tm ui` under Settings, then License, or run `tm license <key>`. Sign in on the website with your checkout email to see your key again. The `tm` command line tool is open source (MIT) and stays that way. Checkout is not open yet (ADR 0013).
 
 ## Your own project in four commands
 
@@ -112,16 +114,15 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | | What | Status |
 |---|---|---|
 | `tm` command | `init`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `demo`, `hook install`, `mcp` | Built, tested |
-| Local browser app | `tm ui`: real project onboarding, history, checks, comparison, recovery and live CLI/hook updates | Built from source |
+| Web app | `tm ui`: onboarding, history, checks, comparison, rewind with undo, agents, storage, settings, opt-in Ask and read-only Vercel deploy links, live CLI and hook updates | Built from source |
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 365 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 404 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
-| Mac app | Notebook history, Rewind dial with undo, Compare, agent channels, overlays, opt-in Ask and read-only Vercel deploy links. Native macOS smoke exercised real-engine recovery and the non-focusing corner card | Built from source; not signed or shipped |
-| Website | Static site in `site/` with a waitlist, personal referral links and anonymous funnel counts. Public at https://time-machine-site.vercel.app | Live; waitlist saves once Supabase is set up |
+| Website | Static site in `site/`: a waitlist (pending signups, no email yet) and anonymous visit counts. Public at https://time-machine-site.vercel.app | Live |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
-| Pro pricing | "The Ladder": $9 a month, $8 from month 7, $7 from month 13, $6 floor. The CLI is free. Restores are never paywalled | Planned, see ADR 0002 |
+| Web app license | Free for up to 3 projects at a time; $50 once lifts the limit. Updates while we ship them, key verified offline, sign in on the site to see it again. The CLI, hooks and MCP stay open source | Built (`tm license`, Settings > License in `tm ui`, site checkout, sign-in); checkout not open yet, see ADR 0013 |
 
 ## Commands
 
@@ -129,8 +130,9 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 |---|---|
 | `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step, and approves its check for the Claude Code plugin. `--no-approve` only writes the file |
 | `tm status` | Says whether this project is set up and its check approved on this computer. Changes nothing |
-| `tm ui [--no-open] [--port N]` | Opens the local browser app; files and engine stay on your computer |
-| `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, config key names, lockfile and environment digests |
+| `tm ui [--no-open] [--port N]` | Opens the web app in your browser; files and engine stay on your computer |
+| `tm license [key] [--remove]` | Shows, saves or forgets the one-time web app license on this computer |
+| `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, lockfiles and version pins such as `.nvmrc` even when `.gitignore` skips them, environment file digests, config key names, and runtime versions |
 | `tm timeline` | Lists save points and their verdicts |
 | `tm diff cp-0002 cp-0004` | Compares code, files, config keys, dependencies and environment |
 | `tm open cp-0003` | Rebuilds a save point in a separate folder |
@@ -158,13 +160,13 @@ Usage errors exit 64. A save point with no verdict is shown as not checked, neve
 
 Save points and verdicts are signed with a key in `~/.timemachine`. That catches accidental edits and edits by tools that do not read the key. It is not tamper proof against someone who can read that key.
 
-## The Mac app
+## The web app
 
-On a Mac, from the repo root: `pnpm app`. It uses the same screens and engine as `tm ui`, with a native folder picker, menu-bar item and overlays. Builds are not signed by Apple yet, so macOS warns on first open. Details: `apps/desktop/README.md`. The static `preview:build` is only a demonstration with in-memory data; use `tm ui` for real projects.
+The web app lives in `apps/web` and is built into the CLI package, so `tm ui` is all you need. `pnpm --filter @timetm/web build` makes a static preview with in-memory demo data in `apps/web/preview/dist/`; use `tm ui` for real projects. Details: `apps/web/README.md`. The Electron Mac app was retired on 22 October 2026 (ADR 0012).
 
 ## Repo map
 
-`packages/core` (the one engine), `packages/cli` (`tm`), `apps/desktop` (Mac app), `site/` (static website with two Vercel functions; waitlist setup: `docs/launch/SUPABASE_SETUP.md`), `docs/` (guide, plan, decisions).
+`packages/core` (the one engine), `packages/cli` (`tm`, serves the web app), `apps/web` (the web app), `site/` (static website with two Vercel functions; waitlist setup: `docs/launch/SUPABASE_SETUP.md`), `docs/` (guide, plan, decisions).
 
 ## Run the tests
 
@@ -182,7 +184,7 @@ The acceptance tests V01 to V14 run on a synthetic project. Every bug fix starts
 | `docs/GUIDE.md` | The user guide |
 | `docs/BUILD_BRIEF.md` | Scope and requirements, the source of truth |
 | `docs/PLAN.md` | Milestones, dates and founder tasks |
-| `docs/adr/` | Decisions, from the name (0001) to the action connector (0007) |
+| `docs/adr/` | Decisions, from the name (0001) to the web app (0012) and the one-time price (0013) |
 | `docs/DEMO_SCRIPT.md` | The 60 second demo video |
 | `docs/OUTREACH.md` | Finding and testing with the first 5 builders |
 | `docs/apply/` | Drafts for a16z speedrun and YC W27 |
@@ -195,4 +197,4 @@ Preston Susanto, a student founder who builds with coding agents. Questions and 
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Time Machine is not affiliated with Apple Inc.
+MIT for the code. See [LICENSE](LICENSE). The $50 web app license (ADR 0013) is a purchase, not a change to the code license. Time Machine is not affiliated with Apple Inc.

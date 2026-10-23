@@ -89,7 +89,7 @@ try {
   }
   assert.equal((await fetch(`${url.origin}/api/call`, { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"method":"bootstrap"}' })).status, 401);
   const boot = await post({ method: "bootstrap" });
-  assert.equal(boot.runtime, "browser");
+  assert.equal(typeof boot.license?.active, "boolean", "bootstrap did not return the license status");
   assert.equal(boot.preview, false);
   const demo = await post({ method: "demo" });
   assert.ok(demo.project.id && demo.result.recover.copyDir, "Installed UI did not execute real demo recovery");

@@ -527,7 +527,7 @@ The honesty section. Mist background, generous whitespace, no illustration excep
 |---|---|---|---|
 | CLI | Free, open source | Every local feature · Hooks and MCP · No limits on local use | Now (first release) |
 | App | Free | 3 projects · 30 days of history · Rewind always included | Coming soon |
-| Pro | $9 a month, or $79 a year | Unlimited projects · 1 year of history · Students half price | Coming soon |
+| Pro | $9 a month, or $79 a year | Unlimited projects · 1 year of history | Coming soon |
 | Team | $20 per seat a month | Shared projects · Team history of agent changes · Alerts on risky changes | Coming soon |
 
 - Footer line under the cards: "Prices we plan to launch with. They may change before paid plans exist, and we'll say so in the changelog." Link "See pricing ›".
@@ -635,7 +635,7 @@ Concrete controls, no badges. **Sections:** (1) Hero: "Local first. Secrets neve
 
 ### /pricing
 
-Plain, four columns, no tricks. **Sections:** (1) Hero: "Free to rescue. Always." (2) The four cards from 4.8 with full feature lists and status labels. (3) "Never paywalled" box: local save points, local restores, the CLI, and every report. (4) Comparison matrix by feature, with Coming soon labels. (5) Students half price, how to claim. (6) Pricing FAQ: what happens when a trial ends (your history stays; you can always restore), refunds, annual billing. (7) Line: "Paid plans aren't available yet. These are the prices we plan to launch with." until billing exists.
+Plain, four columns, no tricks. **Sections:** (1) Hero: "Free to rescue. Always." (2) The four cards from 4.8 with full feature lists and status labels. (3) "Never paywalled" box: local save points, local restores, the CLI, and every report. (4) Comparison matrix by feature, with Coming soon labels. (5) Pricing FAQ: what happens when a trial ends (your history stays; you can always restore), refunds, annual billing. (6) Line: "Paid plans aren't available yet. These are the prices we plan to launch with." until billing exists.
 
 ### /story
 

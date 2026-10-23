@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'">
+<title>Time Machine</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23141413'/%3E%3Cpath d='M9 8h14v4h-5v13h-4V12H9z' fill='%23d97757'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="features.css">
+<link rel="stylesheet" href="browser.css">
+</head>
+<body>
+<div id="splash" class="splash" role="status" aria-label="Time Machine is opening">
+  <p class="splash-word" aria-hidden="true"><span>Time</span> <em>Machine</em></p>
+  <div class="splash-bar" aria-hidden="true"><i></i></div>
+</div>
+<div id="root"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

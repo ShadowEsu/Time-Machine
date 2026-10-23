@@ -1,6 +1,6 @@
 /* Time Machine story page: "Instrument".
    Every visual is a pure function of scroll position, so scrolling up replays the story exactly.
-   The only state outside scroll is what the visitor does with the dial in the rewind act, and the Ladder fader.
+   The only state outside scroll is what the visitor does with the dial in the rewind act.
    Story data is the synthetic Marigold Tips demo. IDs, verdicts and output match a real `tm demo` run;
    only 10:42 (cp-0003) and 10:51 (cp-0004) are real times, the others are illustrative. */
 (() => {
@@ -124,14 +124,16 @@
 
   /* ---------- measure ---------- */
   let vw, vh, mob, base, M = [], paperH = 0, rowHead = 0, rowBottom = [], sumBottom = 0;
-  let appTop = 0, trackW = 0, graphW = 0, graphH = 0, slots = [];
+  let appTop = 0, slots = [];
   function measure() {
     vw = innerWidth; vh = innerHeight; mob = vw <= 820;
     base = mob ? Math.min((vw - 36) / 460, 1.05) : Math.min((vw * 0.34) / 460, (vh * 0.5) / 300);
     M = acts.map((el) => {
       const r = el.getBoundingClientRect();
       return { el, top: r.top + scrollY, h: el.offsetHeight,
-        rs: $$(".r", el).map((e) => ({ e, r: (e.dataset.r || "0 0").split(" ").map(Number), last: "" })) };
+        // Heading text is only faded, never visibility-hidden, so assistive tech always gets the heading and the
+        // section labels that point at it. Every faded block, heading or not, stops taking clicks while invisible.
+        rs: $$(".r", el).map((e) => ({ e, head: !!e.closest("h1, h2, h3, h4, h5, h6"), r: (e.dataset.r || "0 0").split(" ").map(Number), last: "" })) };
     });
     paperH = paper.offsetHeight;
     rowHead = rows[0].offsetTop;
@@ -139,9 +141,6 @@
     const sum = $(".pp-sum", paper);
     sumBottom = sum.offsetTop + sum.offsetHeight + 8;
     if (appWin) appTop = appWin.getBoundingClientRect().top + scrollY;
-    trackW = track.clientWidth;
-    graphW = inkOuter.parentElement.clientWidth;
-    graphH = inkOuter.parentElement.clientHeight;
     // Reserve real text height, including wrapping and the reduced-motion still.
     // No device pose can intrude into this phone-sized reading area.
     slots = mob ? acts.slice(0, 4).map((el, i) => {
@@ -255,6 +254,8 @@
   /* ---------- render ---------- */
   const cache = new Map();
   const setText = (el, v) => { if (cache.get(el) !== v) { cache.set(el, v); el.textContent = v; } };
+  // Screen labels are sentence case; the state words stay lowercase in state() because they double as class names.
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   const setCls = (el, c, on) => { if (el.classList.contains(c) !== !!on) el.classList.toggle(c, !!on); };
   const styleCache = new WeakMap();
   const setStyle = (el, k, v) => { let m = styleCache.get(el); if (!m) styleCache.set(el, (m = {})); if (m[k] !== v) { m[k] = v; el.style[k] = v; } };
@@ -277,7 +278,7 @@
       if (!L) { userSel = null; userAngle = null; checked = {}; checking = null; if (rig.contains(document.activeElement)) document.activeElement.blur(); }
     }
     const d = s.scr;
-    setText(D.mode, d.mode); setText(D.clock, d.clock); setText(D.id, d.id); setText(D.note, d.note); setText(D.stat, d.stat);
+    setText(D.mode, cap(d.mode)); setText(D.clock, d.clock); setText(D.id, d.id); setText(D.note, d.note); setText(D.stat, cap(d.stat));
     const cls = "scr-stat " + (d.sc || "");
     if (D.stat.className !== cls) D.stat.className = cls;
     setCls(screen, "mode-log", !!d.log);
@@ -308,20 +309,23 @@
       const [a, b, c, d] = it.r;
       let i = a === b ? (p >= a ? 1 : 0) : seg(p, a, b);
       let o = c == null ? 0 : seg(p, c, d);
-      if (RM) { i = i > 0 ? 1 : 0; o = o >= 1 ? 1 : 0; }
+      // Reduced motion: no fades. A line shows once its range starts and goes as soon as its exit starts,
+      // so two lines stacked in one place never overlap.
+      if (RM) { i = i > 0 ? 1 : 0; o = o > 0 ? 1 : 0; }
       const op = i * (1 - o), y = (1 - ease(i)) * 26 - ease(o) * 22;
       const key = op.toFixed(3) + "|" + y.toFixed(1);
       if (key !== it.last) {
         it.last = key;
         it.e.style.opacity = op.toFixed(3);
         it.e.style.transform = y ? `translate3d(0,${y.toFixed(1)}px,0)` : "none";
-        it.e.style.visibility = op < 0.01 ? "hidden" : "visible";
+        if (!it.head) it.e.style.visibility = op < 0.01 ? "hidden" : "visible";
+        it.e.style.pointerEvents = op < 0.01 ? "none" : "";
       }
     }
   }
 
   /* ---------- the frame ---------- */
-  let lastT = 0, lastStory = null, speed = 0, idleTimer = 0, curAct = -1, ladderP = -1, lastDone = 0;
+  let lastT = 0, lastStory = null, speed = 0, idleTimer = 0, curAct = -1, lastDone = 0;
   const appWin = $(".app-win");
   function frame() {
     raf = 0;
@@ -331,9 +335,12 @@
     const m = M[n];
     let p = clamp((y - m.top) / Math.max(1, m.h - vh));
     let h = clamp((y - (m.top + m.h - vh)) / vh);
+    // Reduced motion: the device, clock and proof cards stay on each act's final still, but text still steps
+    // through its own range (snapped, no fades or slides), so lines that give way to later ones are seen first.
+    const rp = p;
     if (RM) { p = n === 0 ? 0 : 1; h = h < 0.5 ? 0 : 1; }
-    reveal(m, p);
-    if (M[n + 1]) reveal(M[n + 1], RM ? 1 : 0);
+    reveal(m, rp);
+    if (M[n + 1]) reveal(M[n + 1], 0);
 
     // device
     if (n <= 5) {
@@ -373,8 +380,6 @@
       setStyle(appWin, "transform", `perspective(1600px) rotateX(${((1 - k) * 16).toFixed(2)}deg) translate3d(0,${((1 - k) * 50).toFixed(1)}px,0)`);
     }
 
-    // ladder
-    if (n === 7 || (n === 6 && y > M[7].top - vh)) { const lp = n === 7 ? p : 0; if (lp !== ladderP) { ladderP = lp; ladderFromScroll(lp); } }
 
     // progress
     let a = 0; for (let i = 0; i < M.length; i++) if (y + vh * 0.5 >= M[i].top) a = i;
@@ -445,43 +450,6 @@
   $("#rwCheck").addEventListener("click", runCheck);
   $("#rwFocus").addEventListener("click", () => knob.focus());
 
-  /* ---------- The Ladder ---------- */
-  const thumb = $("#ldThumb"), track = $(".ld-track"), dig = $("#ldDig"), stepEl = $("#ldStep"), mnEl = $("#ldMn");
-  const puck = $(".ld-puck"), inkOuter = $(".ld-ink"), inkInner = $(".ld-ink-in");
-  const STEPS = [[1, 9, "Start"], [7, 8, "Step 2 · month 7"], [13, 7, "Step 3 · month 13"], [25, 6, "Floor · month 25"]];
-  const Y = [20, 73, 126, 180];
-  let userMonth = null, userAt = 0, lastStep = -1;
-  function ladderFromScroll(p) {
-    if (userMonth != null && Math.abs(p - userAt) > 0.05) userMonth = null;
-    drawLadder(userMonth != null ? userMonth : 1 + 29 * ease(seg(p, 0.12, 0.84)));
-  }
-  function drawLadder(mf) {
-    const mo = clamp(Math.round(mf), 1, 30), f = (mf - 1) / 29;
-    let st = 0; STEPS.forEach((s, i) => { if (mo >= s[0]) st = i; });
-    if (st !== lastStep) { if (lastStep !== -1) tick(2); lastStep = st; }
-    dig.style.transform = `translate3d(0,${-25 * st}%,0)`;
-    setText(stepEl, STEPS[st][2]); setText(mnEl, pad(mo));
-    thumb.style.transform = `translate3d(${(f * trackW).toFixed(1)}px,0,0)`;
-    thumb.setAttribute("aria-valuenow", String(mo)); thumb.setAttribute("aria-valuetext", `Month ${mo}, $${STEPS[st][1]} a month`);
-    const gw = graphW, gh = graphH;
-    inkOuter.style.transform = `translate3d(${(-(1 - f) * gw).toFixed(1)}px,0,0)`; inkInner.style.transform = `translate3d(${((1 - f) * gw).toFixed(1)}px,0,0)`;
-    puck.style.transform = `translate3d(${(f * gw).toFixed(1)}px,${((Y[st] / 200) * gh).toFixed(1)}px,0)`;
-  }
-  let fdrag = false;
-  const fromX = (x) => { const r = track.getBoundingClientRect(); return 1 + 29 * clamp((x - r.left) / r.width); };
-  const curLP = () => { const m = M[7]; return clamp((scrollY - m.top) / Math.max(1, m.h - vh)); };
-  thumb.addEventListener("pointerdown", (e) => { fdrag = true; thumb.setPointerCapture(e.pointerId); e.preventDefault(); });
-  thumb.addEventListener("pointermove", (e) => { if (!fdrag) return; userMonth = fromX(e.clientX); userAt = curLP(); drawLadder(userMonth); });
-  const fend = () => { if (fdrag) { fdrag = false; if (userMonth != null) { userMonth = Math.round(userMonth); drawLadder(userMonth); } } };
-  thumb.addEventListener("pointerup", fend); thumb.addEventListener("pointercancel", fend);
-  track.addEventListener("pointerdown", (e) => { userMonth = Math.round(fromX(e.clientX)); userAt = curLP(); drawLadder(userMonth); });
-  thumb.addEventListener("keydown", (e) => {
-    const cur = userMonth != null ? userMonth : 1 + Math.round(29 * ease(seg(curLP(), 0.12, 0.84)));
-    const d = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -6, PageUp: 6 }[e.key];
-    if (d) userMonth = clamp(cur + d, 1, 30); else if (e.key === "Home") userMonth = 1; else if (e.key === "End") userMonth = 30; else return;
-    userAt = curLP(); drawLadder(userMonth); e.preventDefault();
-  });
-
   /* ---------- small things that play once ---------- */
   const vs = $(".vs"), testsN = $("#testsN");
   // The count lives in the HTML only, so the animation can never end on a stale number.
@@ -518,7 +486,7 @@
       if (countRaf) { cancelAnimationFrame(countRaf); countRaf = 0; testsN.textContent = testsTotal; }
     } else req();
   });
-  addEventListener("resize", () => { measure(); lastProof = -1; ladderP = -1; req(); });
+  addEventListener("resize", () => { measure(); lastProof = -1; req(); });
   measure(); frame();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measure(); req(); });
   addEventListener("load", () => { measure(); req(); probe(); });

@@ -1,3 +1,5 @@
+> Note (22 October 2026): the Mac app described here was retired in favour of the web app, `tm ui` (ADR 0012). Screens, copy and principles still apply; menu bar, overlays, global hotkey and signing do not.
+
 # App v3: two directions for a tool worth keeping
 
 Date: 16 October 2026. Status: concept study, not a product release.

@@ -2,7 +2,7 @@
 
 **DRAFT. Not in effect. Needs lawyer review.** Last updated: [date].
 
-These terms are an agreement between you and [Operator] ("we"). They cover the Time Machine website, the Time Machine Mac app, and Time Machine Pro. The free `tm` command line tool is covered by its own open source license.
+These terms are an agreement between you and [Operator] ("we"). They cover the Time Machine website, the Time Machine web app, and its one-time license. The free `tm` command line tool is covered by its own open source license.
 
 ## 1. Who can use Time Machine
 
@@ -32,40 +32,19 @@ Your code and files stay on your computer. We do not upload them. You own your p
 - Checks you set up run commands on your computer. You are responsible for what those commands do.
 - Review a recovery branch before you switch to it or ship it.
 - Only use Time Machine on projects you have the right to copy and run.
-- Keep your account login safe.
+- Keep your license key private. It is the only proof of your purchase.
 
-## 6. Time Machine Pro and The Ladder
+## 6. The web app license
 
-**Price.** Pro starts at $9 a month or $79 a year, plus tax where it applies. Students pay half.
+**Price.** The web app license costs $50, paid once, plus tax where it applies. There is no subscription and nothing renews.
 
-**It gets cheaper while you stay.** If you keep paying without a gap:
+**What you get.** One person may use the web app with any number of their own projects, on any number of their own computers. Updates are included while we ship them. We do not promise updates for any length of time.
 
-| Paid months in a row | Monthly | Annual |
-|---|---|---|
-| 1 to 6 | $9 | $79 (year 1) |
-| 7 to 12 | $8 | $69 (year 2) |
-| 13 to 24 | $7 | $59 (year 3 on) |
-| 25 and up | $6 | $59 |
+**Free use.** Without a license key, the web app lists up to 3 projects at a time. Restoring or recovering a save point never needs a key. The `tm` command line tool is separate and free under its open source license.
 
-We show your current step and how many months remain to the next one in the app and on your receipt.
+**Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. To see it again, sign in on the website with the email you gave at checkout. Signing in sends a one-time code to that email and keeps no password.
 
-**Automatic renewal.** Pro renews automatically each month or year at your current step price until you cancel. We charge the card you gave us at the start of each period. We tell you all of this before you pay, and we email you a confirmation with how to cancel.
-
-**Price change notices.** We email you 7 to 30 days before your price changes, including when it drops to the next step. For annual plans we also email a reminder before each renewal.
-
-**Grace and pause.** If a payment fails, you have 30 days to fix it and keep your step. You can pause Pro for up to 3 months a year. Pausing keeps your step. Months paused do not count toward the next step.
-
-**Yours to keep.** After 12 paid months in a row, you get a permanent license to the version of the Mac app you have at that time, and every update released before your subscription ends. It keeps working after you cancel. This license is personal and cannot be transferred.
-
-**Cancel anytime.** Cancel online in Settings or in the billing page, in the same number of steps it took to sign up. Pro stays active until the end of the period you paid for. We do not offer discounts to stop you from leaving.
-
-**Refunds.** You can get a full refund within 14 days of your first payment. After that, payments are not refundable except where the law says otherwise. If you are in the EU or UK you also have the legal right to withdraw described at checkout.
-
-**What never needs Pro.** Restoring or recovering a save point never requires a paid plan. Your history and your exports are never locked behind a payment.
-
-**If we change prices.** Changes apply to new subscribers. Steps you already earned stay.
-
-**First 500 subscribers** start at step 2 ($8 a month or $69 a year) and climb from there.
+**Refunds.** You can get a full refund within 14 days of payment by emailing [Contact]. After that, payments are not refundable except where the law says otherwise. If you are in the EU or UK you also have the legal right to withdraw described at checkout.
 
 ## 7. Acceptable use
 
@@ -81,7 +60,7 @@ If you send ideas, we may use them without owing you anything.
 
 ## 10. Other services
 
-Time Machine works with services like GitHub, Stripe and Apple. Their terms apply to your use of them. We are not responsible for them.
+Time Machine works with services like GitHub and Stripe. Their terms apply to your use of them. We are not responsible for them.
 
 ## 11. Disclaimers
 
@@ -93,11 +72,11 @@ To the extent the law allows, we are not liable for lost data, lost profits, or 
 
 ## 13. Ending these terms
 
-You can stop using Time Machine at any time. We can suspend or end your account if you break these terms, with notice when we reasonably can. Your local save points stay on your computer either way.
+You can stop using Time Machine at any time. If you break these terms, your license ends and we stop supporting it. Your local save points stay on your computer either way.
 
 ## 14. Changes to these terms
 
-If we make a material change, we will email you and show a notice in the app at least 30 days before it takes effect. If you do not agree, you can cancel before then.
+If we make a material change, we will post it here at least 30 days before it takes effect. If you do not agree, you can stop using Time Machine before then.
 
 ## 15. Law and disputes
 

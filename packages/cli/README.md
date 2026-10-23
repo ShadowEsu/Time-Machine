@@ -4,18 +4,11 @@ Save points for your projects before AI agents act, checked with your own tests.
 
 When an AI agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check, rebuilds it in a separate copy, and prepares a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
-**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. The Mac app remains available from source. Website: https://time-machine-site.vercel.app
+**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. Website: https://time-machine-site.vercel.app
 
 ## Install
 
-Not on npm yet. Build from source (below). Needs Node 22 or newer and Git.
-
-Once it is published:
-
-```sh
-npx timetm demo        # builds a small broken project and rescues it, in about a minute
-npm install -g timetm  # then use the `tm` command
-```
+Not on npm yet. Build from source (below). Needs Node 22 or newer and Git. The npm commands will be listed here once the package is published.
 
 
 ## Local browser app
@@ -51,6 +44,18 @@ The browser app has no menu-bar item, global hotkey or desktop overlay. Those re
 | `tm ui [--no-open] [--port N]` | Opens the real local browser app, with projects, history, checks, comparison, recovery and live hook updates |
 
 Engine commands take `--json`. Human and JSON output come from the same result. `tm ui` instead stays running as a local server until interrupted.
+
+## License
+
+The `tm` command line tool is free and open source under the MIT license and never needs a key. Every command in the table above, including recovery, works without one. The local browser app (`tm ui`) is free for up to 3 projects at a time; a one-time $50 license from https://time-machine-site.vercel.app/#pricing lifts that limit. The key is shown on the purchase page, and you can sign in there later to see it again. It is checked on your computer with a public key, so nothing phones home.
+
+```sh
+tm license             # licensed, no license, or what is wrong with the saved key
+tm license TM1.xxx.yyy # save the key for every project on this computer
+tm license --remove    # forget it
+```
+
+`tm license --json` prints the same status as an object.
 
 ## What it does not do
 

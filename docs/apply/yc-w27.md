@@ -56,7 +56,7 @@ Your agent can break things. Time Machine proves which version still passes your
 
 It saves a point before each agent prompt and before risky shell commands. When something breaks, it rebuilds each save point in a separate copy, runs your tests there, and finds the newest one that passes. Then it makes a new branch with that version. It saves where you are first, never touches your folder or current branch, and never pushes, merges or deploys. Every result lists what it could not bring back, like database rows and secret values.
 
-Today: a free command line tool (`tm`), Claude Code hooks, and an MCP server so any agent that speaks MCP can use the same engine. Built but not yet signed: a Mac app for people who do not use a terminal. Planned, not built: the same record and way back for agent actions in other apps, like email (ADR 0007).
+Today: a free command line tool (`tm`), Claude Code hooks, and an MCP server so any agent that speaks MCP can use the same engine. Built: a web app (`tm ui`) for people who do not use a terminal; it runs on their computer and opens in the browser. Planned, not built: the same record and way back for agent actions in other apps, like email (ADR 0007).
 
 **Where do you live now, and where would the company be based after YC?**
 
@@ -77,7 +77,7 @@ The engine and command line tool are built and tested, not yet published.
 - Tried on a real open source project, `sindresorhus/slugify`.
 - Test count: **[FOUNDER]** paste the current number from `pnpm test` on submit day.
 
-Mac app: the screens are built (onboarding, History ruler, Rewind wizard with undo, Compare with now, Settings, Inspector, a corner card when a working project breaks, agent labels on save points). It has not yet run as a signed Mac app. Signing (D08) is next.
+Web app: built (onboarding, History ruler, Rewind wizard with undo, Compare with now, Settings, Inspector, agent labels on save points, the one-time license). It is served by the CLI on the user's computer, so nothing needs signing.
 
 **How long have each of you been working on this? How much of that has been full time?**
 
@@ -85,7 +85,7 @@ The repo started on 13 October 2026. **[FOUNDER]** add earlier research time and
 
 **What tech stack are you using? Include AI models and AI coding tools you use.**
 
-TypeScript in strict mode on Node 22 and newer, pnpm, Zod for every outside input, Vitest, and Git through its command line. The Mac app is Electron on the same engine. The site is static on Vercel. Code is written with Claude Code, test first. **[FOUNDER]** list the models and tools you actually use.
+TypeScript in strict mode on Node 22 and newer, pnpm, Zod for every outside input, Vitest, and Git through its command line. The web app is the same engine behind a local token-guarded server. The site is static on Vercel. Code is written with Claude Code, test first. **[FOUNDER]** list the models and tools you actually use.
 
 **Are people using your product?**
 
@@ -128,7 +128,7 @@ What we understand: people do not want a list of snapshots. They want to know wh
 
 The command line tool is free. Restores are never paywalled.
 
-Planned, not built: Pro for the Mac app at $9 a month, stepping down to $8 from month 7, $7 from month 13, and a $6 floor while you stay (ADR 0002). A team plan for agencies comes after that.
+Price: the web app is free for up to 3 projects at a time; $50 once lifts the limit (ADR 0013). Checkout opens once the seller of record is set. A team plan for agencies comes after that.
 
 The math, not a forecast: one Pro user pays $72 to $108 a year. 10,000 paying users is about $0.7M to $1.1M a year. The larger market is the planned action connector for agent actions in other apps (ADR 0007). Nothing of it is built.
 

@@ -210,7 +210,7 @@ The file lives at your project root. Unknown keys are rejected, so typos show up
 | `capture.maxFileMB` | number, up to 1024 | `5` | Larger files are not saved. |
 | `config.files` | list of paths | `[".env"]` | Config files. Only key names and a fingerprint are saved. |
 | `config.plain` | list of key names | `[]` | Keys whose values are safe to save, unless they look like a secret. |
-| `environment.files` | list of paths | see below | Environment definitions to fingerprint. |
+| `environment.files` | list of paths inside the project | see below | Environment definition files. Each gets a digest. They come back when Git has them. When `.gitignore` skips them, only the version pins (`.nvmrc`, `.node-version`, `.tool-versions`, `.python-version`) are saved; the rest keep only their digest. |
 
 The default `environment.files` list is `Dockerfile`, `docker-compose.yml`, `compose.yaml`, `.nvmrc`, `.node-version`, `.tool-versions`, `.python-version` and `.devcontainer/devcontainer.json`.
 
@@ -241,14 +241,17 @@ config:
 - Code, including uncommitted changes to tracked files. Each save point is a Git commit pinned at `refs/tm/<id>` and also written as a Git bundle into the store.
 - Files not in Git yet, unless `.gitignore` skips them, plus anything in `capture.include`.
 - Config key names and a fingerprint, so changes show up in `diff`. Values only for keys in `config.plain`.
-- Lockfile digests (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `go.sum` and others), environment file digests, and Node, Git and platform versions.
+- Lockfiles (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `go.sum` and others) and version pins (`.nvmrc`, `.node-version`, `.tool-versions`, `.python-version`), saved as files even when `.gitignore` skips them, plus their digests.
+- Other environment definition files (`Dockerfile`, `docker-compose.yml`, `compose.yaml`, `.devcontainer/devcontainer.json`): a digest, and the file itself when Git has it. When `.gitignore` skips them, only the digest is kept, because they can hold secrets the secret check does not catch.
+- A recovery lists lockfiles under "Dependencies" and environment files under "Environment definition" only when the copy holds the exact saved bytes.
+- Node, Git and platform versions. Recorded and compared by `tm diff`, not restored.
 
 **Not saved:**
 
 - Secret values. A file that looks like it contains a secret is skipped and listed.
 - Files over `capture.maxFileMB`, and symbolic links. These are listed as missing.
-- Installed dependencies such as `node_modules`. Only the lockfile digest is kept.
-- Files your `.gitignore` skips. Each save point lists them, for example "Files your .gitignore skips were not saved: node_modules/, dist/".
+- Installed dependencies such as `node_modules`. The lockfile comes back; the install step rebuilds them.
+- Other files your `.gitignore` skips, including an ignored Dockerfile, compose file or devcontainer file (only its digest is kept). Each save point lists them, for example "Files your .gitignore skips were not saved: node_modules/, dist/".
 - Databases, deployed versions and external services.
 
 Every save point lists what it did not save.
@@ -352,7 +355,7 @@ claude mcp add timemachine -- tm mcp
 
 These are planned. None of them work today.
 
-- **Signed Mac download.** The Mac app works from source today with Save now, Check it works and Rewind. Run `pnpm app` from the cloned repository. Apple signing and notarization are not ready.
+- **Checkout for the web app.** The price is $50 once (ADR 0013) and `tm license <key>` works, but nothing is for sale until checkout opens. The web app is free for up to 3 projects at a time; a key lifts that limit.
 - **Container isolation** with Docker, OrbStack or Apple `container`, labeled as stronger than host mode.
 - **Dependency cache**, so checks do not reinstall packages every time.
 - **npm package** `timetm`, with `npx timetm init`.

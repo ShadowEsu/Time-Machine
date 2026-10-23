@@ -62,7 +62,7 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-**Verify by running, not by reading.** Tests: `pnpm test` (write the failing test first for bug fixes). Types: `pnpm typecheck`. Build: `pnpm build`, then `node scripts/check-cli-package.mjs`. Mac app: `pnpm --filter @timetm/desktop package:local && pnpm --filter @timetm/desktop smoke:native`.
+**Verify by running, not by reading.** Tests: `pnpm test` (write the failing test first for bug fixes). Types: `pnpm typecheck`. Build: `pnpm build`, then `node scripts/check-cli-package.mjs`. Web app preview: `pnpm --filter @timetm/web build`.
 
 ---
 
@@ -76,8 +76,8 @@ Read `docs/BUILD_BRIEF.md` before starting any work. It is the source of truth f
 
 Then read `docs/HANDOFF.md`: the full memory of past sessions (decisions, environment rules, what is built and verified, every open task). Update it at the end of each session.
 
-- **Scope is the MVP in the brief:** Phase A (engine and CLI, C01 to C15, tests V01 to V14) first, then Phase B (desktop app, D01 to D08). No hosted dashboard, accounts, billing, cloud storage, database snapshots, deployment rollback, or business-automation replay until the founder explicitly changes it.
-- **One engine.** `packages/core` has no Electron imports. The CLI and the desktop app call the same functions and must never disagree.
+- **Scope is the MVP in the brief:** Phase A (engine and CLI, C01 to C15, tests V01 to V14) first, then Phase B (the web app, W01 to W07). No hosted dashboard, accounts, billing, cloud storage, database snapshots, deployment rollback, or business-automation replay until the founder explicitly changes it.
+- **One engine.** `packages/core` has no browser or server imports. The CLI and the web app call the same functions and must never disagree.
 - **Every bug fix starts with a failing test.** That is the product thesis; the codebase has to live by it.
 - **Never touch the user's working copy or current branch** when opening, verifying, or recovering. Use separate worktrees. Never push, merge, or deploy.
 - **Never promise universal undo.** Every checkpoint and report states what was not captured and what needs manual recovery. An unverified checkpoint is never shown as working.

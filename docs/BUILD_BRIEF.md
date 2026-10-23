@@ -1,6 +1,6 @@
 # Time Machine build brief
 
-Status: Phase A engine and CLI partly implemented (15 October 2026). **Implemented and tested:** C01 to C15 in host mode (C15 for Claude Code), `tm demo`, `tm mcp`, and acceptance tests V01 to V14. **Still planned:** Git hooks, the container isolation adapter, the dependency cache, store thinning, npm publishing, and signing and shipping Phase B. **Built but not signed or shipped:** the Phase B app screens and the overlay. Everything else in this file is planned unless marked implemented here.
+Status (22 October 2026): **Implemented and tested:** C01 to C15 in host mode (C15 for Claude Code), `tm demo`, `tm mcp`, `tm ui` (the web app, Phase B W01 to W07), `tm license` and acceptance tests V01 to V14. **Still planned:** Git hooks, the container isolation adapter, the dependency cache, store thinning, npm publishing, and opening checkout. **Retired:** the Electron Mac app (ADR 0012). Everything else in this file is planned unless marked implemented here.
 
 Name: **Time Machine** (founder decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
 
@@ -40,7 +40,7 @@ A checkpoint with no verification result is shown as unverified, never as workin
 | Surface | For | What it looks like |
 |---|---|---|
 | **npm CLI** (`tm` command, scoped package) | Developers and coding agents | `tm checkpoint`, `tm find-good`, `tm recover`, JSON output, agent hooks, MCP server |
-| **Desktop app** (macOS first) | Non-technical builders and anyone who prefers buttons | Big buttons (Save now, Check it works, Rewind), a history screen, a menu bar status dot, and small overlay cards |
+| **Web app** (`tm ui`, runs on your computer, opens in your browser) | Non-technical builders and anyone who prefers buttons | Big buttons (Save now, Check it works, Rewind), a history screen, a status bar with one plain sentence, settings with the license |
 
 Both call the same engine, so they can never disagree.
 
@@ -57,11 +57,7 @@ Both call the same engine, so they can never disagree.
 | recover | Use this version |
 | PASS / FAIL / INCOMPLETE / BLOCKED / ERROR | Works / Broken / Couldn't check / Needs something / Check crashed |
 
-**The overlay** (built in the app, not signed or shipped yet):
-
-- **Menu bar dot:** green means the last check passed, red means it failed, and grey means not checked yet. It is never green without a real PASS.
-- **Event cards** in the corner that never steal focus. Example: "Something broke after Claude's last change. Last working version: 10:42, Added dark mode." Buttons: Rewind to 10:42, Show what changed.
-- **Hotkey:** opens the main window. The timeline strip, with each save point as a dot colored by its verdict, lives in the menu bar menu.
+**The status bar** (built): the top of every project screen says, in one sentence, whether the newest save point passed, failed or was never checked, and offers the single next action. It is never green without a real PASS. Overlays over other apps and a global hotkey were part of the retired Mac app (ADR 0012).
 
 **One-click rewind:** rebuild the old version in a safe copy, check it, and show "10:42 works." Then **Use this version** makes a local branch, saves the broken state first so the rewind can be undone, and never pushes or deletes anything.
 
@@ -107,18 +103,19 @@ Both call the same engine, so they can never disagree.
 | C14 | Human and JSON output that always agree |
 | C15 | Agent hooks for Claude Code first (prompt submit, before destructive shell commands, after each turn), with background verify that flags PASS turning into FAIL |
 
-### Phase B: desktop app (after the CLI demo works)
+### Phase B: the web app (built; `tm ui`)
 
-| ID | Requirement |
-|---|---|
-| D01 | Onboarding in three steps: pick project, choose the check, choose when to save |
-| D02 | Project list and History screen with big buttons and verdict badges |
-| D03 | Save point detail with plain language "what's saved / what's not saved" |
-| D04 | Rewind wizard: find the last working version, try it, use it, undo |
-| D05 | Compare screen |
-| D06 | Menu bar status dot and overlay event cards that never steal focus |
-| D07 | Settings: storage used and cleanup, isolation mode, agent connections, hotkey |
-| D08 | Signed and notarized macOS build with auto update |
+| ID | Requirement | Status |
+|---|---|---|
+| W01 | Onboarding in three steps: add a project by path, choose the check, connect the hooks | Built |
+| W02 | Project list and History screen with big buttons and verdict badges | Built |
+| W03 | Save point detail with plain language "what's saved / what's not saved" | Built |
+| W04 | Rewind wizard: find the last working version, try it, use it, undo | Built |
+| W05 | Compare screen | Built |
+| W06 | Local server on `127.0.0.1` with a per-launch token, Host and Origin checks, a Zod schema on every call, live updates when the CLI or a hook saves | Built |
+| W07 | Settings: storage used and cleanup, isolation mode, agent connections, theme, the one-time license | Built |
+
+The retired Mac app items (menu bar dot, overlay cards, global hotkey, signing and notarization) are recorded in ADR 0012.
 
 Later: plain English summaries (templates first, then on-device model, then opt-in cloud), screenshots of the app per save point, Cursor, Codex, and Gemini hook kits, VS Code extension, cloud sync, team sharing.
 
@@ -143,7 +140,7 @@ Later: plain English summaries (templates first, then on-device model, then opt-
 
 ### Out of scope until the founder changes it
 
-Hosted dashboard, accounts, billing, cloud storage, team sharing, database snapshots, deployment rollback, Windows, Mac App Store, and business-automation replay. Business-automation replay is a later specialized capability; its earlier spec is in `.private/research/00-business-plan.md`.
+Hosted dashboard, accounts, subscriptions, cloud storage, team sharing, database snapshots, deployment rollback, Mac App Store, and business-automation replay. The one-time web app purchase (ADR 0013) is the only billing. Business-automation replay is a later specialized capability; its earlier spec is in `.private/research/00-business-plan.md`.
 
 ### The demo
 
@@ -157,16 +154,16 @@ A small TypeScript web app with tests. Checkpoints 1 to 3 work. An agent then "f
   ```
   packages/core        engine, no Electron imports
   packages/cli         tm command, hooks entry point, MCP server
-  packages/agent-kits  Claude Code plugin first
-  apps/desktop         Electron app (Phase B)
+  plugins/time-machine Claude Code plugin
+  apps/web             the web app renderer and server, served by tm ui (Phase B)
   fixtures/            synthetic demo histories only
   docs/adr/
   ```
 
-- **Store:** `~/.timemachine` for the CLI, `~/Library/Application Support/<App>` for the app. Content-addressed SHA-256 blobs, compressed, one immutable JSON manifest per checkpoint, append-only audit file. Size budget with thinning; pinned and newest-PASS checkpoints are never thinned.
+- **Store:** `~/.timemachine` (or `$TM_HOME`) for the CLI and the web app. Content-addressed SHA-256 blobs, compressed, one immutable JSON manifest per checkpoint, append-only audit file. Size budget with thinning; pinned and newest-PASS checkpoints are never thinned.
 - **Isolation:** host mode by default (git worktree, captured files, lockfile install with a dependency cache, clean environment, timeout). The network is blocked during verify using Anthropic's open source sandbox runtime (`srt`, a research preview, so the engine keeps its own fail-closed logic). Docker, OrbStack, or Apple `container` is used when detected.
-- **Desktop:** Electron. The engine runs unchanged in a utility process, and Electron has a built-in non-activating panel for the overlay. Tauri 2 is the fallback if bundle size becomes a real complaint.
-- **Distribution:** npm package `timetm` (command `tm`) with trusted publishing and provenance. The bare names `tm`, `timemachine`, and `time-machine` are taken by other people. Mac app as a signed, notarized direct download DMG, not the Mac App Store.
+- **Web app:** the renderer in `apps/web` talks to a local HTTP server inside the CLI over `POST /api/call` and a streamed `GET /api/events`. No Electron, no native shell (ADR 0012).
+- **Distribution:** npm package `timetm` (command `tm`) with trusted publishing and provenance. The bare names `tm`, `timemachine`, and `time-machine` are taken by other people. The web app ships inside the same package; `tm ui` opens it. No DMG, no signing.
 
 **ADRs to write before code:** name, store location, default isolation, network blocking method, desktop framework.
 
@@ -178,10 +175,8 @@ A small TypeScript web app with tests. Checkpoints 1 to 3 work. An agent then "f
 | open, verify, find-good, recover (the demo works end to end) | 2 |
 | Network blocking plus Docker adapter | 1 |
 | Claude Code hooks, MCP server, npm publish | 1 to 1.5 |
-| Desktop: tray, History, Save now, Check it works | 2 |
-| Desktop: Rewind wizard, Compare, Settings | 2 |
-| Overlay cards and timeline strip | 1 |
-| Signing, notarization, auto update | 0.5 to 1 |
+| Web app: History, Save now, Check it works, Rewind wizard, Compare, Settings | 4 (done) |
+| Web app: local server, token, live updates, license | 1 (done) |
 
 CLI MVP is about 7 to 9 weeks. The desktop app is about 8 to 10 more.
 
@@ -195,17 +190,15 @@ CLI MVP is about 7 to 9 weeks. The desktop app is about 8 to 10 more.
 - **Verdict from research:** go, narrowly. Scored about 5 out of 10, strong on pain and feasibility and weak on willingness to pay and competition. Base case about $350K ARR at month 36.
 - **Who:** agencies managing many client repos pay first. Indie developers who run agents on auto-approve are the first users. Vibe coders have the most pain, but their code often lives inside hosted builders, so the app starts with local or GitHub-synced projects.
 
-**Pricing to test:**
+**Pricing (ADR 0013, founder decision 22 October 2026):**
 
 | Plan | Price |
 |---|---|
-| CLI | Free and open source |
-| App Free | 3 projects, 30 days of history |
-| Pro | $9 a month or $79 a year; students half price. Loyalty ladder proposed (see section 9) |
-| Team | $20 per seat per month |
-| Enterprise | Later, after SOC 2 work starts |
+| CLI, hooks, MCP | Free and open source (MIT) |
+| Web app | Free for up to 3 projects at a time; $50 once lifts the limit. Any number of your own computers and projects, updates while we ship them, key verified offline. Sign in on the site with the checkout email to see the key again |
+| Team | Later, if agencies ask |
 
-Never paywall a restore.
+The open source CLI can always restore. Checkout is not open until an adult signer and a Stripe account exist (`docs/launch/CHECKOUT_SETUP.md`).
 
 ## 7. Website plan
 
@@ -232,22 +225,22 @@ Full scripts and targets are in `.private/research/13-pricing-launch-naming.md`.
 ## 9. Open decisions
 
 1. **The name.** Decided: Time Machine, with npm package `timetm` and command `tm` (ADR 0001). The Apple trademark risk is accepted by the founder and recorded there.
-2. **Apple Developer Program.** It is required to sign the Mac app, and the account holder must be 18 or older. A parent or guardian can enroll in their own name. Until then, ship the CLI first.
+2. **Apple Developer Program.** No longer needed: the Mac app is retired (ADR 0012).
 3. **Open source license** for the engine and CLI.
-4. **Loyalty pricing.** Decided: "The Ladder" (ADR 0002).
+4. **Pricing.** Decided: $50 one time for the web app (ADR 0013). The Ladder (ADR 0002) is superseded.
 5. **Deadlines:** a16z speedrun SR008 closes 1 November 2026; YC W27 closes 2 November 2026 at 8pm PT. Dated milestones are in `docs/PLAN.md`.
-6. **Who signs for money.** An adult seller of record, or a company with an adult officer, must be in place before Pro, Stripe or the Apple program. See `docs/legal/README.md`.
+6. **Who signs for money.** An adult seller of record, or a company with an adult officer, must be in place before checkout opens. See `docs/legal/README.md`.
 7. **Engine decisions** recorded: store location (ADR 0003), isolation and network (ADR 0004), exit codes (ADR 0005).
 
 ## 10. Rewind everything: the roadmap
 
-All planned. Nothing is implemented yet.
+The "Now" row is built. The rest is planned.
 
 | When | Capability |
 |---|---|
-| Now (MVP) | Code, uncommitted work, chosen files, config key changes, dependency and environment definitions, safe copy check, find last working, recover to a branch, honest report, small local backup, Claude Code hooks, MCP, audit log, the Mac app |
+| Now (MVP) | Code, uncommitted work, chosen files, config key changes, dependency and environment definitions, safe copy check, find last working, recover to a branch, honest report, small local backup, Claude Code hooks, MCP, audit log, the web app |
 | Next (6 to 12 months) | One timeline across Claude Code, Cursor, Codex and Gemini; Lovable, Replit and Bolt through GitHub sync; environment fingerprint and "works on my machine" diff; test evidence and flaky test notes; local SQLite and Docker Postgres snapshots before risky commands; Vercel deploy references; "What broke?"; ML save points and "rewind to the best run"; agent rules regressions; morning report for overnight agents |
-| Later | Team sharing, an off-machine encrypted copy, guided Neon or Supabase branch recovery, game projects, verified research badges, Windows and Linux |
+| Later | Team sharing, an off-machine encrypted copy, guided Neon or Supabase branch recovery, game projects, verified research badges |
 | Never | Unsend emails or payments, undo a deploy people saw, reverse production database writes, restore secret values, promise identical GPU results, replace a full disk backup |
 
 Big new findings that change the plan:

@@ -19,12 +19,13 @@
   font-display: swap;
   src: url("fonts/newsreader-latin-opsz-italic.woff2") format("woff2-variations"), url("fonts/newsreader-latin-opsz-italic.woff2") format("woff2");
 }
-/* Metric-matched stand-in while Newsreader loads, so the headline keeps its size and line breaks
-   when the web font swaps in. Measured against Newsreader at weight 340, optical size 72. */
+/* Metric-matched stand-ins while the web fonts load, so headlines and body text keep their line breaks
+   when the web fonts swap in (no layout shift). Tuned by comparing line breaks of the home h1 (Newsreader
+   weight 340, optical size 72) and lead (Inter) at 22 widths from 320 to 1600 px, with and without the web fonts. */
 @font-face {
   font-family: "Newsreader fallback";
   src: local("Georgia"), local("Times New Roman");
-  size-adjust: 98.8%;
+  size-adjust: 97.5%;
   ascent-override: 75%;
   descent-override: 26%;
   line-gap-override: 0%;
@@ -37,6 +38,14 @@
   src: url("fonts/inter-latin-opsz-normal.woff2") format("woff2-variations"), url("fonts/inter-latin-opsz-normal.woff2") format("woff2");
 }
 @font-face {
+  font-family: "Inter fallback";
+  src: local("Arial"), local("ArialMT");
+  size-adjust: 107.4%;
+  ascent-override: 90.2%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+}
+@font-face {
   font-family: "Geist Mono";
   font-style: normal;
   font-weight: 100 900;
@@ -46,7 +55,7 @@
 
 :root {
   --font-display: "Newsreader", "Newsreader fallback", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", "Inter fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --fs-hero: clamp(52px, 2.6rem + 5.4vw, 124px);
@@ -63,7 +72,7 @@
   --top-h: 64px;
 
   /* One theme: warm dark, like paper under a desk lamp. Charcoal #1a1918 and ivory #faf9f5,
-     a clay accent for the main action, and verdict colours that mean only Works and Broken.
+     clay as a signature mark, and verdict colours that mean only Works and Broken.
      Text steps on --paper: ink 16.7, ink-2 11.7, ink-3 7.1, ink-4 5.4. On --card, ink-4 is 4.8. */
   --paper: #1a1918;
   --card: #24231f;
@@ -78,7 +87,7 @@
   --glass: rgba(26, 25, 24, .94);
   --glass-line: rgba(250, 249, 245, .12);
 
-  /* Links and focus stay ivory. The main action is clay with dark text (5.9:1). */
+  /* Links and focus stay ivory. The main action is paper with charcoal text (16.7:1). Clay is a mark. */
   --accent: #faf9f5;
   --accent-ink: #ffffff;
   --accent-tint: #33312b;
@@ -143,14 +152,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .skip:focus { top: 10px; }
 .wrap { max-width: var(--max-page); margin: 0 auto; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); }
 .mono, code, kbd, samp { font-family: var(--font-mono); font-variant-ligatures: none; }
-code { font-size: .92em; }
+code { font-size: max(.92em, 13px); }
 em { font-style: italic; }
 ::selection { background: var(--accent-tint); }
 
-/* Brand mark: a rewind triangle on ink. Never a clock. */
+/* Brand: the product's own mark, the same image on every page. */
 .brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; font-size: 15px; letter-spacing: -.015em; text-decoration: none; color: var(--ink); }
-.mark { width: 24px; height: 24px; border-radius: 7px; background: var(--ink); display: grid; place-items: center; flex: none; }
-.mark i { display: block; width: 9px; height: 10px; margin-left: -1px; background: var(--paper); clip-path: polygon(100% 0, 100% 100%, 0 50%); }
+.brand img { flex: none; width: 28px; height: 28px; border-radius: 7px; }
 
 /* Buttons */
 .btn {
@@ -159,25 +167,26 @@ em { font-style: italic; }
   text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), opacity .2s;
 }
 .btn:active { transform: scale(.97); transition-duration: .14s; }
-.btn-primary { background: var(--accent-btn); color: var(--on-accent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 10px 24px -12px rgba(217, 119, 87, .55); }
+/* The main action, as Claude does it on paper, inverted for dark: warm paper fill, charcoal text, no glow.
+   Clay stays a mark (the logo, the active save point) and rings this button on keyboard focus (5.9:1). */
+.btn-primary { background: var(--ink); color: var(--paper); }
 @media (hover: hover) and (pointer: fine) {
-  .btn-primary:hover { background: var(--accent-btn-hover); transform: translateY(-1px); }
+  .btn-primary:hover { background: var(--term-ink); }
 }
-.btn-primary:active { transform: scale(.97); }
+.btn-primary:focus-visible { outline-color: var(--clay); }
 .btn-ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
 @media (hover: hover) and (pointer: fine) {
   .btn-ghost:hover { box-shadow: inset 0 0 0 1px var(--ink-3); }
 }
 .btn[disabled] { opacity: .5; cursor: default; transform: none; }
 .btn-sm { min-height: 44px; padding: 0 18px; font-size: 14.5px; }
-.btn-warm { background: var(--accent-btn); color: var(--on-accent); border-color: transparent; }
-@media (hover: hover) and (pointer: fine) { .btn-warm:hover { background: var(--accent-btn-hover); color: var(--on-accent); } }
 section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 :root:not(.js) [data-sound], :root:not(.js) [data-ambient], :root:not(.js) [data-dev] { display: none; }
 
-/* Header. Markup:
-   header.top > .wrap.top-in > a.brand, nav.nav (4 links), a.btn.btn-primary.btn-sm.top-cta
-   Mark the current page's link with aria-current="page". */
+/* Header, the same on every page. Markup:
+   header.top > .wrap.top-in > a.brand (img + name), nav.nav (How it works, Security, The story, Company),
+   a.top-signin[data-checkout-open][hidden] (Sign in), a.btn.btn-ghost.btn-sm.top-cta. Mark the current page's link with aria-current="page".
+   Every page loads assets/checkout.js, which shows Sign in once checkout is open. */
 .top {
   position: sticky; top: 0; z-index: 50;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
@@ -192,21 +201,34 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 }
 .nav a:active { background: var(--mist); color: var(--ink); }
 .nav a[aria-current="page"] { color: var(--ink); background: var(--mist); }
+/* Sign in: a quiet text link before the button, a full 44 px target at every width. It ships hidden and
+   checkout.js shows it only once checkout is open, so the closed state needs no script. */
+.top-signin { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border-radius: 999px; color: var(--ink-2); font-size: 14.5px; text-decoration: none; transition: background .2s, color .2s; }
+@media (hover: hover) and (pointer: fine) { .top-signin:hover { background: var(--mist); color: var(--ink); } }
+.top-signin[aria-current="page"] { color: var(--ink); }
+/* Anything marked data-checkout-open (Sign in links) stays hidden until checkout.js sees checkout open. */
+[data-checkout-open][hidden] { display: none; }
 .top-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none; }
 .top-progress i { display: block; height: 100%; background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); opacity: .6; }
-/* Phones: two rows, brand and button, then the four links. Not sticky, so stories get the full screen. */
-@media (max-width: 760px) {
+/* Narrower screens: two rows, brand, Sign in (when shown) and button, then the four links. Not sticky, so stories get the full screen. */
+@media (max-width: 860px) {
   .top { position: relative; }
-  .top-in { flex-wrap: wrap; padding-top: 6px; padding-bottom: 2px; }
+  .top-in { flex-wrap: wrap; row-gap: 0; padding-top: 6px; padding-bottom: 2px; }
   .nav { order: 3; width: 100%; justify-content: space-between; margin: 0 -10px; width: calc(100% + 20px); font-size: 14px; }
   .nav a { padding: 0 10px; }
   .top-progress { display: none; }
 }
-@media (max-width: 370px) { .nav a { padding: 0 7px; font-size: 13.5px; } .top .brand { font-size: 14px; } .top-cta { padding: 0 14px; font-size: 13.5px; } }
+@media (max-width: 420px) {
+  .top-in { column-gap: 8px; }
+  .top .brand { gap: 8px; font-size: 14px; }
+  .top-signin { padding: 0 8px; font-size: 13.5px; }
+  .top-cta { padding: 0 14px; font-size: 13.5px; }
+}
+/* The smallest phones keep the mark and drop the visible name; the link is still named "Time Machine". */
+@media (max-width: 370px) { .nav a { padding: 0 7px; font-size: 13.5px; } .top .brand { font-size: 0; gap: 0; } }
 @media (prefers-reduced-transparency: reduce) { .top { background: var(--paper); } }
 
 /* Shared type */
-.eyebrow { margin: 0; font: 500 12px/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .h1 { margin: 0; font: 330 var(--fs-hero)/.94 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.03em; text-wrap: balance; }
 .h2 { margin: 16px 0 0; font: 340 var(--fs-h2)/1 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.028em; max-width: 16ch; text-wrap: balance; }
 /* The italic half of a headline is the accent. */
@@ -225,7 +247,7 @@ section[id], h1[id], h2[id] { scroll-margin-top: 84px; }
 .prose blockquote { margin: 24px 0 0; padding: 4px 0 4px 20px; border-left: 3px solid var(--accent); font: 400 italic 24px/1.35 var(--font-display); color: var(--ink); }
 
 /* Status tags: Built, In development, Planned. Built gets a filled tint; shape tells the other two apart. */
-.tag { display: inline-flex; align-items: center; height: 26px; padding: 0 11px; margin: 0; border-radius: 999px; font: 500 11.5px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; width: max-content; }
+.tag { display: inline-flex; align-items: center; height: 26px; padding: 0 11px; margin: 0; border-radius: 999px; font: 500 13px/1 var(--font-body); white-space: nowrap; width: max-content; }
 .tag-now { background: var(--accent-tint); color: var(--accent-ink); }
 .tag-dev { box-shadow: inset 0 0 0 1px var(--ink-2); color: var(--ink); }
 .tag-plan { border: 1px dashed var(--ink-3); color: var(--ink-2); }
@@ -238,11 +260,12 @@ time, .num { font-variant-numeric: tabular-nums; }
 .copy-status { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.4; }
 
 /* Verdict pills: word plus dot, never colour alone. */
-.pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; font: 500 11.5px/1 var(--font-body); white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 999px; font: 500 13px/1 var(--font-body); white-space: nowrap; }
 .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .pill-works { background: var(--works-bg); color: var(--works-fg); }
 .pill-broken { background: var(--broken-bg); color: var(--broken-fg); }
 .pill-none { box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
+.pill-couldnt { background: var(--couldnt-bg); color: var(--couldnt-fg); }
 .pill-none::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
 
 /* Waitlist form, shared. Markup contract:
@@ -255,8 +278,9 @@ time, .num { font-variant-numeric: tabular-nums; }
 .wl input[type="email"]::placeholder { color: var(--ink-3); }
 .wl input[type="email"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .wl-row .btn { min-height: 52px; }
+/* The whole label is the hit area (44 px tall); the box itself is 24 px so it is a full target on its own too. */
 .wl-consent { display: flex; gap: 12px; align-items: flex-start; min-height: 44px; padding-top: 4px; font-size: 15px; color: var(--ink-2); cursor: pointer; }
-.wl-consent input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent-btn); cursor: pointer; }
+.wl-consent input { flex: none; width: 24px; height: 24px; margin: -1px 0 0; accent-color: var(--accent-btn); cursor: pointer; }
 .wl-hp { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .wl-status { min-height: 1.5em; margin: 0; font-size: 15px; font-weight: 500; }
 .wl-privacy { margin: 0; color: var(--ink-3); font-size: 13.5px; }
@@ -300,6 +324,7 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 .foot { position: relative; border-top: 1px solid var(--line); padding-top: 36px; overflow: hidden; color: var(--ink-3); font-size: 14px; }
 .foot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 28px; }
 .foot-row p { margin: 0; }
+.foot-row p a { padding-block: 4px; }
 .foot nav { display: flex; flex-wrap: wrap; gap: 0 20px; }
 .foot nav a { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {
@@ -310,7 +335,7 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 @media (max-width: 640px) { .giant { font-size: 23vw; white-space: normal; line-height: 1.05; } .giant span { display: block; } .foot nav { gap: 0 16px; } }
 
 /* Legal pages */
-.legal .draftbar { position: sticky; top: 0; z-index: 5; background: var(--mist); color: var(--ink); box-shadow: 0 1px 0 var(--line-2); text-align: center; padding: 10px 16px; font: 500 12.5px/1.4 var(--font-mono); letter-spacing: .06em; }
+.legal .draftbar { position: sticky; top: 0; z-index: 5; background: var(--mist); color: var(--ink); box-shadow: 0 1px 0 var(--line-2); text-align: center; padding: 10px 16px; font: 500 13.5px/1.4 var(--font-body); }
 .legal .wrap { max-width: 760px; }
 .legal header.top { position: static; padding: 28px 0 0; background: none; box-shadow: none; }
 .legal header.top:has(.top-in) { position: sticky; top: 40px; padding: 0; background: color-mix(in srgb, var(--paper) 94%, transparent); box-shadow: 0 1px 0 var(--line); }
@@ -329,7 +354,7 @@ form[data-waitlist][data-state="ok"] input[type="email"] { border-color: var(--w
 .legal .tablewrap { margin-top: 16px; overflow-x: auto; border-radius: 14px; background: var(--card); box-shadow: 0 0 0 1px var(--line); }
 .legal table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .legal th, .legal td { text-align: left; padding: 12px 16px; border-top: 1px solid var(--line); }
-.legal thead th { border-top: 0; font: 500 11.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); background: var(--mist); }
+.legal thead th { border-top: 0; font: 500 13px/1.3 var(--font-body); color: var(--ink-3); background: var(--mist); }
 .legal footer:not(.foot) { border-top: 1px solid var(--line); padding: 32px 0 calc(32px + env(safe-area-inset-bottom, 0px)); font-size: 14px; color: var(--ink-3); }
 .legal footer:not(.foot) .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; }
 @media (hover: hover) and (pointer: fine) {

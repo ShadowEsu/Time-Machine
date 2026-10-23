@@ -9,9 +9,9 @@
   },
   "scripts": {
     "build": "tsc -b packages/core packages/cli && pnpm --filter timetm bundle",
-    "typecheck": "tsc -b packages/core packages/cli && tsc -p tsconfig.test.json && pnpm --filter @timetm/desktop typecheck",
+    "typecheck": "tsc -b packages/core packages/cli && tsc -p tsconfig.test.json && pnpm --filter @timetm/web typecheck",
     "test": "vitest run",
-    "app": "pnpm --filter @timetm/desktop dev"
+    "ui": "node packages/cli/dist/tm.js ui"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

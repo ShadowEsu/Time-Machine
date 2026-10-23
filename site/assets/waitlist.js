@@ -166,21 +166,20 @@
   }
 
   // Say up front when the list is not saving, so nobody is surprised after typing.
+  // checkout.js (loaded first) already asked /api/health; its promise resolves to null on any failure.
   var forms = document.querySelectorAll("form[data-waitlist]");
   for (var i = 0; i < forms.length; i++) wire(forms[i]);
-  if (!isFile && forms.length) {
-    fetch(api("health"), { headers: { Accept: "application/json" }, credentials: "same-origin" })
-      .then(function (res) { return res.ok ? res.json() : null; })
-      .then(function (h) {
-        // Only Supabase decides if signups are saved. The site sends no email, so h.email is not checked.
-        // A down database is still worth a try: the real answer to a signup replaces this line.
-        var text = !h ? null : h.waitlist === false ? MSG.soon : h.database === "unreachable" ? MSG.down : null;
-        if (!text) return;
-        for (var j = 0; j < forms.length; j++) {
-          var s = forms[j].querySelector("[data-waitlist-status]");
-          if (s && !s.getAttribute("data-state")) say(s, forms[j], "info", text);
-        }
-      }, function () {});
+  if (!isFile && forms.length && window.tmHealth) {
+    window.tmHealth.then(function (h) {
+      // Only Supabase decides if signups are saved. The site sends no email, so h.email is not checked.
+      // A down database is still worth a try: the real answer to a signup replaces this line.
+      var text = !h ? null : h.waitlist === false ? MSG.soon : h.database === "unreachable" ? MSG.down : null;
+      if (!text) return;
+      for (var j = 0; j < forms.length; j++) {
+        var s = forms[j].querySelector("[data-waitlist-status]");
+        if (s && !s.getAttribute("data-state")) say(s, forms[j], "info", text);
+      }
+    });
   }
 
   // A link marked data-waitlist-focus brings its form (href="#id") into view and puts the cursor in the email field.

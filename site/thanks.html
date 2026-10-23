@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thank you. Time Machine</title>
+<meta name="description" content="Your Time Machine web app key, and how to activate it.">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1918">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/pages.css">
+<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+</head>
+<body class="legal thanks">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="index.html" translate="no"><img src="assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+      <a href="security.html">Security</a>
+      <a href="story.html">The story</a>
+      <a href="company.html">Company</a>
+    </nav>
+    <a class="top-signin" href="account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="index.html#pricing">Pay once</a>
+  </div>
+</header>
+<main id="main" tabindex="-1">
+  <article class="wrap">
+    <h1>Thank you</h1>
+    <p>Your payment went through Stripe. Your key for the Time Machine web app is below. It opens the web app on any number of your own computers and projects. Copy it somewhere safe now.</p>
+
+    <p class="license-status" data-license-status role="status" aria-live="polite"></p>
+    <noscript><p class="license-status" data-state="error">This page needs JavaScript to fetch your key. Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> with the time of your purchase and we send it by hand.</p></noscript>
+
+    <div class="license" data-license-box data-copy-box hidden>
+      <p class="license-h" id="license-h">Your key</p>
+      <code id="license-key" class="license-key" tabindex="-1" aria-labelledby="license-h" translate="no"></code>
+      <div class="copy-row">
+        <button class="btn btn-ghost btn-sm" type="button" data-copy="license-key" hidden>Copy key</button>
+        <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <h2>Activate it, one of two ways</h2>
+    <ol>
+      <li><strong>In the web app.</strong> Open <code>tm ui</code>, go to Settings, then License, and paste it.</li>
+      <li><strong>In a terminal.</strong> Run <code>tm license &lt;key&gt;</code>, with your key in place of <code>&lt;key&gt;</code>.</li>
+    </ol>
+    <p>The key is verified offline. Nothing on this page is stored or logged by the site. <a href="account.html">Sign in</a> with the email you used at checkout to see this key again at /account.</p>
+
+    <h2>Refunds</h2>
+    <p>Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> within 14 days of your purchase. The <a href="terms.html#license">terms</a> are a draft and name the current rules.</p>
+  </article>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="story.html">The story</a>
+        <a href="how-it-works.html">How it works</a>
+        <a href="security.html">Security</a>
+        <a href="company.html">Company</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="changelog.html">Changelog</a>
+        <a href="terms.html">Terms (draft)</a>
+        <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html" data-checkout-open hidden>Sign in</a>
+        <a href="mailto:preston@unvibe.site">Email us</a>
+      </nav>
+      <p class="foot-note">Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+<script src="assets/copy.js" defer></script>
+<script src="assets/thanks.js" defer></script>
+<script src="assets/checkout.js" defer></script>
+</body>
+</html>

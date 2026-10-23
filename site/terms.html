@@ -25,14 +25,15 @@
 <aside class="draftbar" aria-label="Draft notice">DRAFT. Not in effect.</aside>
 <header class="top" id="top">
   <div class="wrap top-in">
-    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><i></i></span>Time Machine</a>
+    <a class="brand" href="index.html" translate="no"><img src="assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
     <nav class="nav" aria-label="Main">
       <a href="how-it-works.html">How it works</a>
       <a href="security.html">Security</a>
+      <a href="story.html">The story</a>
       <a href="company.html">Company</a>
-      <a href="blog/index.html">Blog</a>
     </nav>
-    <a class="btn btn-primary btn-sm top-cta" href="index.html#waitlist">Join the waitlist</a>
+    <a class="top-signin" href="account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="index.html#waitlist">Join the waitlist</a>
   </div>
 </header>
 <main id="main">
@@ -43,7 +44,7 @@
       <p>Last updated: 22 October 2026.</p>
     </div>
 
-    <p>These terms are an agreement between you and <span class="ph">[Operator]</span> ("we"). They cover the Time Machine website and the Time Machine Mac app. The free <code>tm</code> command line tool is covered by its own open source license.</p>
+    <p>These terms are an agreement between you and <span class="ph">[Operator]</span> ("we"). They cover the Time Machine website and the Time Machine web app, which you open with <code>tm ui</code>. The free <code>tm</code> command line tool is covered by its own open source license, MIT.</p>
 
     <h2>1. Who can use Time Machine</h2>
     <p>You must be at least 13. If you are under 18, a parent or guardian must agree to these terms for you and must be the one who pays. If you use Time Machine for an organization, you agree for that organization.</p>
@@ -70,12 +71,21 @@
       <li>Checks you set up run commands on your computer. You are responsible for what those commands do.</li>
       <li>Review a recovery branch before you switch to it or ship it.</li>
       <li>Only use Time Machine on projects you have the right to copy and run.</li>
-      <li>Keep your account login safe.</li>
+      <li>Keep your license key private. It is the only proof of your purchase.</li>
     </ul>
 
-    <h2>6. Paid plans</h2>
-    <p><strong>Planned.</strong> There is no paid plan today, and nothing is for sale. If one launches, these terms will show its price, renewal, cancellation and refund rules before anyone can buy.</p>
-    <p><strong>What never needs a paid plan.</strong> Restoring or recovering a save point never requires a paid plan. Your history and your exports are never locked behind a payment.</p>
+    <h2 id="license">6. The web app license <span class="tag tag-plan draft-tag">Draft</span></h2>
+    <p><strong>Draft, pending lawyer review. Checkout is not open yet, so nothing is for sale today.</strong> This section describes the license as announced. It takes effect only when checkout opens and these terms leave draft.</p>
+    <ul>
+      <li><strong>Price.</strong> $50, paid once. No subscription and no renewal.</li>
+      <li><strong>Who.</strong> One person. You may use the key on any number of computers you own or control.</li>
+      <li><strong>What it covers.</strong> Without a key, the web app lists up to 3 projects at a time. With it, you may use the web app on any number of your own projects.</li>
+      <li><strong>Updates.</strong> Updates to the web app while we ship them. We do not promise a schedule.</li>
+      <li><strong>Refund.</strong> Email <a href="mailto:preston@unvibe.site">preston@unvibe.site</a> within 14 days of your purchase and we refund it. After you activate the key, we owe no refund beyond what the law requires.</li>
+      <li><strong>Your key.</strong> The key holds an opaque purchase id, the plan and the issue date. Keep it private. To see it again, sign in at <a href="account.html">/account</a> with a one-time code sent to the email you gave at checkout.</li>
+      <li><strong>The CLI.</strong> The <code>tm</code> command line tool stays free under the MIT license.</li>
+    </ul>
+    <p><strong>What never needs a key.</strong> Restoring or recovering a save point never requires a key. Your history and your exports are never locked behind a payment.</p>
 
     <h2>7. Acceptable use</h2>
     <p>Do not use Time Machine to break the law, to attack or test systems you do not own or have permission to test, to get around license checks, or to resell the paid app without our written permission.</p>
@@ -87,7 +97,7 @@
     <p>If you send ideas, we may use them without owing you anything.</p>
 
     <h2>10. Other services</h2>
-    <p>Time Machine works with services like GitHub, Stripe and Apple. Their terms apply to your use of them. We are not responsible for them.</p>
+    <p>Time Machine works with services like GitHub and Stripe. Their terms apply to your use of them. We are not responsible for them.</p>
 
     <h2>11. Disclaimers</h2>
     <p>Time Machine is provided "as is". To the extent the law allows, we make no promises that it will be error free, that a save point will be complete, or that a recovery will succeed. Some places do not allow these disclaimers, so parts of this may not apply to you.</p>
@@ -96,10 +106,10 @@
     <p>To the extent the law allows, we are not liable for lost data, lost profits, or indirect damages. Our total liability is limited to the greater of what you paid us in the 12 months before the claim or $50. Nothing here limits liability that cannot be limited by law.</p>
 
     <h2>13. Ending these terms</h2>
-    <p>You can stop using Time Machine at any time. We can suspend or end your account if you break these terms, with notice when we reasonably can. Your local save points stay on your computer either way.</p>
+    <p>You can stop using Time Machine at any time. If you break these terms, your license ends and we stop supporting it. Your local save points stay on your computer either way.</p>
 
     <h2>14. Changes to these terms</h2>
-    <p>If we make a material change, we will email you and show a notice in the app at least 30 days before it takes effect. If you do not agree, you can cancel before then.</p>
+    <p>If we make a material change, we will post it here at least 30 days before it takes effect. If you do not agree, you can stop using Time Machine before then.</p>
 
     <h2>15. Law and disputes</h2>
     <p>California law applies, without regard to its conflict of law rules. You can bring a claim in small claims court or in the state or federal courts in Contra Costa County, California. If you are a consumer in another country, your local consumer laws still protect you.</p>
@@ -120,6 +130,7 @@
         <a href="changelog.html">Changelog</a>
         <a href="terms.html">Terms (draft)</a>
         <a href="privacy.html">Privacy (draft)</a>
+        <a href="account.html" data-checkout-open hidden>Sign in</a>
         <a href="mailto:preston@unvibe.site">Email us</a>
       </nav>
       <p class="foot-note">Not affiliated with Apple Inc.</p>
@@ -127,5 +138,6 @@
     <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
   </div>
 </footer>
+<script src="assets/checkout.js" defer></script>
 </body>
 </html>
