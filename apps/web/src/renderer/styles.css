@@ -619,6 +619,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .dlabs { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .dl { position: absolute; left: 0; top: 0; visibility: hidden; padding: 1px 4px; border-radius: 4px; background: var(--surface); font: 500 12px/14px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dl.on { color: var(--ink); }
+/* Placed by measuring, so a move must land at once, even under Reduce motion's near-zero transitions. */
+.dl, .rlab { transition: none !important; }
 .knob { position: absolute; left: 28px; top: 28px; width: 180px; height: 180px; border-radius: 50%; outline: none;
   background: repeating-conic-gradient(from 0deg, var(--knob-1) 0 1.5deg, var(--knob-2) 1.5deg 3deg);
   box-shadow: 0 14px 26px -8px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.06);
