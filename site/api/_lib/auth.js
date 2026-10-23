@@ -4,7 +4,7 @@
 // Rules: never log the email, the code, the token, the anon key or the Stripe key. Never fake a key.
 import { z } from "zod";
 import { isCheckoutConfigured, reply, signsReleaseKeys, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
-import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, SessionSchema } from "./license.js";
+import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, paymentStanding, SESSION_EXPAND, SessionSchema } from "./license.js";
 import { clientId, isAllowedOrigin, isValidEmail, normalizeEmail, readJsonObject, supabaseOrigin } from "./waitlist.js";
 
 export const MAX_AUTH_BYTES = 2048;
@@ -145,7 +145,7 @@ export async function handleAccount(req, deps) {
   const licenses = [];
   let after = null;
   for (let page = 0; page < MAX_STRIPE_PAGES; page += 1) {
-    const query = new URLSearchParams({ "customer_details[email]": email, status: "complete", limit: "100" });
+    const query = new URLSearchParams({ "customer_details[email]": email, status: "complete", limit: "100", "expand[]": `data.${SESSION_EXPAND}` });
     if (after) query.set("starting_after", after);
     let res;
     try {
@@ -168,7 +168,11 @@ export async function handleAccount(req, deps) {
       return reply(502, { ok: false, error: "stripe_error" });
     }
     for (const session of parsed.data.data) {
-      if (isTmPurchase(session) && !isTestPurchaseOnReleaseKey(session, releaseKey)) licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
+      if (!isTmPurchase(session) || isTestPurchaseOnReleaseKey(session, releaseKey)) continue;
+      // A refunded or disputed purchase is left out (Security L5); only Time Machine purchases cost this lookup.
+      const standing = await paymentStanding(session, deps, "account");
+      if (standing === "error") return reply(502, { ok: false, error: "stripe_error" });
+      if (standing === "ok") licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
     }
     const last = parsed.data.data[parsed.data.data.length - 1];
     if (!parsed.data.has_more || !last) break;

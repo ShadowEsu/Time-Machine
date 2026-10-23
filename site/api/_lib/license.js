@@ -17,7 +17,14 @@ export const SessionSchema = z.object({
   metadata: z.object({ product: z.string() }).partial().nullish(),
   currency: z.string().nullish(),
   amount_subtotal: z.number().int().nullish(),
+  // Expanded with expand[]=payment_intent.latest_charge, so the refund state comes with the session.
+  payment_intent: z.union([z.string(), z.object({
+    id: z.string().min(1),
+    latest_charge: z.union([z.string(), z.object({ refunded: z.boolean() })]).nullish(),
+  })]).nullish(),
 });
+// The expansion both Stripe reads ask for: one session, and every session in a list.
+export const SESSION_EXPAND = "payment_intent.latest_charge";
 
 // A paid one-time Time Machine purchase: made by this site's checkout (the product tag), in dollars, for
 // the full price before any promotion code (amount_subtotal is the amount before discounts). Any other
@@ -55,6 +62,63 @@ export function issuedDate(createdSeconds) {
   return new Date(createdSeconds * 1000).toISOString().slice(0, 10);
 }
 
+// Refunds and disputes (Security L5, Money's license plan section 4). A Checkout Session stays "paid"
+// after a refund or a dispute, so the payment's live state is read on every request and no key is shown
+// once the payment is fully refunded or while a dispute is open or after it is lost. A key already saved
+// on a computer keeps working: keys are checked offline and cannot be taken back.
+// Charge `disputed` stays true after a won dispute, so disputes are judged by their own status instead.
+const DISPUTE_REISSUE = new Set(["won", "warning_closed", "prevented"]); // prevented: the refund rule decides
+const DISPUTE_REFUSE = new Set(["warning_needs_response", "warning_under_review", "needs_response", "under_review", "lost"]);
+const DisputesPage = z.object({ data: z.array(z.object({ status: z.string() })), has_more: z.boolean() });
+
+/**
+ * "ok", "refunded", "disputed", or "error" when Stripe could not be read. Only for sessions that are
+ * already a Time Machine purchase, so a foreign session never costs a dispute lookup.
+ * @param {z.infer<typeof SessionSchema>} session
+ * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void }} deps
+ * @param {string} scope the log prefix
+ */
+export async function paymentStanding(session, deps, scope) {
+  const log = deps.log ?? (() => {});
+  const intent = session.payment_intent;
+  const charge = intent && typeof intent === "object" ? intent.latest_charge : null;
+  if (!intent || typeof intent !== "object" || !charge || typeof charge !== "object") {
+    log(`${scope}: stripe session came without its expanded charge`);
+    return "error";
+  }
+  // `refunded` means fully refunded; a partial refund keeps the key.
+  if (charge.refunded) return "refunded";
+  let res;
+  try {
+    res = await deps.fetch(`${STRIPE_API}/disputes?${new URLSearchParams({ payment_intent: intent.id, limit: "100" })}`, {
+      method: "GET",
+      headers: stripeHeaders(deps.env),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  } catch (err) {
+    log(`${scope}: stripe request failed (${err && err.name ? err.name : "Error"})`);
+    return "error";
+  }
+  if (!res.ok) {
+    log(`${scope}: stripe disputes returned status ${res.status}`);
+    return "error";
+  }
+  const page = DisputesPage.safeParse(await res.json().catch(() => null));
+  if (!page.success) {
+    log(`${scope}: stripe disputes returned an unexpected shape`);
+    return "error";
+  }
+  // More than 100 disputes on one payment cannot all be read here, so that payment shows no key.
+  if (page.data.has_more) return "disputed";
+  for (const { status } of page.data.data) {
+    if (DISPUTE_REISSUE.has(status)) continue;
+    // A status Stripe adds later fails closed; its name goes to the log so the rule can be updated.
+    if (!DISPUTE_REFUSE.has(status)) log(`${scope}: unknown dispute status ${/^[a-z_]{1,40}$/.test(status) ? status : "(unreadable)"}`);
+    return "disputed";
+  }
+  return "ok";
+}
+
 /**
  * GET ?session=cs_... returns the license key for a paid Checkout Session.
  * @param {{ method: string, session?: string|null }} req
@@ -70,7 +134,7 @@ export async function handleLicense(req, deps) {
 
   let res;
   try {
-    res = await deps.fetch(`${STRIPE_API}/checkout/sessions/${session.data}`, {
+    res = await deps.fetch(`${STRIPE_API}/checkout/sessions/${session.data}?${new URLSearchParams({ "expand[]": SESSION_EXPAND })}`, {
       method: "GET",
       headers: stripeHeaders(deps.env),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
@@ -91,6 +155,9 @@ export async function handleLicense(req, deps) {
   }
   if (!isTmPurchase(parsed.data)) return reply(402, { ok: false, error: "not_paid" });
   if (isTestPurchaseOnReleaseKey(parsed.data, signsReleaseKeys(deps.env, deps.sellerPublicKey))) return reply(402, { ok: false, error: "test_purchase" });
+  const standing = await paymentStanding(parsed.data, deps, "license");
+  if (standing === "error") return reply(502, { ok: false, error: "stripe_error" });
+  if (standing !== "ok") return reply(402, { ok: false, error: standing });
 
   return reply(200, { ok: true, ...licenseFor(parsed.data, deps.env.TM_LICENSE_PRIVATE_KEY) });
 }
