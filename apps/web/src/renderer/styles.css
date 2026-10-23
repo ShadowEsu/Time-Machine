@@ -912,6 +912,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .cr-p, .setup-hide { min-width: 44px; }
   .e-t { padding-block: 12px; margin-block: -12px; }
   summary { padding-block: 14px; margin-block: -14px; }
+  .field, .path-form .field { height: 44px; }
+  .switch { border-width: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }

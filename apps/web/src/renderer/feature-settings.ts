@@ -87,7 +87,7 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
   const dis = v.busy ? " disabled" : "";
   const status = v.problem ? `<p class="ft-err" role="alert">${esc(v.problem)}</p>` : v.status ? `<p class="ft-status" role="status">${esc(v.status)}</p>` : "";
   return `<div class="ft-settings">
-    <h4 class="ft-sec">Ask about your history</h4>
+    <h3 class="ft-sec">Ask about your history</h3>
     <div class="setrow"><span class="l">Ask</span><div class="ft-stack">
       <div class="toggle"><button type="button" class="switch ${v.ask ? "on" : ""}" role="switch" aria-checked="${v.ask}" aria-label="Ask about your history for this project" data-fa="ask"${dis}></button><span class="ft-muted">${esc(ASK_CONSENT.summary)}</span></div>
       ${consentDetails(!v.ask)}
