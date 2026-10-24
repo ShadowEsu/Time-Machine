@@ -183,6 +183,11 @@ body.home .ft-status div { grid-template-columns: 84px minmax(0, 1fr); padding: 
 body.home .ft-status div:last-child { border-bottom: 1px solid var(--rule); }
 body.home .ft-status dt { color: var(--ink-3); font: 500 13px/1.6 var(--font-mono); }
 body.home .ft-h { color: var(--ink-3); font: 500 13px/1.4 var(--font-mono); }
+/* Our own symbols for the three agents (not their logos), one orange: #c2410c is 4.6:1 on paper, 3.6:1 on #141414. */
+body.home .agent-support li { display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 10px; }
+body.home .agent-sym { grid-row: span 2; margin-top: 3px; color: #c2410c; transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
+@media (hover: hover) and (pointer: fine) { body.home .agent-support li:hover .agent-sym { transform: translateY(-2px) rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) { body.home .agent-sym { transition: none; } body.home .agent-support li:hover .agent-sym { transform: none; } }
 body.home .agent-support-name { color: var(--ink); font-size: 15px; }
 body.home .agent-support-status { color: var(--ink-2); font-size: 14px; }
 body.home .ft-grid .agent-support-note { color: var(--ink-3); font-size: 14px; line-height: 1.55; }
