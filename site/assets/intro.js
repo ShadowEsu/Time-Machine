@@ -43,7 +43,7 @@
 
   const num = el.querySelector(".tmi-n b"), rule = el.querySelector(".tmi-rule i"), id = el.querySelector(".tmi-id");
   const t0 = performance.now();
-  let done = 0, last = t0, shown = 0, raf = 0, flick = 0, idAt = 0, gone = false;
+  let done = 0, last = t0, shown = 0, raf = 0, flick = 0, idAt = 0, gone = false, prev = t0;
   const TASKS = 3;
   const finish = () => { done++; last = performance.now(); };
 
@@ -64,7 +64,10 @@
     // Done tasks count fully; the one in flight creeps up to 80 % of its share, so the number never sits still.
     let target = t >= FORCE ? 1 : (done + (done < TASKS ? .8 * (1 - Math.exp(-(now - last) / 500)) : 0)) / TASKS;
     const goal = Math.min(target, ease(Math.min(1, t / MIN)));
-    shown += Math.max(0, goal - shown) * .2;
+    // Time-based easing (not a fixed share per frame), so a busy main thread (the 3D machine compiling on a slow
+    // phone) slows the frames, not the count.
+    shown += Math.max(0, goal - shown) * (1 - Math.exp(-(now - prev) / 70));
+    prev = now;
     if (goal >= 1 && shown > .996) shown = 1;
     num.textContent = String(Math.round(shown * 100));
     rule.style.transform = `scaleX(${shown})`;
@@ -78,7 +81,9 @@
   }
   // The counter starts on the second frame, so the first frame (the page and the wordmark) paints with no extra
   // work; by then that frame's layout has asked for its fonts, so document.fonts.ready waits for them.
-  raf = requestAnimationFrame(() => { raf = requestAnimationFrame((now) => { fontsReady(); frame(now); }); });
+  raf = requestAnimationFrame(() => { raf = requestAnimationFrame((now) => { prev = now; fontsReady(); frame(now); }); });
+  // Hard cap: whatever the frame rate, the intro is gone by ~3 s.
+  setTimeout(() => { if (!gone) { num.textContent = "100"; rule.style.transform = "scaleX(1)"; leave(); } }, FORCE + 400);
 
   function remove() {
     if (!el.isConnected) return;
