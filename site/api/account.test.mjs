@@ -2,7 +2,8 @@ import { generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLicenseKey } from "../../packages/core/src/license.ts";
 import { GET } from "./account.js";
-import { handleAccount, LIMITS, resetRateLimits } from "./_lib/auth.js";
+import { handleAccount } from "./_lib/auth.js";
+import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 import { handleLicense, purchaseId } from "./_lib/license.js";
 
 // Synthetic values only. A throwaway signing keypair per test file.
@@ -15,16 +16,21 @@ const TOKEN = "synthetic.access.token-0123456789";
 const AUTH = `Bearer ${TOKEN}`;
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const session = (id, extra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, livemode: false, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, ...extra });
+// Sessions as Stripe lists them with expand[]=data.payment_intent.latest_charge.
+const session = (id, extra = {}, chargeExtra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, livemode: false, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, payment_intent: { id: `pi_${id.slice(3)}`, object: "payment_intent", latest_charge: { id: `ch_${id.slice(3)}`, object: "charge", refunded: false, amount_refunded: 0, ...chargeExtra } }, ...extra });
+const isDisputes = (url) => String(url).startsWith("https://api.stripe.com/v1/disputes?");
 const user = () => json({ id: "00000000-0000-4000-8000-000000000000", email: EMAIL, role: "authenticated" });
 
-// Routes each fetch by URL: the Supabase user call, then one or more Stripe pages.
-function setup({ env = ENV, userReply = user, pages = [{ data: [session("cs_test_one1234567890")], has_more: false }] } = {}) {
+// Routes each fetch by URL: the Supabase user call, the dispute list for one payment (`disputes` maps a
+// payment intent id to its dispute statuses), then one or more Stripe session pages.
+function setup({ env = ENV, userReply = user, pages = [{ data: [session("cs_test_one1234567890")], has_more: false }], disputes = {} } = {}) {
   const stripe = pages.map((page) => () => json(page));
-  const fetch = vi.fn(async (url) => (String(url).includes("/auth/v1/user") ? userReply() : (stripe.shift() ?? (() => json({ data: [], has_more: false })))()));
+  const disputeReply = (url) => json({ object: "list", data: (disputes[new URL(url).searchParams.get("payment_intent")] ?? []).map((status) => ({ object: "dispute", status })), has_more: false });
+  const fetch = vi.fn(async (url) => (String(url).includes("/auth/v1/user") ? userReply() : isDisputes(url) ? disputeReply(url) : (stripe.shift() ?? (() => json({ data: [], has_more: false })))()));
   const log = vi.fn();
   return { fetch, log, deps: { env, fetch, log } };
 }
+const sessionCalls = (fetch) => fetch.mock.calls.filter(([url]) => String(url).startsWith("https://api.stripe.com/v1/checkout/sessions"));
 const request = (overrides = {}) => ({ method: "GET", authorization: AUTH, ...overrides });
 
 beforeEach(() => resetRateLimits());
@@ -45,7 +51,7 @@ describe("account handler", () => {
       expect(l).toEqual({ key: expect.stringMatching(/^TM1\./), id: l.id, issued: "2026-10-22" });
       expect(parseLicenseKey(l.key, PUB)).toEqual({ v: 1, id: l.id, plan: "web", issued: "2026-10-22" });
     }
-    const thanks = await handleLicense({ method: "GET", session: "cs_test_one1234567890" }, { env: ENV, fetch: async () => json(session("cs_test_one1234567890")) });
+    const thanks = await handleLicense({ method: "GET", session: "cs_test_one1234567890" }, { env: ENV, fetch: async (url) => (isDisputes(url) ? json({ data: [], has_more: false }) : json(session("cs_test_one1234567890"))) });
     expect(res.body.licenses[0].key).toBe(thanks.body.key);
     expect(JSON.stringify(res.body)).not.toContain("Synthetic Buyer");
     expect(JSON.stringify(res.body)).not.toContain("cs_test_");
@@ -54,12 +60,39 @@ describe("account handler", () => {
     expect(userUrl).toBe("https://fake-project.supabase.test/auth/v1/user");
     expect(userInit.headers.apikey).toBe(ENV.SUPABASE_ANON_KEY);
     expect(userInit.headers.Authorization).toBe(AUTH);
-    const first = new URL(fetch.mock.calls[1][0]);
+    const pagesAsked = sessionCalls(fetch);
+    const first = new URL(pagesAsked[0][0]);
     expect(first.origin + first.pathname).toBe("https://api.stripe.com/v1/checkout/sessions");
-    expect(Object.fromEntries(first.searchParams)).toEqual({ "customer_details[email]": EMAIL, status: "complete", limit: "100" });
-    expect(fetch.mock.calls[1][1].headers.Authorization).toBe(`Bearer ${ENV.STRIPE_SECRET_KEY}`);
-    expect(new URL(fetch.mock.calls[2][0]).searchParams.get("starting_after")).toBe("cs_test_unpaid234567890");
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(Object.fromEntries(first.searchParams)).toEqual({ "customer_details[email]": EMAIL, status: "complete", limit: "100", "expand[]": "data.payment_intent.latest_charge" });
+    expect(pagesAsked[0][1].headers.Authorization).toBe(`Bearer ${ENV.STRIPE_SECRET_KEY}`);
+    expect(new URL(pagesAsked[1][0]).searchParams.get("starting_after")).toBe("cs_test_unpaid234567890");
+    expect(pagesAsked).toHaveLength(2);
+    // Only the two Time Machine purchases cost a dispute lookup; the subscription, foreign and unpaid ones do not.
+    expect(fetch.mock.calls.filter(([url]) => isDisputes(url)).map(([url]) => new URL(url).searchParams.get("payment_intent"))).toEqual(["pi_test_one1234567890", "pi_test_two1234567890"]);
+    expect(fetch).toHaveBeenCalledTimes(5);
+  });
+
+  it("leaves out a fully refunded purchase and one with an open or lost dispute, and keeps a won one (Security L5)", async () => {
+    const pages = [{ data: [
+      session("cs_test_kept1234567890"),
+      session("cs_test_partial234567890", {}, { amount_refunded: 1000 }),
+      session("cs_test_refunded34567890", {}, { refunded: true, amount_refunded: 5000 }),
+      session("cs_test_open1234567890", {}, { disputed: true }),
+      session("cs_test_lost1234567890", {}, { disputed: true }),
+      session("cs_test_won12345678900", {}, { disputed: true }),
+    ], has_more: false }];
+    const disputes = { pi_test_open1234567890: ["needs_response"], pi_test_lost1234567890: ["lost"], pi_test_won12345678900: ["won"] };
+    const res = await handleAccount(request(), setup({ pages, disputes }).deps);
+    expect(res.status).toBe(200);
+    expect(res.body.licenses.map((l) => l.id)).toEqual(["cs_test_kept1234567890", "cs_test_partial234567890", "cs_test_won12345678900"].map(purchaseId));
+  });
+
+  it("answers 502 when a purchase's dispute state cannot be read, instead of listing a partial set", async () => {
+    const s = setup();
+    s.fetch.mockImplementation(async (url) => (String(url).includes("/auth/v1/user") ? user() : isDisputes(url) ? json({ error: { message: "Invalid API Key provided: sk_test_synthetic_secret" } }, 401) : json({ data: [session("cs_test_one1234567890")], has_more: false })));
+    expect(await handleAccount(request(), s.deps)).toEqual({ status: 502, headers: {}, body: { ok: false, error: "stripe_error" } });
+    expect(s.log).toHaveBeenCalledWith("account: stripe disputes returned status 401");
+    expect(JSON.stringify(s.log.mock.calls)).not.toContain(ENV.STRIPE_SECRET_KEY);
   });
 
   it("answers an empty list for an email with no paid sessions", async () => {

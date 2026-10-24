@@ -2,10 +2,15 @@
 // Vercel Node.js function using the Web Request and Response signature.
 // Needs STRIPE_SECRET_KEY and TM_LICENSE_PRIVATE_KEY in Vercel. The key is shown on the page only; no email is sent.
 import { handleLicense } from "./_lib/license.js";
+import { clientIp } from "./_lib/waitlist.js";
 
 async function handle(request) {
   const result = await handleLicense(
-    { method: request.method, session: new URL(request.url).searchParams.get("session") },
+    {
+      method: request.method,
+      session: new URL(request.url).searchParams.get("session"),
+      ip: clientIp(request.headers.get("x-forwarded-for"), request.headers.get("x-real-ip")),
+    },
     { env: process.env, fetch: globalThis.fetch, log: (message) => console.error(message) },
   );
   return new Response(JSON.stringify(result.body), {

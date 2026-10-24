@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
 import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, publicKeyOf, siteOrigin } from "./_lib/checkout.js";
+import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
 // Synthetic values only. The signing key is 32 arbitrary bytes; it never signs anything here.
 const SIGNING = Buffer.alloc(32, 3).toString("base64url");
@@ -9,6 +10,8 @@ const HOST = "timemachine.example.test";
 const LINK = "https://checkout.stripe.com/c/pay/cs_test_synthetic#abc";
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 const created = () => json({ id: "cs_test_synthetic", object: "checkout.session", url: LINK });
+// A fixed clock for the session's expiry time.
+const NOW = Date.UTC(2026, 9, 23, 17, 0, 0);
 
 function request(overrides = {}) {
   return { method: "POST", origin: `https://${HOST}`, host: HOST, ...overrides };
@@ -17,8 +20,11 @@ function request(overrides = {}) {
 function setup({ env = ENV, response = created } = {}) {
   const fetch = vi.fn(async () => response());
   const log = vi.fn();
-  return { fetch, log, deps: { env, fetch, log } };
+  return { fetch, log, deps: { env, fetch, log, now: () => NOW } };
 }
+
+beforeEach(() => resetRateLimits());
+afterEach(() => vi.useRealTimers());
 
 describe("checkout handler", () => {
   it("starts a one-time $50 Checkout Session and returns only its link", async () => {
@@ -31,6 +37,7 @@ describe("checkout handler", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.STRIPE_SECRET_KEY}`);
     expect(init.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
+    expect(init.headers["Stripe-Version"]).toBe("2024-06-20");
     const form = Object.fromEntries(new URLSearchParams(init.body));
     expect(form).toEqual({
       mode: "payment",
@@ -43,10 +50,25 @@ describe("checkout handler", () => {
       allow_promotion_codes: "true",
       "metadata[product]": "tm-web",
       "payment_intent_data[metadata][product]": "tm-web",
+      // The shortest life Stripe allows (30 minutes) plus a minute for clock drift.
+      expires_at: String(NOW / 1000 + 31 * 60),
     });
     expect(PRICE_CENTS).toBe(5000);
     expect(PRODUCT_TAG).toBe("tm-web");
     expect(form.mode).not.toBe("subscription");
+  });
+
+  it("limits each client to 10 sessions per 10 minutes, answering 429 without asking Stripe (Security L2)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    const { fetch, deps } = setup();
+    for (let i = 0; i < LIMITS.checkout; i += 1) expect((await handleCheckout(request({ ip: "203.0.113.7" }), deps)).status).toBe(200);
+    expect(LIMITS.checkout).toBe(10);
+    expect(await handleCheckout(request({ ip: "203.0.113.7" }), deps)).toEqual({ status: 429, headers: { "Retry-After": "60" }, body: { ok: false, error: "rate_limited" } });
+    expect(fetch).toHaveBeenCalledTimes(LIMITS.checkout);
+    expect((await handleCheckout(request({ ip: "203.0.113.8" }), deps)).status).toBe(200);
+    vi.setSystemTime(NOW + 10 * 60 * 1000);
+    expect((await handleCheckout(request({ ip: "203.0.113.7" }), deps)).status).toBe(200);
   });
 
   it("uses a Stripe price id and SITE_ORIGIN when they are set", async () => {
@@ -89,6 +111,17 @@ describe("checkout handler", () => {
     expect(await handleCheckout(request(), { ...deps, sellerPublicKey: releasePub })).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
     expect(fetch).not.toHaveBeenCalled();
     expect(isCheckoutConfigured({ ...ENV, STRIPE_LIVE_OK: LIVE_APPROVAL }, releasePub)).toBe(true);
+  });
+
+  it("stays closed with a test key on the Production deployment, so the live site never takes a test card", async () => {
+    const prod = { ...ENV, VERCEL_ENV: "production" };
+    const { fetch, deps } = setup({ env: prod });
+    expect(isCheckoutConfigured(prod)).toBe(false);
+    expect(await handleCheckout(request(), deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(isCheckoutConfigured({ ...ENV, VERCEL_ENV: "preview" })).toBe(true);
+    expect(isCheckoutConfigured({ ...ENV, VERCEL_ENV: "development" })).toBe(true);
+    expect(isCheckoutConfigured({ ...prod, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789", STRIPE_LIVE_OK: LIVE_APPROVAL })).toBe(true);
   });
 
   it("refuses other methods and other origins before calling Stripe", async () => {

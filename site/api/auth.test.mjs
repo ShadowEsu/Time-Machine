@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./auth.js";
-import { handleAuth, isAuthConfigured, LIMITS, resetRateLimits } from "./_lib/auth.js";
+import { handleAuth, isAuthConfigured } from "./_lib/auth.js";
+import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
 // Synthetic values only.
 const ENV = { SUPABASE_URL: "https://fake-project.supabase.test/", SUPABASE_ANON_KEY: "synthetic-anon-key" };

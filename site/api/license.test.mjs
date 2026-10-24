@@ -1,9 +1,10 @@
 import { generateKeyPairSync } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LICENSE_PUBLIC_KEY, parseLicenseKey, signLicense as coreSign } from "../../packages/core/src/license.ts";
 import { GET } from "./license.js";
 import { LIVE_APPROVAL, publicKeyOf, SELLER_PUBLIC_KEY } from "./_lib/checkout.js";
 import { handleLicense, issuedDate, purchaseId, signLicense } from "./_lib/license.js";
+import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
 // A throwaway keypair per test file. Synthetic values only.
 function keys() {
@@ -19,18 +20,26 @@ const SESSION = "cs_test_a1B2c3D4e5F6g7H8i9J0synthetic";
 // The date comes from Stripe's created time, never from the clock.
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const paid = (extra = {}) => json({
+// The session as Stripe returns it with expand[]=payment_intent.latest_charge.
+const charge = (extra = {}) => ({ id: "ch_test_synthetic0001", object: "charge", refunded: false, amount_refunded: 0, disputed: false, ...extra });
+const paid = (extra = {}, chargeExtra = {}) => json({
   id: SESSION, object: "checkout.session", mode: "payment", payment_status: "paid", created: CREATED, livemode: false,
   metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000,
-  customer_details: { email: "buyer@example.test", name: "Synthetic Buyer" }, ...extra,
+  customer_details: { email: "buyer@example.test", name: "Synthetic Buyer" },
+  payment_intent: { id: "pi_test_synthetic0001", object: "payment_intent", latest_charge: charge(chargeExtra) }, ...extra,
 });
+const disputeList = (...statuses) => () => json({ object: "list", data: statuses.map((status, i) => ({ id: `dp_test_${i}`, object: "dispute", status })), has_more: false });
 
-function setup({ env = ENV, response = paid } = {}) {
-  const fetch = vi.fn(async () => response());
+// Routes each fetch by URL: the dispute list for the payment, otherwise the session.
+function setup({ env = ENV, response = paid, disputes = disputeList() } = {}) {
+  const fetch = vi.fn(async (url) => (String(url).startsWith("https://api.stripe.com/v1/disputes?") ? disputes() : response()));
   const log = vi.fn();
   return { fetch, log, deps: { env, fetch, log } };
 }
 const request = (session = SESSION, method = "GET") => ({ method, session });
+
+beforeEach(() => resetRateLimits());
+afterEach(() => vi.useRealTimers());
 
 describe("license signer", () => {
   it("signs byte for byte what core signs, and core verifies it", () => {
@@ -67,9 +76,15 @@ describe("license handler", () => {
     expect(text).not.toContain(ENV.STRIPE_SECRET_KEY);
     expect(text).not.toContain(K.priv);
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe(`https://api.stripe.com/v1/checkout/sessions/${SESSION}`);
+    const asked = new URL(url);
+    expect(asked.origin + asked.pathname).toBe(`https://api.stripe.com/v1/checkout/sessions/${SESSION}`);
+    expect(asked.searchParams.getAll("expand[]")).toEqual(["payment_intent.latest_charge"]);
     expect(init.method).toBe("GET");
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.STRIPE_SECRET_KEY}`);
+    const disputes = new URL(fetch.mock.calls[1][0]);
+    expect(disputes.origin + disputes.pathname).toBe("https://api.stripe.com/v1/disputes");
+    expect(Object.fromEntries(disputes.searchParams)).toEqual({ payment_intent: "pi_test_synthetic0001", limit: "100" });
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect((await handleLicense(request(), setup().deps)).body.key).toBe(res.body.key);
   });
 
@@ -102,6 +117,13 @@ describe("license handler", () => {
     const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" } });
     expect(await handleLicense(request(), live.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
     expect(live.fetch).not.toHaveBeenCalled();
+  });
+
+  it("never asks Stripe with a test key on the Production deployment", async () => {
+    const prod = setup({ env: { ...ENV, VERCEL_ENV: "production" } });
+    expect(await handleLicense(request(), prod.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(prod.fetch).not.toHaveBeenCalled();
+    expect((await handleLicense(request(), setup({ env: { ...ENV, VERCEL_ENV: "preview" } }).deps)).status).toBe(200);
   });
 
   it("never signs a release key for a test-mode purchase", async () => {
@@ -152,8 +174,23 @@ describe("license handler", () => {
     expect(down.log).toHaveBeenCalledWith("license: stripe request failed (TypeError)");
   });
 
+  it("limits each client to 30 lookups per 10 minutes, answering 429 without asking Stripe (Security L2)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 9, 23, 17, 0, 0));
+    const { fetch, deps } = setup();
+    const from = (ip) => ({ ...request(), ip });
+    for (let i = 0; i < LIMITS.license; i += 1) expect((await handleLicense(from("203.0.113.7"), deps)).status).toBe(200);
+    expect(LIMITS.license).toBe(30);
+    const asked = fetch.mock.calls.length;
+    expect(await handleLicense(from("203.0.113.7"), deps)).toEqual({ status: 429, headers: { "Retry-After": "60" }, body: { ok: false, error: "rate_limited" } });
+    expect(fetch).toHaveBeenCalledTimes(asked);
+    expect((await handleLicense(from("203.0.113.8"), deps)).status).toBe(200);
+    vi.setSystemTime(Date.UTC(2026, 9, 23, 17, 10, 0));
+    expect((await handleLicense(from("203.0.113.7"), deps)).status).toBe(200);
+  });
+
   it("serves the Web Request signature with no-store", async () => {
-    const fetch = vi.fn(async () => paid());
+    const fetch = vi.fn(async (url) => (String(url).includes("/v1/disputes?") ? disputeList()() : paid()));
     vi.stubGlobal("fetch", fetch);
     vi.stubEnv("STRIPE_SECRET_KEY", ENV.STRIPE_SECRET_KEY);
     vi.stubEnv("TM_LICENSE_PRIVATE_KEY", K.priv);
@@ -167,6 +204,69 @@ describe("license handler", () => {
     } finally {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
+    }
+  });
+});
+
+// Security L5 and Money's license plan section 4, rows E13-E15c. The session itself stays "paid" in every case.
+describe("refunds and disputes", () => {
+  const refused = (error) => ({ status: 402, headers: {}, body: { ok: false, error } });
+
+  it("shows no key once the payment is fully refunded, and keeps it after a partial refund", async () => {
+    const full = setup({ response: () => paid({}, { refunded: true, amount_refunded: 5000 }) });
+    expect(await handleLicense(request(), full.deps)).toEqual(refused("refunded"));
+    expect(full.fetch).toHaveBeenCalledTimes(1);
+    const partial = setup({ response: () => paid({}, { refunded: false, amount_refunded: 1000 }) });
+    expect((await handleLicense(request(), partial.deps)).status).toBe(200);
+  });
+
+  it("shows no key while a dispute or inquiry is open, or after it is lost", async () => {
+    for (const status of ["warning_needs_response", "warning_under_review", "needs_response", "under_review", "lost"]) {
+      const s = setup({ response: () => paid({}, { disputed: true }), disputes: disputeList(status) });
+      expect(await handleLicense(request(), s.deps), status).toEqual(refused("disputed"));
+    }
+  });
+
+  it("shows the key again after a won dispute even though the charge still says disputed, and after a closed inquiry", async () => {
+    for (const status of ["won", "warning_closed"]) {
+      const s = setup({ response: () => paid({}, { disputed: true }), disputes: disputeList(status) });
+      const res = await handleLicense(request(), s.deps);
+      expect(res.status, status).toBe(200);
+      expect(parseLicenseKey(res.body.key, K.pub).id).toBe(purchaseId(SESSION));
+    }
+  });
+
+  it("lets the refund decide a prevented dispute", async () => {
+    expect((await handleLicense(request(), setup({ disputes: disputeList("prevented") }).deps)).status).toBe(200);
+    const refunded = setup({ response: () => paid({}, { refunded: true, amount_refunded: 5000 }), disputes: disputeList("prevented") });
+    expect(await handleLicense(request(), refunded.deps)).toEqual(refused("refunded"));
+  });
+
+  it("refuses when any one of several disputes refuses, and fails closed on a status Stripe adds later", async () => {
+    expect(await handleLicense(request(), setup({ disputes: disputeList("won", "needs_response") }).deps)).toEqual(refused("disputed"));
+    const future = setup({ disputes: disputeList("won", "something_new") });
+    expect(await handleLicense(request(), future.deps)).toEqual(refused("disputed"));
+    expect(future.log).toHaveBeenCalledWith("license: unknown dispute status something_new");
+    const odd = setup({ disputes: disputeList("Not A Status; sk_test_x") });
+    expect(await handleLicense(request(), odd.deps)).toEqual(refused("disputed"));
+    expect(odd.log).toHaveBeenCalledWith("license: unknown dispute status (unreadable)");
+    const many = setup({ disputes: () => json({ object: "list", data: [{ id: "dp_test_0", object: "dispute", status: "won" }], has_more: true }) });
+    expect(await handleLicense(request(), many.deps)).toEqual(refused("disputed"));
+  });
+
+  it("answers 502 and shows no key when the payment's state cannot be read", async () => {
+    const cases = [
+      [setup({ disputes: () => json({ error: { message: "Invalid API Key provided: sk_test_synthetic_secret" } }, 401) }), "license: stripe disputes returned status 401"],
+      [setup({ disputes: () => { throw new TypeError("fetch failed"); } }), "license: stripe request failed (TypeError)"],
+      [setup({ disputes: () => json({ data: "nope" }) }), "license: stripe disputes returned an unexpected shape"],
+      [setup({ response: () => paid({ payment_intent: "pi_test_synthetic0001" }) }), "license: stripe session came without its expanded charge"],
+      [setup({ response: () => paid({ payment_intent: { id: "pi_test_synthetic0001", latest_charge: "ch_test_synthetic0001" } }) }), "license: stripe session came without its expanded charge"],
+      [setup({ response: () => paid({ payment_intent: null }) }), "license: stripe session came without its expanded charge"],
+    ];
+    for (const [s, line] of cases) {
+      expect(await handleLicense(request(), s.deps)).toEqual({ status: 502, headers: {}, body: { ok: false, error: "stripe_error" } });
+      expect(s.log).toHaveBeenCalledWith(line);
+      expect(JSON.stringify(s.log.mock.calls)).not.toContain(ENV.STRIPE_SECRET_KEY);
     }
   });
 });

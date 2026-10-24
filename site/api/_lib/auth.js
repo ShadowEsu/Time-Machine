@@ -4,15 +4,12 @@
 // Rules: never log the email, the code, the token, the anon key or the Stripe key. Never fake a key.
 import { z } from "zod";
 import { isCheckoutConfigured, reply, signsReleaseKeys, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
-import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, SessionSchema } from "./license.js";
+import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, paymentStanding, SESSION_EXPAND, SessionSchema } from "./license.js";
+import { rateLimited } from "./ratelimit.js";
 import { clientId, isAllowedOrigin, isValidEmail, normalizeEmail, readJsonObject, supabaseOrigin } from "./waitlist.js";
 
 export const MAX_AUTH_BYTES = 2048;
 const MAX_STRIPE_PAGES = 10;
-const WINDOW_MS = 60 * 60 * 1000;
-// Best effort, per function instance: a cold start forgets it. Supabase and Stripe keep their own limits too.
-export const LIMITS = { send: 5, verify: 20, account: 60 };
-const buckets = new Map();
 
 // Sign-in is set up only when both SUPABASE_URL and SUPABASE_ANON_KEY are present. There is no
 // fallback to SUPABASE_KEY on purpose: turning on Supabase Auth is a separate decision from the waitlist
@@ -21,22 +18,6 @@ export function isAuthConfigured(env) {
   return Boolean(env && env.SUPABASE_ANON_KEY && supabaseOrigin(env));
 }
 
-// True when this client has used up its hour for the bucket. Counts per one-way client code; without
-// an IP every caller shares one global count. Call `resetRateLimits` in tests.
-export function rateLimited(bucket, client, now = Date.now()) {
-  const key = `${bucket}:${client ?? "*"}`;
-  let entry = buckets.get(key);
-  if (!entry || now - entry.start >= WINDOW_MS) {
-    entry = { start: now, count: 0 };
-    buckets.set(key, entry);
-    if (buckets.size > 10000) buckets.clear();
-  }
-  entry.count += 1;
-  return entry.count > LIMITS[bucket];
-}
-export function resetRateLimits() {
-  buckets.clear();
-}
 const rateLimitReply = () => reply(429, { ok: false, error: "rate_limited" }, { "Retry-After": "60" });
 
 const Email = z.string().max(254).transform(normalizeEmail).refine(isValidEmail);
@@ -145,7 +126,7 @@ export async function handleAccount(req, deps) {
   const licenses = [];
   let after = null;
   for (let page = 0; page < MAX_STRIPE_PAGES; page += 1) {
-    const query = new URLSearchParams({ "customer_details[email]": email, status: "complete", limit: "100" });
+    const query = new URLSearchParams({ "customer_details[email]": email, status: "complete", limit: "100", "expand[]": `data.${SESSION_EXPAND}` });
     if (after) query.set("starting_after", after);
     let res;
     try {
@@ -168,7 +149,11 @@ export async function handleAccount(req, deps) {
       return reply(502, { ok: false, error: "stripe_error" });
     }
     for (const session of parsed.data.data) {
-      if (isTmPurchase(session) && !isTestPurchaseOnReleaseKey(session, releaseKey)) licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
+      if (!isTmPurchase(session) || isTestPurchaseOnReleaseKey(session, releaseKey)) continue;
+      // A refunded or disputed purchase is left out (Security L5); only Time Machine purchases cost this lookup.
+      const standing = await paymentStanding(session, deps, "account");
+      if (standing === "error") return reply(502, { ok: false, error: "stripe_error" });
+      if (standing === "ok") licenses.push(licenseFor(session, deps.env.TM_LICENSE_PRIVATE_KEY));
     }
     const last = parsed.data.data[parsed.data.data.length - 1];
     if (!parsed.data.has_more || !last) break;

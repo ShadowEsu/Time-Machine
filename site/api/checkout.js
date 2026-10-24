@@ -2,6 +2,7 @@
 // Vercel Node.js function using the Web Request and Response signature.
 // Needs STRIPE_SECRET_KEY and TM_LICENSE_PRIVATE_KEY in Vercel. Optional: SITE_ORIGIN, STRIPE_PRICE_ID.
 import { handleCheckout } from "./_lib/checkout.js";
+import { clientIp } from "./_lib/waitlist.js";
 
 async function handle(request) {
   const result = await handleCheckout(
@@ -10,6 +11,7 @@ async function handle(request) {
       origin: request.headers.get("origin"),
       // Vercel sets host to the domain the client asked for. x-forwarded-host is never trusted here.
       host: request.headers.get("host"),
+      ip: clientIp(request.headers.get("x-forwarded-for"), request.headers.get("x-real-ip")),
     },
     { env: process.env, fetch: globalThis.fetch, log: (message) => console.error(message) },
   );

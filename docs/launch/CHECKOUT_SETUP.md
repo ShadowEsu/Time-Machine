@@ -30,24 +30,24 @@ It prints a public key and a private key and writes nothing. Run it twice:
 
 ## 3. Vercel settings on `time-machine-site`
 
-Project `time-machine-site`, team `shadowesus-projects`. Settings, Environment Variables. Set these for Production (and Preview if you want to test previews):
+Project `time-machine-site`, team `shadowesus-projects`. Settings, Environment Variables. Set these for **Preview** only. The Production deployment refuses a test key (step 6), so test mode runs on a preview deployment:
 
 | Name | Value | Required |
 |---|---|---|
 | `STRIPE_SECRET_KEY` | The Stripe **test** secret key (`sk_test_` or `rk_test_`). Checkout stays closed with any other key, see step 6 | yes |
 | `TM_LICENSE_PRIVATE_KEY` | The **throwaway** test private key from step 1. With a test Stripe key, checkout stays closed if this is the release private key | yes |
-| `SITE_ORIGIN` | `https://time-machine-site.vercel.app`, or the custom domain | no. Without it the site uses the request host |
+| `SITE_ORIGIN` | The preview deployment's address, or leave it unset | no. Without it the site uses the request host |
 | `STRIPE_PRICE_ID` | The `price_...` id from step 2 | no |
 
 Redeploy after saving. Environment variables apply to new deployments only.
 
 ## 4. Check health
 
-Open https://time-machine-site.vercel.app/api/health. It must show `"checkout": true`. If it shows `false`, one of the two required settings is missing, the Stripe key is not a test key, the signing key is the release key, or the private key is not 43 base64url characters. No secret value is ever shown there.
+Open `/api/health` on the preview deployment. It must show `"checkout": true`. If it shows `false`, one of the two required settings is missing, the Stripe key is not a test key, the signing key is the release key, the private key is not 43 base64url characters, or this is the Production deployment. No secret value is ever shown there.
 
 ## 5. One test purchase
 
-1. Open the site, go to Pricing, and press the buy button. It must open a `checkout.stripe.com` page.
+1. Open the preview deployment, go to Pricing, and press the buy button. It must open a `checkout.stripe.com` page.
 2. Pay with the Stripe test card `4242 4242 4242 4242`, any future expiry, any CVC.
 3. Stripe returns to `/thanks?session=cs_test_...`. The page shows a key that starts with `TM1.`. Reloading the page shows the same key.
 4. On your computer run `TM_LICENSE_PUBLIC_KEY=<throwaway public key> tm license <key>`. It must print `License saved on this computer.` and `TM_LICENSE_PUBLIC_KEY=<throwaway public key> tm license` must then say `Licensed`. Without that setting the key is refused, which is right: a test purchase never unlocks a normal release.
@@ -57,7 +57,7 @@ Open https://time-machine-site.vercel.app/api/health. It must show `"checkout": 
 
 Live mode is locked. Do not put a live key (`sk_live_` or `rk_live_`) in Vercel, and do not take real payments, until the attorney and Preston both approve it in writing. That needs, at least: a seller of record who can sign (see `docs/legal/README.md`) and lawyer-reviewed terms and privacy with one refund rule.
 
-The code enforces this: `isCheckoutConfigured` in `site/api/_lib/checkout.js` refuses any Stripe key that is not a test key, and refuses a test key paired with the release private key, so checkout, license and account answer `checkout_closed` and never call Stripe. The written approval is recorded by setting `STRIPE_LIVE_OK` to `yes-attorney-cleared` in Vercel. Nobody sets it before that approval exists.
+The code enforces this: `isCheckoutConfigured` in `site/api/_lib/checkout.js` refuses any Stripe key that is not a test key, refuses a test key on the Production deployment (`VERCEL_ENV` is `production`), and refuses a test key paired with the release private key, so checkout, license and account answer `checkout_closed` and never call Stripe. The written approval is recorded by setting `STRIPE_LIVE_OK` to `yes-attorney-cleared` in Vercel. Nobody sets it before that approval exists.
 
 After that approval, and only then, set together: the live Stripe key, `TM_LICENSE_PRIVATE_KEY` to the release private key from step 1, and `STRIPE_LIVE_OK`. Even then, a session Stripe marks as test mode (`livemode: false`) never gets a key signed with the release key: `/api/license` answers `402 test_purchase` and `/api/account` leaves it out.
 
@@ -89,3 +89,7 @@ A sign-in only ever shows keys for the email that paid. Codes expire after the t
 - It never emails the key. The thanks page is the only place it appears, and reloading it works.
 - It never returns Stripe's error text or any secret to the browser. Those go to the Vercel function log only.
 - It never signs a key for a session that is not `paid` in `payment` mode, not tagged `tm-web`, or below the $50 price, and never signs a release key for a test-mode session.
+- It never shows a key for a payment that is fully refunded, or that has a dispute or inquiry open or lost. The thanks page and sign-in read that state from Stripe on every request, so a partial refund, a won dispute or a closed inquiry shows the key again, and a status Stripe adds later shows no key until the rule is updated. A key already saved on a computer keeps working: keys are checked offline and cannot be taken back.
+- It never lets one client keep asking Stripe: per IP, `/api/checkout` allows 10 sessions and `/api/license` 30 lookups per 10 minutes, then answers `429 rate_limited` without calling Stripe. Counts live in each function instance only. An unpaid checkout page closes after 31 minutes.
+
+To test it on the preview deployment: refund a test purchase in full in the Stripe Dashboard, reload its `/thanks` page, and check that it says the purchase was refunded and shows no key.
