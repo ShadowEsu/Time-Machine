@@ -315,7 +315,7 @@ function update(p, st) {
 }
 
 const canvas = document.getElementById("machine");
-const stage = createStage({ canvas, pin: document.querySelector(".pin"), fov: 24, exposure: 1.0, envIntensity: 0.7, contact: { size: 10, y: 0.001, blur: 3.4, darkness: 1.3, opacity: 0.55 }, build, update });
+const stage = await createStage({ canvas, pin: document.querySelector(".pin"), fov: 24, exposure: 1.0, envIntensity: 0.7, contact: { size: 10, y: 0.001, blur: 3.4, darkness: 1.3, opacity: 0.55 }, build, update });
 // load.js moves the machine under the hero on phones (data-dy) and says so when the hero's height changes.
 canvas.addEventListener("layout", () => stage.request());
 // The canvas fades in over the poster on its first frame drawn with the page's faces (the poster was captured with

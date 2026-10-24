@@ -10,7 +10,12 @@ import { VerticalBlurShader } from "three/addons/shaders/VerticalBlurShader.js";
 
 export { THREE };
 
+// Hand the main thread back to the page between the expensive setup steps (the environment, the scene build, the
+// shader compile), so typing in the waitlist form stays responsive while the machine loads.
+const yieldTask = () => (globalThis.scheduler?.yield ? globalThis.scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
+
 /**
+ * Sets up the renderer and the scene in slices and resolves once the first frame is requested.
  * @param {object} o
  * @param {HTMLCanvasElement} o.canvas
  * @param {HTMLElement} o.pin  tall section; the sticky stage inside it defines p
@@ -20,8 +25,9 @@ export { THREE };
  * @param {{size:number, y:number, blur:number, darkness:number, opacity:number, res:number}} [o.contact]
  * @param {(stage) => void} o.build  builds the scene once
  * @param {(p:number, stage) => boolean|void} o.update  poses the scene for p; return true to keep animating
+ * @returns {Promise<object>} the stage
  */
-export function createStage(o) {
+export async function createStage(o) {
   const canvas = o.canvas;
   const phone = matchMedia("(max-width: 640px)").matches;
   // preserveDrawingBuffer only for the poster/still capture tool, which sets this global before the page loads.
@@ -35,6 +41,7 @@ export function createStage(o) {
   renderer.shadowMap.type = THREE.VSMShadowMap;
 
   const scene = new THREE.Scene();
+  await yieldTask();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = o.envIntensity ?? 1;
@@ -136,8 +143,13 @@ export function createStage(o) {
   function request() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
   stage.request = request;
 
+  await yieldTask();
   o.build(stage);
   resize();
+  // Compile the scene's shaders before the first frame: in parallel where the driver allows it
+  // (KHR_parallel_shader_compile), so the first render doesn't stall on them.
+  await yieldTask();
+  await renderer.compileAsync(scene, camera);
   new ResizeObserver(() => { resize(); request(); }).observe(canvas);
   addEventListener("scroll", () => { stage.p = readP(); request(); }, { passive: true });
   stage.p = readP();
