@@ -22,6 +22,7 @@
   var phone = matchMedia("(max-width: 640px)").matches;
   // Where the scene centres the machine across the stage (its camera's horizontal view offset), and on phones the
   // machine's top at p = 0 with no offset, both as fractions (width, height). capture.py measures TOP from the poster.
+  // s5.css frames the no-motion poster <img> with the same AX, TOP and GAP: change them together.
   var AX = phone ? 0.5 : 0.67, TOP = 0.335, GAP = 20;
 
   function layout() {
