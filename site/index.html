@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/home.css">
 <link rel="stylesheet" href="assets/s5.css">
+<link rel="stylesheet" href="assets/blueprint.css">
 <script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
 <script src="assets/machine/load.js" defer></script>
 </head>
@@ -82,6 +83,10 @@
       <li>No account needed and no cloud service.</li>
     </ul>
 
+    <section class="tree-block" id="tree" aria-labelledby="tree-h">
+      <!-- TM: the interactive save-point tree (tree.js). Filled in by tm. -->
+    </section>
+
     <section class="appshot" id="web-app" aria-labelledby="app-h">
       <div class="block-head">
         <h2 id="app-h">The web app</h2>
@@ -121,98 +126,9 @@
       </ol>
     </section>
 
-    <figure id="rewind-demo" class="rewind-story" data-rewind data-phase="broken" aria-labelledby="rs-title" aria-describedby="rs-caption">
-      <div class="rs-views" role="group" aria-label="Demo view" hidden>
-        <button type="button" data-story-view="instrument" aria-pressed="true">3D story</button>
-        <button type="button" data-story-view="app" aria-pressed="false">App demo</button>
-      </div>
-      <div class="rs-copy">
-        <p class="rs-step" data-story-step>1 / The break</p>
-        <h2 id="rs-title">It worked.<br>Then one more change.</h2>
-        <p class="rs-description" data-story-description>The newest save point fails its tests. Turn the dial back to find the one that passed.</p>
-        <p class="rs-prompt" id="rs-help">Drag the dial, use its arrow keys, or pick a save point below.</p>
-      </div>
-      <div class="rs-scene">
-        <div class="rs-snapshots" aria-hidden="true">
-          <div class="rs-snapshot"><span>cp-0003</span><b>Dark mode</b><i></i><i></i><i></i><small>PASS</small></div>
-          <div class="rs-snapshot"><span>cp-0004</span><b>Lint changes</b><i></i><i></i><i></i><small>FAIL</small></div>
-          <div class="rs-snapshot"><span>cp-0006</span><b>A dependency</b><i></i><i></i><i></i><small>FAIL</small></div>
-        </div>
-        <div class="rs-instrument">
-          <div class="rs-receipt" aria-hidden="true">
-            <span>A separate copy, ready</span>
-            <b>cp-0003 <i>PASS</i></b>
-            <code>tm/recover/cp-0003</code>
-            <p>Your current folder stays as it is.</p>
-          </div>
-          <div class="rs-device">
-            <div class="rs-case" aria-hidden="true"></div>
-            <div class="rs-front">
-              <div class="rs-brand" aria-hidden="true">Time Machine <span>Marigold Tips</span></div>
-              <div class="rs-screen" aria-hidden="true">
-                <span class="rs-screen-top">Saved version <i data-story-verdict>FAIL</i></span>
-                <b data-story-id>cp-0006</b>
-                <span data-story-note>Added a dependency</span>
-                <p data-story-check>The check failed with exit code 1.</p>
-                <div class="rs-screen-line"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
-              </div>
-              <div class="rs-dial-ring" aria-hidden="true"><span>Past</span><span>Now</span></div>
-              <div class="rs-dial" data-story-dial role="slider" tabindex="-1" aria-disabled="true" aria-label="Save point dial" aria-describedby="rs-help" aria-valuemin="1" aria-valuemax="6" aria-valuenow="6" aria-valuetext="cp-0006, Added a dependency, tests failed">
-                <div class="rs-knurl"><div class="rs-dial-face"><i></i></div></div>
-              </div>
-              <div class="rs-led" aria-hidden="true"><i></i><span data-story-lamp>Tests failed</span></div>
-              <button class="rs-restore" type="button" data-story-recover disabled>Bring back this version <span aria-hidden="true">↵</span></button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="rs-app" hidden role="group" aria-label="Interactive app illustration">
-        <div class="rs-app-bar"><span translate="no">Time Machine</span><span>Demo project</span></div>
-        <div class="rs-app-body">
-          <aside class="rs-app-sidebar" aria-label="Project save points">
-            <p>Marigold Tips</p>
-            <span>Save points</span>
-            <div data-app-points></div>
-          </aside>
-          <div class="rs-app-detail">
-            <div class="rs-app-state"><span data-app-verdict>Tests failed</span><code data-app-id>cp-0006</code></div>
-            <h3 data-app-note>Added a dependency</h3>
-            <div class="rs-app-evidence">
-              <p>Check evidence</p>
-              <code data-app-check>The check failed with exit code 1.</code>
-            </div>
-            <div class="rs-app-review">
-              <h4 data-app-heading>Before you bring it back</h4>
-              <p data-app-summary>Find a passing save point to review a recovery.</p>
-              <dl>
-                <div><dt>Comes back</dt><dd>Saved project files</dd></div>
-                <div><dt>Stays outside</dt><dd>Secret values and database contents</dd></div>
-                <div><dt>Your current folder</dt><dd>Stays as it is</dd></div>
-              </dl>
-            </div>
-            <button class="rs-app-recover" type="button" data-story-recover disabled>Bring back this version</button>
-            <p class="rs-app-local">Illustration only. No files are opened or changed.</p>
-          </div>
-        </div>
-      </div>
-      <div class="rs-controls" hidden>
-        <div class="rs-timeline" role="group" aria-label="Demo save points">
-          <button type="button" data-story-point="0" aria-pressed="false"><i></i><span>01</span></button>
-          <button type="button" data-story-point="1" aria-pressed="false"><i></i><span>02</span></button>
-          <button type="button" data-story-point="2" data-verdict="pass" aria-pressed="false"><i></i><span>03</span></button>
-          <button type="button" data-story-point="3" data-verdict="fail" aria-pressed="false"><i></i><span>04</span></button>
-          <button type="button" data-story-point="4" data-verdict="fail" aria-pressed="false"><i></i><span>05</span></button>
-          <button type="button" data-story-point="5" data-verdict="fail" aria-pressed="true"><i></i><span>Now</span></button>
-        </div>
-        <div class="rs-actions">
-          <button type="button" data-story-rewind>Rewind to the passing version</button>
-          <button type="button" data-story-play>Play the story</button>
-        </div>
-      </div>
-      <p class="sr-only" data-story-status role="status" aria-live="polite" aria-atomic="true"></p>
-      <noscript><p class="rs-fallback">In this demo, cp-0006 fails and cp-0003 passes. Time Machine brings cp-0003 back on a new branch without changing your current folder. Enable JavaScript to turn the dial.</p></noscript>
-      <figcaption id="rs-caption">Interactive illustrations, not a physical product or a live project. Verdicts from a real <code translate="no">tm demo</code> run. <a href="#web-app">See real app screens</a>.</figcaption>
-    </figure>
+    <section class="bp" id="blueprint" aria-labelledby="bp-h">
+      <!-- TM: the blueprint sheets (blueprint.js). Filled in by tm. -->
+    </section>
   </div>
 
   <section class="block" id="comes-back" aria-labelledby="back-h">
@@ -466,11 +382,11 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Time Machine","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux","description":"Saves your project before an AI coding agent acts, runs your own tests on each save point in a separate copy, and brings back the newest one that passes.","url":"https://time-machine-site.vercel.app/","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Preston Susanto","email":"preston@unvibe.site"},"codeRepository":"https://github.com/ShadowEsu/Time-Machine"}</script>
 <script src="assets/motion.js" defer></script>
-<script src="assets/rewind.js" defer></script>
+<script src="assets/blueprint.js" defer></script>
+<script src="assets/tree.js" defer></script>
 <script src="assets/checkout.js" defer></script>
 <script src="assets/waitlist.js" defer></script>
 <script src="assets/copy.js" defer></script>
 <script src="assets/buy.js" defer></script>
-<script src="assets/agent-preview.js" defer></script>
 </body>
 </html>
