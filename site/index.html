@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="assets/s5.css">
 <link rel="stylesheet" href="assets/blueprint.css">
 <link rel="stylesheet" href="assets/home-s5.css">
-<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
+<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches},weak=s||n.deviceMemory<=2||n.hardwareConcurrency<=2,ok=m("(prefers-reduced-motion: no-preference)"),wide=m("(min-width: 641px)"),l;d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!weak&&ok&&(wide||w.innerHeight>=650))d.classList.add("motion");else if(weak&&ok){l=document.createElement("link");l.rel="preload";l.as="image";l.type="image/webp";l.href="assets/img/s5/stack-"+(wide?1440:390)+"-poster.webp";document.head.appendChild(l)}})(document.documentElement,navigator,window);</script>
 <script src="assets/machine/load.js" defer></script>
 </head>
 <body class="home">
@@ -52,6 +52,7 @@
 <main id="main" tabindex="-1">
   <section class="pin" aria-labelledby="hero-h">
     <div class="stage">
+      <a class="skip skip-story" href="#story-end">Skip the story</a>
       <canvas id="poster" aria-hidden="true"></canvas>
       <picture class="first">
         <source media="(max-width: 640px)" srcset="assets/img/s5/stack-390-poster.webp" width="780" height="1688">
@@ -73,9 +74,29 @@
         </form>
         <p class="hero-alt"><a href="how-it-works.html">See how it works</a> <a href="#try">Install from source</a> <span>Works on macOS and Linux. Needs Node 22 and Git.</span></p>
       </div>
+      <div class="subs" aria-hidden="true">
+        <div data-sub="1"><p class="sub">Every save point, checked. <span class="voice">With your own tests.</span></p><p class="sub-s">cp-0006, cp-0005 and cp-0004 failed their tests.</p></div>
+        <div data-sub="2"><p class="sub">This one passed. <span class="voice">Added dark mode.</span></p><p class="sub-s">cp-0003 · passed its tests, in a separate copy</p></div>
+        <div data-sub="3"><p class="sub">Bring it back. <span class="voice">Keep your work.</span></p><p class="sub-s">On branch tm/recover/cp-0003, in a separate copy. Your folder stays as it is.</p></div>
+      </div>
       <p class="cue" data-cue aria-hidden="true">Scroll to rewind</p>
       <p class="sr-only" role="status" aria-live="polite" data-live></p>
     </div>
+    <section class="stills" aria-label="How it works, step by step">
+      <figure>
+        <picture><source media="(max-width: 640px)" srcset="assets/img/s5/stack-390-check.webp" width="780" height="880"><img src="assets/img/s5/stack-1440-check.webp" width="2880" height="1800" alt="The machine opened into its save points. The top three layers have red seams: cp-0006, cp-0005 and cp-0004 failed their tests." loading="lazy" decoding="async"></picture>
+        <figcaption><p class="sub">Every save point, checked. <span class="voice">With your own tests.</span></p><p class="sub-s">cp-0006, cp-0005 and cp-0004 failed their tests.</p></figcaption>
+      </figure>
+      <figure>
+        <picture><source media="(max-width: 640px)" srcset="assets/img/s5/stack-390-pass.webp" width="780" height="880"><img src="assets/img/s5/stack-1440-pass.webp" width="2880" height="1800" alt="The bottom layer, cp-0003, has a green seam: it passed its tests." loading="lazy" decoding="async"></picture>
+        <figcaption><p class="sub">This one passed. <span class="voice">Added dark mode.</span></p><p class="sub-s">cp-0003 · passed its tests, in a separate copy</p></figcaption>
+      </figure>
+      <figure>
+        <picture><source media="(max-width: 640px)" srcset="assets/img/s5/stack-390-moment.webp" width="780" height="880"><img src="assets/img/s5/stack-1440-moment.webp" width="2880" height="1800" alt="Layer cp-0003 slides out of the stack towards you while the others close back up." loading="lazy" decoding="async"></picture>
+        <figcaption><p class="sub">Bring it back. <span class="voice">Keep your work.</span></p><p class="sub-s">On branch tm/recover/cp-0003, in a separate copy. Your folder stays as it is.</p></figcaption>
+      </figure>
+    </section>
+    <span id="story-end" tabindex="-1"></span>
   </section>
 
   <div class="after-pin">

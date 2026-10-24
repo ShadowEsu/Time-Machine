@@ -14,6 +14,11 @@ export { THREE };
 // shader compile), so typing in the waitlist form stays responsive while the machine loads.
 const yieldTask = () => (globalThis.scheduler?.yield ? globalThis.scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
 
+// The renderer's pixel ratio: the device's, capped at 2, times PIXEL_SCALE. 1 is full resolution; 0.5 halves it
+// (for a pixelated look, pair it with `image-rendering: pixelated` on canvas#machine). load.js draws the poster at
+// the device's ratio capped at 2 (its `r`), so a different scale needs that line and re-captured posters too.
+const PIXEL_SCALE = 1;
+
 /**
  * Sets up the renderer and the scene in slices and resolves once the first frame is requested.
  * @param {object} o
@@ -32,8 +37,11 @@ export async function createStage(o) {
   const phone = matchMedia("(max-width: 640px)").matches;
   // preserveDrawingBuffer only for the poster/still capture tool, which sets this global before the page loads.
   const capture = window.__machineCapture === true;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: capture });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // failIfMajorPerformanceCaveat: no context on a software-only GL (a blocklisted GPU: SwiftShader, llvmpipe), where
+  // the scene takes seconds to build and frames drop; the constructor throws, the import rejects, and load.js shows
+  // the stills, like any weak device (spec §7).
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: true, preserveDrawingBuffer: capture });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * PIXEL_SCALE);
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = o.exposure ?? 1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -128,6 +136,20 @@ export async function createStage(o) {
     return span > 0 ? Math.max(0, Math.min(1, (top - pin.getBoundingClientRect().top) / span)) : 0;
   }
 
+  // The shadows follow the machine's parts, never the camera, so both shadow passes (the sun's VSM map and the contact
+  // shadow) are redrawn only on frames where a shadow caster moved. Through the checks and after the close only the
+  // camera, labels and colours change, and those frames skip both (about half the pin).
+  renderer.shadowMap.autoUpdate = false;
+  const casters = [];
+  let poses = null;
+  function moved() {
+    scene.updateMatrixWorld();
+    let i = 0, changed = !poses;
+    poses ??= new Float64Array(casters.length * 16);
+    for (const m of casters) for (const e of m.matrixWorld.elements) { if (poses[i] !== e) { poses[i] = e; changed = true; } i++; }
+    return changed;
+  }
+
   let raf = 0, last = performance.now(), keep = false;
   function frame(now) {
     raf = 0;
@@ -136,7 +158,7 @@ export async function createStage(o) {
     stage.t += dt;
     stage.dt = dt;
     keep = o.update(stage.p, stage) === true;
-    renderContact();
+    if (moved()) { renderer.shadowMap.needsUpdate = true; renderContact(); }
     renderer.render(scene, camera);
     if (keep) request();
   }
@@ -145,6 +167,7 @@ export async function createStage(o) {
 
   await yieldTask();
   o.build(stage);
+  scene.traverse((m) => { if (m.isMesh && m.castShadow) casters.push(m); });
   resize();
   // Compile the scene's shaders before the first frame: in parallel where the driver allows it
   // (KHR_parallel_shader_compile), so the first render doesn't stall on them.
