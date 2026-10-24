@@ -1,7 +1,8 @@
 /* Home's 3D machine, the loader (deferred). Runs only in motion mode: html.motion is set before paint by the head
    script when JavaScript runs, motion is allowed, the device isn't weak, and a phone viewport is tall enough.
-   1. Layout: on phones the machine sits under the hero (the waitlist form makes it tall). The offset goes on
-      canvas#machine as data-dy (CSS px) for the scene, and is re-measured when the hero or the stage resizes.
+   1. Layout: the stage's height goes on it as --h (s5.css sticks it once its bottom reaches the screen's). On phones
+      the machine sits under the hero (the waitlist form makes it tall); that offset goes on canvas#machine as data-dy
+      (CSS px, from the canvas top) for the scene, re-measured when the hero or the stage resizes.
    2. The poster: the scene's first frame (p = 0), drawn into canvas#poster under the 3D canvas, and faded in. It is
       requested after the first LCP entry, the first scroll, or load, whichever comes first, so it never competes
       with the hero's text and fonts. The files are captured with no offset; they are drawn the way the scene's
@@ -27,7 +28,8 @@
 
   function layout() {
     var h = machine.clientHeight;
-    var dy = phone ? Math.round(Math.max(0.27 * h, hero.offsetTop + hero.offsetHeight + GAP - TOP * h)) : 0;
+    stage.style.setProperty("--h", stage.offsetHeight + "px");
+    var dy = phone ? Math.round(Math.max(0.27 * h, hero.offsetTop + hero.offsetHeight - machine.offsetTop + GAP - TOP * h)) : 0;
     if (machine.dataset.dy !== String(dy)) {
       machine.dataset.dy = String(dy);
       machine.dispatchEvent(new Event("layout"));

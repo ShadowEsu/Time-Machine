@@ -94,6 +94,7 @@ body.home {
   --press: cubic-bezier(.3, 1.5, .5, 1);
   --display: "Bricolage Grotesque", "Bricolage fallback", system-ui, sans-serif;
   --voice: "Instrument Serif", "Instrument fallback", "Instrument fallback 2", Georgia, serif;
+  --plex: "IBM Plex Mono", ui-monospace, monospace;
   color-scheme: light;
   color: var(--ink);
 }
@@ -153,11 +154,57 @@ body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 va
 
 .cue { position: absolute; left: 50%; bottom: 26px; margin: 0; transform: translateX(-50%); font: italic 400 19px/1 var(--voice); color: var(--ink-3); white-space: nowrap; }
 
+/* The pin (M2). In motion mode the section is the story's scroll length: the stage sticks and 320svh of scroll run
+   the rewind under it (scene.js reads p from the stage's sticky top). Where the hero makes the stage taller than the
+   screen (phones, short windows), the stage sticks only once its bottom reaches the screen's bottom (load.js sets
+   --h, the stage's height), so the whole form and its privacy line scroll into view first. The 3D and poster
+   canvases are the screen that stays: the stage's last 100svh. The floor colour fills any strip a collapsing
+   browser bar uncovers below it. */
+html.motion .pin { background: #ebe6de; }
+/* The scroll length is content, not padding: a sticky box stays inside its container's content box. */
+html.motion .pin::after { content: ""; display: block; height: 320svh; }
+html.motion .stage { position: sticky; top: min(0px, calc(100svh - var(--h, 100svh))); }
+html.motion .stage canvas { top: auto; height: 100svh; }
+
+/* "Skip the story": the pin's first focusable, shown on focus at the stage's top left; it goes to the pin's end. */
+.skip-story { left: max(24px, calc(50% - 600px)); }
+#story-end { position: absolute; bottom: 0; }
+#story-end:focus { outline: none; }
+
+/* Subtitles, one per beat (scene.js switches them by p). They're aria-hidden: the live line and the stills' captions
+   carry the story for assistive tech. The headline wipes in in steps; the second line, in IBM Plex Mono, types in a
+   few characters a step (scene.js, done in about 0.3 s) behind a block cursor that blinks three times, then holds.
+   While it types, the untyped rest is laid out but hidden (.rest), so the line wraps as it will when done and the
+   headline above it never moves. The cursor (.cur) is an empty inline with its block drawn out of flow: no width,
+   and unlike an inline-block no extra place to break a line, so a word can't wrap at the cursor halfway through. */
+.subs { position: absolute; left: max(24px, calc(50% - 600px)); bottom: 9svh; z-index: 1; width: min(440px, 38%); pointer-events: none; }
+.subs > div { position: absolute; left: 0; bottom: 0; width: 100%; opacity: 0; }
+/* In steps; the outgoing one cuts at once (no transition on the way out), so two never show over each other. */
+.subs > div.on { opacity: 1; transition: opacity .18s steps(3, end); }
+.subs .sub { clip-path: inset(0 100% 0 0); }
+.subs .on .sub { clip-path: inset(0); transition: clip-path .24s steps(8, end); }
+.subs .sub-s .rest { visibility: hidden; }
+.subs .sub-s .cur { position: relative; }
+.subs .sub-s .cur::before { content: ""; position: absolute; left: .2em; top: 50%; width: .6em; height: 1.1em; margin-top: -.55em; background: var(--ink); }
+.subs .on .sub-s .cur::before { animation: blink 1s steps(1, end) .3s 3; }
+@keyframes blink { 50% { opacity: 0; } }
+.sub { margin: 0; font: 750 clamp(28px, 2.8vw, 40px)/1.05 var(--display); letter-spacing: -.03em; text-wrap: balance; color: var(--ink); }
+.sub .voice { display: block; font: italic 400 1.05em/1.05 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+.sub-s { margin: 12px 0 0; font: 500 15px/1.5 var(--plex); letter-spacing: 0; color: var(--ink-2); }
+
 /* Reduced motion, no JavaScript, weak devices, no WebGL (html.motion is set before paint only when none apply):
-   no three.js, and the stage shows the poster as an image. */
+   no pin and no three.js. The stage shows the poster as an image, and the three beats follow as stills with the
+   subtitles as captions. In motion mode those captions stay as the story's text for screen readers, and their
+   images are never fetched (display: none). */
 .stage .first { display: none; }
 html:not(.motion) .stage .first { display: block; }
-html:not(.motion) .stage canvas, html:not(.motion) .cue { display: none; }
+html:not(.motion) .stage canvas, html:not(.motion) .cue, html:not(.motion) .subs { display: none; }
+.stills { padding: 0 0 clamp(24px, 6svh, 72px); background: var(--paper); }
+.stills figure { margin: 0; }
+.stills img { display: block; width: 100%; height: auto; }
+.stills figcaption { width: min(1200px, 100% - 48px); margin: 20px auto 64px; }
+html.motion .stills { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+html.motion .stills picture { display: none; }
 
 @media (max-width: 640px) {
   .stage { justify-content: flex-start; padding: 108px 20px 40px; }
@@ -177,6 +224,13 @@ html:not(.motion) .stage canvas, html:not(.motion) .cue { display: none; }
   html:not(.motion) .stage .first { position: relative; inset: auto; z-index: -1; order: 1; width: auto; height: 70svh;
     margin: calc(20px - 33.5svh) -20px 0; overflow: hidden; pointer-events: none; }
   html:not(.motion) .stage .first img { left: 50%; height: 100svh; transform: translateX(-50%); }
+  /* Subtitles near the top of the screen that stays (the stage's last 100svh; the header has scrolled away by then),
+     over the machine, which the story's camera frames lower on phones (scene.js). */
+  .subs { left: 20px; width: auto; right: 20px; bottom: calc(100svh - 76px); }
+  .subs > div { bottom: auto; top: 0; }
+  .sub { font-size: 26px; }
+  .skip-story { left: 20px; }
+  .stills figcaption { width: auto; margin: 16px 20px 48px; }
 }
 @media (prefers-reduced-motion: reduce) {
   body.home .top-cta, .pin .wl-row .btn-primary { transition: none; }

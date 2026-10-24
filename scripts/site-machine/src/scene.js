@@ -197,7 +197,8 @@ function drawLabel(ctx, w, h, save, state) {
   ctx.textAlign = "left";
 }
 
-function drawReadout(ctx, w, h, text = "4 save points · ready", tone = "#cfe6ff") {
+// The readout's text, of which the first `shown` characters are typed so far, then a block cursor while it types.
+function drawReadout(ctx, w, h, text = "4 save points · ready", tone = "#cfe6ff", shown = text.length) {
   ctx.fillStyle = "#0d0f10";
   ctx.fillRect(0, 0, w, h);
   ctx.textBaseline = "middle";
@@ -207,7 +208,9 @@ function drawReadout(ctx, w, h, text = "4 save points · ready", tone = "#cfe6ff
   ctx.font = `500 70px ${MONO}`;
   const fit = Math.min(70, Math.floor((70 * (w - 160)) / ctx.measureText(text).width));
   ctx.font = `500 ${fit}px ${MONO}`;
-  ctx.fillText(text, 120, h / 2 + 2);
+  const typed = text.slice(0, shown);
+  ctx.fillText(typed, 120, h / 2 + 2);
+  if (shown < text.length) ctx.fillRect(120 + ctx.measureText(typed).width + 6, h / 2 - fit * 0.5, fit * 0.58, fit);
 }
 
 const subs = [...document.querySelectorAll("[data-sub]")];
@@ -218,8 +221,36 @@ const live = document.querySelector("[data-live]");
 // else (the scene loads on the first scroll, so its first frame is often past 0), or once the fade-in ends.
 let poster = document.getElementById("poster");
 const dropPoster = () => { poster?.remove(); poster = null; };
-let shownSub = -1, shownRead = "", announced = "";
+let shownSub = -1, shownRead = "", announced = "", typedAt = -1, typedN = -1;
 const target = new THREE.Vector3(), camPos = new THREE.Vector3(), col = new THREE.Color();
+
+// Typing (TM, 10-24): the readout and each subtitle's second line type in a few characters a step, 3 per 30 ms on the
+// readout and a twelfth of the line per 22 ms below, so both finish within about 0.3 s and a scroll position settles
+// to the same text whichever way it was reached. The readout's first text draws at once: it must match the poster.
+// A subtitle line is its typed part, the cursor, and the untyped rest, laid out but hidden (s5.css), so the line
+// wraps the same at every step and the bottom-anchored headline above it stays put.
+const lines = subs.map((s) => {
+  const el = s.querySelector(".sub-s"), text = el.textContent, typed = document.createTextNode(text);
+  const cur = document.createElement("span"), rest = document.createElement("span");
+  cur.className = "cur";
+  rest.className = "rest";
+  el.replaceChildren(typed, cur, rest);
+  return { text, typed, rest };
+});
+let typer = 0;
+function typeLine(i) {
+  clearTimeout(typer);
+  for (const l of lines) { l.typed.data = l.text; l.rest.textContent = ""; }
+  if (i < 0) return;
+  const { text, typed, rest } = lines[i], step = Math.ceil(text.length / 12);
+  let n = 0;
+  (function tick() {
+    n = Math.min(text.length, n + step);
+    typed.data = text.slice(0, n);
+    rest.textContent = text.slice(n);
+    if (n < text.length) typer = setTimeout(tick, 22);
+  })();
+}
 
 // Beats (p): hold .00-.06 · open .06-.26 · checks .28-.53 (top down, .07 apart) · cp-0003 out .60-.80 · close .68-.86
 const CHECK = (j) => [0.28 + 0.07 * j, 0.28 + 0.07 * j + 0.04];
@@ -271,7 +302,19 @@ function update(p, st) {
     if (done) say = `${layer.save.id} · ${layer.save.note} · ${layer.save.pass ? "tests passed" : "tests failed"}`;
   }
   if (p >= 0.6) { read = "brought back · tm/recover/cp-0003"; tone = "#2fd27a"; say = "cp-0003 brought back on branch tm/recover/cp-0003, in a separate copy"; }
-  if (read !== shownRead) { readout.redraw(read, tone); shownRead = read; }
+  if (read !== shownRead) {
+    typedAt = shownRead ? st.t : -1;
+    typedN = -1;
+    shownRead = read;
+    if (typedAt < 0) readout.redraw(read, tone);
+  }
+  let keep = false;
+  if (typedAt >= 0) {
+    // Repaint (and re-upload) only when another step of characters is due, not on every frame of the typing.
+    const shown = Math.min(read.length, 3 * Math.floor((st.t - typedAt) / 0.03 + 1));
+    if (shown !== typedN) { readout.redraw(read, tone, shown); typedN = shown; }
+    if (shown < read.length) keep = true; else typedAt = -1;
+  }
   parts.led.material.emissive.set(tone);
   if (say !== announced) { live.textContent = say; announced = say; }
   // The restore key presses as cp-0003 leaves
@@ -298,9 +341,10 @@ function update(p, st) {
   camera.position.copy(camPos);
   camera.lookAt(target);
   // Desktop: the machine sits in the right 60 %. Phones: under the hero first (load.js puts its top below the hero's
-  // last line and draws the poster with the same offset, data-dy), centred once the hero text has gone.
+  // last line and draws the poster with the same offset, data-dy), then a little low once the hero text has gone, so
+  // the subtitles above it keep clear of the lid (s5.css).
   const w = st.canvas.clientWidth, h = st.canvas.clientHeight, dy = st.canvas.dataset.dy;
-  if (phone) camera.setViewOffset(w, h, 0, -mix(dy === undefined ? h * 0.27 : +dy, h * 0.08, seg(p, 0.03, 0.2)), w, h);
+  if (phone) camera.setViewOffset(w, h, 0, -mix(dy === undefined ? h * 0.27 : +dy, h * 0.11, seg(p, 0.03, 0.2)), w, h);
   else camera.setViewOffset(w, h, -w * 0.17, 0, w, h);
 
   // HTML: hero text out, subtitles in
@@ -310,8 +354,8 @@ function update(p, st) {
   hero.style.visibility = heroOut >= 1 ? "hidden" : "";
   cue.style.opacity = p < 0.02 ? "" : "0";
   const n = p < 0.27 ? -1 : p < 0.53 ? 0 : p < 0.6 ? 1 : 2;
-  if (n !== shownSub) { subs.forEach((s, i) => s.classList.toggle("on", i === n)); shownSub = n; }
-  return false;
+  if (n !== shownSub) { subs.forEach((s, i) => s.classList.toggle("on", i === n)); shownSub = n; typeLine(n); }
+  return keep;
 }
 
 const canvas = document.getElementById("machine");
