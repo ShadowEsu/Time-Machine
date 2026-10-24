@@ -2,10 +2,11 @@
    script when JavaScript runs, motion is allowed, the device isn't weak, and a phone viewport is tall enough.
    1. Layout: on phones the machine sits under the hero (the waitlist form makes it tall). The offset goes on
       canvas#machine as data-dy (CSS px) for the scene, and is re-measured when the hero or the stage resizes.
-   2. The poster: the scene's first frame (p = 0), drawn into canvas#poster under the 3D canvas. A canvas paint isn't
-      an LCP candidate, so the hero text stays the LCP. The poster files are captured with no offset; they are drawn
-      the way the scene's camera scales (with the stage height, anchored where the scene centres the machine), so the
-      poster and the first 3D frame match at any viewport size.
+   2. The poster: the scene's first frame (p = 0), drawn into canvas#poster under the 3D canvas, and faded in. It is
+      requested after the first LCP entry, the first scroll, or load, whichever comes first, so it never competes
+      with the hero's text and fonts. The files are captured with no offset; they are drawn the way the scene's
+      camera scales (with the stage height, anchored where the scene centres the machine), so the poster and the
+      first 3D frame match at any viewport size.
    3. The scene: machine.js (three.js, bundled) loads after the first LCP entry, the first scroll, or load + 1.5 s,
       whichever comes first. It fades in over the poster on its first frame and removes the poster.
    4. No WebGL 2, a scene that fails to load, or a lost context: html.motion goes and the page shows the stills.
@@ -47,14 +48,20 @@
     var x = poster.getContext("2d");
     x.clearRect(0, 0, w, h);
     x.drawImage(img, AX * (w - img.naturalWidth * s), dy * r, img.naturalWidth * s, h);
+    poster.classList.add("on");
   }
   img.onload = draw;
-  img.src = phone ? "assets/img/s5/stack-390-poster.webp" : "assets/img/s5/stack-1440-poster.webp";
   new ResizeObserver(draw).observe(stage);
   new ResizeObserver(draw).observe(hero);
 
-  var started = false;
+  var shown = false, started = false;
+  function show() {
+    if (shown) return;
+    shown = true;
+    img.src = phone ? "assets/img/s5/stack-390-poster.webp" : "assets/img/s5/stack-1440-poster.webp";
+  }
   function go() {
+    show();
     if (started) return;
     started = true;
     machine.addEventListener("webglcontextlost", stills, { once: true });
@@ -62,8 +69,9 @@
   }
   try {
     new PerformanceObserver(function () { setTimeout(go, 0); }).observe({ type: "largest-contentful-paint", buffered: true });
-  } catch (e) { /* no LCP API: the scroll or load trigger starts it */ }
+  } catch (e) { /* no LCP API: the scroll or load triggers start both */ }
   addEventListener("scroll", go, { passive: true, once: true });
-  if (document.readyState === "complete") setTimeout(go, 1500);
-  else addEventListener("load", function () { setTimeout(go, 1500); }, { once: true });
+  function loaded() { show(); setTimeout(go, 1500); }
+  if (document.readyState === "complete") loaded();
+  else addEventListener("load", loaded, { once: true });
 })();

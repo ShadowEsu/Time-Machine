@@ -123,6 +123,8 @@ body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 va
 .stage canvas, .stage .first { position: absolute; inset: 0; z-index: -1; display: block; width: 100%; height: 100%; }
 /* The poster image, anchored where the scene centres the machine (67 % across on desktop), like load.js draws it. */
 .stage .first img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 67% 50%; }
+#poster { opacity: 0; transition: opacity .3s ease; }
+#poster.on { opacity: 1; }
 #machine { opacity: 0; transition: opacity .4s ease; }
 #machine.on { opacity: 1; }
 

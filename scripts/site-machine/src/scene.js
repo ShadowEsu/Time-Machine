@@ -327,6 +327,9 @@ Promise.all([`500 92px ${MONO}`, `400 72px ${MONO}`, `500 78px ${SANS}`, `700 64
   stage.request();
   requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.add("on")));
 });
-// Test hooks for the proof tools (stills, poster capture, verify): read-only state, no URL or storage access.
-stage.ready = true;
-window.__stage = stage;
+// Test hook for the poster/still capture tool, which sets window.__machineCapture before the page loads; pages
+// themselves get no global.
+if (window.__machineCapture === true) {
+  stage.ready = true;
+  window.__stage = stage;
+}
