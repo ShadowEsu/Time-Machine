@@ -2,6 +2,8 @@
    first paint). Pause motion, then music. Tokens come from s5.css on body.home. */
 /* Keyboard focus never lands under the dock: scrolled-to elements keep clear of the bottom corner. */
 html:has(.mus) { scroll-padding-bottom: 84px; }
+/* At the very end of the page the dock would sit on the footer's legal line: give the footer room below it. */
+html:has(.mus) body.home .ft { padding-bottom: calc(32px + 60px + env(safe-area-inset-bottom)); }
 .mus { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 900;
   display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; }
 .mus-row { display: flex; gap: 8px; }
@@ -51,6 +53,7 @@ html:has(.mus) { scroll-padding-bottom: 84px; }
    no text or button in the first screen, and scrolls away with the header. Its panel opens below it. */
 @media (max-width: 370px) {
   html:has(.mus) { scroll-padding-bottom: 0; }
+  html:has(.mus) body.home .ft { padding-bottom: 32px; }
   .mus { position: absolute; top: 6px; bottom: auto; left: 58px; right: 16px; flex-direction: column; align-items: flex-start; pointer-events: none; }
   .mus > * { pointer-events: auto; }
   .mus .mus-pop { width: 100%; }

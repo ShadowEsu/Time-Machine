@@ -41,7 +41,8 @@ export async function createStage(o) {
   const capture = window.__machineCapture === true;
   // failIfMajorPerformanceCaveat: no context on a software-only GL (a blocklisted GPU: SwiftShader, llvmpipe), where
   // the scene takes seconds to build and frames drop; the constructor throws, the import rejects, and load.js shows
-  // the stills, like any weak device (spec §7).
+  // the stills, like any weak device (spec §7). The backstop: load.js already checks the renderer before loading this
+  // file, which also catches software GL chosen on purpose (e.g. --use-angle=swiftshader), where there is no caveat.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: true, preserveDrawingBuffer: capture });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * PIXEL_SCALE);
   renderer.toneMapping = THREE.NeutralToneMapping;
