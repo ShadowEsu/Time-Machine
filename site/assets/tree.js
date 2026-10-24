@@ -62,7 +62,8 @@
       scan: -1,          // index under the scanline
       scanT: 0,
       blink: -1,         // index blinking in
-      log: []
+      // The terminal opens with context, not as an empty box (reduced motion never auto-runs Find).
+      log: ["# A real tm demo run: 6 save points, cp-0001 to cp-0006.", "# Find runs tm find-good on them, newest first."]
     };
   }
 
