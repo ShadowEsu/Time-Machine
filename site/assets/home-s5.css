@@ -3,16 +3,7 @@
    Paper, ink and white cards with 1.5 px ink edges. The hard shadow only on primary actions and each section's main
    card. Hairlines between rows. Terminals near-black with paper text; green and red only on verdicts.
    Bricolage for headings, Inter for reading, Plex Mono for commands, ids and captions, Departure Mono (a pixel face)
-   only for the section numerals and step numbers, at 15 px or more. One motion idea: the h2s type in (motion.js). */
-
-/* Departure Mono 1.500, SIL OFL 1.1 (fonts/OFL-DepartureMono.txt). */
-@font-face {
-  font-family: "Departure Mono";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("fonts/departure-mono-regular.woff2") format("woff2");
-}
+   only for the step numbers, at 22 px (twice its 11 px grid; @font-face in blueprint.css). One motion idea: the h2s type in (motion.js). */
 
 :root:has(> body.home) { color-scheme: light; }
 body.home {
@@ -24,7 +15,6 @@ body.home {
   --term-bg: #141414;
   --term-fg: #f4f2ed;
   --term-dim: #a3a09a;
-  counter-reset: s5sec;
 }
 
 /* Sections: one container, a hairline above each, a numeral, the display h2 and one lead, all left-aligned. */
@@ -33,11 +23,7 @@ body.home .after-pin::before, body.home .end::before { display: none; }
 body.home .appshot { margin-top: clamp(56px, 7vw, 96px); padding-block: var(--sy); border-top: 1px solid var(--rule); }
 body.home .block { padding-block: var(--sy);
   background: linear-gradient(var(--rule), var(--rule)) 50% 0 / min(100% - 2 * var(--inline), var(--container)) 1px no-repeat; }
-body.home .appshot, body.home .block { counter-increment: s5sec; }
 body.home .block-head { display: block; max-width: 62ch; margin-bottom: clamp(40px, 5vw, 64px); }
-body.home .block-head::before, body.home .end > div::before {
-  content: counter(s5sec, decimal-leading-zero); content: counter(s5sec, decimal-leading-zero) / "";
-  display: block; margin-bottom: clamp(20px, 2.5vw, 32px); font: 400 16px/1 var(--pixel); letter-spacing: .04em; color: var(--ink-2); }
 body.home :is(.appshot, .block) h2 { max-width: 18ch; margin: 0; font: 750 clamp(36px, 1.1rem + 3.4vw, 68px)/1 var(--display);
   font-variation-settings: normal; letter-spacing: -.04em; color: var(--ink); text-wrap: balance; }
 body.home :is(.appshot, .block) .block-head .lead { max-width: 62ch; margin: clamp(18px, 2vw, 24px) 0 0;
@@ -71,7 +57,7 @@ body.home .verdicts .pill-none { background: transparent; color: var(--ink-3); b
 /* 01 The web app: three steps, each beside its real screen. */
 body.home .story { gap: clamp(64px, 8vw, 120px); }
 body.home .story-n { display: inline-grid; place-items: center; width: 36px; height: 36px; margin: 0 0 22px; border: var(--edge); border-radius: 10px;
-  box-shadow: none; background: var(--card); color: var(--ink); font: 400 17px/1 var(--pixel); }
+  box-shadow: none; background: var(--card); color: var(--ink); font: 400 22px/1 var(--pixel); }
 body.home .story-text h3 { font: 700 clamp(24px, 1rem + 1vw, 32px)/1.1 var(--display); letter-spacing: -.025em; color: var(--ink); }
 body.home .story-text h3 + p { max-width: 44ch; margin-top: 16px; color: var(--ink-2); font-size: 17px; line-height: 1.6; }
 body.home .verdicts { gap: 0; max-width: 46ch; margin-top: 28px; }
@@ -164,7 +150,7 @@ body.home .dev-engine > h3 { max-width: 24ch; font: 700 clamp(26px, 1rem + 1.4vw
 body.home .dev-lead { max-width: 62ch; margin: 16px 0 32px; color: var(--ink-2); }
 body.home .dev-engine .cards { gap: 16px; }
 body.home .dev-engine .card { gap: 12px; min-height: 0; padding: 26px; border: var(--edge); border-radius: 16px; background: var(--card); box-shadow: none; }
-body.home .dev-engine .card-k { width: auto; height: auto; place-items: start; border-radius: 0; box-shadow: none; color: var(--ink-3); font: 400 17px/1 var(--pixel); }
+body.home .dev-engine .card-k { width: auto; height: auto; place-items: start; border-radius: 0; box-shadow: none; color: var(--ink-3); font: 400 22px/1 var(--pixel); }
 body.home .dev-engine .card h3 { margin-top: 8px; font: 700 clamp(21px, 1rem + .5vw, 25px)/1.15 var(--display); letter-spacing: -.02em; color: var(--ink); }
 body.home .dev-engine .card-t { color: var(--ink); }
 body.home .dev-engine .card-d { color: var(--ink-2); font-size: 15.5px; }
