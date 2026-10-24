@@ -1,6 +1,6 @@
 // Builds the site's 3D machine (S5 "The Stack") into one same-origin file: site/assets/machine/machine.js.
 //
-//   node scripts/build-site-machine.mjs
+//   node scripts/build-site-machine.mjs        (from any directory)
 //
 // Inputs, kept out of site/ (the Vercel root deploys everything under it):
 //   scripts/site-machine/src/scene.js (entry) and stage.js
@@ -11,9 +11,10 @@
 //
 // `three` and `three/addons/*` resolve to the vendored copy only, so nothing comes from node_modules (the build fails
 // if anything does). Same inputs give a byte-identical machine.js. The build fails above the budget: 208,000 bytes
-// after gzip -9 (BOSS, S5 build spec §8).
+// after gzip -9 (BOSS, S5 build spec §8). A failed build writes nothing: both outputs are written only after the
+// input and size checks pass.
 import { createRequire } from "node:module";
-import { copyFileSync, readFileSync } from "node:fs";
+import { copyFileSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,8 +42,10 @@ const vendoredThree = {
 };
 
 const result = await esbuild.build({
+  absWorkingDir: ROOT,
   entryPoints: [path.join(SRC, "scene.js")],
   outfile: path.join(OUT, "machine.js"),
+  write: false,
   bundle: true,
   minify: true,
   format: "esm",
@@ -53,18 +56,23 @@ const result = await esbuild.build({
   logLevel: "warning",
 });
 
+// Metafile input paths are relative to absWorkingDir (the repo root).
 const inputs = Object.keys(result.metafile.inputs);
 const stray = inputs.filter((i) => !i.startsWith("vendor/three-0.186.1/") && !i.startsWith("scripts/site-machine/src/"));
 if (stray.length) {
   console.error("inputs outside vendor/three-0.186.1 and scripts/site-machine/src:\n  " + stray.join("\n  "));
   process.exit(1);
 }
-copyFileSync(path.join(VENDOR, "LICENSE"), path.join(OUT, "LICENSE-three.txt"));
-
-const bytes = readFileSync(path.join(OUT, "machine.js"));
+if (result.outputFiles.length !== 1) {
+  console.error(`expected 1 output file, got ${result.outputFiles.length}`);
+  process.exit(1);
+}
+const bytes = result.outputFiles[0].contents;
 const gz = gzipSync(bytes, { level: 9 }).length;
 console.log(`machine.js ${bytes.length} B min, ${gz} B gzip -9 (budget ${BUDGET_GZ}), ${inputs.length} inputs`);
 if (gz > BUDGET_GZ) {
   console.error(`over budget by ${gz - BUDGET_GZ} B`);
   process.exit(1);
 }
+writeFileSync(path.join(OUT, "machine.js"), bytes);
+copyFileSync(path.join(VENDOR, "LICENSE"), path.join(OUT, "LICENSE-three.txt"));
