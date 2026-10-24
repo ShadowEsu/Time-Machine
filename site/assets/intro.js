@@ -3,11 +3,18 @@
    Loaded parser-blocking as the first thing in <body>, so the overlay paints in the first frame. The hero stays
    rendered, opaque and in the accessibility tree underneath. Nothing is in the HTML. It runs only under S5's
    html.motion switch (set before paint by the head script: no reduced motion, no weak device), once per tab
-   session; otherwise there is no overlay at all. A CSS failsafe (intro.css) clears it if this script dies. */
+   session, and not while "Pause motion" is on; otherwise there is no overlay at all. A CSS failsafe (home-s5.css)
+   clears it if this script dies. */
 (() => {
   "use strict";
-  const body = document.body;
-  if (!body || !document.documentElement.classList.contains("motion") || !window.matchMedia ||
+  const body = document.body, root = document.documentElement;
+  // The stored "Pause motion" choice (sound.js owns the button) applies before machine.js and the first paint.
+  try { if (localStorage.getItem("tm-motion") === "paused") root.classList.add("motion-paused"); } catch (_) {}
+  // Run fn once the page has loaded, so nothing it fetches competes with the first paint.
+  const afterLoad = (fn) => { if (document.readyState === "complete") setTimeout(fn, 0); else addEventListener("load", () => setTimeout(fn, 0), { once: true }); };
+  // The corner dock (Pause motion, music) is sound.js, fetched after the page has loaded.
+  afterLoad(() => { const s = document.createElement("script"); s.src = "assets/sound.js"; document.body.append(s); });
+  if (!body || !root.classList.contains("motion") || root.classList.contains("motion-paused") || !window.matchMedia ||
     !matchMedia("(prefers-reduced-motion: no-preference)").matches) return;
   try {
     if (sessionStorage.getItem("tm-intro") === "1") return;
@@ -15,10 +22,10 @@
   } catch (_) { return; }
 
   const MIN = 1200, FORCE = 2400, HOLD = 120, IDS = ["cp-0001", "cp-0002", "cp-0003", "cp-0004", "cp-0005", "cp-0006"];
-  const letters = (word, from) => [...word].map((c, i) => `<span class="tmi-l" style="--i:${from + i}">${c}</span>`).join("");
   const el = document.createElement("section");
   el.className = "tmi";
   el.setAttribute("aria-label", "Intro");
+  // The wordmark is one block of plain text (no per-letter boxes), so it paints as a single, largest element.
   el.innerHTML =
     '<div class="tmi-bar">' +
       '<button type="button" class="tmi-btn tmi-btn-sound" data-intro-sound hidden>Enter with sound</button>' +
@@ -27,11 +34,10 @@
     '<div class="tmi-art" aria-hidden="true">' +
       '<div class="tmi-meta"><span class="tmi-k">save point</span><span class="tmi-id">cp-0001</span></div>' +
       '<div class="tmi-rule"><i></i></div>' +
-      '<p class="tmi-word" translate="no">' +
-        `<span class="tmi-time">${letters("Time", 0)}</span>` +
+      '<div class="tmi-mark">' +
+        '<p class="tmi-word" translate="no">Time<br><em>Machine</em></p>' +
         '<span class="tmi-n"><b>0</b>%</span>' +
-        `<em class="tmi-machine">${letters("Machine", 4)}</em>` +
-      "</p>" +
+      "</div>" +
     "</div>";
   body.prepend(el);
 
@@ -41,14 +47,16 @@
   const TASKS = 3;
   const finish = () => { done++; last = performance.now(); };
 
-  // Real loading: fonts, the hero's poster (the same URL load.js draws, so it comes from cache), the load event.
-  const fonts = document.fonts;
-  (fonts ? Promise.all([fonts.load('750 1em "Bricolage Grotesque"'), fonts.load('italic 400 1em "Instrument Serif"')])
-    .then(() => fonts.ready) : Promise.resolve()).then(finish, finish);
-  const poster = new Image();
-  poster.onload = poster.onerror = finish;
-  poster.src = matchMedia("(max-width: 640px)").matches ? "assets/img/s5/stack-390-poster.webp" : "assets/img/s5/stack-1440-poster.webp";
-  if (document.readyState === "complete") finish(); else addEventListener("load", finish, { once: true });
+  // Real loading: the web fonts the first layout asked for (document.fonts.ready, checked after that layout), the
+  // load event, then the hero's poster (the same URL load.js draws, so it is fetched once). The poster is asked for
+  // only after the load event, so it never competes with the first paint.
+  const fontsReady = () => { if (document.fonts) document.fonts.ready.then(finish, finish); else finish(); };
+  afterLoad(() => {
+    finish();
+    const poster = new Image();
+    poster.onload = poster.onerror = finish;
+    poster.src = matchMedia("(max-width: 640px)").matches ? "assets/img/s5/stack-390-poster.webp" : "assets/img/s5/stack-1440-poster.webp";
+  });
 
   const ease = (x) => 1 - Math.pow(1 - x, 3);
   function frame(now) {
@@ -68,7 +76,9 @@
     if (shown >= 1) { id.textContent = "cp-0006"; setTimeout(leave, HOLD); return; }
     raf = requestAnimationFrame(frame);
   }
-  raf = requestAnimationFrame(frame);
+  // The counter starts on the second frame, so the first frame (the page and the wordmark) paints with no extra
+  // work; by then that frame's layout has asked for its fonts, so document.fonts.ready waits for them.
+  raf = requestAnimationFrame(() => { raf = requestAnimationFrame((now) => { fontsReady(); frame(now); }); });
 
   function remove() {
     if (!el.isConnected) return;

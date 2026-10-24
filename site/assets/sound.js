@@ -62,14 +62,18 @@
   update();
 })();
 
-/* Home music: generative ambient made with Web Audio oscillator, gain, filter and convolver nodes (no audio files,
-   no worklet). Off by default. Only a press on the music button (or the intro's "Enter with sound") creates or
+/* Home corner dock: "Pause motion" and the music.
+   Pause motion (WCAG 2.2.2) stops every self-running loop: it sets html.motion-paused (intro.js applies a stored
+   choice before first paint, so machine.js sees it on load), calls window.tmMachine.pause()/resume() when the 3D
+   machine is there, and is remembered in localStorage. Shown only under html.motion; otherwise nothing loops.
+   Music: generative ambient made with Web Audio oscillator, gain, filter and convolver nodes (no audio files, no
+   worklet). Off by default. Only a press on the music button (or the intro's "Enter with sound") creates or
    resumes the AudioContext; a remembered "on" just waits for that press. Fades in over 1 s and out over 0.6 s,
    pauses when the tab is hidden, and remembers the volume and the on/off choice in localStorage. */
 (() => {
   "use strict";
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC || !document.body || !document.body.classList.contains("home")) return;
+  if (!document.body || !document.body.classList.contains("home")) return;
+  const AC = window.AudioContext || window.webkitAudioContext, root = document.documentElement;
   const KEY = "tm-music";
   let pref = { on: false, vol: .5 };
   try {
@@ -80,21 +84,47 @@
 
   const dock = document.createElement("aside");
   dock.className = "mus";
-  dock.setAttribute("aria-label", "Music");
+  dock.setAttribute("aria-label", "Motion and music");
+  // DOM order = Tab order: the two buttons, then the music panel they open. CSS places the panel above or below.
   dock.innerHTML =
-    '<div class="mus-pop" id="mus-pop" hidden>' +
+    '<div class="mus-row">' +
+      '<button type="button" class="mus-btn mus-motion" aria-pressed="false" hidden>' +
+        '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 5v10M13.5 5v10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>' +
+        '<span class="mus-mt">Pause motion</span></button>' +
+      (AC ? '<button type="button" class="mus-btn mus-music" aria-expanded="false" aria-controls="mus-pop" aria-label="Music and volume">' +
+        '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13 7a4 4 0 0 1 0 6M15.2 4.8a7 7 0 0 1 0 10.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
+        '<span class="mus-eq" aria-hidden="true"><i></i><i></i><i></i></span>' +
+      "</button>" : "") +
+    "</div>" +
+    (AC ? '<div class="mus-pop" id="mus-pop" hidden>' +
       '<p class="mus-h">Ambient music</p>' +
       '<button type="button" class="mus-tog"><span class="mus-sw" aria-hidden="true"><i></i></span><span class="mus-tl">Play music</span></button>' +
       '<div class="mus-vol"><label for="mus-range">Volume</label><output for="mus-range"></output></div>' +
       '<input class="mus-range" id="mus-range" type="range" min="0" max="100" step="5">' +
-    "</div>" +
-    '<button type="button" class="mus-btn" aria-expanded="false" aria-controls="mus-pop" aria-label="Music and volume">' +
-      '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13 7a4 4 0 0 1 0 6M15.2 4.8a7 7 0 0 1 0 10.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
-      '<span class="mus-eq" aria-hidden="true"><i></i><i></i><i></i></span>' +
-    "</button>";
-  const skip = document.querySelector("body > a.skip");
-  if (skip) skip.after(dock); else document.body.prepend(dock);   // early in the Tab order, with the header
-  const pop = dock.querySelector(".mus-pop"), btn = dock.querySelector(".mus-btn"), tog = dock.querySelector(".mus-tog");
+    "</div>" : "");
+  // The dock goes in once its stylesheet (sound.css) has arrived, so it never shows unstyled.
+  const place = () => { const skip = document.querySelector("body > a.skip"); if (skip) skip.after(dock); else document.body.prepend(dock); };
+  const sheet = document.createElement("link");
+  sheet.rel = "stylesheet"; sheet.href = "assets/sound.css";
+  sheet.onload = sheet.onerror = place;   // early in the Tab order, with the header
+  document.head.append(sheet);
+
+  // ---- pause motion ----
+  const still = dock.querySelector(".mus-motion");
+  function setPaused(paused, store) {
+    root.classList.toggle("motion-paused", paused);
+    still.setAttribute("aria-pressed", String(paused));
+    if (store) try { if (paused) localStorage.setItem("tm-motion", "paused"); else localStorage.removeItem("tm-motion"); } catch (_) {}
+    const m = window.tmMachine;
+    if (m && typeof m.pause === "function" && !!m.paused !== paused) { if (paused) m.pause(); else m.resume(); }
+  }
+  if (root.classList.contains("motion")) {
+    still.hidden = false;
+    setPaused(root.classList.contains("motion-paused"), false);
+    still.addEventListener("click", () => setPaused(!root.classList.contains("motion-paused"), true));
+  }
+  if (!AC) return;
+  const pop = dock.querySelector(".mus-pop"), btn = dock.querySelector(".mus-music"), tog = dock.querySelector(".mus-tog");
   const label = dock.querySelector(".mus-tl"), range = dock.querySelector(".mus-range"), out = dock.querySelector("output");
 
   // ---- the music ----
