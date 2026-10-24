@@ -1,8 +1,9 @@
 // Time Machine site, S5 "The Stack": the stage under the machine. Renderer, generated studio light (three's
 // RoomEnvironment through PMREM, 0 bytes of HDR), a soft contact shadow, and a scroll pin that hands the scene a
-// progress p in [0, 1]. Render on demand only: a frame is drawn when p moves, the canvas resizes, or the scene asks,
-// so an idle page costs nothing. Ported from Design's S5 prototype base (~/wN-tmp/s5/base/stage.js) with only what
-// The Stack uses: no AO post pass, no environment panels, no knurl geometry.
+// progress p in [0, 1]. Render on demand only: a frame is drawn when p moves, the canvas resizes, or the scene asks
+// (scene.js does while its idle motion plays at the top of the pin), so a page at rest costs nothing. Ported from
+// Design's S5 prototype base (~/wN-tmp/s5/base/stage.js) with only what The Stack uses: no AO post pass, no
+// environment panels, no knurl geometry.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { HorizontalBlurShader } from "three/addons/shaders/HorizontalBlurShader.js";
@@ -154,7 +155,8 @@ export async function createStage(o) {
   let raf = 0, last = performance.now(), keep = false;
   function frame(now) {
     raf = 0;
-    const dt = Math.min(0.05, (now - last) / 1000);
+    // Never negative: a rAF timestamp (the frame's start) can be earlier than the performance.now() request() took.
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     stage.t += dt;
     stage.dt = dt;

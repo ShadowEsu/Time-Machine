@@ -1,7 +1,8 @@
 // Time Machine site, S5 "The Stack": a white machine built from thick modules, one per save point, each with a lit
 // seam. Scroll opens it into an exploded view, checks each save point top to bottom (red seams for cp-0006, cp-0005,
 // cp-0004, green for cp-0003), then cp-0003 slides out towards you while the others close back up.
-// Units: decimetres (the machine is 28 cm wide). Every pose is a pure function of p, so scrolling back restores it.
+// Units: decimetres (the machine is 28 cm wide). Every pose is a pure function of p plus the idle motion at the top of
+// the pin (below), which adds nothing when paused or scrolled past, so scrolling back restores the same frame.
 // Built into site/assets/machine/machine.js by `node scripts/build-site-machine.mjs` (esbuild 0.28.2, see there).
 import { THREE, createStage, screenTexture, ease, SAVES } from "./stage.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -10,7 +11,9 @@ const { seg, mix, inOut, out } = ease;
 const MONO = '"IBM Plex Mono", ui-monospace, monospace';
 const SANS = 'Inter, system-ui, sans-serif';
 const INK = "#141414", INK2 = "#3a3936";
-const SEAM = { idle: new THREE.Color("#b4d6ff"), scan: new THREE.Color("#ffffff"), fail: new THREE.Color("#ff4a3d"), pass: new THREE.Color("#2fd27a") };
+// Seam light: idle sky, scanning white, failed red, passed green; lit and dim for the idle browse (the seam the readout
+// names, and the others meanwhile).
+const SEAM = { idle: new THREE.Color("#b4d6ff"), scan: new THREE.Color("#ffffff"), fail: new THREE.Color("#ff4a3d"), pass: new THREE.Color("#2fd27a"), lit: new THREE.Color("#2f8bff"), dim: new THREE.Color("#93bce8") };
 
 // Dimensions. Layers stack bottom (cp-0003, the oldest) to top (cp-0006, the newest), so the rewind runs downward.
 const D = { W: 2.8, Dp: 2.2, foot: 0.05, baseH: 0.5, H: 0.3, seam: 0.024, capH: 0.32, gap: 0.5, r: 0.11 };
@@ -43,7 +46,8 @@ function build(st) {
   // read as the bright, separate parts.
   const white = new THREE.MeshPhysicalMaterial({ color: "#f8f8f6", roughness: 0.34, clearcoat: 0.55, clearcoatRoughness: 0.3, sheen: 0.3, sheenColor: new THREE.Color("#ffffff"), sheenRoughness: 0.55 });
   const shell = white.clone(); shell.color = new THREE.Color("#efeeeb"); shell.roughness = 0.42;
-  const gapMat = new THREE.MeshStandardMaterial({ color: "#2a2928", roughness: 0.9 });
+  // The well around the restore key; its sky ring light (the idle motion's slow breath) is off at rest.
+  const gapMat = new THREE.MeshStandardMaterial({ color: "#2a2928", roughness: 0.9, emissive: "#5aa9ff", emissiveIntensity: 0 });
   const steel = new THREE.MeshPhysicalMaterial({ color: "#ffffff", metalness: 0.5, roughness: 0.3, envMapIntensity: 1.3 });
   const rubber = new THREE.MeshStandardMaterial({ color: "#3b3a38", roughness: 0.85 });
 
@@ -125,8 +129,10 @@ function build(st) {
   const well = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.02, 64), gapMat);
   well.position.y = D.capH / 2 - 0.004;
   cap.add(well);
+  parts.well = gapMat;
   const key = new THREE.Group();
-  const keyMat = new THREE.MeshPhysicalMaterial({ color: "#cfe6ff", roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.25 });
+  // It lights a little with the ring (0 at rest).
+  const keyMat = new THREE.MeshPhysicalMaterial({ color: "#cfe6ff", roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.25, emissive: "#8fc4ff", emissiveIntensity: 0 });
   const keyBody = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.35, 0.09, 64), keyMat);
   const keyTop = new THREE.Mesh(new THREE.SphereGeometry(1.6, 64, 8, 0, Math.PI * 2, 0, Math.asin(0.34 / 1.6)), keyMat);
   keyTop.position.y = 0.045 - 1.6 * Math.cos(Math.asin(0.34 / 1.6));
@@ -135,6 +141,7 @@ function build(st) {
   key.position.y = D.capH / 2 + 0.04;
   cap.add(key);
   parts.key = key;
+  parts.keyMat = keyMat;
   cap.position.y = capY0;
   machine.add(cap);
   parts.cap = cap;
@@ -255,10 +262,47 @@ function typeLine(i) {
 // Beats (p): hold .00-.06 · open .06-.26 · checks .28-.53 (top down, .07 apart) · cp-0003 out .60-.80 · close .68-.86
 const CHECK = (j) => [0.28 + 0.07 * j, 0.28 + 0.07 * j + 0.04];
 
+// Idle (Preston via TM, 10-24: the start must not be static). At the top of the pin, with no scroll and no input, the
+// machine lives on its own, on a CYCLE-second loop: it holds "ready" while a ring of sky light around the restore key
+// breathes; then the readout browses the save points newest to oldest, each one's seam lighting as it's named while
+// the others dim (the order the story checks them in), so a light runs down the stack. Meanwhile the camera drifts a
+// few degrees on two slow, unrelated cycles. Nothing moves that casts a shadow, so no shadow pass runs. (A light swept
+// across the shell either didn't read on the satin white or, close enough to read, washed out the printed labels.)
+// - Its clock starts once the poster has gone; every term is 0 at rest and its weight eases in over 2 s, so the
+//   hand-over from the poster shows no step.
+// - It fades out over the first 4 % of the scroll (IDLE_END) and draws no frames beyond it, nor while paused.
+// - Paused (html.motion-paused, set by the page's motion control through window.tmMachine), on a switch to reduced
+//   motion, or without html.motion, it eases back to rest in 0.6 s and stops: the frame is then exactly the
+//   scroll-only one, so the poster stays the rest frame and the same p still gives the same frame.
+const IDLE_END = 0.04, CYCLE = 13, BROWSE = 4.4, STEP = 1.7;
+const html = document.documentElement, rmq = matchMedia("(prefers-reduced-motion: reduce)");
+const idle = { on: false, t: 0, k: 0 };
+const READY = "4 save points · ready";
+const TAU = 2 * Math.PI;
+const wave = (t, period) => 0.5 - 0.5 * Math.cos((TAU * t) / period); // 0 at t = 0, 1 half a period later
+// How lit save point j's seam is while the readout names it: up over 0.3 s, down over 0.5 s as the next one comes up.
+function browsed(c, j) {
+  const u = c - BROWSE - j * STEP;
+  return u <= 0 || u >= STEP + 0.5 ? 0 : inOut(Math.min(1, u / 0.3, (STEP + 0.5 - u) / 0.5));
+}
+
 function update(p, st) {
   const { camera, phone } = st;
   const L = parts.layers;
   if (poster && p > 0.0005) dropPoster();
+
+  // Idle weight: k eases to 1 while the idle motion may run (2 s) and to 0 when it may not (0.6 s); pw fades it out
+  // over the scroll. Where it can't show (pw = 0), k jumps to its target, so a pause made down the page holds at the top.
+  const run = idle.on && html.classList.contains("motion") && !html.classList.contains("motion-paused") && !rmq.matches;
+  const pw = 1 - inOut(seg(p, 0, IDLE_END));
+  if (pw === 0) idle.k = run ? 1 : 0;
+  else idle.k = run ? Math.min(1, idle.k + st.dt / 2) : Math.max(0, idle.k - st.dt / 0.6);
+  if (idle.k > 0 && pw > 0) idle.t += st.dt;
+  const it = idle.t, wi = inOut(idle.k) * pw, c = it % CYCLE;
+  const idling = pw > 0 && (run || idle.k > 0);
+  // Where the loop is: brw is 1 while the readout browses (eased at both ends), ring the key's breath (dim meanwhile).
+  const brw = inOut(Math.min(seg(c, BROWSE - 0.4, BROWSE), 1 - seg(c, BROWSE + 4 * STEP, BROWSE + 4 * STEP + 0.5)));
+  const ring = wi * (1 - 0.75 * brw) * wave(it, 4.4);
 
   // Open: the cap lifts first, then each module, top to bottom; every gap is D.gap when fully open.
   // A small overshoot as each module arrives (backOut over inOut: still from rest, a few percent past, back).
@@ -291,13 +335,17 @@ function update(p, st) {
   parts.cap.position.y = capY0 + 5 * D.gap * open(0) * (1 - close) - pitch * close;
 
   // Checks, top (cp-0006) to bottom (cp-0003): seam idle sky -> scanning white -> red or green; label pill follows
-  let read = "4 save points · ready", tone = "#cfe6ff", say = "";
+  let read = READY, tone = "#cfe6ff", say = "";
+  // Idle: the readout names the save points in turn (wi > 0.5, so it settles back to READY early in a scroll or pause).
+  if (wi > 0.5) { const n = Math.floor((c - BROWSE) / STEP); if (n >= 0 && n < 4) read = `${SAVES[n].id} · saved ${SAVES[n].time}`; }
   for (let j = 0; j < 4; j++) {
     const li = 3 - j, layer = L[li], [a, b] = CHECK(j);
     const scan = seg(p, a, b), done = p >= b;
     const state = done ? (layer.save.pass ? "pass" : "fail") : scan > 0 ? "scan" : "";
     const pulse = Math.sin(Math.PI * scan);
     if (done) col.copy(layer.save.pass ? SEAM.pass : SEAM.fail); else col.copy(SEAM.idle).lerp(SEAM.scan, pulse);
+    // Idle: the seam the readout names lights up; the others dim a little meanwhile.
+    if (wi > 0) { const lit = browsed(c, j); col.lerp(SEAM.dim, wi * 0.6 * brw * (1 - lit)).lerp(SEAM.lit, wi * lit); }
     layer.seam.color.copy(col);
     if (state !== layer.state) { layer.label.redraw(state); layer.state = state; }
     if (scan > 0) { read = done ? `${layer.save.id} · ${layer.save.pass ? "passed" : "failed"}` : `checking ${layer.save.id}`; tone = done ? (layer.save.pass ? "#2fd27a" : "#ff4a3d") : "#ffffff"; }
@@ -318,6 +366,9 @@ function update(p, st) {
     if (shown < read.length) keep = true; else typedAt = -1;
   }
   parts.led.material.emissive.set(tone);
+  // Idle: the ring around the restore key breathes, and the key lights a little with it.
+  parts.well.emissiveIntensity = 1.3 * ring;
+  parts.keyMat.emissiveIntensity = 0.4 * ring;
   if (say !== announced) { live.textContent = say; announced = say; }
   // The restore key presses as cp-0003 leaves
   const press = seg(p, 0.585, 0.605) - seg(p, 0.62, 0.64);
@@ -337,7 +388,9 @@ function update(p, st) {
   const pf = phone ? mix(2.15, 1.85, seg(p, 0.03, 0.2)) + 0.35 * seg(p, 0.6, 0.86) : 1;
   // Phones look down a little more at the end, so cp-0003 in front sits below the base's readout, not over it.
   const elDeg = mix(A.el, B.el, q) + (phone ? 9 * seg(p, 0.6, 0.86) : 0);
-  const az = (mix(A.az, B.az, q) * Math.PI) / 180, el = (elDeg * Math.PI) / 180, d = mix(A.d, B.d, q) * pf;
+  // Idle: the camera drifts on two slow, unrelated cycles (3 degrees around, 1 up and down).
+  const az = ((mix(A.az, B.az, q) + wi * 3 * Math.sin((TAU * it) / 16)) * Math.PI) / 180;
+  const el = ((elDeg + wi * Math.sin((TAU * it) / 11)) * Math.PI) / 180, d = mix(A.d, B.d, q) * pf;
   target.set((phone ? -0.35 : -0.7) * out3, mix(A.ty, B.ty, q) + (phone ? -0.35 : 0), mix(0, 0.9, seg(p, 0.6, 0.86)));
   camPos.set(target.x + Math.sin(az) * Math.cos(el) * d, target.y + Math.sin(el) * d, target.z + Math.cos(az) * Math.cos(el) * d);
   camera.position.copy(camPos);
@@ -357,7 +410,7 @@ function update(p, st) {
   cue.style.opacity = p < 0.02 ? "" : "0";
   const n = p < 0.27 ? -1 : p < 0.53 ? 0 : p < 0.6 ? 1 : 2;
   if (n !== shownSub) { subs.forEach((s, i) => s.classList.toggle("on", i === n)); shownSub = n; typeLine(n); }
-  return keep;
+  return keep || idling;
 }
 
 const canvas = document.getElementById("machine");
@@ -365,17 +418,27 @@ const stage = await createStage({ canvas, pin: document.querySelector(".pin"), f
 // load.js moves the machine under the hero on phones (data-dy) and says so when the hero's height changes.
 canvas.addEventListener("layout", () => stage.request());
 // The canvas fades in over the poster on its first frame drawn with the page's faces (the poster was captured with
-// them, so the two match at p=0); labels drawn in a fallback face would not. The poster then goes on transitionend.
-canvas.addEventListener("transitionend", dropPoster, { once: true });
+// them, so the two match at p=0); labels drawn in a fallback face would not. The poster then goes on transitionend,
+// and the idle motion starts from rest (not for the capture tool: posters and stills are rest frames).
+canvas.addEventListener("transitionend", () => { dropPoster(); idle.on = window.__machineCapture !== true; stage.request(); }, { once: true });
+// The idle motion's pause, for the page's motion control (WCAG 2.2.2: it runs longer than 5 s). The control may also
+// set html.motion-paused itself, e.g. before this file has loaded; either way the scene sees it on its next frame.
+window.tmMachine = {
+  pause() { html.classList.add("motion-paused"); },
+  resume() { html.classList.remove("motion-paused"); },
+  get paused() { return html.classList.contains("motion-paused"); },
+};
+new MutationObserver(() => stage.request()).observe(html, { attributeFilter: ["class"] });
+rmq.addEventListener("change", () => stage.request());
 Promise.all([`500 92px ${MONO}`, `400 72px ${MONO}`, `500 78px ${SANS}`, `700 64px ${SANS}`].map((f) => document.fonts.load(f))).finally(() => {
   for (const l of parts.layers) l.label.redraw(l.state);
   shownRead = "";
   stage.request();
   requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.add("on")));
 });
-// Test hook for the poster/still capture tool, which sets window.__machineCapture before the page loads; pages
-// themselves get no global.
+// Test hook for the poster/still capture tool, which sets window.__machineCapture before the page loads.
 if (window.__machineCapture === true) {
   stage.ready = true;
+  stage.idle = idle;
   window.__stage = stage;
 }

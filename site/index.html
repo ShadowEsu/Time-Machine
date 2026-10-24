@@ -27,12 +27,12 @@
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/home.css">
 <link rel="stylesheet" href="assets/s5.css">
-<link rel="stylesheet" href="assets/blueprint.css">
 <link rel="stylesheet" href="assets/home-s5.css">
 <script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches},weak=s||n.deviceMemory<=2||n.hardwareConcurrency<=2,ok=m("(prefers-reduced-motion: no-preference)"),wide=m("(min-width: 641px)"),l;d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!weak&&ok&&(wide||w.innerHeight>=650))d.classList.add("motion");else if(weak&&ok){l=document.createElement("link");l.rel="preload";l.as="image";l.type="image/webp";l.href="assets/img/s5/stack-"+(wide?1440:390)+"-poster.webp";document.head.appendChild(l)}})(document.documentElement,navigator,window);</script>
 <script src="assets/machine/load.js" defer></script>
 </head>
 <body class="home">
+<script src="assets/intro.js"></script>
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="top" id="top">
@@ -561,10 +561,9 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
     <div class="ft-col">
       <p class="ft-h" id="agents-h">Agent integrations</p>
       <ul class="agent-support" aria-labelledby="agents-h">
-        <li data-mark="claude"><span class="agent-support-name">Claude Code</span><span class="agent-support-status">Built · automatic hooks</span></li>
-        <li data-mark="openai"><span class="agent-support-name">Codex CLI</span><span class="agent-support-status">Planned</span></li>
-        <li data-mark="gemini"><span class="agent-support-name">Gemini CLI</span><span class="agent-support-status">Planned</span></li>
-        <li data-mark="cursor"><span class="agent-support-name">Cursor</span><span class="agent-support-status">Planned</span></li>
+        <li data-mark="claude"><svg class="agent-sym" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.24 7.76A6 6 0 1 0 15.24 16.24"/><rect x="15.2" y="10.3" width="4.2" height="3.4" rx=".7" fill="currentColor" stroke="none"/></svg><span class="agent-support-name">Claude Code</span><span class="agent-support-status">Built · automatic hooks</span></li>
+        <li data-mark="codex"><svg class="agent-sym" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 7.5 10 12l-4.5 4.5"/><path d="M12.5 17h6"/></svg><span class="agent-support-name">Codex</span><span class="agent-support-status">Planned</span></li>
+        <li data-mark="gemini"><svg class="agent-sym" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 7.7v8.6M14.8 7.7v8.6"/><path d="M5.6 6.2c4.1 1.9 8.7 1.9 12.8 0M5.6 17.8c4.1-1.9 8.7-1.9 12.8 0"/></svg><span class="agent-support-name">Gemini</span><span class="agent-support-status">Planned</span></li>
       </ul>
       <p class="agent-support-note">MCP agents can use seven real tools to save, inspect, check and recover. Automatic hooks are built for Claude Code only today.</p>
       <p class="ft-h">Does not bring back</p>
