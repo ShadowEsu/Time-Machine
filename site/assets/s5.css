@@ -165,6 +165,9 @@ html.motion .pin { background: #ebe6de; }
 html.motion .pin::after { content: ""; display: block; height: 320svh; }
 html.motion .stage { position: sticky; top: min(0px, calc(100svh - var(--h, 100svh))); }
 html.motion .stage canvas { top: auto; height: 100svh; }
+/* machine.js hides the faded hero (inline visibility: hidden); the page's only h1 stays in the accessibility tree.
+   The hero's opacity 0 still hides it on screen; the form and links stay hidden. */
+html.motion #hero-h { visibility: visible; }
 
 /* "Skip the story": the pin's first focusable, shown on focus at the stage's top left; it goes to the pin's end. */
 .skip-story { left: max(24px, calc(50% - 600px)); }
