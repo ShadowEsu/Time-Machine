@@ -132,7 +132,7 @@
     <h1 class="hero-h" id="hero-h"><span class="r" data-r="0 0 .45 .8">Rewind to</span> <em class="r" data-r="0 0 .5 .85">what worked.</em></h1>
     <div class="hero-sub r" data-r="0 0 .4 .75">
       <p>Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it.</p>
-      <p class="gap">Claude Code's rewind skips files changed by Bash commands. Time Machine's Claude Code hooks save before prompts and risky commands. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Source: Claude Code docs</a></p>
+      <p class="gap">Claude Code's rewind skips files that only Bash commands changed. Time Machine's Claude Code hooks save before prompts and risky commands. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Source: Claude Code docs</a></p>
       <div class="ctas"><a class="btn btn-primary" href="#waitlist">Join the waitlist</a><a class="btn btn-ghost" href="#act-rewind">Turn the dial <span class="arr" aria-hidden="true"></span></a></div>
     </div>
   </div>
@@ -172,7 +172,7 @@
         <li class="r" data-r=".58 .62"><time>11:13</time><span>Agent: "All done!"</span></li>
         <li class="r err" data-r=".7 .76"><time>11:14</time><span>You run <code class="cmd">npm test</code>. Exit code 1. Tips round wrong.</span></li>
       </ol>
-      <p class="sub r" data-r=".78 .86">Undo goes back one edit. Claude Code's rewind skips files changed by Bash commands. Time Machine kept a save point at each step.</p>
+      <p class="sub r" data-r=".78 .86">Undo goes back one edit. Claude Code's rewind skips files that only Bash commands changed. Time Machine kept a save point at each step.</p>
       <p class="fine-s r" data-r=".84 .92">Dramatized on a synthetic demo project. Save point IDs, verdicts and command output come from a real <code>tm demo</code> run. Times other than 10:42 and 10:51 are illustrative.</p>
     </div>
   </div>
@@ -284,7 +284,7 @@
       </div>
     </div>
     <div class="vs" aria-label="What each kind of rewind covers">
-      <div class="vs-row"><p class="vs-k">Claude Code rewind<span>Built in checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Edits made by its file editing tools. Not Bash commands</span></div></div>
+      <div class="vs-row"><p class="vs-k">Claude Code rewind<span>Built in checkpoints</span></p><div class="vs-bar"><i style="--w:.36"></i><span>Files it edited. Not files only Bash changed</span></div></div>
       <div class="vs-row"><p class="vs-k">Time Machine<span>tm, today</span></p><div class="vs-bar"><i style="--w:1"></i><span>Your code, uncommitted work and the files Git sees at each save point, plus a check that proves it runs</span></div></div>
     </div>
     <p class="fine-s">Claude Code: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">checkpointing docs, "Bash command changes not tracked"</a>. Time Machine does not save secret values from .env files, databases, deployed versions, files your .gitignore skips or files over the size limit.</p>

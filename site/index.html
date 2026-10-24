@@ -256,7 +256,7 @@
         <caption class="sr-only">What Claude Code’s rewind, Git and Time Machine each do</caption>
         <thead><tr><th scope="col"><span class="sr-only">Capability</span></th><th scope="col">Claude Code rewind</th><th scope="col">Git</th><th scope="col" class="tm" translate="no">Time Machine</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="no">Not tracked</td><td class="part">Only what you committed</td><td class="yes">Saved before each prompt and before commands like <code>rm -rf</code></td></tr>
+          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="part">Only in files Claude also edited</td><td class="part">Only what you committed</td><td class="yes">Saved before each prompt and before commands like <code>rm -rf</code></td></tr>
           <tr><th scope="row">Saves automatically while the agent works</th><td class="yes">Yes</td><td class="no">No, you commit</td><td class="yes">Yes, with Claude Code hooks</td></tr>
           <tr><th scope="row">Tells you which version passes your tests</th><td class="no">No</td><td class="no">No, you test by hand</td><td class="yes">Yes, each in a separate copy</td></tr>
           <tr><th scope="row">Going back leaves your current work alone</th><td class="no">Restores in place</td><td class="part">Depends on the command</td><td class="yes">New branch and a copy</td></tr>
@@ -344,7 +344,7 @@ tm demo</pre>
         <p class="card-k">1</p>
         <h3>Save points before every prompt</h3>
         <p class="card-t">Claude Code hooks save before each prompt and before risky shell commands, even when nothing is committed yet.</p>
-        <p class="card-d">Claude Code’s own rewind skips files changed by Bash. Time Machine saves first, outside your project folder, with a Git bundle.</p>
+        <p class="card-d">Claude Code’s own rewind skips files that only shell commands changed. Time Machine saves first, outside your project folder, with a Git bundle.</p>
         <p class="card-f"><span class="ok">Built</span> Claude Code hooks</p>
       </li>
       <li class="card">
@@ -436,7 +436,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
     <div class="ft-col ft-faq">
       <p class="ft-h">Questions</p>
       <details><summary>Does it replace Git?</summary><p>No. It works next to Git. A recovery is a new branch you inspect before you merge it yourself.</p></details>
-      <details><summary>Why not the agent’s own rewind?</summary><p>Claude Code’s docs say checkpointing does not track files changed by Bash commands. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Read the Claude Code docs</a></p></details>
+      <details><summary>Why not the agent’s own rewind?</summary><p>Claude Code’s docs say rewind leaves a file as it is when only Bash commands changed it. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Read the Claude Code docs</a></p></details>
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
       <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; Preston writes to the list himself when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
       <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and nothing on it needs a password.</p></details>

@@ -55,7 +55,7 @@
     <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
     <div class="prose post-b">
 <p>Coding agents now come with a rewind. In Claude Code you can press Escape twice, or run <code>/rewind</code>, pick an earlier point in the conversation, and roll the code back. It feels like a time machine. For a lot of mistakes, it is enough.</p>
-<p>But look closely at what it tracks. Claude Code's checkpoints record edits made through its own file editing tools. Its documentation says plainly that changes made by Bash commands are not tracked. If the agent runs <code>rm</code>, <code>mv</code>, <code>cp</code>, a migration, a code generator or <code>git reset</code> in the shell, the rewind does not know it happened. Eon wrote up this gap in detail, and it matches the docs.</p>
+<p>But look closely at what it tracks. Claude Code's checkpoints record edits made through its own file editing tools. Its documentation says plainly: "A file that only Bash commands changed isn't tracked and stays as it is." If the agent runs <code>rm</code>, <code>mv</code>, <code>cp</code>, a migration, a code generator or <code>git reset</code> in the shell on files it never edited, the rewind does not know it happened. Eon wrote up this gap in detail.</p>
 <p>That matters, because the shell is where agents make their biggest moves.</p>
 
 <h2>Where the big changes happen</h2>

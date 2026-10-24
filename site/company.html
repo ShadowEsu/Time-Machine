@@ -74,8 +74,8 @@
     <div class="incs">
       <article class="inc rv">
         <span class="n">Rewind gap</span>
-        <h3>Claude Code's rewind does not cover the shell.</h3>
-        <p>Its docs say checkpointing "does not track files modified by Bash commands". Changes made by commands like <code>rm</code> or <code>mv</code> cannot be undone through rewind.</p>
+        <h3>Claude Code's rewind does not fully cover the shell.</h3>
+        <p>Its docs say: "A file that only Bash commands changed isn't tracked and stays as it is." A file that only a command like <code>rm</code> or <code>mv</code> changed can't be brought back through rewind.</p>
         <p class="src">Sources: <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Claude Code docs</a>, <a href="https://www.eon.io/blog/claude-code-rewind-bash" rel="noopener">eon.io</a></p>
       </article>
       <article class="inc rv" style="--d:1">
