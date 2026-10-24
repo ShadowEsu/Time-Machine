@@ -274,8 +274,10 @@ function update(p, st) {
       // rests on its own seam plate, so the green light pools on the floor (the floor shows only shadow, so nothing may
       // sit below it).
       y = mix(layerY(0) + D.gap * open(4), D.seam + D.H / 2 + 0.002, out(seg(p, 0.66, 0.86))) + 0.22 * Math.sin(Math.PI * out3);
+      // Phones rest it further forward, so the camera (looking down there) shows it below the base's readout, whose
+      // middle a back peg covered at 2.75 (Design, 10-24). The contact shadow reaches that far on phones (size 12).
       x = (phone ? -0.5 : -2.25) * out3;
-      z = (phone ? 2.75 : 2.35) * out3;
+      z = (phone ? 3.45 : 2.35) * out3;
       yaw = 0.4 * out3;
       roll = 0.03 * Math.sin(Math.PI * out3);
     } else {
@@ -359,7 +361,7 @@ function update(p, st) {
 }
 
 const canvas = document.getElementById("machine");
-const stage = await createStage({ canvas, pin: document.querySelector(".pin"), fov: 24, exposure: 1.0, envIntensity: 0.7, contact: { size: 10, y: 0.001, blur: 3.4, darkness: 1.3, opacity: 0.55 }, build, update });
+const stage = await createStage({ canvas, pin: document.querySelector(".pin"), fov: 24, exposure: 1.0, envIntensity: 0.7, contact: { size: 10, y: 0.001, blur: 3.4, darkness: 1.3, opacity: 0.55, phone: { size: 12 } }, build, update });
 // load.js moves the machine under the hero on phones (data-dy) and says so when the hero's height changes.
 canvas.addEventListener("layout", () => stage.request());
 // The canvas fades in over the poster on its first frame drawn with the page's faces (the poster was captured with

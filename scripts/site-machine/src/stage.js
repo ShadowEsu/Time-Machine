@@ -27,7 +27,8 @@ const PIXEL_SCALE = 1;
  * @param {number} [o.fov]
  * @param {number} [o.exposure]
  * @param {number} [o.envIntensity]
- * @param {{size:number, y:number, blur:number, darkness:number, opacity:number, res:number}} [o.contact]
+ * @param {{size:number, y:number, blur:number, darkness:number, opacity:number, res:number, phone:object}} [o.contact]
+ *   `phone`: overrides of these values for phone viewports
  * @param {(stage) => void} o.build  builds the scene once
  * @param {(p:number, stage) => boolean|void} o.update  poses the scene for p; return true to keep animating
  * @returns {Promise<object>} the stage
@@ -60,7 +61,7 @@ export async function createStage(o) {
   scene.add(stage.root);
 
   // ---- soft contact shadow (three's webgl_shadow_contact technique): the object's depth seen from below, blurred.
-  const cs = Object.assign({ size: 3, y: 0, blur: 3.2, darkness: 1.4, opacity: 0.55, res: 512 }, o.contact || {});
+  const cs = Object.assign({ size: 3, y: 0, blur: 3.2, darkness: 1.4, opacity: 0.55, res: 512 }, o.contact, phone && o.contact?.phone);
   const shadowGroup = new THREE.Group();
   shadowGroup.position.y = cs.y;
   scene.add(shadowGroup);
