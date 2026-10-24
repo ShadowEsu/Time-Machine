@@ -23,50 +23,22 @@ body.home {
 body.home a, body.home button, body.home summary { touch-action: manipulation; }
 body.home p, body.home dd, body.home li { text-wrap: pretty; }
 body.home pre { font-variant-numeric: tabular-nums; }
-/* The shared header (site.css) is sticky on wide screens, so every in-page jump and focus scroll stops below it.
-   home.css loads only on the home page, so this rule stays local to it. */
+/* In-page jumps and focus scrolls keep room at the top for the shared header (sticky on wide screens on other pages;
+   home's sits over the S5 stage, see s5.css). home.css loads only on the home page, so this rule stays local to it. */
 html { scroll-padding-top: calc(64px + 16px); }
 body.home section[id], body.home h2[id] { scroll-margin-top: 0; }
 /* The shared header lines up with home's wider 1200 px content column. */
 body.home .top .wrap { max-width: none; padding-left: var(--inline); padding-right: var(--inline); }
 
-/* Hero: the claim, the reason and one action on the left; a real capture of the web app, whole, beside it.
-   Phones get one card from the app at full size instead of a shrunken window. */
-.stage { position: relative; isolation: isolate; padding: clamp(28px, 4vw, 56px) var(--inline) calc(var(--section-y) * .5); overflow: hidden; background: var(--paper); }
-.stage::before { content: ""; position: absolute; z-index: -1; inset: 0 0 auto; height: 900px; pointer-events: none;
+/* The first section after the S5 hero (s5.css). It opens with the local-first facts, stated plainly. Only what is
+   true today. */
+.after-pin { position: relative; isolation: isolate; padding: clamp(28px, 4vw, 56px) var(--inline) calc(var(--section-y) * .5); overflow: hidden; background: var(--paper); }
+.after-pin::before { content: ""; position: absolute; z-index: -1; inset: 0 0 auto; height: 900px; pointer-events: none;
   background: radial-gradient(60% 50% at 50% 0%, rgba(255, 255, 255, .06), transparent 70%); }
-.hero { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "h1" "sub" "shot" "form"; justify-items: start; }
-.hero h1 { grid-area: h1; margin: 0; font: 340 clamp(40px, 1.25rem + 2.6vw, 60px)/1.04 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.03em; text-wrap: balance; }
-.sub { grid-area: sub; max-width: 44ch; margin: clamp(16px, 2vw, 24px) 0 0; color: var(--ink-2); font-size: var(--t-lead); line-height: 1.55; }
-.hero-form { grid-area: form; width: 100%; max-width: 480px; margin-top: 28px; }
-.hero-form .wl { max-width: none; gap: 12px; }
-/* Claude's control shape for the home page's main action and its email field: 8px corners, 44px tall. */
-.hero-form .wl input[type="email"] { height: 44px; border-radius: 8px; }
-body.home .btn-primary, .hero-form .wl-row .btn-primary { min-height: 44px; padding: 0 18px; border-radius: 8px; font-size: 15px; }
-.hero-form .wl-privacy { font-size: var(--t-cap); line-height: 1.55; }
-/* Local-first facts, stated plainly under the action. Only what is true today. */
+body.home .btn-primary { min-height: 44px; padding: 0 18px; border-radius: 8px; font-size: 15px; }
 .hero-facts { display: grid; gap: 2px; margin: 18px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: var(--t-cap); line-height: 1.55; }
-/* The one quiet second action, with what it needs right next to it. */
-.hero-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin: 8px 0 0; color: var(--ink-3); font-size: var(--t-cap); line-height: 1.5; }
-.hero-alt a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 500; text-underline-offset: 4px; }
-/* The app window: a still of the real web app (tm ui), no window chrome. */
-.hero-shot { grid-area: shot; align-self: start; position: relative; width: 100%; margin: 32px 0 0; container-type: inline-size; overflow: hidden; border-radius: 12px; background: #141413; box-shadow: var(--shadow-window); }
-.hero-shot img { width: 100%; height: auto; }
-@media (min-width: 960px) {
-  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-rows: auto auto 1fr; grid-template-areas: "h1 shot" "sub shot" "form shot"; column-gap: 48px; }
-  .hero h1 { font-size: clamp(40px, 1rem + 2.4vw, 56px); }
-  .hero h1 br { display: none; }
-  .hero-shot { margin: 8px 0 0; }
-}
-/* Phones: one card from the app, at the size the app draws it. No window chrome. */
-@media (max-width: 700px) {
-  .hero-shot { margin-top: 28px; border-radius: 16px; box-shadow: 0 0 0 1px var(--line); }
-}
-@media (max-width: 600px) {
-  .hero h1 br { display: none; }
-}
 
-/* The web app: three steps, each with a real screen. Below the hero, inside the stage. */
+/* The web app: three steps, each with a real screen. In the first section after the hero. */
 .appshot { margin-top: clamp(64px, 8vw, 112px); }
 .appshot h2 { margin: 0; font: 360 var(--t-h2)/1.03 var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -.03em; text-wrap: balance; }
 .appshot .lead { max-width: 46ch; margin: 0; color: var(--ink-2); font-size: var(--t-lead); line-height: 1.6; }
@@ -476,5 +448,5 @@ nav.ft-col a:hover { color: var(--ink); }
   .card { padding: 22px; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .stage::before, .end::before { display: none; }
+  .after-pin::before, .end::before { display: none; }
 }

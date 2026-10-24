@@ -1,0 +1,184 @@
+/* S5 "The Stack": home's header and first screen in the Unvibe-sibling language (spec:
+   boss-handoff agents/design/tm-site-s5-build-spec-2026-10-23.md). Home only until M4, when these tokens and faces
+   move into site.css. Loads after site.css and home.css.
+   Bricolage Grotesque for display, Instrument Serif italic for the voice line, Inter for UI, IBM Plex Mono for ids
+   and times (the machine's printed labels). Paper and ink, sky for the button on the lid, green only for "passed". */
+
+/* Fonts, self hosted from fontsource 5.3.0 (Latin). Licences (SIL OFL 1.1) sit next to the files in assets/fonts/. */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations"), url("fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+/* Metric-matched stand-ins while the web fonts load, so the h1 keeps its line breaks when they swap in.
+   size-adjust = the web face's glyph width over the stand-in's on the h1 strings (Chrome, measureText);
+   ascent/descent = the web face's hhea metrics (Bricolage 930/270, Instrument Serif 990/310 per 1000) / size-adjust. */
+@font-face {
+  font-family: "Bricolage fallback";
+  font-weight: 600 800;
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Bold"), local("Helvetica-Bold");
+  size-adjust: 102.6%;
+  ascent-override: 90.6%;
+  descent-override: 26.3%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Instrument fallback";
+  font-style: italic;
+  src: local("Times New Roman Italic"), local("TimesNewRomanPS-ItalicMT");
+  size-adjust: 86.5%;
+  ascent-override: 114.5%;
+  descent-override: 35.8%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Instrument fallback 2";
+  font-style: italic;
+  src: local("Georgia Italic"), local("Georgia-Italic");
+  size-adjust: 78%;
+  ascent-override: 126.9%;
+  descent-override: 39.7%;
+  line-gap-override: 0%;
+}
+
+/* Light tokens for the whole home page. They rebind site.css's names on body.home, so the shared header, buttons,
+   waitlist form and every section below the stage (home-s5.css) turn light; other pages keep their look until M4.
+   Text on paper: ink 17.1:1, ink-2 11.4:1, ink-3 5.4:1 (4.8:1 on the room's blush). */
+body.home {
+  --paper: #f4f2ed;
+  --card: #ffffff;
+  --mist: #e9e6df;
+  --hairline: #e4e0d7;
+  --line: #e4e0d7;
+  --line-2: rgba(20, 20, 20, .24);
+  --ink: #141414;
+  --ink-2: #3a3936;
+  --ink-3: #66635d;
+  --ink-4: #66635d;
+  --accent: #141414;
+  --accent-tint: #cfe6ff;
+  --term-ink: #2b2a27;
+  --works-fg: #17733e; --works-bg: #dff3e4; --works-dot: #17733e;
+  --broken-fg: #b3261e; --broken-bg: #fbe1db; --broken-dot: #b3261e;
+  --hard: 3px 3px 0 #141414;
+  --press: cubic-bezier(.3, 1.5, .5, 1);
+  --display: "Bricolage Grotesque", "Bricolage fallback", system-ui, sans-serif;
+  --voice: "Instrument Serif", "Instrument fallback", "Instrument fallback 2", Georgia, serif;
+  color-scheme: light;
+  color: var(--ink);
+}
+
+/* Header: the live items, over the stage. It scrolls away with the page for now (M2 decides how it rides the pin). */
+body.home .top { position: absolute; inset: 0 0 auto; background: none; box-shadow: none; }
+body.home .top-in { min-height: 76px; }
+body.home .top .brand { gap: 10px; font: 750 21px/1 var(--display); letter-spacing: -.03em; white-space: nowrap; }
+body.home .top .brand svg { flex: none; width: 28px; height: 28px; }
+/* Wide screens only: narrower ones keep site.css's smaller nav and button sizes, which fit one row down to 320. */
+@media (min-width: 861px) { body.home .nav { font-size: 15px; font-weight: 500; } body.home .top-cta { font-size: 15px; } }
+body.home .top-cta { border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper); font-weight: 600;
+  box-shadow: var(--hard); transition: transform .18s var(--press), box-shadow .18s var(--press); }
+body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+@media (hover: hover) and (pointer: fine) { body.home .top-cta:hover { background: var(--term-ink); box-shadow: var(--hard); } }
+@media (max-width: 860px) { body.home .top-in { min-height: 0; } }
+@media (max-width: 420px) { body.home .top .brand { font-size: 18px; gap: 8px; } body.home .top .brand svg { width: 26px; height: 26px; } }
+@media (max-width: 370px) { body.home .top .brand { font-size: 0; gap: 0; } }
+
+/* The stage: the room, the poster (the scene's first frame), the machine, and the hero over them. The room is warm
+   late-afternoon light from the upper left: blush where it falls, paper elsewhere, a deeper floor for the shadow. */
+.pin { position: relative; }
+.stage { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: center; min-height: 100svh;
+  padding: 76px max(24px, calc(50% - 600px)) 64px; overflow: hidden;
+  background: radial-gradient(130% 110% at 0% 0%, #f8e4d8 0%, rgba(248, 228, 216, .55) 38%, rgba(244, 242, 237, 0) 72%),
+    linear-gradient(180deg, #f5f0ea 0%, #f4f2ed 58%, #ebe6de 100%); }
+.stage canvas, .stage .first { position: absolute; inset: 0; z-index: -1; display: block; width: 100%; height: 100%; }
+/* The poster image (no motion, or WebGL lost), framed exactly like load.js draws the poster: as tall as the stage
+   (the scene's camera scales with the height), its 67 % point on the stage's 67 % point (where the scene centres the
+   machine on desktop), so losing the 3D canvas never moves the machine. */
+.stage .first img { position: absolute; top: 0; left: 67%; width: auto; max-width: none; height: 100%; transform: translateX(-67%); }
+#poster { opacity: 0; transition: opacity .3s ease; }
+#poster.on { opacity: 1; }
+#machine { opacity: 0; transition: opacity .4s ease; }
+#machine.on { opacity: 1; }
+
+.hero { width: min(520px, 42%); }
+/* The h1 follows the viewport's height as well as its width, so the hero and its form fit the first screen. */
+.pin h1 { margin: 0; font: 750 clamp(42px, min(5.4vw, 8svh), 80px)/.98 var(--display); letter-spacing: -.04em; text-wrap: balance; }
+.pin h1 .voice { display: block; font: italic 400 1.04em/1.05 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+.pin .lead { max-width: 30em; margin: 20px 0 0; font-size: 18px; line-height: 1.55; letter-spacing: 0; }
+
+/* The live waitlist form (site.css), in the machine's language: a white field with an ink edge, the ink pill. */
+.pin .wl { max-width: 480px; margin-top: 28px; gap: 10px; }
+.pin .wl-row { gap: 10px; }
+.pin .wl input[type="email"] { height: 48px; padding: 0 16px; border: 1.5px solid var(--ink); border-radius: 12px; background: var(--card); }
+.pin .wl-row .btn-primary { min-height: 48px; padding: 0 22px; border: 1.5px solid var(--ink); border-radius: 999px; font-weight: 600; font-size: 15px;
+  box-shadow: var(--hard); transition: transform .18s var(--press), box-shadow .18s var(--press); }
+.pin .wl-row .btn-primary:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+/* Focus: site.css's one ring (2px, --accent, which is ink here) on both controls, not the coral or the faint halo. */
+.pin .wl-row .btn-primary:focus-visible { outline-color: var(--accent); }
+.pin .wl input[type="email"]:focus { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pin .wl input[type="email"]:focus:not([aria-invalid="true"]) { box-shadow: none; }
+.pin .wl-privacy { font-size: 13px; line-height: 1.5; }
+.pin .hero-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; margin: 6px 0 0; color: var(--ink-3); font-size: 14px; line-height: 1.45; }
+.pin .hero-alt a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; text-underline-offset: 4px; }
+
+.cue { position: absolute; left: 50%; bottom: 26px; margin: 0; transform: translateX(-50%); font: italic 400 19px/1 var(--voice); color: var(--ink-3); white-space: nowrap; }
+
+/* Reduced motion, no JavaScript, weak devices, no WebGL (html.motion is set before paint only when none apply):
+   no three.js, and the stage shows the poster as an image. */
+.stage .first { display: none; }
+html:not(.motion) .stage .first { display: block; }
+html:not(.motion) .stage canvas, html:not(.motion) .cue { display: none; }
+
+@media (max-width: 640px) {
+  .stage { justify-content: flex-start; padding: 108px 20px 40px; }
+  .hero { width: auto; }
+  .pin h1 { font-size: clamp(34px, 10.4vw, 40px); }
+  /* 17 px keeps the lead the largest hero text block (the LCP rule: h1 or lead, never the privacy line under the form). */
+  .pin .lead { margin-top: 12px; font-size: 17px; }
+  .pin .wl { margin-top: 18px; }
+  .pin .wl-row { flex-direction: column; }
+  .pin .wl input[type="email"] { flex: none; width: 100%; }
+  .pin .wl-row .btn { width: 100%; }
+  /* The machine sits under the hero (load.js), where the cue would cover its layers. */
+  .cue { display: none; }
+  /* Without motion the poster image follows the hero, framed exactly like the motion poster (load.js): the image as
+     tall as the viewport and centred, the machine's top (load.js TOP, 33.5 % down the image) 20 px (GAP) under the
+     hero. It sits under the hero's layer and takes no clicks where the two overlap. */
+  html:not(.motion) .stage .first { position: relative; inset: auto; z-index: -1; order: 1; width: auto; height: 70svh;
+    margin: calc(20px - 33.5svh) -20px 0; overflow: hidden; pointer-events: none; }
+  html:not(.motion) .stage .first img { left: 50%; height: 100svh; transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.home .top-cta, .pin .wl-row .btn-primary { transition: none; }
+  body.home .top-cta:active, .pin .wl-row .btn-primary:active { transform: none; }
+}

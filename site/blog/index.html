@@ -21,7 +21,7 @@
 <link rel="preload" href="../assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="stylesheet" href="../assets/pages.css">
-<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
 </head>
 <body class="pg">
 <a class="skip" href="#main">Skip to content</a>
@@ -52,7 +52,7 @@
 <section class="sec" style="padding-top:0;border-top:0" aria-label="All posts">
   <div class="wrap">
     <ol class="posts">
-      <li class="rv"><a class="prow" href="rewind-does-not-cover-the-shell.html"><span class="meta"><b>No. 01</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>Your agent's rewind does not cover the shell</h2><p>Built in checkpoints track the agent's own file edits. The biggest changes happen in the shell, where the rewind cannot see.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
+      <li class="rv"><a class="prow" href="rewind-does-not-cover-the-shell.html"><span class="meta"><b>No. 01</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>Your agent's rewind does not fully cover the shell</h2><p>Built in checkpoints track the agent's own file edits. The biggest changes happen in the shell, where the rewind cannot always see.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
       <li class="rv"><a class="prow" href="a-save-point-should-prove-it-works.html"><span class="meta"><b>No. 02</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>A save point should prove it works</h2><p>A backup tells you what your files looked like. Why every save point gets a verdict, and the rules that keep that verdict honest.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
       <li class="rv"><a class="prow" href="what-time-machine-does-not-do.html"><span class="meta"><b>No. 03</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>What Time Machine does not do</h2><p>Databases, deploys, secret values, container isolation and more. Everything we do not cover today, in one place.</p></div><span class="go">5 min <span aria-hidden="true">→</span></span></a></li>
       <li class="rv"><a class="prow" href="why-a-safety-net-makes-people-braver.html"><span class="meta"><b>No. 04</b><time datetime="2026-10-15">15 Oct 2026</time></span><div><h2>Why a safety net makes people braver</h2><p>Easy reversal, loss aversion, the peak end rule and the 66 day habit. The research behind the design, and why we refuse streaks.</p></div><span class="go">6 min <span aria-hidden="true">→</span></span></a></li>

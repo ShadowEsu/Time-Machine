@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/pages.css">
-<script>(function(d,n){var c=n.connection,low=(c&&c.saveData)||n.hardwareConcurrency<=4||n.deviceMemory<=4;d.classList.add("js");d.dataset.tier=low?"low":"full";})(document.documentElement,navigator);</script>
+<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
 </head>
 <body class="legal thanks account">
 <a class="skip" href="#main">Skip to content</a>
