@@ -71,10 +71,10 @@
   line-gap-override: 0%;
 }
 
-/* Light tokens for the header and the stage. They rebind site.css's names here only, so the shared header,
-   buttons and waitlist form styles turn light inside them and the rest of home keeps its look until M3.
+/* Light tokens for the whole home page. They rebind site.css's names on body.home, so the shared header, buttons,
+   waitlist form and every section below the stage (home-s5.css) turn light; other pages keep their look until M4.
    Text on paper: ink 17.1:1, ink-2 11.4:1, ink-3 5.4:1 (4.8:1 on the room's blush). */
-body.home .top, .pin {
+body.home {
   --paper: #f4f2ed;
   --card: #ffffff;
   --mist: #e9e6df;

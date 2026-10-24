@@ -1,0 +1,216 @@
+/* Home below the stage, in the S5 language (s5.css sets the tokens on body.home). Loads last on home and overrides
+   home.css and site.css there; other pages keep their look. #tree and #blueprint are tm's (blueprint.css).
+   Paper, ink and white cards with 1.5 px ink edges. The hard shadow only on primary actions and each section's main
+   card. Hairlines between rows. Terminals near-black with paper text; green and red only on verdicts.
+   Bricolage for headings, Inter for reading, Plex Mono for commands, ids and captions, Departure Mono (a pixel face)
+   only for the section numerals and step numbers, at 15 px or more. One motion idea: the h2s type in (motion.js). */
+
+/* Departure Mono 1.500, SIL OFL 1.1 (fonts/OFL-DepartureMono.txt). */
+@font-face {
+  font-family: "Departure Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/departure-mono-regular.woff2") format("woff2");
+}
+
+:root:has(> body.home) { color-scheme: light; }
+body.home {
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pixel: "Departure Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --rule: rgba(20, 20, 20, .14);
+  --edge: 1.5px solid var(--ink);
+  --sy: clamp(72px, 9vw, 128px);
+  --term-bg: #141414;
+  --term-fg: #f4f2ed;
+  --term-dim: #a3a09a;
+  counter-reset: s5sec;
+}
+
+/* Sections: one container, a hairline above each, a numeral, the display h2 and one lead, all left-aligned. */
+body.home .after-pin { padding-bottom: 0; }
+body.home .after-pin::before, body.home .end::before { display: none; }
+body.home .appshot { margin-top: clamp(56px, 7vw, 96px); padding-block: var(--sy); border-top: 1px solid var(--rule); }
+body.home .block { padding-block: var(--sy);
+  background: linear-gradient(var(--rule), var(--rule)) 50% 0 / min(100% - 2 * var(--inline), var(--container)) 1px no-repeat; }
+body.home .appshot, body.home .block { counter-increment: s5sec; }
+body.home .block-head { display: block; max-width: 62ch; margin-bottom: clamp(40px, 5vw, 64px); }
+body.home .block-head::before, body.home .end > div::before {
+  content: counter(s5sec, decimal-leading-zero); content: counter(s5sec, decimal-leading-zero) / "";
+  display: block; margin-bottom: clamp(20px, 2.5vw, 32px); font: 400 16px/1 var(--pixel); letter-spacing: .04em; color: var(--ink-2); }
+body.home :is(.appshot, .block) h2 { max-width: 18ch; margin: 0; font: 750 clamp(36px, 1.1rem + 3.4vw, 68px)/1 var(--display);
+  font-variation-settings: normal; letter-spacing: -.04em; color: var(--ink); text-wrap: balance; }
+body.home :is(.appshot, .block) .block-head .lead { max-width: 62ch; margin: clamp(18px, 2vw, 24px) 0 0;
+  font-size: clamp(17px, 1rem + .25vw, 20px); line-height: 1.55; letter-spacing: -.005em; color: var(--ink-2); }
+body.home :is(.appshot, .block) code { font-size: max(.9em, 13px); }
+body.home :is(.appshot, .block) .tw-caret::after { background: var(--ink); }
+
+/* Under the stage: the two local-first facts, plainly. */
+body.home .hero-facts { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 0; color: var(--ink-2); font-size: 15px; }
+body.home .hero-facts li { display: flex; align-items: baseline; gap: 10px; }
+body.home .hero-facts li::before { content: ""; flex: none; width: 7px; height: 7px; background: var(--ink); transform: translateY(-2px); }
+
+/* Buttons: the ink pill with the hard shadow and the spring press; the quiet one is white with an ink edge. */
+body.home .block .btn-primary { min-height: 48px; padding: 0 24px; border: var(--edge); border-radius: 999px; background: var(--ink); color: var(--paper);
+  font: 600 15px/1 var(--font-body); box-shadow: var(--hard); transition: transform .18s var(--press), box-shadow .18s var(--press); }
+body.home .block .btn-primary:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+body.home .block .btn-primary:focus-visible { outline-color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { body.home .block .btn-primary:hover { background: var(--term-ink); } }
+body.home .block .btn-ghost { min-height: 44px; padding: 0 18px; border: var(--edge); border-radius: 999px; background: var(--card); color: var(--ink);
+  box-shadow: none; font: 600 14px/1 var(--font-body); }
+@media (hover: hover) and (pointer: fine) { body.home .block .btn-ghost:hover { background: var(--paper); box-shadow: none; } }
+
+/* Verdict pills: the only colour. Works and Broken get their tints; the other two stay ink. */
+body.home .verdicts .pill { height: 26px; padding: 0 10px; border-radius: 999px; font: 500 13px/1 var(--font-mono); letter-spacing: 0; }
+body.home .verdicts .pill-works { background: var(--works-bg); color: var(--works-fg); }
+body.home .verdicts .pill-broken { background: var(--broken-bg); color: var(--broken-fg); }
+body.home .verdicts .pill-couldnt { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+body.home .verdicts .pill-couldnt::before { border-radius: 1px; transform: rotate(45deg); }
+body.home .verdicts .pill-none { background: transparent; color: var(--ink-3); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+
+/* 01 The web app: three steps, each beside its real screen. */
+body.home .story { gap: clamp(64px, 8vw, 120px); }
+body.home .story-n { display: inline-grid; place-items: center; width: 36px; height: 36px; margin: 0 0 22px; border: var(--edge); border-radius: 10px;
+  box-shadow: none; background: var(--card); color: var(--ink); font: 400 17px/1 var(--pixel); }
+body.home .story-text h3 { font: 700 clamp(24px, 1rem + 1vw, 32px)/1.1 var(--display); letter-spacing: -.025em; color: var(--ink); }
+body.home .story-text h3 + p { max-width: 44ch; margin-top: 16px; color: var(--ink-2); font-size: 17px; line-height: 1.6; }
+body.home .verdicts { gap: 0; max-width: 46ch; margin-top: 28px; }
+body.home .verdicts div { grid-template-columns: 10.5em minmax(0, 1fr); padding: 12px 0; border-top: 1px solid var(--rule); }
+body.home .verdicts div:last-child { border-bottom: 1px solid var(--rule); }
+body.home .verdicts dd { color: var(--ink-2); font-size: 15px; }
+body.home .appshot .shot { border: var(--edge); border-radius: 16px; background: var(--card); box-shadow: none; }
+body.home .appshot .shot img { outline: 0; }
+body.home .dev-engine .card::after, body.home .appshot .shot::after { display: none; }
+body.home .appshot .shot figcaption { padding: 11px 16px; border-top: var(--edge); color: var(--ink-3); font: 400 13px/1.5 var(--font-mono); }
+@media (max-width: 860px) { body.home .story-row .shot { max-width: 300px; } }
+@media (max-width: 360px) { body.home .verdicts div { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* 02 What comes back: two ruled columns in the report's own words. */
+body.home .back { gap: 48px clamp(32px, 6vw, 96px); }
+body.home .back-h { margin: 0; padding-bottom: 14px; border-bottom: var(--edge); font: 700 clamp(22px, 1rem + .6vw, 28px)/1.15 var(--display); letter-spacing: -.02em; color: var(--ink); }
+body.home .back li { padding: 18px 0; border-top: 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+body.home .back li b { color: var(--ink); font-weight: 600; }
+body.home .back li code.line, body.home .back-note code { margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--rule); color: var(--ink); font: 400 13px/1.5 var(--font-mono); }
+body.home .back-note { max-width: 62ch; margin-top: 40px; color: var(--ink-2); }
+body.home .back-note code { margin-block: 10px; }
+
+/* 03 Why not rewind or Git: one white card, ruled rows, and a mark per cell beside its words. */
+body.home .cmp-wrap { border: var(--edge); border-radius: 16px; background: var(--card); box-shadow: var(--hard); scrollbar-color: var(--ink-3) var(--card); }
+body.home .cmp { font-size: 16px; }
+body.home .cmp th, body.home .cmp td { border-bottom: 1px solid var(--rule); }
+body.home .cmp thead th { background: var(--card); border-bottom: var(--edge); color: var(--ink-3); font: 500 13px/1.4 var(--font-mono); }
+body.home .cmp thead th.tm { color: var(--ink); font-weight: 500; }
+body.home .cmp tbody th { color: var(--ink); font-weight: 600; }
+body.home .cmp td { color: var(--ink-2); }
+body.home .cmp td.yes { color: var(--ink); font-weight: 500; }
+body.home .cmp td.no { color: var(--ink-3); }
+body.home .cmp td:last-child { background: none; box-shadow: inset 1.5px 0 0 var(--ink); }
+body.home .cmp { --cmp-pt: 18px; --cmp-px: 22px; }
+body.home .cmp td { position: relative; padding-left: calc(var(--cmp-px) + 22px); }
+body.home .cmp td::before { content: ""; position: absolute; left: var(--cmp-px); top: calc(var(--cmp-pt) + .775em - 5px); width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; }
+body.home .cmp td.yes::before { background: var(--ink); }
+body.home .cmp td.part::before { border: 1.5px solid var(--ink-2); }
+body.home .cmp td.no::before { top: calc(var(--cmp-pt) + .775em - 1px); height: 1.5px; border-radius: 0; background: var(--ink-3); }
+body.home .cmp-note { margin-top: 20px; color: var(--ink-3); font-size: 14px; }
+@media (max-width: 760px) {
+  body.home .cmp { --cmp-pt: 14px; --cmp-px: 16px; }
+  body.home .cmp th:first-child { background: var(--card); border-right: 1px solid var(--rule); }
+  body.home .cmp thead th:first-child { border-bottom: var(--edge); }
+  body.home #cmp-scroll-hint { margin: 0 0 16px; }
+}
+
+/* 04 Pay once: the plan is the card; the two notes sit beside it. */
+body.home .plans { align-items: start; }
+body.home .plan { gap: 12px; padding: clamp(24px, 3vw, 36px); border: var(--edge); border-radius: 20px; background: var(--card); box-shadow: var(--hard); }
+body.home .plan-k { color: var(--ink-3); font: 500 13px/1.4 var(--font-mono); }
+body.home .plan-price { margin-top: 4px; font: 750 clamp(56px, 2rem + 4vw, 96px)/.95 var(--display);
+  font-variation-settings: normal; letter-spacing: -.045em; color: var(--ink); }
+body.home .plan-price span { font: italic 400 clamp(24px, 1rem + 1vw, 34px)/1 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+body.home .plan ul { margin-top: 16px; }
+body.home .plan li { border-top: 1px solid var(--rule); color: var(--ink-2); }
+body.home .plan li:last-child { border-bottom: 1px solid var(--rule); }
+body.home .plan ul + .btn { margin-top: 28px; }
+body.home .plan .btn[disabled] { opacity: 1; border: 1.5px dashed var(--ink-3); background: var(--paper); color: var(--ink-3); box-shadow: none; transform: none; }
+body.home .plan-status { color: var(--ink-2); }
+body.home .plan-aside { gap: 0; }
+body.home .plan-aside .plan-note { padding: 20px 0; border-top: 1px solid var(--rule); color: var(--ink-2); }
+body.home .plan-aside .plan-note:last-child { border-bottom: 1px solid var(--rule); }
+body.home .plan-note b { color: var(--ink); font-weight: 600; }
+
+/* 05 For developers: near-black terminals on paper, the Claude Code card, then the one engine. */
+body.home .install-h, body.home .agent-setup-h { color: var(--ink); font: 600 16px/1.4 var(--font-body); }
+body.home #try .tag-s { padding: 3px 8px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--ink-3); color: var(--ink-2); font: 500 13px/1.2 var(--font-mono); }
+body.home #try .term-block pre, body.home #try .card-term, body.home #try .agent-prompt { border-radius: 14px; background: var(--term-bg); box-shadow: none; color: var(--term-fg); font-family: var(--font-mono); }
+body.home #try .term-block pre { padding: 22px 24px; font-size: 13px; line-height: 1.75; }
+body.home #try :is(.term-block, .card-term) .d { color: var(--term-dim); }
+body.home #try :is(.term-block, .card-term) :is(.p, .f) { padding: 1px .35ch; border-radius: 4px; font-weight: 500; }
+body.home #try :is(.term-block, .card-term) .p { background: var(--works-bg); color: var(--works-fg); }
+body.home #try :is(.term-block, .card-term) .f { background: var(--broken-bg); color: var(--broken-fg); }
+body.home #try .term-block pre:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+body.home #try .term-block figcaption { margin-top: 14px; color: var(--ink-3); font: 400 13px/1.5 var(--font-mono); }
+body.home #try .term-block figcaption code { font-size: 1em; color: var(--ink-2); }
+body.home .install-note { max-width: 62ch; color: var(--ink-2); }
+body.home .install-note code, body.home .facts code { color: var(--ink); }
+body.home .copy-status { color: var(--ink-2); }
+body.home .agent-setup { padding: 24px 24px 20px; border: var(--edge); border-radius: 16px; background: var(--card); box-shadow: var(--hard); }
+body.home .agent-setup-t { color: var(--ink-2); }
+body.home .agent-setup-t a { color: var(--ink); }
+body.home .agent-prompt { padding: 14px 16px; border-radius: 10px; font-size: 13px; }
+body.home .facts li { border-top: 1px solid var(--rule); color: var(--ink-2); }
+body.home .facts b { color: var(--ink); font-weight: 600; }
+body.home .dev-engine { margin-top: clamp(64px, 8vw, 112px); padding-top: clamp(40px, 5vw, 64px); border-top: 1px solid var(--rule); }
+body.home .dev-engine > h3 { max-width: 24ch; font: 700 clamp(26px, 1rem + 1.4vw, 38px)/1.08 var(--display); letter-spacing: -.03em; color: var(--ink); }
+body.home .dev-lead { max-width: 62ch; margin: 16px 0 32px; color: var(--ink-2); }
+body.home .dev-engine .cards { gap: 16px; }
+body.home .dev-engine .card { gap: 12px; min-height: 0; padding: 26px; border: var(--edge); border-radius: 16px; background: var(--card); box-shadow: none; }
+body.home .dev-engine .card-k { width: auto; height: auto; place-items: start; border-radius: 0; box-shadow: none; color: var(--ink-3); font: 400 17px/1 var(--pixel); }
+body.home .dev-engine .card h3 { margin-top: 8px; font: 700 clamp(21px, 1rem + .5vw, 25px)/1.15 var(--display); letter-spacing: -.02em; color: var(--ink); }
+body.home .dev-engine .card-t { color: var(--ink); }
+body.home .dev-engine .card-d { color: var(--ink-2); font-size: 15.5px; }
+body.home .dev-engine .card-term { margin-top: 4px; padding: 14px 16px; border-radius: 10px; font-size: 13px; line-height: 1.75; }
+body.home .dev-engine .card-f { padding-top: 16px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 14px; }
+body.home .dev-engine .card-f code { font-size: 13px; color: var(--ink); }
+body.home .dev-engine .ok { padding: 3px 8px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--ink); color: var(--ink); font: 500 13px/1.2 var(--font-mono); }
+body.home #try .cards + .term-block { margin-top: 16px; }
+@media (max-width: 600px) {
+  body.home #try .term-block pre { padding: 16px; }
+  body.home .dev-engine .card { padding: 22px; }
+}
+
+/* 06 The last word: left-aligned, the "not" list in one white card, then the ink pill. */
+body.home .end { text-align: left; }
+body.home .end h2 { max-width: 16ch; margin: 0 0 clamp(32px, 4vw, 48px); }
+body.home .not { max-width: none; margin: 0 0 40px; padding: clamp(22px, 3vw, 36px); border: var(--edge); border-radius: 20px; background: var(--card); }
+body.home .not-h { margin: 0 0 16px; color: var(--ink-3); font: 500 13px/1.4 var(--font-mono); }
+body.home .not ul { gap: 0 clamp(24px, 4vw, 56px); }
+body.home .not li { padding: 16px 0; border-top: 1px solid var(--rule); color: var(--ink-2); }
+body.home .not b { color: var(--ink); font-weight: 600; }
+
+/* Footer: paper under an ink rule, quiet columns, mono labels, the wordmark in the hero's two voices. */
+body.home .ft { padding: clamp(56px, 7vw, 96px) var(--inline) 32px; border-top: var(--edge); background: var(--paper); color: var(--ink-2); font-size: 15px; }
+body.home .ft a { color: var(--ink); }
+body.home .ft-brand { color: var(--ink); font: 750 22px/1 var(--display); letter-spacing: -.03em; }
+body.home .ft-lead { color: var(--ink-2); }
+body.home .ft-status { gap: 0; }
+body.home .ft-status div { grid-template-columns: 84px minmax(0, 1fr); padding: 9px 0; border-top: 1px solid var(--rule); }
+body.home .ft-status div:last-child { border-bottom: 1px solid var(--rule); }
+body.home .ft-status dt { color: var(--ink-3); font: 500 13px/1.6 var(--font-mono); }
+body.home .ft-h { color: var(--ink-3); font: 500 13px/1.4 var(--font-mono); }
+body.home .agent-support-name { color: var(--ink); font-size: 15px; }
+body.home .agent-support-status { color: var(--ink-2); font-size: 14px; }
+body.home .ft-grid .agent-support-note { color: var(--ink-3); font-size: 14px; line-height: 1.55; }
+body.home .ft-faq details { border-top: 1px solid var(--rule); }
+body.home .ft-faq details:last-child { border-bottom: 1px solid var(--rule); }
+body.home .ft-faq summary { color: var(--ink); font-weight: 500; }
+body.home .ft-faq summary::after { color: var(--ink); }
+body.home .ft-faq details p { color: var(--ink-2); }
+body.home nav.ft-col a { color: var(--ink-2); }
+@media (hover: hover) and (pointer: fine) { body.home nav.ft-col a:hover { color: var(--ink); text-decoration: underline; } }
+body.home .ft-word { margin-top: clamp(48px, 7vw, 96px); padding: .06em 0 .12em; border-top: 1px solid var(--rule); font: 750 min(11.5vw, 176px)/1.05 var(--display);
+  font-variation-settings: normal; letter-spacing: -.05em; color: var(--ink); }
+body.home .ft-word em { font: italic 400 1.04em/1 var(--voice); letter-spacing: -.02em; color: var(--ink-2); }
+/* motion.js still adds .sweep; on paper the page keeps one motion idea, so the wordmark stays still. */
+body.home .ft-word.sweep { animation: none; background: none; color: var(--ink); }
+body.home .ft-word.sweep em { color: var(--ink-2); }
+body.home .ft-legal { color: var(--ink-3); font: 400 13px/1.5 var(--font-mono); }
