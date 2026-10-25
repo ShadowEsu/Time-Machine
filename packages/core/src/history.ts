@@ -1,7 +1,7 @@
 // Facts about a project's history that are safe to describe outside the store, for example
 // to an assistant the person turned on. Never check output, file contents or secret values.
 import { loadConfig } from "./config.js";
-import { resolveProject } from "./project.js";
+import { configRoot, resolveProject } from "./project.js";
 import { holdsSecretValue, looksSecret } from "./secrets.js";
 import type { Ctx } from "./types.js";
 import { latestVerdicts } from "./verdicts.js";
@@ -19,6 +19,6 @@ export function checkRuns(ctx: Ctx): Map<string, { command: string; exitCode: nu
  */
 export function secretScreen(ctx: Ctx): (text: string) => boolean {
   const p = resolveProject(ctx);
-  const values = secretValues([p.root], loadConfig(p.root).config);
+  const values = secretValues([p.root], loadConfig(configRoot(p)).config);
   return (text) => looksSecret(text) || holdsSecretValue(text, values);
 }

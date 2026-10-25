@@ -1,0 +1,549 @@
+/* Settings, License and the app's states: errors, the free limit, toasts, loading, first run and empty lists
+   (agents/design/tm-app-direction-2026-10-23.md, rows 10-12). Tokens, buttons, keycaps and sheets come from styles.css;
+   this file only places and dresses what these screens draw, so every rule here is scoped to them. */
+
+/* Settings: Unvibe's settings pattern inside the canvas. The section list on paper, one section at a time on white.
+   The page stays the scroller, so a redraw keeps its place; the list rides along at the top. */
+.page.set-page { padding: 0; display: flex; flex-direction: column; container: set / inline-size; }
+.set-grid { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); }
+.set-nav { padding: 28px 20px 4px; }
+.set-nav h1 { width: fit-content; }
+.set-g, .set-it { display: none; }
+.set-body { display: grid; gap: 40px; align-content: start; padding: 4px 20px 48px; }
+.set-sec { display: grid; align-content: start; min-width: 0; }
+/* The heading takes focus after a license is saved or removed; it hugs its words so the ring frames them, not the row. */
+.set-h { justify-self: start; margin-bottom: 6px; border-radius: 6px; font: 750 28px/1.1 var(--display); letter-spacing: -.035em; color: var(--ink); }
+@container set (min-width: 720px) {
+  .set-grid { grid-template-columns: 248px minmax(0, 1fr); background: linear-gradient(to right, var(--paper) 248px, var(--line) 248px 249px, transparent 249px); }
+  .set-nav { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; gap: 2px; padding: 36px 14px 32px; }
+  .set-nav h1 { padding: 0 12px 10px; font-size: 30px; }
+  .set-g { display: block; margin: 16px 0 2px; padding: 0 12px; font: italic 400 21px/1.2 var(--voice); color: var(--ink-3); }
+  .set-it { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 1.5px solid transparent; border-radius: var(--r-md); background: none; color: var(--ink-2); font: 500 15px/1.25 var(--font); text-align: left; cursor: pointer;
+    transition: transform var(--t-press) var(--press-ease), box-shadow var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
+  .set-it span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .set-it:hover:not(.on) { background: var(--sel); color: var(--ink); }
+  .set-it:active:not(.on) { background: var(--press); }
+  .set-it.on { background: var(--surface); border-color: var(--ink); box-shadow: var(--hard-sm); color: var(--ink); font-weight: 600; }
+  .set-it.on:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+  .set-body { display: block; max-width: 860px; padding: 44px 52px 56px; }
+  .set-sec:not(.on) { display: none; }
+  .set-h { margin-bottom: 10px; font-size: 38px; }
+}
+.set-ic { width: 18px; height: 18px; flex: none; }
+
+/* A row: the name in 16/600 and what it does in muted text on the left, its control on the right; hairlines between. */
+.set-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px 0; border-top: 1px solid var(--line); }
+.set-intro + .set-row, .set-intro + .lic-card + .set-row { border-top: 0; }
+/* Every section opens with one line on what it is for, so the pane never sits empty. */
+.set-intro { max-width: 60ch; margin-bottom: 6px; font-size: 15px; line-height: 1.55; color: var(--ink-3); text-wrap: pretty; }
+.set-t { display: grid; gap: 4px; min-width: 0; }
+.set-l { font: 600 16px/1.35 var(--font); color: var(--ink); }
+.set-d { max-width: 60ch; font-size: 14.5px; line-height: 1.55; color: var(--ink-3); }
+.set-c { display: flex; align-items: center; min-width: 0; }
+.set-p { max-width: 64ch; padding-top: 6px; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
+.set-p.muted { font-size: 14.5px; color: var(--ink-3); }
+.set-planned { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--ink-3); }
+@container set (min-width: 720px) {
+  .set-row { grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; }
+  .set-row.set-theme { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+}
+
+/* Appearance: one tile per theme, each with a small picture of the app in that theme. Concentric: the tile's 16 px corner
+   is the picture's 8 px plus the 8 px padding. The picked tile wears the ink outline. The pictures use their theme's own
+   colours, whatever the app shows now. */
+.theme-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 540px; }
+.theme-tile { display: grid; gap: 10px; padding: 8px 8px 10px; border: 1.5px solid var(--line-2); border-radius: 16px; background: var(--surface); color: var(--ink-2); cursor: pointer; text-align: center;
+  transition: scale var(--t-press) var(--press-ease); }
+.theme-tile:hover:not(.on) { border-color: var(--ink-3); }
+.theme-tile:active { scale: .98; }
+.theme-tile.on { border-color: var(--ink); box-shadow: 0 0 0 1.5px var(--ink); color: var(--ink); }
+.tt-name { font: 500 14.5px/1.2 var(--font); }
+.theme-tile.on .tt-name { font-weight: 600; }
+.tt-prev { position: relative; display: flex; aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .1); }
+.tt-light { --tp-paper: #f4f2ed; --tp-surface: #ffffff; --tp-ink: #141414; --tp-line: #e4e0d7; --tp-faint: #d6d1c6; --tp-btn: #141414; }
+.tt-dark { --tp-paper: #1b1a18; --tp-surface: #252421; --tp-ink: #f4f2ed; --tp-line: #3a3833; --tp-faint: #4a4741; --tp-btn: #f4f2ed; }
+.tt-prev.tt-light, .tt-prev.tt-dark, .tt-half { display: flex; background: var(--tp-paper); }
+.tt-system .tt-half { position: absolute; inset: 0; }
+.tt-system .tt-dark { clip-path: polygon(58% 0, 100% 0, 100% 100%, 42% 100%); }
+.tt-side { flex: 0 0 28%; display: grid; align-content: start; gap: 4px; padding: 8px 6px; background: var(--tp-paper); }
+.tt-side i { display: block; height: 4px; border-radius: 2px; background: var(--tp-faint); }
+.tt-side i:first-child { width: 70%; background: var(--tp-ink); opacity: .7; }
+.tt-main { flex: 1; display: grid; align-content: start; gap: 5px; margin: 5px 5px 5px 0; padding: 8px; border-radius: 5px; background: var(--tp-surface); box-shadow: 0 0 0 1px var(--tp-line); }
+.tt-main i { display: block; border-radius: 2px; }
+.tt-h { width: 58%; height: 7px; background: var(--tp-ink); }
+.tt-l { width: 84%; height: 4px; background: var(--tp-line); }
+.tt-l + .tt-l { width: 62%; }
+.tt-pill { width: 42%; height: 9px; margin-top: 3px; border-radius: 999px !important; background: var(--tp-btn); }
+@media (max-width: 420px) { .theme-tiles { gap: 8px; } .theme-tile { padding: 6px 6px 8px; border-radius: 14px; } }
+
+/* Controls in Settings: Unvibe's segmented pill (the choice in ink) and an outlined switch, both 44 px to hit. */
+.set-page .seg { display: inline-flex; gap: 2px; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--surface); font-size: 14.5px; }
+.set-page .seg button { min-height: 38px; padding: 0 16px; border-radius: 999px; color: var(--ink-2); font-weight: 500; transition: background-color var(--t-hover) var(--ease), color var(--t-hover) var(--ease); }
+.set-page .seg button:hover:not(.on) { background: var(--sel); color: var(--ink); }
+.set-page .seg button.on { background: var(--ink); color: var(--paper); font-weight: 600; box-shadow: none; }
+.set-page .switch { width: 52px; height: 30px; border: 1.5px solid var(--ink); background: var(--paper-2); }
+.set-page .switch::before { content: ""; position: absolute; inset: -8px -4px; }
+.set-page .switch::after { top: 3px; left: 3px; width: 21px; height: 21px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.set-page .switch.on { background: var(--ink); }
+.set-page .switch.on::after { transform: translateX(22px); background: var(--paper); box-shadow: none; }
+.set-page .field { height: 44px; padding: 0 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1.5px var(--line-2); font-size: 14px; }
+.set-page .field:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.set-page .field::placeholder { color: var(--ink-4); }
+.set-page .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--broken); }
+
+/* Features for a project, drawn by feature-settings.ts into its section: the same rows and type as the rest of Settings. */
+.set-page .ft-sec { padding: 18px 0 4px; font: italic 400 24px/1.2 var(--voice); }
+.set-page .ft-sec:first-child { padding-top: 0; }
+.set-page .setrow { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 18px 0; border-top: 1px solid var(--line); }
+.set-page .setrow:first-of-type { border-top: 0; }
+.set-page .setrow .l { font: 600 16px/1.35 var(--font); }
+.set-page .ft-muted, .set-page .ft-note, .set-page .ft-status, .set-page .ft-keystate, .set-page .ft-err, .set-page .ft-details, .set-page .ft-ro-note, .set-page .ft-consent { font-size: 14.5px; line-height: 1.55; }
+.set-page .ft-consent h4, .set-page .ft-details h3 { font: 600 13.5px/1.3 var(--font); }
+.set-page .ft-stack { gap: 10px; }
+.set-page .ft-stack .row-btns .field { max-width: 420px; }
+
+/* License: the plan in a card like the rail's, the state as a pill, the purchase id in mono. The key is never shown back. */
+.lic-card { display: grid; gap: 8px; justify-items: start; max-width: 560px; margin: 8px 0 18px; padding: 22px 24px 24px; border: 1.5px solid var(--ink); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--hard); }
+.lic-top { justify-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lic-eye { font: 600 13.5px/1.2 var(--font); color: var(--ink-3); }
+.lic-pill { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--line-2); color: var(--ink-2); font: 600 13.5px/1 var(--font); white-space: nowrap; }
+.lic-pill.on { border-color: var(--sky-line); background: var(--sky); color: var(--sky-ink); }
+.lic-big { font: 750 32px/1.1 var(--display); letter-spacing: -.035em; color: var(--ink); }
+.lic-card.on .lic-big { font-size: 26px; line-height: 1.15; }
+.lic-bar { justify-self: stretch; display: block; height: 8px; margin: 4px 0 6px; border-radius: 9px; background: var(--line); overflow: hidden; }
+.lic-bar i { display: block; height: 100%; border-radius: 9px; background: var(--ink); }
+.lic-p { font-size: 15px; line-height: 1.6; color: var(--ink-2); }
+.lic-id { padding: 1px 6px; border-radius: 6px; background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); font-size: 14px; color: var(--ink); }
+.lic-card .row-btns { margin-top: 10px; }
+.set-key { display: grid; gap: 12px; padding: 18px 0 0; border-top: 1px solid var(--line); }
+.set-keyin { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.set-keyin .field { flex: 1 1 220px; min-width: 0; }
+.set-key .note, .set-sec > .note { margin-top: 4px; }
+/* Plan > Sign in to get your key: a quiet card between the license card and the paste-key field. Email, then the code,
+   then one row per key the site lists: its purchase id and date (never the key) and Use this key. */
+.si-card { display: grid; gap: 12px; max-width: 560px; margin: 0 0 22px; padding: 20px 22px 22px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.si-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.si-top h3 { border-radius: 6px; font: 750 21px/1.2 var(--display); letter-spacing: -.025em; color: var(--ink); }
+.si-p { font-size: 15px; line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
+.si-form { display: grid; gap: 8px; }
+.si-form .set-keyin { margin-top: 4px; }
+.si-form .row-btns { gap: 4px 18px; }
+.set-keyin .si-code { flex: 0 1 180px; letter-spacing: .3em; font-variant-numeric: tabular-nums; }
+.si-keys { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.si-key { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.si-kt { display: grid; gap: 4px; min-width: 0; font-size: 15px; color: var(--ink); }
+.si-kt small { font-size: 13.5px; color: var(--ink-3); }
+
+/* Errors: a card that says what happened in plain words, the cause in the Broken family, its one way forward beside it.
+   The mark is a ring with "!", not a verdict shape: an error in the app is not a check result. */
+.note.bad, .note.warn { position: relative; padding: 14px 16px 14px 48px; border-radius: var(--r-md); font-size: 14.5px; line-height: 1.55; color: var(--ink); }
+.note.bad { background: var(--broken-bg); border-color: color-mix(in srgb, var(--broken) 40%, transparent); box-shadow: none; }
+.note.warn { background: var(--amber-bg); border-color: color-mix(in srgb, var(--amber) 40%, transparent); box-shadow: none; }
+.note.bad::before, .note.warn::before { content: "!"; position: absolute; left: 16px; top: 14px; width: 22px; height: 22px; border-radius: 50%; background: var(--broken); color: var(--surface); font: 700 14px/22px var(--font); text-align: center; }
+.note.warn::before { background: var(--amber); }
+.fail-card { display: grid; gap: 12px; justify-items: start; }
+.fail-card > p { max-width: 62ch; }
+.fail-card .fail-how { color: var(--ink-2); }
+.fail-card .row-btns { margin-top: 2px; }
+/* Under the connection banner a page waits in quiet blocks: the banner says why and holds the one action. */
+.wait-sk { display: grid; gap: 12px; }
+.wait-sk i { display: block; height: 64px; border-radius: var(--r-lg); background: var(--paper-2); }
+
+/* A project History can't read: the buddy, what it is in the display face, and the card with the way forward. */
+.fail-page { flex: 1; overflow: auto; display: grid; place-items: center; padding: 48px 24px; }
+.fail-in { width: min(580px, 100%); display: grid; gap: 16px; justify-items: start; }
+.fail-in h1 { font: 750 38px/1.08 var(--display); letter-spacing: -.035em; color: var(--ink); overflow-wrap: anywhere; }
+.fail-path { max-width: 100%; color: var(--ink-3); overflow-wrap: anywhere; }
+
+/* Before the app can start: the same card on paper, with the display headline instead of the old serif one. */
+.launch-error { max-width: 640px; gap: 18px; }
+.launch-error h1 { font: 750 44px/1.05 var(--display); letter-spacing: -.035em; color: var(--ink); }
+
+/* The link to tm ui, across the top: sky while it connects, the Broken family once it drops. The buddy says it, not a bare dot. */
+.connection-banner { flex-wrap: wrap; gap: 10px 14px; padding: 12px 20px; border-bottom: 1.5px solid var(--ink); background: var(--sky); color: var(--ink); font-size: 14.5px; }
+.connection-banner[data-state="disconnected"] { background: var(--broken-bg); }
+.connection-banner > div { flex: 1 1 240px; }
+.connection-banner b { font: 600 15px/1.35 var(--font); }
+.connection-banner p { margin-top: 2px; color: var(--ink-2); font-size: 14.5px; line-height: 1.45; }
+.conn-buddy { width: 34px; height: 34px; }
+@media (max-width: 600px) {
+  .connection-banner { padding: 12px 14px; }
+  .connection-banner .btn { margin-left: 48px; padding: 0 18px; font-size: 15px; }
+}
+
+/* The free limit: not an error in the work, so it is a sky sticker with the plan button, and where a key goes. */
+.limit-card { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 18px; align-items: start; padding: 22px 24px; border: 1.5px solid var(--ink); border-radius: var(--r-lg); background: var(--sky); color: var(--ink); box-shadow: var(--hard); }
+.limit-t { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.limit-big { font: 750 26px/1.15 var(--display); letter-spacing: -.03em; }
+.limit-t > p:not(.limit-big) { font-size: 15px; line-height: 1.6; color: var(--ink-2); }
+.limit-card .row-btns { margin-top: 6px; }
+@media (max-width: 600px) { .limit-card { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 20px; } }
+
+/* Toasts: the shared pop-over surface (styles.css) at the bottom centre. Undo, when there is one, is a sky key whose
+   12 px corner is the toast's 20 px less its 8 px padding. */
+.toast .toast-x { text-decoration-color: var(--line-2); }
+.toast .toast-x:hover:not([disabled]) { text-decoration-color: var(--sky-line); }
+.toast-undo { position: relative; flex: none; min-height: 36px; padding: 0 14px; border: 1.5px solid var(--sky-line); border-radius: 12px; background: var(--sky); color: var(--sky-ink); font: 600 14.5px/1 var(--font); box-shadow: 0 2px 0 var(--sky-line); cursor: pointer;
+  transition: transform var(--t-press) var(--press-ease), box-shadow var(--t-press) var(--press-ease); }
+.toast-undo::before { content: ""; position: absolute; inset: -4px 0; }
+.toast-undo:active { transform: translateY(2px); box-shadow: 0 0 0 var(--sky-line); }
+
+/* First run, in the shape of Unvibe's Today: the buddy says hello beside the display line and the voice line (in the accent,
+   like Unvibe's), then your own project as the ink card, the demo as the outlined card, how it works and what to know. */
+.welcome.wl { place-items: start center; padding: 56px 40px 48px; }
+.wl-in { width: 100%; max-width: 900px; display: grid; gap: 22px; }
+.wl-hi { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "buddy hello" "buddy text"; gap: 0 28px; align-items: center; }
+.wl-hi > .buddy { grid-area: buddy; }
+.buddy.hero { width: 112px; height: 112px; }
+.wl-t { grid-area: text; display: grid; justify-items: start; }
+/* The greeting is the buddy's own words: a speech bubble whose corner points back at it. */
+.wl-hello { grid-area: hello; justify-self: start; align-self: end; margin-bottom: 12px; padding: 4px 16px 6px; border: 1.5px solid var(--ink); border-radius: 18px 18px 18px 4px; background: var(--surface); box-shadow: var(--hard-sm); font-size: 22px; line-height: 1.15; color: var(--ink); }
+.wl h1 { font-size: 52px; line-height: 1.02; }
+.welcome-v { margin-top: 8px; font-size: 28px; line-height: 1.2; color: var(--sky-ink); }
+.wl-go { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 24px; align-items: center; margin-top: 8px; padding: 22px 24px; border-radius: var(--r-xl); background: var(--ink); color: var(--surface); box-shadow: 0 5px 0 var(--sky-line); }
+.wl-go h2 { font: 750 24px/1.15 var(--display); letter-spacing: -.03em; color: inherit; }
+.wl-go p { margin-top: 4px; font-size: 15px; line-height: 1.5; color: color-mix(in srgb, var(--surface) 76%, var(--ink)); }
+.wl-add { border-color: var(--sky); background: var(--sky); color: var(--sky-ink); box-shadow: none; }
+.wl-add:hover:not([disabled]) { background: var(--sky-line); }
+.wl-demo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; width: 100%; padding: 18px 22px; border: 1.5px solid var(--ink); border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--hard); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color var(--t-hover) var(--ease); }
+.wl-demo:hover { background: var(--sunken); }
+.wl-demo:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.wl-demo-ic { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.wl-demo-ic svg { width: 20px; height: 20px; }
+.wl-demo-t { display: grid; gap: 3px; min-width: 0; }
+.wl-demo-t b { font: 750 20px/1.2 var(--display); letter-spacing: -.025em; }
+.wl-demo-t span { font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.wl-arrow { width: 22px; height: 22px; }
+.wl-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 36px; margin-top: 10px; }
+.wl-cols h2 { margin-bottom: 6px; font: 600 18px/1.3 var(--font); letter-spacing: -.01em; }
+.wl-steps, .wl-know { display: grid; margin: 0; padding: 0; list-style: none; }
+.wl-steps { counter-reset: wl; }
+.wl-steps li { counter-increment: wl; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 12px; padding: 10px 0; }
+.wl-steps li::before { content: counter(wl); grid-row: span 2; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink); font: 600 13px/1 var(--font); }
+.wl-steps b { font: 600 15.5px/1.4 var(--font); }
+.wl-steps span, .wl-know li { font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
+.wl-know li { position: relative; padding: 10px 0 10px 38px; }
+.wl-know li::before { content: "✓"; position: absolute; left: 0; top: 9px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--paper-2); font: 600 13px/1 var(--font); color: var(--ink-2); }
+.wl .local-note { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line); }
+@media (max-width: 760px) {
+  .welcome.wl { padding: 28px 20px 40px; }
+  .wl-hi { grid-template-areas: "buddy hello" "text text"; gap: 16px 16px; }
+  .wl-hello { align-self: center; margin-bottom: 0; }
+  .buddy.hero { width: 72px; height: 72px; }
+  .wl h1 { font-size: 40px; }
+  .welcome-v { font-size: 24px; }
+  .wl-go { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .wl-add { justify-self: stretch; }
+  .wl-demo { grid-template-columns: auto minmax(0, 1fr); padding: 16px 18px; }
+  .wl-arrow { display: none; }
+  .wl-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* An empty list: the buddy at 64 px, one sentence, one action, centred where the list would be. */
+.empty-state { display: grid; justify-items: center; gap: 10px; padding: 36px 20px; text-align: center; }
+.empty-state .es-line { max-width: 42ch; font: 600 17px/1.4 var(--font); color: var(--ink); }
+.empty-state .es-voice { max-width: 36ch; font-size: 22px; line-height: 1.25; color: var(--ink-3); }
+.empty-state .row-btns { justify-content: center; margin-top: 6px; }
+
+/* Onboarding: the same three steps, dressed like the rest. A display question, a 16 px lede, calm white cards,
+   the chosen option in ink with the small hard shadow. Look only: the steps, fields and actions are unchanged. */
+.ob-page h1 { font-size: 44px; line-height: 1.05; }
+.ob-page .lede { margin-top: 10px; font-size: 16px; line-height: 1.6; color: var(--ink-3); }
+.ob-page .steps { gap: 12px; font-size: 14px; }
+.ob-page .steps .n { width: 26px; height: 26px; font-size: 13px; }
+.ob-page .steps .bar { width: 32px; }
+.ob-page .panel { gap: 16px; padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: none; }
+.ob-page .path-form > label { font: 600 16px/1.35 var(--font); }
+.ob-page .field { height: 48px; padding: 0 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1.5px var(--line-2); font-size: 14px; }
+.ob-page .field:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.ob-page .opt { gap: 12px; padding: 14px 16px; border-radius: var(--r-md); }
+.ob-page .opt.on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--hard-sm); }
+.ob-page .opt .t { font-size: 15.5px; font-weight: 600; }
+.ob-page .opt .d, .ob-page .small, .ob-page .note, .ob-page .first-sp { font-size: 14px; line-height: 1.55; }
+@media (max-width: 600px) { .ob-page h1 { font-size: 34px; } .ob-page .panel { padding: 18px; } .ob-page .steps { gap: 8px 16px; } .ob-page .steps .bar { display: none; } }
+/* Onboarding's sticky next step fades into the canvas it sits on, which is white now, not paper. */
+.ob-page .ob-acts { background: linear-gradient(to bottom, transparent, var(--surface) 18px); }
+/* The sticky row covers the bottom ~120 px of the scroller, so whatever takes focus is scrolled clear of it. */
+.ob-page { scroll-padding-bottom: 136px; }
+.ob-page [data-model="ob-path"] { scroll-margin-bottom: 136px; }
+/* The folder just added, whole: the path field scrolls a long path out of view on a phone, so step 2 shows all of it. */
+.ob-page .ob-where { margin-top: 10px; color: var(--ink-3); overflow-wrap: anywhere; }
+.ob-page .hook-words, .ob-page .hook-exact { font-size: 14px; }
+
+/* Without JavaScript the launch splash never leaves, so the one line that says why sits over it, under the wordmark. */
+.noscript { position: fixed; z-index: 1001; left: 0; right: 0; top: calc(50% + clamp(48px, 7vw, 92px)); margin: 0; padding: 0 24px; text-align: center; font: 500 15px/1.5 var(--font); color: var(--ink); }
+
+/* Batch 9: Agents, Storage */
+/* History's canvas: its column, the display title with a voice line, voice section heads, and white rows in one card.
+   Own class names, so these pages keep their look whatever History does next. */
+.page.b9-page { padding: 0 0 80px; }
+.b9 { max-width: 860px; margin: 0 auto; padding: 52px 48px 0; display: grid; }
+.b9-head { display: grid; justify-items: start; gap: 10px; }
+.b9-head h1 { font-size: 46px; line-height: 1.04; }
+.b9-voice { max-width: 40ch; font-size: 22px; line-height: 1.3; color: var(--ink-3); }
+.b9-lede { max-width: 64ch; font-size: 16px; line-height: 1.6; color: var(--ink-3); }
+section > .b9-lede { margin: -2px 0 16px; }
+.b9-head + .b9-list, .b9-head + .empty-state { margin-top: 36px; }
+.b9-day { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 44px 0 14px; }
+.b9-day h2 { font: italic 400 34px/1 var(--voice); color: var(--ink); }
+.b9-day span { font-size: 14px; color: var(--ink-3); }
+.b9-list { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface); }
+.b9-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; align-items: center; padding: 16px 20px; border-top: 1px solid var(--hair); }
+.b9-list > .b9-row:first-child { border-top: 0; }
+.b9-main { display: grid; gap: 4px; min-width: 0; }
+.b9-t { font: 600 16px/1.35 var(--font); letter-spacing: -.01em; color: var(--ink); }
+.b9-sub { font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.b9-sub code { font-size: 13.5px; }
+.b9-now { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.b9-path { font-size: 13px; line-height: 1.45; color: var(--ink-3); overflow-wrap: anywhere; }
+/* An agent: its mark, its name and one plain sentence, and its state as a pill on the right. */
+.b9-ch { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 16px; }
+.b9-ch > .amark { width: 40px; height: 40px; border-radius: 11px; font-size: 14px; }
+.b9-pill { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--line-2); font: 600 13.5px/1 var(--font); color: var(--ink-2); white-space: nowrap; }
+.is-working .b9-pill { border-color: color-mix(in srgb, var(--works) 40%, transparent); background: var(--works-bg); color: var(--works); }
+.is-idle .b9-pill { border-color: var(--sky-line); background: var(--sky); color: var(--sky-ink); }
+.is-partial .b9-pill { border-color: color-mix(in srgb, var(--amber) 45%, transparent); background: var(--amber-bg); color: var(--amber); }
+.is-planned .b9-t, .is-planned .b9-sub { color: var(--ink-3); }
+.is-planned .b9-pill { border-style: dashed; color: var(--ink-3); }
+/* Storage: each project's name, then its size in mono, right-aligned in a column every row shares (subgrid). Its actions
+   (Clean up, Thin, Remove from app) take their own line under them at every width: side by side they need over 600 px,
+   which left the name a 0 px column at 1024 and 1440 (Design gate MF1). */
+.b9-stl { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.b9-stl > .b9-st { grid-column: 1 / -1; grid-template-columns: subgrid; }
+.b9-num { justify-self: end; min-width: 8ch; text-align: right; font: 500 14.5px/1.3 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.b9-acts { justify-content: flex-end; }
+.b9-st > .b9-acts { grid-column: 1 / -1; justify-content: flex-start; }
+/* With Git details on, the store path gets the row's whole width on its own line, so it isn't broken into a narrow column. */
+.b9-st > .b9-path { grid-row: 2; grid-column: 1 / -1; margin-top: -6px; }
+/* A moved project has no size to show: its sentence sits under the name, across the name and size columns. */
+.b9-st > .b9-unread { grid-row: 2; grid-column: 1 / 3; margin-top: -6px; }
+/* The result takes focus once its button is gone, so it gets the room and radius of the app's other focus rings. */
+.b9-done { padding: 6px 10px; border-radius: 10px; font-size: 14.5px; color: var(--ink-2); }
+/* What clean-up would remove, asked on its own line under the row before anything goes. */
+.b9-ask { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 14px 12px 16px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--sunken); }
+.b9-would { font: 600 15px/1.4 var(--font); color: var(--ink); }
+.b9-would .mono { font-size: 14px; font-weight: 500; }
+.b9 .empty-state { border: 1px dashed var(--line-2); border-radius: 18px; background: var(--sunken); }
+/* A list while it reads: History's quiet blocks, at the sizes of a name and a value. The pulse is opacity only. */
+.b9-sk .b9-row { grid-template-columns: minmax(0, 1fr) auto; min-height: 64px; }
+.b9-sk i { display: block; height: 14px; border-radius: 7px; background: var(--paper-2); animation: skel 1.1s var(--ease-io) infinite alternate; }
+.b9-sk i:first-child { width: min(240px, 60%); }
+.b9-sk i:last-child { width: 72px; }
+/* What stays true under the lists: History's "Good to know", with the buddy. */
+.b9-know { margin-top: 32px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 18px 20px; border-radius: 18px; border: 1px dashed var(--line-2); background: var(--sunken); font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
+.b9-know h2 { margin-bottom: 6px; font: italic 400 24px/1.1 var(--voice); color: var(--ink); }
+.b9-know p + p { margin-top: 8px; }
+@media (max-width: 600px) {
+  .b9 { padding: 26px 20px 0; }
+  .b9-head h1 { font-size: 38px; }
+  .b9-voice { font-size: 19px; }
+  .b9-day { margin-top: 36px; }
+  .b9-day h2 { font-size: 30px; }
+  .b9-row { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+  .b9-row > .btn { justify-self: start; }
+  .b9-ch { grid-template-columns: auto minmax(0, 1fr); }
+  .b9-ch > .b9-pill { grid-column: 2; justify-self: start; }
+  .b9-know { padding: 16px; gap: 12px; }
+}
+
+/* Night build: the rail's destinations, purpose tiles and Overview. Same canvas as Agents and Storage (the b9 classes);
+   these rules only add what the new screens draw. */
+.it.nav-it { color: var(--ink-2); }
+.nav-ic { width: 18px; height: 18px; flex: none; margin: 0 1px; color: var(--ink-3); }
+.it.nav-it.on .nav-ic, .it.nav-it:hover .nav-ic { color: var(--ink); }
+/* A purpose as a line icon on a paper tile: decoration beside a written label. */
+.pico { display: inline-grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
+.pico svg { width: 20px; height: 20px; }
+.pico.sm { width: 28px; height: 28px; border-radius: 8px; }
+.pico.sm svg { width: 16px; height: 16px; }
+
+/* Overview: the report's one line in the display face is the page's one loud thing; the cards under it stay quiet. */
+.ov-big { max-width: 30ch; font: 750 30px/1.16 var(--display); letter-spacing: -.03em; color: var(--ink); text-wrap: balance; overflow-wrap: break-word; font-variant-numeric: tabular-nums; }
+/* A project's name in the headline never breaks inside itself; a name too long for the line ends in an ellipsis. */
+.ov-nm { display: inline-block; max-width: 100%; vertical-align: bottom; white-space: nowrap; overflow-wrap: normal; overflow: hidden; text-overflow: ellipsis; }
+/* While the report reads: two bars the size of its two display lines, so the sentence lands in place. */
+.ov-big-sk { display: grid; gap: 10px; padding: 4px 0; }
+.ov-big-sk .sk { height: 26px; width: min(460px, 92%); border-radius: 9px; }
+.ov-big-sk .sk + .sk { width: min(280px, 60%); }
+/* One card per project in a plain grid: two columns from 960 px, one below. Every card the same quiet sheet, the full
+   width of its cell. (".ov-card" belongs to the older overlay in styles.css, so the card here is ".ov-proj".) */
+.ov-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 960px) { .ov-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ov-proj { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 10px 14px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.ov-open { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; align-items: center; width: calc(100% + 12px); min-height: 52px; margin: 0 -6px; padding: 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--t-hover) var(--ease); }
+.ov-open:hover { background: var(--sel); }
+.ov-open:active { background: var(--press); }
+.ov-open > .pico { grid-row: span 2; align-self: start; }
+.ov-name { display: grid; gap: 2px; min-width: 0; }
+.ov-name b { font: 600 16px/1.3 var(--font); letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-name small { font-size: 13.5px; line-height: 1.4; color: var(--ink-3); }
+.ov-status { grid-column: 2; justify-self: start; max-width: 100%; }
+.ov-dig { display: flex; align-items: center; gap: 8px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.ov-dig.broke { color: var(--ink); font-weight: 500; }
+.ov-dig .g { flex: none; }
+/* A card while its history reads: the strip, the sentence and the facts as quiet bars at their own sizes. */
+.ov-wait { display: grid; gap: 10px; }
+.ov-wait .sk { height: 14px; }
+.ov-wait .ov-sk-strip { height: 34px; border-radius: 10px; background: var(--sunken); box-shadow: inset 0 0 0 1px var(--hair); }
+.ov-wait .ov-sk-line { width: min(300px, 76%); }
+.ov-wait .ov-sk-fact { width: min(180px, 46%); height: 11px; }
+.ov-sk-pill { width: 92px; height: 24px; border-radius: 999px; }
+/* A page voice line while its number reads (Storage): one quiet bar the height of the line. */
+.b9-voice-sk .sk { width: min(220px, 60%); height: 22px; margin: 4px 0; }
+/* Under Reduce motion the quiet bars hold still. */
+@media (prefers-reduced-motion: reduce) { .sk, .sk-head::before, .b9-sk i { animation: none; } }
+.ov-facts { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: -6px; font-size: 13.5px; line-height: 1.5; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ov-add { margin-top: 16px; }
+@media (max-width: 600px) { .ov-big { font-size: 24px; } }
+
+/* The last 24 hours as a slim axis: a hairline, a tick every 6 hours, a taller ink tick for now, and one dot per save
+   point in History's ruler colours (Works filled green, Broken a red diamond, the rest a neutral ink ring). On first
+   draw the line runs left to right in 600 ms and the dots land as it passes, 60 ms later per card. */
+.ovs { display: grid; gap: 4px; }
+.ovs-axis { position: relative; height: 18px; margin: 0 5px; }
+.ovs-axis::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; margin-top: -.75px; border-radius: 1px; background: var(--line-2); transform-origin: left center; }
+.ovs-tick { position: absolute; left: var(--x); top: 50%; width: 1.5px; height: 8px; margin: -4px 0 0 -.75px; border-radius: 1px; background: var(--line-2); }
+.ovs-tick[style^="--x:100%"] { width: 2px; height: 14px; margin: -7px 0 0 -1px; background: var(--ink-2); }
+.ovs-dot { position: absolute; left: var(--x); top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; box-sizing: border-box; background: var(--unk-bg); border: 2px solid var(--ink-3); }
+.ovs-dot.b-pass { background: var(--works); border-color: var(--works); }
+.ovs-dot.b-fail { background: var(--broken); border-color: var(--broken); border-radius: 2px; transform: rotate(45deg) scale(.9); }
+.ovs-dot.b-none { background: var(--surface); border-color: var(--ink-2); }
+.ovs-l { position: relative; height: 16px; margin: 0 5px; font: 500 13px/16px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ovs-l span { position: absolute; left: var(--x); transform: translateX(-50%); white-space: nowrap; }
+.ovs-l span:first-child { margin-left: -5px; transform: none; }
+.ovs-l span:last-child { margin-left: 5px; transform: translateX(-100%); }
+.ov-list.draw .ovs-axis::before { animation: ovs-line .6s var(--ease) both; animation-delay: calc(var(--in, 0ms) + var(--i, 0) * 60ms); }
+.ov-list.draw .ovs-tick, .ov-list.draw .ovs-dot { animation: ovs-land .24s var(--ease) both; animation-delay: calc(var(--in, 0ms) + var(--i, 0) * 60ms + var(--t, 0) * 600ms); }
+@keyframes ovs-line { from { transform: scaleX(0); } }
+@keyframes ovs-land { from { opacity: 0; scale: .4; } }
+.calm .ov-list.draw .ovs-axis::before, .calm .ov-list.draw .ovs-tick, .calm .ov-list.draw .ovs-dot { animation: none; }
+@media (prefers-reduced-motion: reduce) { .ov-list.draw .ovs-axis::before, .ov-list.draw .ovs-tick, .ov-list.draw .ovs-dot { animation: none; } }
+
+/* The Add flow's first step: four choices as calm cards, two by two. The picked one wears ink and the small hard shadow,
+   like a chosen option in the other steps. */
+.ad-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
+.ad-cards > li { display: grid; }
+.ad-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; width: 100%; padding: 18px; border: 1.5px solid var(--line); border-radius: var(--r-lg); background: var(--surface); color: var(--ink); text-align: left; cursor: pointer;
+  transition: border-color var(--t-hover) var(--ease), box-shadow var(--t-press) var(--press-ease), transform var(--t-press) var(--press-ease); }
+.ad-card:hover { border-color: var(--ink-3); }
+.ad-card:active { transform: translate(1px, 1px); }
+.ad-card.on { border-color: var(--ink); box-shadow: var(--hard-sm); }
+.ad-t { display: grid; gap: 4px; min-width: 0; }
+.ad-t b { font: 650 17px/1.3 var(--display); letter-spacing: -.015em; }
+.ad-t > span { font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.ad-t > .ad-own { margin-top: 2px; font-size: 13.5px; color: var(--ink-3); }
+.ad-chose { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px; font: 500 14.5px/1.3 var(--font); color: var(--ink-2); }
+@media (max-width: 600px) {
+  .ad-cards { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }
+  .ad-card { padding: 16px; }
+}
+
+/* Plan: the two plans side by side, the one you have in ink. Prices in the display face; every line is a fact from the
+   code or the published terms. The license card and key field are the ones Settings used to hold. */
+.pl-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
+.pl-card { display: grid; align-content: start; gap: 10px; padding: 22px 24px 24px; border: 1.5px solid var(--line); border-radius: 18px; background: var(--surface); }
+.pl-card.now { border-color: var(--ink); box-shadow: var(--hard-sm); }
+.pl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.pl-card h2 { font: 700 20px/1.2 var(--display); letter-spacing: -.02em; }
+.pl-price { font: 750 42px/1 var(--display); letter-spacing: -.04em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pl-price span { font: 500 16px/1 var(--font); letter-spacing: 0; color: var(--ink-3); }
+.pl-lines { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.pl-lines li { position: relative; padding-left: 28px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.pl-lines li::before { content: ""; position: absolute; left: 2px; top: 4px; width: 14px; height: 8px; border-left: 2px solid var(--works); border-bottom: 2px solid var(--works); transform: rotate(-45deg) scale(.8); }
+.pl-card .row-btns { margin-top: 8px; }
+.pl-note { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+.pl-page .b9-know { grid-template-columns: minmax(0, 1fr); }
+.pl-page #license .lic-card { margin-top: 0; }
+.pl-page .field { height: 44px; padding: 0 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1.5px var(--line-2); font-size: 14px; }
+.pl-page .field:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.pl-page .field::placeholder { color: var(--ink-4); }
+.pl-page .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--broken); }
+.pl-page .set-row { border-top: 0; }
+.plan.on { border-color: var(--ink); box-shadow: var(--hard-sm); }
+@media (max-width: 720px) { .pl-cols { grid-template-columns: minmax(0, 1fr); } }
+
+/* Sources: rows like Agents (mark, name and one line, then its state or its one action). Found folders show their path in
+   mono. Planned connectors sit under Labs preview as dashed cards with a sample that is visibly a sample. */
+.so-row { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 16px; }
+.so-row > .amark { width: 36px; height: 36px; border-radius: 10px; font-size: 14px; }
+.so-on { border-color: color-mix(in srgb, var(--works) 40%, transparent); background: var(--works-bg); color: var(--works); }
+/* A found folder's path wraps anywhere (it is one long word) rather than run past the card or under its button, at every
+   width (Design gate P2-1). The home folder is already shortened to ~. */
+.so-path { display: block; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); overflow-wrap: anywhere; }
+.so-row > .b9-main { min-width: 0; }
+.so-prot { display: block; margin-top: 2px; font-size: 13.5px; color: var(--ink-2); }
+.so-miss { margin-top: 12px; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.so-labs-h { justify-content: space-between; align-items: center; }
+.so-switch { display: inline-flex; align-items: center; gap: 4px; font: 500 14.5px/1.2 var(--font); color: var(--ink-2); }
+.so-page .switch { width: 44px; height: 26px; border: 1.5px solid var(--ink); background: var(--paper-2); }
+.so-page .switch::after { top: 3px; left: 3px; width: 17px; height: 17px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.so-page .switch.on { background: var(--ink); }
+.so-page .switch.on::after { transform: translateX(18px); background: var(--paper); box-shadow: none; }
+.so-cards { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.so-card { display: grid; align-content: start; gap: 10px; padding: 16px 18px 18px; border: 1.5px dashed var(--line-2); border-radius: var(--r-lg); background: var(--sunken); }
+.so-ch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.so-ch > .amark { width: 32px; height: 32px; border-radius: 9px; }
+.so-ch b { font: 650 16px/1.3 var(--display); letter-spacing: -.01em; color: var(--ink); }
+.so-planned { margin-left: auto; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; border: 1.5px dashed var(--ink-4); font: 600 13px/1 var(--font); color: var(--ink-3); white-space: nowrap; }
+.so-would { font-size: 14px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.so-sample { position: relative; display: grid; gap: 6px; padding: 28px 12px 12px; border-radius: var(--r-md); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.so-sl { position: absolute; top: 8px; left: 12px; font: 600 13px/1 var(--font); color: var(--ink-3); }
+/* A sample row: its label keeps whole words; when the card is too narrow for both, the status goes under it (Design gate P2-2). */
+.so-sr { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; font-size: 13.5px; line-height: 1.4; color: var(--ink-3); }
+.so-sr > span { flex: 1 1 16ch; }
+.so-sr small { flex: 0 1 auto; font: 500 13px/1.4 var(--mono); font-variant-numeric: tabular-nums; }
+.so-labs-note { margin-top: 14px; }
+@media (max-width: 720px) { .so-cards { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .so-row { grid-template-columns: auto minmax(0, 1fr); }
+  .so-row > .btn, .so-row > .b9-pill { grid-column: 2; justify-self: start; }
+  .so-planned { margin-left: 0; }
+}
+
+/* Runs: All / Pinned above the journal as the Settings pill, a pin beside a pinned row's title, and the detail's name, note
+   and pin in a quiet sunken card. Text fields here are the app's sans at 14 px, not the mono of a path field. */
+.jf-row { margin-top: 36px; display: flex; justify-content: flex-end; }
+.jf { display: inline-flex; gap: 2px; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--surface); font-size: 14.5px; }
+.jf button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font-weight: 500; cursor: pointer; transition: background-color var(--t-hover) var(--ease), color var(--t-hover) var(--ease); }
+.jf button:hover:not(.on) { background: var(--sel); color: var(--ink); }
+.jf button.on { background: var(--ink); color: var(--paper); font-weight: 600; }
+.jf-n { font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; opacity: .8; }
+.jf-row + .journal > .day:first-child { margin-top: 0; }
+.jf-empty { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: 18px; background: var(--sunken); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.jf-empty b { color: var(--ink); font-weight: 600; }
+.pin-i { width: 14px; height: 14px; flex: none; }
+.e-pin { display: inline-flex; align-items: center; margin-left: 8px; color: var(--ink-2); vertical-align: -1px; }
+.rn { display: grid; gap: 10px; padding: 14px 16px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--sunken); }
+.rn-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rn-top h3 { font: 600 15px/1.3 var(--font); color: var(--ink); }
+.rn-pin { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1.5px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 600 14px/1 var(--font); cursor: pointer;
+  transition: border-color var(--t-hover) var(--ease), background-color var(--t-hover) var(--ease), transform var(--t-press) var(--press-ease); }
+.rn-pin:hover:not([disabled]) { border-color: var(--ink-3); color: var(--ink); }
+.rn-pin:active:not([disabled]) { transform: scale(.97); }
+.rn-pin.on { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.rn-form { display: grid; gap: 6px; }
+.rn-form label { font: 600 13.5px/1.3 var(--font); color: var(--ink-2); }
+.rn-form label + .field { margin-bottom: 6px; }
+.rn-form .field { font: 400 14px/1.45 var(--font); height: 40px; }
+.rn-form textarea.field { height: auto; min-height: 76px; padding: 8px 10px; resize: vertical; }
+.rn-form .field::placeholder { color: var(--ink-4); }
+.rn-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rn-saved { font-size: 13.5px; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .rn-pin:active:not([disabled]) { transform: none; } }
+
+/* The Add flow's stepper stays on one line; only a phone lets it wrap. */
+.ob-page .steps { flex-wrap: nowrap; white-space: nowrap; font-size: 14px; }
+@media (max-width: 600px) { .ob-page .steps { flex-wrap: wrap; white-space: normal; row-gap: 8px; } }
+
+/* Journal times: the time stays whole on one line; a same-second ordinal sits on its own line below. The column is wide
+   enough for "12:43:36 AM" at every width, so every row's title starts at the same place. */
+.journal .entry { grid-template-columns: 92px minmax(0, 1fr) auto; }
+.journal .entry .when span { display: block; margin-right: 0; white-space: nowrap; }
+.journal .entry .when .tm-o { color: var(--ink-3); }
+@media (max-width: 600px) { .journal .entry { grid-template-columns: 92px minmax(0, 1fr); } }
+
+/* Storage > Thin old auto saves: the preview line and its buttons, then the Review list, which scrolls past ten rows. */
+.th-ask { display: grid; gap: 10px; }
+.th-list { list-style: none; margin: 0; padding: 8px 12px; display: grid; gap: 4px; max-height: 240px; overflow: auto; border-radius: var(--r-md); background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.th-list li { display: flex; gap: 12px; min-width: 0; }
+.th-list .mono { flex: none; font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }

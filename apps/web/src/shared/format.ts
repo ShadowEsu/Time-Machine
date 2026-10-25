@@ -37,43 +37,66 @@ export interface Stamped {
   createdAt: string;
 }
 
-const distinctCache = new WeakMap<readonly Stamped[], Map<string, string>>();
+/** A save point's distinct time: the `label` (with "#N" for twins), the `time` alone, and `nth`, its place among its twins (0 for none). */
+interface Distinct {
+  label: string;
+  time: string;
+  nth: number;
+}
+
+const distinctCache = new WeakMap<readonly Stamped[], Map<string, Distinct>>();
 
 /**
  * Time labels that tell save points apart (GitLab Pajamas and Primer: show the exact time where order matters).
  * A save point alone in its minute reads "8:16 PM". Save points that share a minute read with seconds,
- * "8:16:05 PM". Save points that still share a second add their number, "8:16:05 PM #7".
+ * "8:16:05 PM". Save points that still share a second ("twins") add their number, "8:16:05 PM #7", and
+ * know their place among the twins, oldest first.
  */
-function distinctClocks(peers: readonly Stamped[]): Map<string, string> {
+function distinctClocks(peers: readonly Stamped[]): Map<string, Distinct> {
   const cached = distinctCache.get(peers);
   if (cached) return cached;
   const perMinute = new Map<number, number>();
-  const perSecond = new Map<number, number>();
+  const perSecond = new Map<number, Stamped[]>();
   for (const p of peers) {
     const t = Date.parse(p.createdAt);
     if (Number.isNaN(t)) continue;
     perMinute.set(Math.floor(t / 60_000), (perMinute.get(Math.floor(t / 60_000)) ?? 0) + 1);
-    perSecond.set(Math.floor(t / 1000), (perSecond.get(Math.floor(t / 1000)) ?? 0) + 1);
+    const twins = perSecond.get(Math.floor(t / 1000)) ?? [];
+    twins.push(p);
+    perSecond.set(Math.floor(t / 1000), twins);
   }
-  const labels = new Map<string, string>();
+  for (const twins of perSecond.values()) twins.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
+  const labels = new Map<string, Distinct>();
   for (const p of peers) {
     const t = Date.parse(p.createdAt);
     if (Number.isNaN(t)) continue;
     if ((perMinute.get(Math.floor(t / 60_000)) ?? 0) < 2) {
-      labels.set(p.id, clock(p.createdAt));
+      const time = clock(p.createdAt);
+      labels.set(p.id, { label: time, time, nth: 0 });
       continue;
     }
-    const withSeconds = new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const time = new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const twins = perSecond.get(Math.floor(t / 1000)) ?? [];
+    const nth = twins.length > 1 ? twins.indexOf(p) + 1 : 0;
     const n = /(\d+)$/.exec(p.id)?.[1];
-    labels.set(p.id, (perSecond.get(Math.floor(t / 1000)) ?? 0) > 1 && n ? `${withSeconds} #${Number(n)}` : withSeconds);
+    labels.set(p.id, { label: nth && n ? `${time} #${Number(n)}` : time, time, nth });
   }
   distinctCache.set(peers, labels);
   return labels;
 }
 
-/** `clock` for a save point, distinct among `peers` (the project's save points). */
+/** `clock` for a save point, distinct among `peers` (the project's save points). Keeps the "#N" of twins: for rulers, lists and ids, not sentences. */
 export function pointClock(c: Stamped, peers: readonly Stamped[]): string {
-  return distinctClocks(peers).get(c.id) ?? clock(c.createdAt);
+  return distinctClocks(peers).get(c.id)?.label ?? clock(c.createdAt);
+}
+
+/** `pointClock` without the "#N": the time alone, for a heading or a readout that says which twin elsewhere. */
+export function pointTime(c: Stamped, peers: readonly Stamped[]): string {
+  return distinctClocks(peers).get(c.id)?.time ?? clock(c.createdAt);
+}
+
+function shortDay(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 }
 
 /** `when` for a save point, distinct among `peers`: "8:16:05 PM" today, "Mon 14 Oct 8:16 PM" otherwise. */
@@ -82,7 +105,54 @@ export function pointWhen(c: Stamped, peers: readonly Stamped[], now = new Date(
   if (Number.isNaN(d.getTime())) return "unknown time";
   const time = pointClock(c, peers);
   if (d.toDateString() === now.toDateString()) return time;
-  return `${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+  return `${shortDay(d)} ${time}`;
+}
+
+const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+
+/** For a save point that shares its second with another (a twin): which one it is, oldest first ("second", "12th"). "" otherwise. */
+export function twinOrdinal(c: Stamped, peers: readonly Stamped[]): string {
+  const n = distinctClocks(peers).get(c.id)?.nth ?? 0;
+  if (!n) return "";
+  return ORDINALS[n - 1] ?? `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
+}
+
+/**
+ * When a save point was made, said inside a sentence: "8:16 PM" (the day in front when not today), or for a twin, the time
+ * and which one it is after it: "8:16:05 PM (second save)", "Mon 14 Oct 8:16:05 PM (second save)". Never "#N" in a sentence.
+ */
+export function pointAt(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
+  const nth = twinOrdinal(c, peers);
+  if (!nth) return pointWhen(c, peers, now);
+  const d = new Date(c.createdAt);
+  const time = pointTime(c, peers);
+  return `${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} (${nth} save)`;
+}
+
+/** A version named in a sentence: "the 8:16 PM version", or for a twin "the 8:16:05 PM version (second save)". */
+export function versionPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
+  const nth = twinOrdinal(c, peers);
+  if (!nth) return `the ${pointWhen(c, peers, now)} version`;
+  const d = new Date(c.createdAt);
+  const time = pointTime(c, peers);
+  return `the ${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} version (${nth} save)`;
+}
+
+/** A save point named in a sentence: "the save point from 8:16 PM", or for a twin "the save point from 8:16:05 PM (second save)". */
+export function savePointPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
+  return `the save point from ${pointAt(c, peers, now)}`;
+}
+
+/** A phrase made to start a sentence: "the 8:16 PM version" becomes "The 8:16 PM version". */
+export function sentenceStart(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** A heading's time for a save point, without "#N", and for a twin the line under it that says which one: "Second save in that second". */
+export function sameSecondLine(c: Stamped, peers: readonly Stamped[]): { time: string; line: string } {
+  const time = pointTime(c, peers);
+  const nth = twinOrdinal(c, peers);
+  return { time, line: nth ? `${sentenceStart(nth)} save in that second` : "" };
 }
 
 /** Where a picked check came from, in plain words. `created` is false when timemachine.yml already existed. */
@@ -99,14 +169,17 @@ export function checkSource(command: string, created: boolean): string {
   return from[command] ?? "";
 }
 
+/** A journal day's name: "Today", "Yesterday", the weekday for the rest of the last 7 days ("Monday"), then the date ("14 Oct"; the year too when it is not this year). */
 export function dayLabel(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "Unknown day";
-  if (d.toDateString() === now.toDateString()) return "Today";
-  const y = new Date(now);
-  y.setDate(now.getDate() - 1);
-  if (d.toDateString() === y.toDateString()) return "Yesterday";
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  const ago = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86_400_000);
+  if (ago === 0) return "Today";
+  if (ago === 1) return "Yesterday";
+  if (ago > 1 && ago < 7) return d.toLocaleDateString(undefined, { weekday: "long" });
+  const date: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  if (d.getFullYear() !== now.getFullYear()) date.year = "numeric";
+  return d.toLocaleDateString(undefined, date);
 }
 
 /** Who made a save point, from the engine's trigger field. */

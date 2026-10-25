@@ -38,7 +38,7 @@ function seeded(): Promise<Seeded> {
     writeFileSync(join(dir, "docs", "notes.txt"), `${CONTENT}\n`);
     await tm.checkpoint(ctx, { note: `Pointed the app at ${ENV_VALUE}` });
     await tm.verify(ctx, "cp-0003");
-    const entry: ProjectEntry = { id: "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f", path: dir, name: "marigold", addedAt: "2026-10-16T00:00:00Z", demo: true, features: { ask: true, vercel: null } };
+    const entry: ProjectEntry = { id: "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f", path: dir, name: "marigold", addedAt: "2026-10-16T00:00:00Z", demo: true, features: { ask: true, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
     return { dir, ctx, entry };
   })();
   return shared;
@@ -118,7 +118,7 @@ describe("asking", () => {
   test("refuses unless Ask is on for the project, and sends nothing", async () => {
     const { ctx, entry } = await seeded();
     const { fetch, sent } = fakeFetch(() => answer("x", []));
-    await expect(askHistory({ ...entry, features: { ask: false, vercel: null } }, ctx, "When did it last work?", { key: KEY, fetch })).rejects.toThrow(/off for marigold/);
+    await expect(askHistory({ ...entry, features: { ask: false, vercel: null, autoSave: "off" } }, ctx, "When did it last work?", { key: KEY, fetch })).rejects.toThrow(/off for marigold/);
     await expect(askHistory(entry, ctx, "When did it last work?", { key: null, fetch })).rejects.toThrow(/Add a Gemini API key/);
     expect(sent).toHaveLength(0);
   });
@@ -210,7 +210,7 @@ describe("the engine", () => {
     const { dir, ctx, entry } = await seeded();
     const appDir = join(tempDir("app"), "data");
     const state = new AppState(appDir);
-    state.projects.push({ ...entry, features: { ask: false, vercel: null } });
+    state.projects.push({ ...entry, features: { ask: false, vercel: null, autoSave: "off" } });
     const { fetch, sent } = fakeFetch(() => answer("It last worked at the save at 10:42, Added dark mode.", ["cp-0003"]));
     const engine = new Engine(state, { candidates: ["false"], version: "9.9.9" }, { credentials: new Credentials(join(dir, "..", "credentials.json"), noCipher, { GEMINI_API_KEY: KEY }), fetch });
     const before = process.env.TM_HOME;
@@ -301,7 +301,7 @@ describe("contract", () => {
     writeFileSync(join(dir, "projects.json"), JSON.stringify(old));
     const state = new AppState(dir);
     expect(state.projects).toHaveLength(1);
-    expect(state.projects[0]?.features).toEqual({ ask: false, vercel: null });
+    expect(state.projects[0]?.features).toEqual({ ask: false, vercel: null, autoSave: "off" });
   });
 
   test("calls are validated before they reach the engine", () => {

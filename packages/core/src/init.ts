@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { audit } from "./audit.js";
 import { CONFIG_FILE, loadConfig, type ProjectConfig } from "./config.js";
 import { checkCommand, consentState, recordConsent } from "./consent.js";
-import { resolveProject } from "./project.js";
+import { configRoot, resolveProject } from "./project.js";
 import { detectSandbox } from "./sandbox.js";
 import type { Ctx, InitResult } from "./types.js";
 
@@ -54,10 +54,13 @@ export function guessSetup(root: string): string {
  * this computer. Running it again after the check changed is how the user approves the new one.
  * With approve: false it only writes or keeps the file; approvedCheck then reports an approval that
  * already matches, or null. An empty verify.command runs nothing, so it is never approved: approvedCheck is null.
+ * A plain folder outside any repository becomes a folder project. Its settings go in the store, never
+ * in the folder, and it starts with no check: a check is optional for a folder.
  */
 export async function init(ctx: Ctx, opts: { approve?: boolean } = {}): Promise<InitResult> {
-  const p = resolveProject(ctx);
-  const path = join(p.root, CONFIG_FILE);
+  const p = resolveProject(ctx, { create: "write" });
+  const dir = configRoot(p);
+  const path = join(dir, CONFIG_FILE);
   const sandbox = detectSandbox(p.env);
   const noCheck = (config: ProjectConfig): boolean => !config.verify.command.trim();
   const approve = (config: ProjectConfig): string | null => {
@@ -67,13 +70,14 @@ export async function init(ctx: Ctx, opts: { approve?: boolean } = {}): Promise<
   };
   const approval = (config: ProjectConfig): string => (noCheck(config) ? "no check to approve" : opts.approve === false ? "did not approve the check" : "approved the check");
   if (existsSync(path)) {
-    const { config } = loadConfig(p.root);
+    const { config } = loadConfig(dir);
     const approvedCheck = approve(config);
     audit(p, "init", null, `kept existing settings, ${approval(config)}`);
     return { configPath: path, created: false, verifyCommand: config.verify.command, verifySetup: config.verify.setup, network: config.verify.network, sandbox: sandbox?.name ?? null, approvedCheck };
   }
-  const command = guessCommand(p.root);
-  const setup = guessSetup(p.root);
+  const folder = p.kind === "folder";
+  const command = folder ? "" : guessCommand(p.root);
+  const setup = folder ? "" : guessSetup(p.root);
   const network = sandbox ? "deny" : "allow";
   const yaml = `# Time Machine settings for this project.
 version: 1
@@ -100,7 +104,7 @@ config:
   plain: []
 `;
   writeFileSync(path, yaml, { flag: "wx" });
-  const { config } = loadConfig(p.root);
+  const { config } = loadConfig(dir);
   const approvedCheck = approve(config);
   audit(p, "init", null, `created settings, ${approval(config)}`);
   return { configPath: path, created: true, verifyCommand: command, verifySetup: setup, network, sandbox: sandbox?.name ?? null, approvedCheck };

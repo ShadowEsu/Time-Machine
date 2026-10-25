@@ -26,7 +26,11 @@ const AuthBody = z.discriminatedUnion("action", [
   z.object({ action: z.literal("verify"), email: Email, code: z.string().regex(/^\d{6,10}$/) }),
 ]);
 const VerifyReply = z.object({ access_token: z.string().min(1), expires_in: z.number().int().positive() });
-const UserReply = z.object({ email: z.string().max(254).transform(normalizeEmail).refine(isValidEmail) });
+// email_confirmed_at is checked after parsing: an unconfirmed email is not proof the caller owns it (Security L1).
+const UserReply = z.object({
+  email: z.string().max(254).transform(normalizeEmail).refine(isValidEmail),
+  email_confirmed_at: z.string().nullish(),
+});
 const SessionsPage = z.object({
   data: z.array(SessionSchema),
   has_more: z.boolean(),
@@ -120,6 +124,7 @@ export async function handleAccount(req, deps) {
     log("account: supabase user returned an unexpected shape");
     return reply(502, { ok: false, error: "auth_error" });
   }
+  if (!user.data.email_confirmed_at) return reply(401, { ok: false, error: "unauthorized" });
   const email = user.data.email;
 
   const releaseKey = signsReleaseKeys(deps.env, deps.sellerPublicKey);

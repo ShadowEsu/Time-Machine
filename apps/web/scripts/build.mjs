@@ -26,7 +26,7 @@ await build({
   platform: "browser", format: "iife", target: "chrome120",
   entryPoints: [join(here, "preview/entry.ts")], outfile: join(out, "app.js"),
 });
-for (const f of ["styles.css", "features.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
+for (const f of ["styles.css", "features.css", "states.css"]) copyFileSync(join(here, "src/renderer", f), join(out, f));
 // Fonts ship with the app (SIL OFL 1.1, licences alongside). No network fonts.
 cpSync(join(here, "src/renderer/fonts"), join(out, "fonts"), { recursive: true });
 copyFileSync(join(here, "preview/index.html"), join(out, "index.html"));

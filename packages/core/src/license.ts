@@ -3,11 +3,12 @@
 // offline with the public key below, so the app never phones home. The CLI needs no license, and
 // a restore is never blocked by one: the free web app is limited only in how many projects it lists.
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { TmError } from "./errors.js";
+import { privateDir } from "./paths.js";
 import type { Ctx } from "./types.js";
 
 /** Raw Ed25519 public key, base64url. The matching private key lives only with the seller. */
@@ -122,7 +123,7 @@ export function licenseStatus(ctx: Ctx, publicKey: string = LICENSE_PUBLIC_KEY):
 export function activateLicense(ctx: Ctx, key: string, publicKey: string = LICENSE_PUBLIC_KEY): LicenseStatus {
   parseLicenseKey(key, publicKey);
   const home = homeDir(ctx);
-  mkdirSync(home, { recursive: true });
+  privateDir(home);
   const path = join(home, FILE);
   writeFileSync(`${path}.tmp`, JSON.stringify({ version: 1, key: key.trim(), activatedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
   renameSync(`${path}.tmp`, path);

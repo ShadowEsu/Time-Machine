@@ -1,4 +1,5 @@
 import { summarize } from "./checkpoint.js";
+import { folderSummary } from "./folder.js";
 import { TmError } from "./errors.js";
 import { resolveProject } from "./project.js";
 import { listIds, readManifest } from "./store.js";
@@ -11,7 +12,7 @@ export async function timeline(ctx: Ctx): Promise<TimelineResult> {
   const checkpoints: TimelineEntry[] = listIds(p).map((id) => {
     try {
       const v = verdicts.get(id);
-      return { ...summarize(readManifest(p, id)), verdict: v?.verdict ?? null, isolation: v?.isolation ?? null };
+      return { ...folderSummary(p, summarize(readManifest(p, id))), verdict: v?.verdict ?? null, isolation: v?.isolation ?? null };
     } catch (e) {
       const reason = e instanceof TmError ? e.message : String(e);
       return {

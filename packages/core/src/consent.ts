@@ -3,11 +3,12 @@
 // the exact install step and check the user approved. Plugin hooks and the MCP check tools run
 // only while that hash matches.
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { loadConfig, type ProjectConfig } from "./config.js";
-import { resolveProject, type Project } from "./project.js";
+import { privateDir } from "./paths.js";
+import { configRoot, resolveProject, type Project } from "./project.js";
 import type { Ctx, StatusResult } from "./types.js";
 
 const CONSENT_FILE = "consent.json";
@@ -28,7 +29,7 @@ function verifyHash(cfg: ProjectConfig): string {
 
 /** Records that the user approved this project's current check on this computer. Returns the approved command. */
 export function recordConsent(p: Project, cfg: ProjectConfig): string {
-  mkdirSync(p.store, { recursive: true });
+  privateDir(p.store);
   const path = join(p.store, CONSENT_FILE);
   writeFileSync(`${path}.tmp`, JSON.stringify({ verifyHash: verifyHash(cfg), at: new Date().toISOString() }) + "\n");
   renameSync(`${path}.tmp`, path);
@@ -64,14 +65,14 @@ export function changedWarningDue(p: Project, cfg: ProjectConfig): boolean {
 /** This project's check and whether this computer approved it. For callers that run the check for an agent. */
 export function approvedCheck(ctx: Ctx): { state: ConsentState; command: string } {
   const p = resolveProject(ctx);
-  const { config } = loadConfig(p.root);
+  const { config } = loadConfig(configRoot(p));
   return { state: consentState(p, config), command: checkCommand(config) };
 }
 
 /** tm status: is this project set up (timemachine.yml) and is its check approved on this computer. Reads only; never creates the store. */
 export function status(ctx: Ctx): StatusResult {
   const p = resolveProject(ctx);
-  const { config, exists } = loadConfig(p.root);
+  const { config, exists } = loadConfig(configRoot(p));
   const check = exists && config.verify.command.trim() ? checkCommand(config) : null;
   return { initialized: exists, approved: check !== null && consentState(p, config) === "approved", check };
 }

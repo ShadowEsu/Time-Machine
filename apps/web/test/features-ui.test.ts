@@ -110,10 +110,13 @@ describe("the Ask panel", () => {
     expect(html).not.toContain("<textarea");
   });
 
-  test("off without a key says so and points to Settings > Features", () => {
-    expect(askPanelHtml(view({ phase: "off", hasKey: false }))).toContain("There is no Gemini API key on this computer yet.");
-    expect(askPanelHtml(view({ phase: "off", hasKey: false }))).toContain('data-fa="settings"');
+  test("off without a key names the exact variable with Copy, and points to Settings > Features", () => {
+    const html = askPanelHtml(view({ phase: "off", hasKey: false }));
+    expect(html).toContain("Set GEMINI_API_KEY and restart tm ui.");
+    expect(html).toContain('data-fa="copy-env"');
+    expect(html).toContain('data-fa="settings"');
     expect(askPanelHtml(view({ phase: "off", hasKey: false, canOpenSettings: false }))).not.toContain('data-fa="settings"');
+    expect(askPanelHtml(view({ phase: "off" }))).not.toContain('data-fa="copy-env"');
   });
 
   test("on: question box, the three suggested questions and a menu to turn it off", () => {
@@ -123,9 +126,11 @@ describe("the Ask panel", () => {
     expect(askPanelHtml(view({ menuOpen: true }))).toContain("Turn off Ask for this project");
   });
 
-  test("on without a key: the box is disabled and Settings is named", () => {
+  test("on without a key: the box is disabled, the variable is named with Copy, and Settings is named", () => {
     const html = askPanelHtml(view({ hasKey: false }));
     expect(html).toMatch(/<textarea[^>]*disabled/);
+    expect(html).toContain("GEMINI_API_KEY");
+    expect(html).toContain('data-fa="copy-env"');
     expect(html).toContain("Settings &gt; Features");
     expect(html).not.toContain('data-fa="suggest"');
   });
@@ -213,7 +218,14 @@ describe("Vercel deploy chips", () => {
 });
 
 describe("Settings > Features", () => {
-  const base: FeatureSettingsView = { phase: "ready", ask: false, link: null, keys: { gemini: false, vercel: false }, options: null, busy: false, status: null, problem: null };
+  const base: FeatureSettingsView = { phase: "ready", ask: false, autoSave: "off", link: null, keys: { gemini: false, vercel: false }, options: null, busy: false, status: null, problem: null };
+
+  test("Saving has one switch, worded as the Add flow words it, that shows its state", () => {
+    const off = featureSettingsHtml(base);
+    expect(off).toContain("Save when files change, while Time Machine is open");
+    expect(off).toMatch(/role="switch" aria-checked="false" aria-label="Save when files change, while Time Machine is open" data-fa="autosave"/);
+    expect(featureSettingsHtml({ ...base, autoSave: "change" })).toMatch(/aria-checked="true" aria-label="Save when files change, while Time Machine is open"/);
+  });
 
   test("key fields are password inputs that never carry a value", () => {
     const html = featureSettingsHtml({ ...base, keys: { gemini: true, vercel: true } });
@@ -232,7 +244,8 @@ describe("Settings > Features", () => {
     expect(html.match(/<input\b[^>]*type="password"/g) ?? []).toHaveLength(0);
     expect(html.match(/<form\b[^>]*data-key-form/g) ?? []).toHaveLength(0);
     expect(html.match(/<button\b[^>]*data-fa="remove-key"/g) ?? []).toHaveLength(0);
-    expect(html.match(/<button\b[^>]*role="switch"/g) ?? []).toHaveLength(1);
+    // Ask and Save when files change: switches, never credential controls.
+    expect(html.match(/<button\b[^>]*role="switch"/g) ?? []).toHaveLength(2);
     expect(html.match(/<button\b[^>]*data-fa="pick"/g) ?? []).toHaveLength(configured ? 1 : 0);
   });
 

@@ -1,7 +1,8 @@
 import { generateKeyPairSync } from "node:crypto";
 import { request } from "node:http";
+import { connect } from "node:net";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { signLicense } from "@timetm/core";
@@ -67,6 +68,23 @@ describe("local browser boundary", () => {
     }
     expect((await raw(s, "/", { Host: "localhost" })).status).toBe(403);
     expect((await raw(s, "/api/events?token=wrong", auth(s))).status).toBe(404);
+  });
+  test("listens on loopback only: the same port on this computer's network addresses refuses the connection", async () => {
+    const s = await start();
+    const { hostname, port } = new URL(s.origin);
+    expect(hostname).toBe("127.0.0.1");
+    // Link-local IPv6 needs a zone id to dial, so only IPv4 and routable IPv6 addresses are tried.
+    const lan = Object.values(networkInterfaces()).flat()
+      .filter((a) => a !== undefined && !a.internal && !a.address.startsWith("fe80:")).map((a) => a!.address);
+    for (const address of lan) {
+      const outcome = await new Promise<string>((resolve) => {
+        const sock = connect({ host: address, port: Number(port), timeout: 2000 });
+        sock.once("connect", () => { sock.destroy(); resolve("connected"); });
+        sock.once("timeout", () => { sock.destroy(); resolve("timeout"); });
+        sock.once("error", (e: NodeJS.ErrnoException) => resolve(e.code ?? "error"));
+      });
+      expect(outcome, address).not.toBe("connected");
+    }
   });
   test("only serves manifest assets; raw and encoded traversal, unknown files and the manifest stay private", async () => {
     const s = await start();

@@ -1,23 +1,7 @@
 import { createHmac } from "node:crypto";
+import { looksSecret } from "./secret-patterns.js";
 
-const PATTERNS: RegExp[] = [
-  /sk_(live|test)_[A-Za-z0-9]{16,}/,
-  /\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}/,
-  /github_pat_[A-Za-z0-9_]{20,}/,
-  /\bAKIA[0-9A-Z]{16}\b/,
-  /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  /\bAIza[0-9A-Za-z_-]{35}\b/,
-  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
-  /\bsk-[A-Za-z0-9_-]{20,}/,
-  /\bnpm_[A-Za-z0-9]{36}\b/,
-  /\b(rk|pk)_live_[A-Za-z0-9]{16,}/,
-  /\bglpat-[A-Za-z0-9_-]{20,}/,
-  // A URL with a user and password, like postgres://app:pass@db.example.com/app.
-  /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/?#]+:[^\s@/?#]+@/i,
-  // Env style lines with a secret sounding name, like DB_PASSWORD=... or export API_KEY=...
-  /^\s*(?:export\s+)?[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD|CREDENTIALS?)[A-Z0-9_]*\s*[=:]\s*["']?[^\s"'$]{6,}/m,
-];
+export { looksSecret };
 
 const SECRET_FILE_NAMES: RegExp[] = [
   /^\.env(\..+)?$/,
@@ -34,12 +18,8 @@ export function isSecretFileName(path: string): boolean {
   return !SAFE_EXAMPLES.test(base) && SECRET_FILE_NAMES.some((r) => r.test(base));
 }
 
-export function looksSecret(text: string): boolean {
-  return PATTERNS.some((p) => p.test(text));
-}
-
 // C0/C1 controls (terminal escapes, NUL, BEL) and bidi controls that could restyle or reorder shown text.
-const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+export const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 /** Free text (a prompt, a command) made safe to store and show: one line, no control characters, clipped, hidden when it looks like a secret. */
 export function clipSafe(text: string, n: number, hidden = "(text hidden: it looked like it contained a secret)"): string {

@@ -29,6 +29,19 @@ export function recordVerdict(p: Project, r: VerdictRecord, manifestIntegrity: s
 
 /** Valid verdicts in the order they were recorded. Forged, unsigned or stale lines are dropped. */
 export function validVerdicts(p: Project): VerdictRecord[] {
+  return sealedVerdicts(p, null);
+}
+
+/**
+ * Valid verdicts of one checkpoint, in the order they were recorded. Lines of other checkpoints are dropped before any
+ * seal or manifest work, so only this checkpoint's manifest is read. Otherwise the same checks as validVerdicts.
+ */
+export function validVerdictsFor(p: Project, id: string): VerdictRecord[] {
+  return sealedVerdicts(p, id);
+}
+
+/** The one parser of the verdicts file: the schema, then `only` (a checkpoint id, or null for all), then the seal and the current manifest. */
+function sealedVerdicts(p: Project, only: string | null): VerdictRecord[] {
   const integrity = new Map<string, string | null>();
   const current = (id: string): string | null => {
     if (!integrity.has(id)) {
@@ -42,7 +55,7 @@ export function validVerdicts(p: Project): VerdictRecord[] {
   };
   return readJsonl(join(p.store, "verdicts.jsonl")).flatMap((raw) => {
     const r = StoredSchema.safeParse(raw);
-    if (!r.success) return [];
+    if (!r.success || (only !== null && r.data.record.checkpoint !== only)) return [];
     const { seal, ...body } = r.data;
     if (sign(p, body) !== seal || current(body.record.checkpoint) !== body.manifest) return [];
     return [body.record];

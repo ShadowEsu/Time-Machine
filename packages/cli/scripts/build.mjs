@@ -1,5 +1,5 @@
 // Builds the standalone CLI and the web app it serves with `tm ui`.
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -24,18 +24,10 @@ await build({
 const web = { bundle: true, platform: "browser", format: "esm", target: ["chrome120", "safari17", "firefox120"], minify: true, legalComments: "eof", plugins: [coreAlias] };
 await build({ ...web, entryPoints: [join(cli, "src/ui/entry.js")], outfile: join(ui, "app.js"), external: ["./renderer/index.js"] });
 await build({ ...web, entryPoints: [join(renderer, "index.ts")], outfile: join(ui, "renderer/index.js") });
-for (const name of ["styles.css", "features.css"]) copyFileSync(join(renderer, name), join(ui, name));
+for (const name of ["styles.css", "features.css", "states.css"]) copyFileSync(join(renderer, name), join(ui, name));
 copyFileSync(join(cli, "src/ui/browser.css"), join(ui, "browser.css"));
 cpSync(join(renderer, "fonts"), join(ui, "fonts"), { recursive: true });
 const html = readFileSync(join(renderer, "index.html"), "utf8");
-// Marks stay out of public packages; a private local preview must opt in at build AND runtime.
-if (process.env.TM_UI_BRAND_MARKS === "1" && existsSync(join(renderer, "agents"))) {
-  mkdirSync(join(ui, "agents"), { recursive: true });
-  for (const name of ["claude", "openai", "gemini", "cursor"]) {
-    const source = join(renderer, "agents", `${name}.svg`);
-    if (existsSync(source)) copyFileSync(source, join(ui, "agents", `${name}.svg`));
-  }
-}
 writeFileSync(join(ui, "index.html"), html);
 const assets = [];
 function list(dir, prefix = "") {

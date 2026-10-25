@@ -54,7 +54,7 @@ describe("agent channels", () => {
     expect(claudeChannel([], new Map(), now).line).toBe("Add a project first.");
   });
 
-  test("Codex, Gemini CLI and Cursor are planned, not connected", () => {
-    expect(PLANNED_AGENTS.map((a) => a.name)).toEqual(["Codex", "Gemini CLI", "Cursor"]);
+  test("Codex and Gemini are planned, not connected; with Claude Code the app lists exactly three agents", () => {
+    expect(PLANNED_AGENTS.map((a) => a.name)).toEqual(["Codex", "Gemini"]);
   });
 });

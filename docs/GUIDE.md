@@ -256,6 +256,12 @@ config:
 
 Every save point lists what it did not save.
 
+**Plain folders.** A folder outside any Git repository, such as notes, documents or research data, can be protected too. Run `tm init` in it, or add it in the app. Its history lives in a shadow Git folder in the store (`projects/<hash>/shadow.git`), and nothing is created or changed inside your folder. Every file is saved as a saved file, so the secret check and `capture.maxFileMB` apply to all of them, and a `.gitignore` in the folder is still respected. Its `timemachine.yml` lives in the store too. A check is optional for a folder. A recovery makes a copy of plain files next to the folder, with no `.git` and no branch, because the folder has no repository. Claude Code hook lines are never written into a plain folder.
+
+**Auto save.** While the app (`tm ui`) is open, a project with auto save on gets a save point named "Auto save" once its files have been quiet for 20 seconds, at most once a minute, and only when something changed. Changes in `.git`, `node_modules`, the store and editor temp files do not count. New plain folders for documents, research or agent work start with it on; other projects start with it off. It never runs while the app is closed.
+
+**Run notes.** In the app you can give a save point a title (up to 80 characters), a note (up to 2000) and a pin, for example to mark a research or trial run. They are kept in `notes.json` in the project's store, never in the save point or your folder. Text that looks like a secret is refused.
+
 **Where the store lives.** In `~/.timemachine`, or `$TM_HOME` if you set it. Each project gets a folder at `projects/<hash of the project path>/` with `objects/`, `checkpoints/`, `bundles/`, `logs/`, `reports/`, `audit.jsonl` and `project.json`. Deleting your project folder does not delete its save points. Keep `~/.timemachine/key` too. It signs every save point, so edits by other tools are caught. Save points are not encrypted: anyone who can read your disk can read them.
 
 ## 8. Verdicts and what to do
@@ -335,13 +341,13 @@ claude mcp add timemachine -- tm mcp
 
 ## 11. FAQ and troubleshooting
 
-**"This folder is not inside a Git repository."** Run `git init`, then make a first commit. Time Machine works best with at least one commit. Without one, every file counts as not in Git, so the size limit and secret scan apply to all of them.
+**"This folder is not inside a Git repository, and it is not a folder Time Machine protects yet."** For notes, documents or data, run `tm init` in the folder (or add it in the app) to protect it as a plain folder. For a code project, run `git init`, then make a first commit. Time Machine works best with at least one commit. Without one, every file counts as not in Git, so the size limit and secret scan apply to all of them.
 
 **"There are no checkpoints yet."** Run `tm checkpoint` first.
 
 **How do I keep using the recovered version?** Keep working in the recovery copy. Saved files that were uncommitted may still be uncommitted there. Review and commit only the restored files you want to keep before moving or removing the copy. Switching to the recovery branch alone does not restore those uncommitted files.
 
-**`tm open` left a folder behind.** That copy is yours to inspect. Remove it with `git worktree remove <path>`.
+**`tm open` left a folder behind.** That copy is yours to inspect. Remove it with `git worktree remove <path>`. A plain folder's copy is plain files, so delete it like any folder.
 
 **How do I clean up?**
 
