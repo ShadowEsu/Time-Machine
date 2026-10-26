@@ -18,7 +18,7 @@ export const PRICE_CENTS = 5000;
 export const PRODUCT_NAME = "Time Machine web app (one-time)";
 // Every session this site creates carries this tag, and only tagged sessions become keys.
 export const PRODUCT_TAG = "tm-web";
-// Live mode stays locked until the attorney and Preston approve it in writing (docs/launch/CHECKOUT_SETUP.md, section 6).
+// Live mode stays locked until the attorney and the owner approve it in writing (docs/launch/CHECKOUT_SETUP.md, section 6).
 // That approval is recorded by setting STRIPE_LIVE_OK to exactly this value; until then only test keys open checkout.
 export const LIVE_APPROVAL = "yes-attorney-cleared";
 // The release public key every Time Machine release checks keys against. Must equal LICENSE_PUBLIC_KEY in
