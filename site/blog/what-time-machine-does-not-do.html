@@ -74,7 +74,7 @@
 <ul>
   <li>Files over the size limit, 5 MB by default, are skipped and listed as missing.</li>
   <li>Symbolic links are not saved.</li>
-  <li>Installed dependencies like <code>node_modules</code> are not saved. Only the lockfile fingerprint is kept, and the safe copy installs fresh.</li>
+  <li>Installed dependencies like <code>node_modules</code> are not saved. The lockfile is kept, and the safe copy runs your install step, like <code>npm ci</code>.</li>
   <li>Files ignored by <code>.gitignore</code> are not saved, unless you list them in <code>capture.include</code>.</li>
 </ul>
 
@@ -88,7 +88,7 @@
 <p>The store lives on the same disk as your project. If the disk dies, both go. Keep a real backup.</p>
 
 <h2>It does not trim its own store yet</h2>
-<p>Files are stored once by content and compressed, so repeats cost nothing. But the store only grows today. You can check it with <code>du -sh ~/.timemachine</code>. Automatic thinning with a size budget is Planned.</p>
+<p>Files are stored once by content and compressed, so repeats cost nothing. But the store grows until you thin it. You can check it with <code class="flag">du -sh ~/.timemachine</code>, see which old auto saves can go with <code>tm thin</code>, and remove them with <code class="flag">tm thin --apply</code>. Automatic thinning with a size budget is Planned.</p>
 
 <h2>It is not on npm yet</h2>
 <p>The <code>tm</code> command works and is tested, but you build it from source for now. The npm package will be <code>timetm</code>. The web app opens with <code>tm ui</code> from the same source install. It runs on your computer, not on a website.</p>

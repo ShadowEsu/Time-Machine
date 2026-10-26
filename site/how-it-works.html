@@ -164,7 +164,7 @@ Saved first cp-0007
           <li><b>Code, with uncommitted changes.</b> Pinned at <code>refs/tm/&lt;id&gt;</code> and written as a Git bundle into the store.</li>
           <li><b>Files not in Git yet,</b> unless <code>.gitignore</code> skips them, plus anything you list in <code>capture.include</code>.</li>
           <li><b>Config key names</b> and a fingerprint, so a changed value shows up in <code>tm diff</code>. Values only for keys you mark as plain.</li>
-          <li><b>Fingerprints</b> of lockfiles and environment files, and the Node, Git and platform versions.</li>
+          <li><b>Lockfiles and version pins</b> like <code>package-lock.json</code> and <code>.nvmrc</code>, even when <code>.gitignore</code> skips them. Fingerprints of other environment files, and the Node, Git and platform versions.</li>
         </ul>
       </div>
       <div class="rv no-bg" style="--d:1">
@@ -172,7 +172,7 @@ Saved first cp-0007
         <ul>
           <li><b>Secret values.</b> A file that looks like it holds a secret is skipped and listed. You set secret values again by hand.</li>
           <li><b>Files over the size limit</b> (5 MB by default) and symbolic links. Both are listed as missing.</li>
-          <li><b>Installed dependencies</b> like <code>node_modules</code>. Only the lockfile fingerprint is kept.</li>
+          <li><b>Installed dependencies</b> like <code>node_modules</code>. The lockfile comes back, and your install step rebuilds them.</li>
           <li><b>Files your <code>.gitignore</code> skips,</b> like <code>dist/</code>. Each save point lists them.</li>
           <li><b>Databases, deployed versions, emails, payments</b> and anything else outside your project folder.</li>
         </ul>
@@ -180,7 +180,7 @@ Saved first cp-0007
     </div>
     <div class="strip rv">
       <span class="silk-l">Where it lives</span>
-      <span><code>~/.timemachine</code>, or <code>$TM_HOME</code>, one folder per project. Deleting your project folder does not delete its save points.</span>
+      <span><code>~/.timemachine</code>, or <code>$TM_HOME</code>, one folder per project. Deleting or moving your project folder does not delete its save points. After a move, <code>tm relink</code> or <b>It moved…</b> in the app carries them to the new path.</span>
       <a href="security.html#store">How the store works</a>
     </div>
   </div>
@@ -245,13 +245,15 @@ Saved first cp-0007
         <ul>
           <li>A history of save points, each marked Works, Broken or Not checked yet.</li>
           <li>Save point detail, with what was saved and what was not.</li>
-          <li>Rewind and Compare, on the same engine as the CLI.</li>
+          <li>Rewind and Compare, on the same engine as the CLI. <b>Compare with now</b> puts back one file, or all of them, after saving your folder first.</li>
+          <li>Plain folders too, like a thesis, notes or research data, with no Git needed. With auto save on, the app makes a save point while it is open, once your files go quiet.</li>
+          <li>A project with no tests yet can still save versions. Add a check later in Settings.</li>
           <li>$50 once for the license key, any number of your own computers and projects. The CLI stays open source (MIT), and restores are never behind the paywall.</li>
         </ul>
         <div class="shot">
           <picture>
             <source media="(max-width: 860px)" srcset="assets/img/app/history-390.jpg" width="390" height="844">
-            <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. The newest save point failed its check. A Go back button leads to the last version that passed. The history shows each save point's own verdict.">
+            <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. It says Broken and names the last version that passed its check, with a Bring back button for it. A ruler shows each save point's own verdict.">
           </picture>
         </div>
         <p class="cap-note">Real web app screen on a synthetic project, opened with <code>tm ui</code> from a source install.</p>
@@ -259,7 +261,7 @@ Saved first cp-0007
       <article class="card path rv" id="developers" style="--d:1">
         <span class="tag tag-now">Built</span>
         <h3>For developers</h3>
-        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every engine command takes <code>--json</code>, and the JSON and the human output come from the same result.</p>
+        <p class="txt">The <code>tm</code> command, Claude Code hooks and an MCP server. Every engine command takes <code class="flag">--json</code>, and the JSON and the human output come from the same result.</p>
         <h4>See the whole rescue in a minute</h4>
         <pre class="term"><span class="p">$ </span>tm demo</pre>
         <p class="txt">Builds a small synthetic app, Marigold Tips, breaks it the way an agent might, then finds and recovers the last working version with the real engine.</p>
@@ -271,7 +273,7 @@ Saved first cp-0007
 <span class="p">$ </span>tm recover cp-0003</pre>
         <h4>Claude Code hooks</h4>
         <pre class="term"><span class="p">$ </span>tm hook install</pre>
-        <p class="txt">Claude Code's own rewind <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">does not track files that only Bash commands changed</a>. These hooks save your project before each prompt, and before risky shell commands like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code> or <code>DROP TABLE</code>. For other shell changes, like <code>mv</code> or <code>sed -i</code>, you can go back to the save point taken before that prompt. At the end of each turn it saves and runs your check. If a working state just broke, it tells Claude which save point last worked. The hooks never block your agent because of their own errors.</p>
+        <p class="txt">Claude Code's own rewind <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">does not track files that only Bash commands changed</a>. These hooks save your project before each prompt, and before risky shell commands like <code class="flag">rm -rf</code>, <code class="flag">git reset --hard</code>, <code class="flag">git clean -f</code> or <code>DROP TABLE</code>. For other shell changes, like <code>mv</code> or <code class="flag">sed -i</code>, you can go back to the save point taken before that prompt. At the end of each turn it saves and runs your check. If a working state just broke, it tells Claude which save point last worked. The hooks never block your agent because of their own errors.</p>
         <h4>MCP server</h4>
         <pre class="term"><span class="p">$ </span>claude mcp add timemachine -- tm mcp</pre>
         <p class="txt">Seven tools: <code>checkpoint</code>, <code>timeline</code>, <code>diff</code>, <code>verify</code>, <code>find_good</code>, <code>recover</code> and <code>log</code>. Same engine, same answers.</p>
@@ -287,7 +289,7 @@ tm demo</pre>
             <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
           </div>
         </div>
-        <p class="txt">Needs Node 22 or newer and Git. No pnpm? Run <code>npm install -g pnpm</code> first. Keep the <code>Time-Machine</code> folder. The <code>tm</code> command runs from it. The package will be <code>timetm</code>, and the command is <code>tm</code>. <code>npx timetm init</code> does not work yet.</p>
+        <p class="txt">Needs Node 22 or newer and Git 2.36 or newer. No pnpm? Run <code>npm install -g pnpm</code> first. Keep the <code>Time-Machine</code> folder. The <code>tm</code> command runs from it. The package will be <code>timetm</code>, and the command is <code>tm</code>. <code>npx timetm init</code> does not work yet.</p>
       </article>
     </div>
   </div>
@@ -297,18 +299,23 @@ tm demo</pre>
   <div class="wrap">
     <div class="sec-h">
       <div class="rv"><h2 class="hx2" id="cmd-h">Every command.</h2></div>
-      <p class="sub rv" style="--d:1">Fifteen commands, all built and tested. <code>-h</code>, <code>--help</code> and <code>--version</code> work everywhere.</p>
+      <p class="sub rv" style="--d:1">Twenty commands, all built and tested. <code class="flag">-h</code>, <code class="flag">--help</code> and <code class="flag">--version</code> work everywhere. Every command that works on a project needs Git 2.36 or newer, and says so when Git is older.</p>
     </div>
     <dl class="cmds rv">
       <div><dt>tm init</dt><dd>Writes <code>timemachine.yml</code> with a guessed check, like <code>npm test</code>. Keeps an existing file.</dd></div>
       <div><dt>tm status</dt><dd>Says whether this project is set up and its check approved on this computer.</dd></div>
-      <div><dt>tm checkpoint</dt><dd>Saves a save point. <code>-m</code> adds a note. <code>--if-changed</code> skips it when nothing changed.</dd></div>
+      <div><dt>tm checkpoint</dt><dd>Saves a save point. <code class="flag">-m</code> adds a note. <code class="flag">--if-changed</code> skips it when nothing changed.</dd></div>
       <div><dt>tm timeline</dt><dd>Lists save points, newest first, with their verdicts.</dd></div>
       <div><dt>tm diff a b</dt><dd>Compares code, files, config keys, dependencies and environment.</dd></div>
       <div><dt>tm open cp</dt><dd>Rebuilds a save point in a separate folder.</dd></div>
       <div><dt>tm verify [cp]</dt><dd>Runs your check on a save point. The newest by default.</dd></div>
       <div><dt>tm find-good</dt><dd>Checks from newest to oldest until one passes.</dd></div>
       <div><dt>tm recover cp</dt><dd>Saves your current state, then makes a recovery branch and copy.</dd></div>
+      <div><dt>tm restore cp -- path</dt><dd>Puts files or folders back into your folder from a save point. Saves your folder first and deletes nothing.</dd></div>
+      <div><dt>tm relink old new</dt><dd>Your project folder moved. Keeps its save points, settings and notes at the new path.</dd></div>
+      <div><dt>tm list</dt><dd>Lists every project in the store, with its save points and size, and says when a folder is gone.</dd></div>
+      <div><dt>tm thin</dt><dd>Shows which old auto saves can go. <code class="flag">--apply</code> removes them, or removes nothing if any kept save point could not be rebuilt.</dd></div>
+      <div><dt>tm doctor</dt><dd>Checks every save point in the store for damage.</dd></div>
       <div><dt>tm log</dt><dd>Shows the append-only audit log.</dd></div>
       <div><dt>tm demo</dt><dd>Builds the Marigold Tips demo and runs the rescue.</dd></div>
       <div><dt>tm hook install</dt><dd>Adds the Claude Code hooks to <code>.claude/settings.json</code>. Your other settings stay.</dd></div>

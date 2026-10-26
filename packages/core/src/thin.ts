@@ -9,7 +9,7 @@ import { TmError } from "./errors.js";
 import { gitTry } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import { notes } from "./notes.js";
-import { resolveProject, type Project } from "./project.js";
+import { assertOwnGitDir, resolveProject, type Project } from "./project.js";
 import { blobPath, listIds, readManifest, withLock } from "./store.js";
 import type { Ctx, ThinPreview } from "./types.js";
 import { latestVerdicts } from "./verdicts.js";
@@ -96,12 +96,15 @@ export function thinPreview(ctx: Ctx, opts: ThinOptions = {}): ThinPreview {
 /**
  * Removes the given auto saves. Every id must be in a fresh preview, made here under the store lock,
  * or nothing is removed. While any save point can't be read, nothing is removed either: its manifest
- * is the only record of which saved files it needs, so none could be deleted safely. Removes each
- * one's manifest, pin, bundle and check logs, and saved files no kept save point shares. The bundles
- * of later kept save points are rebuilt so the store copy stays complete without the removed ones.
+ * is the only record of which saved files it needs, so none could be deleted safely. The bundles of
+ * later kept save points are rebuilt and put in place first, so the store copy stays complete without
+ * the removed ones; if Git refuses any of them, or one can't be put in place, nothing is removed. Then
+ * each one's manifest, pin, bundle and check logs go, and saved files no kept save point shares.
  */
 export async function thinApply(ctx: Ctx, ids: string[], opts: ThinOptions = {}): Promise<{ removed: number }> {
   const p = resolveProject(ctx);
+  // Removing refs/tm/cp-N in a .git another project also writes to could remove that project's save points.
+  assertOwnGitDir(p);
   return withLock(p, async () => {
     const { preview, manifests } = plan(ctx, p, opts.now ?? Date.now());
     const allowed = new Set(preview.remove.map((r) => r.id));
@@ -112,11 +115,31 @@ export async function thinApply(ctx: Ctx, ids: string[], opts: ThinOptions = {})
     if (preview.unreadable.length) {
       throw new TmError("integrity", `${preview.unreadable.join(", ")} can't be read; nothing was removed. A save point that can't be read may still need saved files that thinning would delete.`);
     }
+    // The new store copies are built before anything goes, so one Git refuses leaves every save point as it was (Security L1).
+    const { built, failed } = buildBundles(p, gone, manifests);
+    if (failed.length) {
+      for (const b of built) rmSync(b.tmp, { force: true });
+      const names = failed.map((f) => f.id);
+      const list = names.length === 1 ? `the store copy of ${names[0]}` : `the store copies of ${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+      throw new TmError("internal", `Nothing was removed: ${list} could not be rebuilt without the old auto saves. ${failed[0]?.reason ?? ""}`);
+    }
+    // Then they go in place, still before anything is removed. A new bundle needs only earlier kept save points, so the store
+    // is whole after each step, and a crash between here and the removal below leaves only extra commits in it.
+    let placed = 0;
+    try {
+      for (const b of built) {
+        chmodSync(b.tmp, 0o444);
+        renameSync(b.tmp, b.path);
+        placed++;
+      }
+    } catch (e) {
+      for (const b of built.slice(placed)) rmSync(b.tmp, { force: true });
+      throw new TmError("internal", `Nothing was removed: a rebuilt store copy could not be put in place. ${e instanceof Error ? e.message : String(e)}`);
+    }
     // Manifests first: once it is gone, a save point is gone, even if a later step stops.
     for (const id of gone) rmSync(join(p.store, "checkpoints", `${id}.json`), { force: true });
     for (const id of gone) gitTry(p.root, p.env, ["update-ref", "-d", `refs/tm/${id}`]);
     for (const f of filesOnlyFor(p, gone, manifests)) rmSync(f, { force: true });
-    rebuildBundles(p, gone, manifests);
     audit(p, "thin", null, `removed ${gone.size} old auto save${gone.size === 1 ? "" : "s"}: ${[...gone].join(", ")}`);
     return { removed: gone.size };
   });
@@ -124,11 +147,15 @@ export async function thinApply(ctx: Ctx, ids: string[], opts: ThinOptions = {})
 
 /**
  * Each bundle holds a save point's commits that earlier save points did not have. After a removal, the
- * kept save points after the first removed one get their bundle rebuilt against the earlier kept ones.
+ * kept save points after the first removed one need their bundle rebuilt against the earlier kept ones.
+ * Builds each into a temp file next to its bundle and returns them, with every rebuild Git refused other
+ * than an empty bundle (earlier kept bundles already hold an empty one's commits, so its old bundle stays).
  */
-function rebuildBundles(p: Project, gone: Set<string>, manifests: Map<string, Manifest>): void {
+function buildBundles(p: Project, gone: Set<string>, manifests: Map<string, Manifest>): { built: { tmp: string; path: string }[]; failed: { id: string; reason: string }[] } {
+  const built: { tmp: string; path: string }[] = [];
+  const failed: { id: string; reason: string }[] = [];
   const first = [...gone].sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)))[0];
-  if (!first) return;
+  if (!first) return { built, failed };
   const kept = [...manifests.keys()].filter((id) => !gone.has(id));
   const prior: string[] = [];
   for (const id of kept) {
@@ -136,12 +163,15 @@ function rebuildBundles(p: Project, gone: Set<string>, manifests: Map<string, Ma
     if (Number(id.slice(3)) > Number(first.slice(3))) {
       const path = join(p.store, "bundles", `${id}.bundle`);
       const tmp = `${path}.${process.pid}.tmp`;
-      const b = gitTry(p.root, p.env, ["bundle", "create", "-q", tmp, `refs/tm/${id}`, ...prior.map((s) => `^${s}`)]);
-      if (b.code === 0) {
-        chmodSync(tmp, 0o444);
-        renameSync(tmp, path);
-      } else rmSync(tmp, { force: true }); // An empty bundle: earlier kept bundles already hold its commits.
+      // The `--` keeps a file named like a commit from making the commit ambiguous (Security F1).
+      const b = gitTry(p.root, p.env, ["bundle", "create", "-q", tmp, `refs/tm/${id}`, ...prior.map((s) => `^${s}`), "--"]);
+      if (b.code === 0) built.push({ tmp, path });
+      else {
+        rmSync(tmp, { force: true });
+        if (!/empty bundle/i.test(b.stderr)) failed.push({ id, reason: b.stderr.trim() });
+      }
     }
     if (gitTry(p.root, p.env, ["cat-file", "-e", `${snapshot}^{commit}`]).code === 0) prior.push(snapshot);
   }
+  return { built, failed };
 }

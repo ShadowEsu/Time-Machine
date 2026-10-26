@@ -61,9 +61,9 @@
 <p>An edit tool changes one file at a time, with a diff you can read. A shell command can change a thousand files in one line. Think about what an agent runs on a normal day:</p>
 <ul>
   <li><code>npm install</code>, which rewrites the lockfile and <code>node_modules</code></li>
-  <li>a formatter or a linter with <code>--fix</code>, across the whole project</li>
-  <li><code>rm -rf</code> on a build folder, or on a folder it thinks is a build folder</li>
-  <li><code>git checkout</code>, <code>git reset --hard</code> or <code>git clean -f</code></li>
+  <li>a formatter or a linter with <code class="flag">--fix</code>, across the whole project</li>
+  <li><code class="flag">rm -rf</code> on a build folder, or on a folder it thinks is a build folder</li>
+  <li><code>git checkout</code>, <code class="flag">git reset --hard</code> or <code class="flag">git clean -f</code></li>
   <li>a database migration or a seed script</li>
 </ul>
 <p>None of these is an edit tool call. Every one of them can break a project that worked a minute ago.</p>
@@ -79,11 +79,11 @@
 <p>With the Claude Code hooks installed, using <code>tm hook install</code>, it saves:</p>
 <ul>
   <li>before each prompt, if anything changed</li>
-  <li>before risky shell commands, like <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -f</code>, <code>DROP TABLE</code> and similar</li>
+  <li>before risky shell commands, like <code class="flag">rm -rf</code>, <code class="flag">git reset --hard</code>, <code class="flag">git clean -f</code>, <code>DROP TABLE</code> and similar</li>
   <li>at the end of each turn, and then it runs your check</li>
 </ul>
 <p>If the check passed before and fails now, the hook tells Claude which save point last worked. The agent hears it in the same session, while the context is still fresh.</p>
-<p>A save point holds your code, including uncommitted changes, files not in Git yet, config key names, and dependency and environment fingerprints. It lives in <code>~/.timemachine</code> with a Git bundle, so an <code>rm -rf</code> on the project does not take the save points with it.</p>
+<p>A save point holds your code, including uncommitted changes, files not in Git yet, config key names, and dependency and environment fingerprints. It lives in <code>~/.timemachine</code> with a Git bundle, so an <code class="flag">rm -rf</code> on the project does not take the save points with it.</p>
 <p>When something breaks, <code>tm find-good</code> rebuilds save points in a separate Git worktree, newest first, and runs your check on each one until one passes:</p>
 <pre class="term" tabindex="0" role="region" aria-label="Real tm find-good output"><span class="p">$ </span>tm find-good
   cp-0006   <span class="no">FAIL</span>       The check failed with exit code 1.

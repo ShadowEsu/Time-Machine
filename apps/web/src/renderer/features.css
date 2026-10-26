@@ -40,7 +40,7 @@
 .ft-key { display: grid; gap: 10px; padding: 16px 18px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--sunken); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
 .ft-key b { color: var(--ink); font-weight: 600; }
 .ft-env { display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface); }
-.ft-env code { flex: 1; min-width: 0; font-size: 14px; color: var(--ink); user-select: all; overflow-wrap: anywhere; }
+.ft-env code { flex: 1; min-width: 0; font-size: 14px; color: var(--ink); user-select: all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Ask off: the consent card in the one surface language of the sheets (B2): the pop corner, the ink edge, the small pop shadow. Every word is shared/ask.ts's. */
 .ft-consent { display: grid; gap: 12px; padding: 20px 20px 22px; border-radius: var(--r-pop); border: 1.5px solid var(--ink); background: var(--surface); box-shadow: var(--shadow-pop-sm); font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
@@ -92,6 +92,13 @@ button.ft-deploy:hover { color: var(--ink); border-color: var(--ink-3); }
 .ft-details { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
 .ft-details summary { cursor: pointer; color: var(--ink); font-weight: 500; }
 .ft-details[open] > * + * { margin-top: 8px; }
+/* Settings > <project> > Check: full-width command fields, a short seconds field, and names that never break. */
+.ft-check { display: grid; }
+.ft-check .field { max-width: 520px; }
+.ft-check > .row-btns { padding: 4px 0 10px; }
+.ft-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.ft-check .ft-num { width: 110px; font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
 
 @keyframes ft-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ft-a { animation: none; } }

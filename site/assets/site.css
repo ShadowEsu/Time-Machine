@@ -153,6 +153,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .wrap { max-width: var(--max-page); margin: 0 auto; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); }
 .mono, code, kbd, samp { font-family: var(--font-mono); font-variant-ligatures: none; }
 code { font-size: max(.92em, 13px); }
+/* A command flag, or a short command with one (rm -rf, git reset --hard), never breaks at its hyphen. */
+.flag { white-space: nowrap; }
 em { font-style: italic; }
 ::selection { background: var(--accent-tint); }
 

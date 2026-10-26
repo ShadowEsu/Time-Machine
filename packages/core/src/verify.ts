@@ -13,7 +13,7 @@ import { detectSandbox } from "./sandbox.js";
 import { looksSecret, parseDotenv, redact } from "./secrets.js";
 import type { Manifest } from "./manifest.js";
 import { ensureStore, listIds, readManifest, stamp } from "./store.js";
-import type { Ctx, VerifyResult } from "./types.js";
+import type { Ctx, Isolation, VerifyResult } from "./types.js";
 import type { Verdict } from "./verdict.js";
 import { recordVerdict } from "./verdicts.js";
 
@@ -68,13 +68,15 @@ export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): P
   const policy = cfg.verify.network;
   const sandbox = policy === "deny" ? detectSandbox(p.env) : null;
   const command = checkCommand(cfg);
+  // Confined only when everything that ran was: the install step runs outside the sandbox, with the network on.
+  const isolation: Isolation = sandbox?.confinesWrites && !cfg.verify.setup.trim() ? "confined" : "host";
 
   const finish = (verdict: Verdict, reason: string, exitCode: number | null = null, log: string | null = null): VerifyResult => {
     const r: VerifyResult = {
       at: new Date().toISOString(),
       checkpoint: target,
       verdict,
-      isolation: "host",
+      isolation,
       network: { policy, enforcedBy: sandbox?.name ?? null },
       command,
       durationMs: Date.now() - started,
@@ -90,7 +92,7 @@ export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): P
   const stopped = (log: string | null = null): VerifyResult => {
     audit(p, "verify-stopped", target, "INCOMPLETE");
     return {
-      at: new Date().toISOString(), checkpoint: target, verdict: "INCOMPLETE", isolation: "host", network: { policy, enforcedBy: sandbox?.name ?? null },
+      at: new Date().toISOString(), checkpoint: target, verdict: "INCOMPLETE", isolation, network: { policy, enforcedBy: sandbox?.name ?? null },
       command, durationMs: Date.now() - started, exitCode: null, reason: "You stopped the check before it finished.", log, stopped: true,
     };
   };
@@ -129,16 +131,26 @@ export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): P
       throw e;
     }
     const notSaved = [...m.missing, ...manifest.coverage.missing];
-    if (notSaved.length) return finish("INCOMPLETE", `Some saved files are missing: ${notSaved.join(", ")}. The check was not run.`);
+    if (notSaved.length) return finish("INCOMPLETE", `Something saved is missing: ${notSaved.join("; ")}. The check was not run.`);
     const env = cleanEnv(p.env, m.plainEnv);
     const deadline = Date.now() + cfg.verify.timeoutSeconds * 1000;
     const logPath = join(p.store, "logs", `${target}-${stamp()}.log`);
     const secrets = secretValues([p.root, dir], cfg);
     let log = "";
+    // While a command runs, the log on disk holds what it printed so far: whole lines only, so a value still arriving
+    // is never half written, redacted the same way as the final log, at most one write every 300 ms.
+    let lastLive = 0;
+    const live = (prefix: string) => (output: string): void => {
+      const now = Date.now();
+      if (now - lastLive < 300) return;
+      lastLive = now;
+      const whole = output.slice(0, output.lastIndexOf("\n") + 1);
+      writeFileSync(logPath, redact(`${log}${prefix}${whole}`, secrets), { mode: 0o600 });
+    };
     // Setup (for example npm ci) may need the network to install dependencies, so it runs
     // outside the sandbox. Only the check itself runs under the network policy.
     if (cfg.verify.setup.trim()) {
-      const s = await runWithTimeout("/bin/sh", ["-c", cfg.verify.setup], { cwd: dir, env, timeoutMs: deadline - Date.now(), signal: opts.signal });
+      const s = await runWithTimeout("/bin/sh", ["-c", cfg.verify.setup], { cwd: dir, env, timeoutMs: deadline - Date.now(), signal: opts.signal, onOutput: live(`$ ${cfg.verify.setup}\n`) });
       log += `$ ${cfg.verify.setup}\n${s.output}\n`;
       if (s.stopped) {
         writeFileSync(logPath, redact(log, secrets));
@@ -153,8 +165,8 @@ export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): P
         return finish(judged.verdict, `Setup: ${judged.reason}`, s.code, logPath);
       }
     }
-    const [file, args] = sandbox ? sandbox.wrap(cfg.verify.command) : ["/bin/sh", ["-c", cfg.verify.command]];
-    const r = await runWithTimeout(file, args, { cwd: dir, env, timeoutMs: Math.max(1, deadline - Date.now()), signal: opts.signal });
+    const [file, args] = sandbox ? sandbox.wrap(cfg.verify.command, dir) : ["/bin/sh", ["-c", cfg.verify.command]];
+    const r = await runWithTimeout(file, args, { cwd: dir, env, timeoutMs: Math.max(1, deadline - Date.now()), signal: opts.signal, onOutput: live(`$ ${cfg.verify.command}\n`) });
     log += `$ ${cfg.verify.command}\n${r.output}`;
     writeFileSync(logPath, redact(log, secrets));
     if (r.stopped) return stopped(logPath);
