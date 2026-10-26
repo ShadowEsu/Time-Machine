@@ -252,6 +252,23 @@ describe("two projects on one Git repository (dev#1,#2)", () => {
     expect(git(dir, "rev-parse", "refs/tm/cp-0001")).toBe(ref);
   });
 
+  test("a removed worktree whose path now holds an unrelated folder or file still keeps its repository from a second project (Security 6e1707d LOW)", async () => {
+    for (const kind of ["folder", "file"] as const) {
+      const { dir, ctx } = repo(`recreated-${kind}`);
+      const wt = `${dir}-wt1`;
+      git(dir, "worktree", "add", "-q", wt);
+      writeFileSync(join(wt, "a.txt"), "wt1\n");
+      await tm.checkpoint({ ...ctx, cwd: wt });
+      const ref = git(dir, "rev-parse", "refs/tm/cp-0001");
+      git(dir, "worktree", "remove", "--force", wt);
+      if (kind === "folder") mkdirSync(wt);
+      else writeFileSync(wt, "not a project\n");
+      writeFileSync(join(dir, "a.txt"), "main change\n");
+      await expect(tm.checkpoint(ctx), kind).rejects.toThrow(/shares its Git repository with .*wt1, which Time Machine already protects/);
+      expect(git(dir, "rev-parse", "refs/tm/cp-0001"), kind).toBe(ref);
+    }
+  });
+
   test("another store's repository that Git answers wrongly about doesn't stop this project's saves (Security INFO)", async () => {
     const broken = repo("broken");
     await tm.checkpoint(broken.ctx);

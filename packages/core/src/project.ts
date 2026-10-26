@@ -200,11 +200,12 @@ function realDir(path: string): string | null {
  * Another project in the store on the same Git repository (a second worktree, say) that was protected
  * first, or null. Both would write the same refs/tm/cp-N in the one .git, so only the first is kept.
  * The project's own repository folder is asked of Git every time (one rev-parse) and written back to its
- * store when it changed. Another store's recorded value is used, by the real folder it leads to, only while that is
- * still the real folder of its root's .git (a stat and a realpath; a linked worktree's .git is a file, so it is always
- * asked). A root that is gone keeps its recorded value: a removed worktree's Git folder lives on in the repository, and
- * the worst a wrong value can do there is refuse, never let two projects share refs. Otherwise it is asked again in
- * memory only: that store is written only by its own project.
+ * store when it changed. Another store is this repository's owner when either its recorded folder (by the real folder
+ * it leads to) or Git's answer from its root is this repository. A recorded folder that is this repository means that
+ * store's refs live here, so a removed or replaced worktree still blocks; at worst repositories swapped around give a
+ * false refusal, never two projects on one set of refs. Git is asked, in memory only, unless the recorded folder is
+ * this repository or is simply its root's own .git folder (a linked worktree's .git is a file, so it is asked); that
+ * store is written only by its own project.
  */
 export function sharedGitOwner(p: Project): string | null {
   if (p.kind !== "git") return null;
@@ -228,18 +229,15 @@ export function sharedGitOwner(p: Project): string | null {
     if (!meta || meta.root === p.root) continue;
     let other = storedCommonDir(meta.gitCommonDir);
     if (other !== null) other = realDir(other);
-    // Some other folder at the recorded path, or a .git that moved: trust it only while it is still this root's own .git.
-    // With the root gone there is nothing to compare with, so the recorded value stands (Security b90c40e).
-    if (other !== null && existsSync(meta.root) && other !== realDir(join(meta.root, ".git"))) other = null;
-    if (other === null) {
-      if (!existsSync(meta.root)) continue;
+    // Ask Git from that root unless the recorded folder already answers: it is this repository, or it is the root's own
+    // .git folder. So a removed worktree still blocks when its path is gone or now holds something else (Security 6e1707d LOW).
+    if (other !== common && existsSync(meta.root) && (other === null || other !== realDir(join(meta.root, ".git")))) {
       try {
         other = commonDir(meta.root, p.env);
       } catch {
         // Another project's broken repository is that project's to fix; it doesn't stop this one.
         continue;
       }
-      if (other === null) continue;
     }
     if (other !== common) continue;
     if (!own || meta.createdAt < own.createdAt || (meta.createdAt === own.createdAt && meta.root < p.root)) return meta.root;
