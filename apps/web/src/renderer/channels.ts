@@ -12,11 +12,10 @@ export interface Channel {
   short: string;
 }
 
-/** Agents without a connection yet. Shown as planned, never as connected. */
+/** Agents without a connection yet. Shown as planned, never as connected. With Claude Code these are the three the app lists. */
 export const PLANNED_AGENTS: readonly { name: string }[] = [
   { name: "Codex" },
-  { name: "Gemini CLI" },
-  { name: "Cursor" },
+  { name: "Gemini" },
 ];
 
 /**

@@ -132,8 +132,10 @@ export function fmtFindGood(r: FindGoodResult, s: Style): string {
 
 export function fmtRecover(r: RecoverResult): string {
   return [
-    `Recovery ready for ${r.id}. Nothing was pushed, merged or deployed. Your folder and branch were not touched.`,
-    `  Branch          ${r.branch}`,
+    r.copyOnly
+      ? `Recovery copy ready for ${r.id}. Nothing was pushed, merged or deployed. Your folder was not touched.`
+      : `Recovery ready for ${r.id}. Nothing was pushed, merged or deployed. Your folder and branch were not touched.`,
+    `  Branch          ${r.copyOnly ? "none, a plain folder has no Git repository" : r.branch}`,
     `  Recovery copy   ${r.copyDir}`,
     `  Saved first     ${r.savedBefore}, your state before this recovery`,
     `  Last check      ${r.lastVerdict ?? "not checked yet"}`,

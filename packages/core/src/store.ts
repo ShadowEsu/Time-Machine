@@ -6,14 +6,18 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { z } from "zod";
 import { TmError } from "./errors.js";
 import { ManifestSchema, type Manifest } from "./manifest.js";
+import { privateDir } from "./paths.js";
 import type { Project } from "./project.js";
 
 export { storeDirFor } from "./project.js";
 
 const DIRS = ["objects", "checkpoints", "bundles", "logs", "reports"];
 
+/** The store holds a copy of every saved file, so the store home and the project store are this user's only (0700). */
 export function ensureStore(p: Project): void {
-  for (const d of DIRS) mkdirSync(join(p.store, d), { recursive: true });
+  privateDir(p.home);
+  privateDir(p.store);
+  for (const d of DIRS) mkdirSync(join(p.store, d), { recursive: true, mode: 0o700 });
   const meta = join(p.store, "project.json");
   if (!existsSync(meta)) writeFileSync(meta, JSON.stringify({ storeVersion: 1, root: p.root, createdAt: new Date().toISOString() }, null, 2) + "\n");
 }
@@ -22,7 +26,7 @@ export function ensureStore(p: Project): void {
 export function storeKey(p: Project): Buffer {
   const path = join(p.home, "key");
   if (!existsSync(path)) {
-    mkdirSync(p.home, { recursive: true });
+    privateDir(p.home);
     try {
       writeFileSync(path, randomBytes(32), { mode: 0o600, flag: "wx" });
     } catch (e) {
@@ -36,7 +40,8 @@ export function sha256(buf: Buffer | string): string {
   return createHash("sha256").update(buf).digest("hex");
 }
 
-function blobPath(p: Project, sha: string): string {
+/** Where a saved file's compressed bytes live in the store. */
+export function blobPath(p: Project, sha: string): string {
   return join(p.store, "objects", sha.slice(0, 2), `${sha.slice(2)}.gz`);
 }
 
@@ -44,10 +49,10 @@ export function putBlob(p: Project, buf: Buffer): string {
   const sha = sha256(buf);
   const path = blobPath(p, sha);
   if (existsSync(path)) return sha;
-  mkdirSync(join(p.store, "objects", sha.slice(0, 2)), { recursive: true });
+  mkdirSync(join(p.store, "objects", sha.slice(0, 2)), { recursive: true, mode: 0o700 });
   const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, gzipSync(buf));
-  chmodSync(tmp, 0o444);
+  writeFileSync(tmp, gzipSync(buf), { mode: 0o600 });
+  chmodSync(tmp, 0o400);
   renameSync(tmp, path);
   return sha;
 }
@@ -100,7 +105,7 @@ export function nextNumber(p: Project): number {
 export function writeManifest(p: Project, body: Omit<Manifest, "integrity">): Manifest {
   const manifest: Manifest = { ...body, integrity: seal(p, body) };
   const path = join(p.store, "checkpoints", `${body.id}.json`);
-  const fd = openSync(path, "wx", 0o444);
+  const fd = openSync(path, "wx", 0o400);
   try {
     writeSync(fd, JSON.stringify(manifest, null, 2) + "\n");
   } finally {

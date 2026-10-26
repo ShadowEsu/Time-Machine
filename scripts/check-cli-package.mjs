@@ -12,10 +12,10 @@ const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), "../packages/cli
 const pkg = JSON.parse(readFileSync(join(cliDir, "package.json"), "utf8"));
 const work = mkdtempSync(join(tmpdir(), "tm-pack-"));
 const baseFiles = ["LICENSE", "README.md", "dist/tm.js", "package.json"];
-const requiredAssets = ["index.html", "app.js", "renderer/index.js", "styles.css", "features.css", "browser.css"];
+const requiredAssets = ["index.html", "app.js", "renderer/index.js", "styles.css", "features.css", "states.css", "browser.css"];
 // An asset manifest is not an escape hatch: names, count, byte sizes and the exact tarball list are checked.
 // Provider marks are never allowed: publishing them needs each provider's permission (site/assets/agents/SOURCES.md).
-const allowedAsset = /^(?:index\.html|app\.js|renderer\/index\.js|(?:styles|features|browser)\.css|fonts\/[A-Za-z0-9_-]+\.(?:woff2|txt))$/;
+const allowedAsset = /^(?:index\.html|app\.js|renderer\/index\.js|(?:styles|features|states|browser)\.css|fonts\/[A-Za-z0-9_-]+\.(?:woff2|txt))$/;
 let child;
 let packed;
 let files;

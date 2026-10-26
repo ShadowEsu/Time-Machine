@@ -2,12 +2,14 @@
 // functions, so the app and the CLI can never disagree.
 import { randomUUID } from "node:crypto";
 import { existsSync, opendirSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
 import * as tm from "@timetm/core";
-import type { AgentRow, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectEntry, ProjectStatus, Res, Results, StorageRow } from "../shared/api.js";
+import type { AgentRow, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectEntry, ProjectStatus, Purpose, Res, Results, StorageRow } from "../shared/api.js";
 import { PRICING_URL } from "../shared/links.js";
+import { Account, siteFromEnv } from "./account.js";
 import { askHistory } from "./ask.js";
+import { AutoSaver, type AutoSaveDeps } from "./autosave.js";
 import type { Credentials } from "./credentials.js";
 import { agentTurnStart, firstRunning } from "./rules.js";
 import type { AppState } from "./state.js";
@@ -27,6 +29,8 @@ export interface Services {
   fetch: typeof fetch;
   /** The seller's public key that license keys are checked against. Tests pass a generated one. */
   licensePublicKey?: string;
+  /** Auto save timing and watching. Tests pass short times and a fake watcher. */
+  autoSave?: Omit<AutoSaveDeps, "save" | "busy">;
 }
 
 export class Engine {
@@ -39,6 +43,12 @@ export class Engine {
   private readonly stops = new Map<string, AbortController>();
   /** Vercel deploys, read only (ADR 0009). */
   private readonly vercel = new Vercel({ token: () => this.services.credentials.get("vercel"), fetch: (url, init) => this.services.fetch(url, init) });
+  /** Sign-in to the Time Machine site to list bought keys. The token stays in this object's memory. */
+  private readonly account = new Account({ site: () => siteFromEnv(process.env), fetch: (url, init) => this.services.fetch(url, init) });
+  /** Saves projects with autoSave "change" when their files change, while the app is open. */
+  readonly autoSaver: AutoSaver;
+  /** The last auto save error per project, shown as its problem until an auto save works again. */
+  private readonly autoSaveErrors = new Map<string, string>();
 
   constructor(
     private readonly state: AppState,
@@ -46,6 +56,56 @@ export class Engine {
     private readonly services: Services,
   ) {
     for (const p of state.projects) this.allowedPaths.add(p.path);
+    const store = resolve(process.env.TM_HOME ?? join(homedir(), ".timemachine"));
+    this.autoSaver = new AutoSaver({
+      ignoreDirs: [store],
+      ...services.autoSave,
+      busy: (id) => this.busy.has(id),
+      save: (id) => this.autoSave(id),
+    });
+    this.syncAutoSave();
+  }
+
+  /** Watches exactly the listed projects that have auto save on. A project no longer watched drops its auto save error. */
+  private syncAutoSave(): void {
+    this.autoSaver.sync(this.state.projects.map((p) => ({ id: p.id, path: p.path, autoSave: p.features.autoSave })));
+    const watched = new Set(this.autoSaver.watching());
+    for (const id of this.autoSaveErrors.keys()) if (!watched.has(id)) this.autoSaveErrors.delete(id);
+  }
+
+  /**
+   * Stops every auto save watch. The tm ui server (gated) does not call this today; the watches and
+   * timers never keep the process alive, so they end with it.
+   */
+  close(): void {
+    this.autoSaver.close();
+  }
+
+  /**
+   * One auto save: queued like any other action, and skipped when nothing changed. A failure becomes the
+   * project's problem in statuses, and each new error message gets one autosave-failed audit entry.
+   */
+  private autoSave(projectId: string): Promise<unknown> {
+    const p = this.state.find(projectId);
+    if (!p || !existsSync(p.path)) return Promise.resolve(null);
+    return this.serial(p.id, "Auto saving", () => tm.checkpoint(this.ctx(p), { note: "Auto save", trigger: "auto", skipIfUnchanged: true })).then(
+      (r) => {
+        this.autoSaveErrors.delete(p.id);
+        return r;
+      },
+      (e: unknown) => {
+        const message = e instanceof Error ? e.message : String(e);
+        if (this.autoSaveErrors.get(p.id) !== message) {
+          this.autoSaveErrors.set(p.id, message);
+          try {
+            tm.auditAutoSaveFailed(this.ctx(p), message);
+          } catch {
+            // The project can't be resolved or its store written: statuses still shows the error.
+          }
+        }
+        throw e;
+      },
+    );
   }
 
   ctx(p: ProjectEntry): tm.Ctx {
@@ -101,14 +161,14 @@ export class Engine {
         projectId: p.id,
         newest: last ? { id: last.id, verdict: last.verdict, createdAt: last.createdAt } : null,
         lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
-        problem: null,
+        problem: this.autoSaveErrors.has(p.id) ? `Auto save failed: ${this.autoSaveErrors.get(p.id)}` : null,
       };
     } catch (e) {
       return { projectId: p.id, newest: null, lastWorking: null, problem: e instanceof Error ? e.message : String(e) };
     }
   }
 
-  async addProject(path: string, demo = false): Promise<ProjectEntry> {
+  async addProject(path: string, demo = false, purpose?: Purpose): Promise<ProjectEntry> {
     if (!existsSync(path) || !statSync(path).isDirectory()) throw new tm.TmError("usage", "That folder does not exist.");
     // Without this, a folder with no read permission would be reported as "not inside a Git repository".
     try {
@@ -116,19 +176,30 @@ export class Engine {
     } catch {
       throw new tm.TmError("usage", `Time Machine can't read ${path}. Check the folder's permissions, then try again.`);
     }
-    // The engine resolves the Git root, so the app and the CLI agree on which project this is.
-    const root = (await tm.timeline({ cwd: path, env: process.env })).project;
-    const existing = this.state.projects.find((p) => p.path === root);
+    // The engine resolves the project, so the app and the CLI agree on which one this is: the Git
+    // repository around the folder, or else the folder itself as a plain folder project.
+    const ctx = { cwd: path, env: process.env };
+    const planned = tm.protect(ctx, { dryRun: true });
+    const existing = this.state.projects.find((p) => p.path === planned.root);
     if (existing) return existing;
     // The free app lists a few projects. The demo is never refused; it counts like any other project after.
     const license = this.license();
     if (!demo && !license.active && this.state.projects.length >= license.freeProjectLimit) {
-      throw new tm.TmError("usage", `The free web app lists up to ${license.freeProjectLimit} projects. Remove one, or buy Time Machine once for $50 at ${PRICING_URL} to add more. If you already have a key, paste it in Settings, then License. Every restore stays free.`);
+      throw new tm.TmError("usage", `The free web app lists up to ${license.freeProjectLimit} projects. Remove one to add another. A license, $50 once, lifts that limit: ${PRICING_URL}. If you already have a key, paste it in Settings, then License. Every restore stays free.`);
     }
-    const entry: ProjectEntry = { id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo, features: { ask: false, vercel: null } };
+    // A plain folder's history starts in the store here. Nothing is written in the folder.
+    const { root, kind } = tm.protect(ctx);
+    const p: Purpose = purpose ?? (kind === "folder" ? "documents" : "code");
+    // Plain folders of documents, research or agent work have no hooks to save them, so they save on change.
+    const autoSave = kind === "folder" && p !== "code" && p !== "other" ? "change" : "off";
+    const entry: ProjectEntry = {
+      id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo, features: { ask: false, vercel: null, autoSave },
+      kind, purpose: p,
+    };
     this.state.projects.push(entry);
     this.state.saveProjects();
     this.allowedPaths.add(root);
+    this.syncAutoSave();
     return entry;
   }
 
@@ -217,11 +288,23 @@ export class Engine {
       case "statuses":
         return Promise.all(this.state.projects.map((p) => this.status(p)));
       case "addProject":
-        return this.addProject(call.path);
+        return this.addProject(call.path, false, call.purpose);
+      case "setPurpose": {
+        // Works for a moved project too: it only changes the app's words.
+        const p = this.state.find(call.projectId);
+        if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
+        p.purpose = call.purpose;
+        this.state.saveProjects();
+        return p;
+      }
+      case "sources":
+        // Checks whether well-known folders under the home folder exist. Reads no file.
+        return tm.sources();
       case "removeProject": {
         // Only forgets the project in the app. Its save points stay in the store.
         this.state.projects = this.state.projects.filter((p) => p.id !== call.projectId);
         this.state.saveProjects();
+        this.syncAutoSave();
         return this.state.projects;
       }
       case "demo": {
@@ -245,9 +328,13 @@ export class Engine {
         const p = this.state.find(call.projectId);
         if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
         const c = call.change;
-        p.features = c.feature === "ask" ? { ...p.features, ask: c.enabled } : { ...p.features, vercel: c.link };
-        if (c.feature === "vercel") this.vercel.forget();
+        if (c.feature === "ask") p.features = { ...p.features, ask: c.enabled };
+        else if (c.feature === "vercel") {
+          p.features = { ...p.features, vercel: c.link };
+          this.vercel.forget();
+        } else p.features = { ...p.features, autoSave: c.autoSave };
         this.state.saveProjects();
+        this.syncAutoSave();
         return p;
       }
       case "credentials":
@@ -264,6 +351,16 @@ export class Engine {
         return tm.activateLicense(this.licenseCtx(), call.key, this.services.licensePublicKey);
       case "removeLicense":
         return tm.removeLicense(this.licenseCtx());
+      case "siteStatus":
+        return this.account.siteStatus();
+      case "signIn":
+        return this.account.signIn(call.email);
+      case "verifyCode":
+        return this.account.verifyCode(call.email, call.code);
+      case "accountLicenses":
+        return this.account.accountLicenses();
+      case "signOut":
+        return this.account.signOut();
       case "stopCheck": {
         // Never queued behind the check it stops. False when nothing was running.
         const c = this.stops.get(call.projectId);
@@ -278,6 +375,16 @@ export class Engine {
     switch (call.method) {
       case "timeline":
         return tm.timeline(ctx);
+      case "notes":
+        return tm.notes(ctx);
+      case "thinPreview":
+        return tm.thinPreview(ctx);
+      case "thinApply":
+        // Queued, so it never runs beside a save, check or rewind. Core re-runs the preview and refuses any other id.
+        return this.serial(p.id, "Thinning old auto saves", () => tm.thinApply(ctx, call.ids));
+      case "setNote":
+        // Not queued behind a running check: a note is one small file in the store, written atomically.
+        return tm.setNote(ctx, { id: call.id, title: call.title, note: call.note, pinned: call.pinned });
       case "deployments": {
         const link = p.features.vercel;
         if (!link) return null;
@@ -306,6 +413,12 @@ export class Engine {
           if (r.log) this.allowedPaths.add(r.log);
           return r;
         }));
+      case "checkLogTail":
+        // Read only, so it never waits behind a running check. Core picks the file by the save point id.
+        return tm.checkLogTail(ctx, call.id);
+      case "checkRecord":
+        // Read only, so it never waits behind a running check. Core returns only that id's sealed record, cleaned.
+        return tm.checkRecord(ctx, call.id);
       case "open":
         return this.serial(p.id, "Making a safe copy", async () => {
           const r = await tm.open(ctx, call.id);
@@ -315,7 +428,7 @@ export class Engine {
       case "findGood":
         return this.serial(p.id, "Finding the last working version", () => this.stoppable(p.id, (signal) => tm.findGood(ctx, { signal })));
       case "recover":
-        return this.serial(p.id, "Preparing the recovery branch", async () => {
+        return this.serial(p.id, p.kind === "folder" ? "Making a recovery copy" : "Preparing the recovery branch", async () => {
           const r = await tm.recover(ctx, call.id);
           this.allowedPaths.add(r.copyDir);
           this.allowedPaths.add(r.reportPath);

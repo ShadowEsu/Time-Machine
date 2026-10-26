@@ -135,6 +135,41 @@ export interface RecoverResult {
   notRestored: string[];
   manualSteps: string[];
   pushed: false;
+  /** Set for a plain folder project: it has no repo, so no branch was made, `branch` is "" and only the copy exists. */
+  copyOnly?: true;
+}
+
+/** A person's title, note and pin on one save point, kept in the store's notes.json. Never in the save point itself. */
+export interface RunNote {
+  /** At most 80 characters. */
+  title?: string;
+  /** At most 2000 characters. */
+  note?: string;
+  pinned: boolean;
+  /** When it last changed, as an ISO time. */
+  updated: string;
+}
+
+export type SourceId = "icloud" | "dropbox" | "gdrive" | "onedrive" | "obsidian" | "documents" | "desktop";
+
+/** A well-known synced or local folder on this computer. Only whether it exists is checked; nothing in it is read. */
+export interface SourceRow {
+  id: SourceId;
+  label: string;
+  /** The folder found, or where it is usually kept when it was not found. */
+  path: string;
+  found: boolean;
+}
+
+/** Which old auto saves thinning would remove, and why. Working, pinned, named and recent save points always stay. */
+export interface ThinPreview {
+  remove: { id: string; at: string; reason: string }[];
+  /** Save points that stay. */
+  keep: number;
+  /** About how many bytes removing them frees in the store. */
+  bytesFreed: number;
+  /** Save points that can't be read right now. While there are any, applying removes nothing. */
+  unreadable: string[];
 }
 
 /** What undoing a recovery removed. Save points are never removed, including the one made before the recovery. */

@@ -9,8 +9,8 @@ import { Credentials } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
 import { CallSchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
-import { pointTitle, when } from "../src/shared/format.ts";
-import { passStreaks, projectStatus } from "../src/renderer/status.ts";
+import { clock, dayLabel, pointClock, pointTitle, sameSecondLine, versionPhrase, when } from "../src/shared/format.ts";
+import { clockParts, goBackLabel, passStreaks, projectStatus, railAge } from "../src/renderer/status.ts";
 import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
@@ -19,7 +19,7 @@ describe("settings", () => {
   test("an empty file gets every default", () => {
     expect(SettingsSchema.parse({})).toEqual({
       showGitDetails: false,
-      theme: "dark",
+      theme: "system",
       onboarded: false,
       simpleRewind: false,
       verdictTipSeen: false,
@@ -48,7 +48,7 @@ describe("settings", () => {
 
     writeFileSync(join(dir, "settings.json"), JSON.stringify({ theme: "purple" }));
     const b = new AppState(dir);
-    expect(b.settings.theme).toBe("dark");
+    expect(b.settings.theme).toBe("system");
     expect(readdirSync(dir).some((f) => f.startsWith("settings.json.broken-"))).toBe(true);
     expect(existsSync(join(dir, "settings.json"))).toBe(false);
     b.updateSettings({ theme: "system" });
@@ -77,6 +77,32 @@ describe("settings", () => {
   });
 });
 
+describe("rail ages", () => {
+  test("say how long ago in plain words: just now, minutes, hours today, Yesterday, days, then the date", () => {
+    const now = new Date(2026, 9, 25, 15, 0).getTime();
+    const at = (d: number, h: number, m: number): string => new Date(2026, 9, d, h, m).toISOString();
+    expect(railAge(at(25, 14, 59), now)).toBe("1 min");
+    expect(railAge(new Date(now - 20_000).toISOString(), now)).toBe("just now");
+    expect(railAge(at(25, 14, 57), now)).toBe("3 min");
+    expect(railAge(at(25, 13, 0), now)).toBe("2 h");
+    expect(railAge(at(24, 23, 30), now)).toBe("Yesterday");
+    expect(railAge(at(21, 9, 0), now)).toBe("4 days");
+    expect(railAge(at(1, 9, 0), now)).toBe(new Date(2026, 9, 1).toLocaleDateString(undefined, { day: "numeric", month: "short" }));
+  });
+
+  test("journal days: Today, Yesterday, the weekday for the rest of the last 7 days, then the date (with the year when not this year)", () => {
+    const now = new Date(2026, 9, 25, 15, 0);
+    const at = (y: number, mo: number, d: number, h = 9): string => new Date(y, mo, d, h, 0).toISOString();
+    expect(dayLabel(at(2026, 9, 25, 0), now)).toBe("Today");
+    expect(dayLabel(at(2026, 9, 24, 23), now)).toBe("Yesterday");
+    expect(dayLabel(at(2026, 9, 21), now)).toBe(new Date(2026, 9, 21).toLocaleDateString(undefined, { weekday: "long" }));
+    expect(dayLabel(at(2026, 9, 19), now)).toBe(new Date(2026, 9, 19).toLocaleDateString(undefined, { weekday: "long" }));
+    expect(dayLabel(at(2026, 9, 18), now)).toBe(new Date(2026, 9, 18).toLocaleDateString(undefined, { day: "numeric", month: "short" }));
+    expect(dayLabel(at(2025, 11, 30), now)).toBe(new Date(2025, 11, 30).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }));
+    expect(dayLabel("not a date", now)).toBe("Unknown day");
+  });
+});
+
 describe("project status", () => {
   type P = Parameters<typeof projectStatus>[0][number];
   const at = (h: number, m: number): string => new Date(2026, 9, 14, h, m).toISOString();
@@ -85,18 +111,19 @@ describe("project status", () => {
   });
   const story = [pt(1, "PASS", at(18, 12), "Initial"), pt(2, "PASS", at(19, 3), "Added dark mode", "add dark mode"), pt(3, null, at(19, 40), "Changed currency"), pt(4, "FAIL", at(20, 16), "Added a dependency")];
 
-  test("broken with a known working version: one sentence, go back by time, see what changed", () => {
+  test("broken with a known working version: broken once, since the first failure, the way out names the working version, see what changed", () => {
     const s = projectStatus(story);
-    expect(`${s.head} ${s.body}`).toBe(`Broken since ${when(at(20, 16))}. The last version that works is from ${when(at(19, 3))}: add dark mode. Going back takes two clicks and saves this version first.`);
-    expect(s.head.endsWith(s.em)).toBe(true);
-    expect(s.primary).toEqual({ label: `Go back to the ${when(at(19, 3))} version`, act: "rewind-to", id: "cp-0002" });
+    expect(s.head).toBe("Broken.");
+    expect(s.voice).toBe(`Since ${when(at(20, 16))}.`);
+    expect(s.body).toContain(when(at(19, 3)));
+    expect(s.primary).toEqual({ label: `Bring back ${clock(at(19, 3))}`, act: "rewind-to", id: "cp-0002", title: `Bring back the ${when(at(19, 3))} version` });
     expect(s.secondary).toEqual({ label: "See what changed", act: "compare", a: "cp-0002", b: "now" });
-    expect(`${s.head} ${s.body} ${s.primary.label}`).not.toContain("cp-");
+    expect(`${s.head} ${s.voice} ${s.body} ${s.primary.label}`).not.toContain("cp-");
   });
 
   test("broken since names the first failure after the last pass, not the newest", () => {
     const s = projectStatus([...story, pt(5, "FAIL", at(21, 0), "Later")]);
-    expect(s.head).toBe(`Broken since ${when(at(20, 16))}.`);
+    expect(s.voice).toBe(`Since ${when(at(20, 16))}.`);
   });
 
   test("broken with nothing that works asks to find one", () => {
@@ -107,11 +134,22 @@ describe("project status", () => {
 
   test("works says when it was checked only when a check time is known", () => {
     const works = [pt(1, "PASS", at(20, 16), "a")];
-    expect(projectStatus(works, at(20, 20)).head).toBe(`Works, checked at ${when(at(20, 20))}.`);
-    expect(projectStatus(works).head).toBe(`Works, as of ${when(at(20, 16))}.`);
-    expect(projectStatus(works).body).toBe(`Your newest save point, ${when(at(20, 16))} a, passed its check in a safe copy. Save again after your next change.`);
+    expect(projectStatus(works, at(20, 20))).toMatchObject({ head: "Works.", voice: `Checked at ${when(at(20, 20))}.` });
+    expect(projectStatus(works)).toMatchObject({ head: "Works.", voice: `Saved ${when(at(20, 16))}.` });
     expect(projectStatus(works).primary.act).toBe("save");
     expect(projectStatus(works).secondary?.act).toBe("check");
+  });
+
+  test("the hero says the newest time once and never puts a space before punctuation", () => {
+    // An untitled save point once read "7:33:18 AM , passed its check".
+    const untitled = [pt(1, "PASS", at(20, 16), "")];
+    for (const list of [untitled, story, [pt(1, null, at(9, 0), "")], [pt(1, "INCOMPLETE", at(9, 0), "")]]) {
+      const s = projectStatus(list);
+      const all = `${s.head} ${s.voice} ${s.body}`;
+      expect(all).not.toMatch(/\s[,.;:]/);
+      const newest = when(list.at(-1)!.createdAt);
+      expect(all.split(newest).length - 1).toBeLessThanOrEqual(1);
+    }
   });
 
   test("not checked yet is never shown as working, and its one step is Check it works", () => {
@@ -121,18 +159,45 @@ describe("project status", () => {
     expect(s.primary.act).toBe("check");
   });
 
-  test("save points in the same minute are told apart by seconds, and by number when they share a second", () => {
+  test("save points in the same minute are told apart by seconds", () => {
     const sec = (h: number, m: number, s: number): string => new Date(2026, 9, 14, h, m, s).toISOString();
     // The fixed date is not today, so labels carry the day in front, like `when`.
     const withSeconds = (iso: string): string => `${new Date(iso).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} ${new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
     const sameMinute = [pt(1, "PASS", sec(18, 4, 5), "Works"), pt(2, "FAIL", sec(18, 4, 40), "Broke it")];
     const s = projectStatus(sameMinute);
-    expect(s.head).toBe(`Broken since ${withSeconds(sec(18, 4, 40))}.`);
-    expect(s.primary.label).toBe(`Go back to the ${withSeconds(sec(18, 4, 5))} version`);
-    expect(s.primary.label).not.toContain(withSeconds(sec(18, 4, 40)));
-    const sameSecond = [pt(1, "PASS", sec(18, 4, 5), "Works"), pt(2, "FAIL", sec(18, 4, 5), "Broke it"), pt(3, null, sec(19, 0, 0), "Later")];
-    expect(projectStatus(sameSecond).secondary?.label).toBe(`Go back to the ${withSeconds(sec(18, 4, 5))} #1 version`);
-    expect(projectStatus(sameSecond).body).toBe(`Saved at ${when(sec(19, 0, 0))}. We don’t know yet if this version works.`);
+    // Another save point shares the minute, so the sentence carries seconds too: "Broken since 6:04 PM" must not name two versions.
+    expect(s.voice).toBe(`Since ${withSeconds(sec(18, 4, 40))}.`);
+    const timeOnly = (iso: string): string => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    expect(s.primary.label).toBe(`Bring back ${timeOnly(sec(18, 4, 5))}`);
+    expect(s.primary.title).toBe(`Bring back the ${withSeconds(sec(18, 4, 5))} version`);
+    expect(s.primary.label).not.toContain(timeOnly(sec(18, 4, 40)));
+  });
+
+  test("two save points in one second are said by their order, oldest first, never by #N", () => {
+    const sec = (d: Date, s: number): string => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 18, 4, s).toISOString();
+    const sameSecond = (d: Date): P[] => [pt(1, "PASS", sec(d, 5), "Works"), pt(2, "FAIL", sec(d, 5), "Broke it"), pt(3, null, sec(d, 30), "Later")];
+    const time = (iso: string): string => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    // Today: "6:04:05 PM (first save)" in the button and the sentence; the ruler's label keeps "#1".
+    const today = sameSecond(new Date());
+    const s = projectStatus(today);
+    expect(s.secondary?.label).toBe(`Bring back ${time(sec(new Date(), 5))} (first save)`);
+    expect(s.secondary?.title).toBe(`Bring back the ${time(sec(new Date(), 5))} version (first save)`);
+    expect(goBackLabel(today[1]!, today)).toBe(`Bring back the ${time(sec(new Date(), 5))} version (second save)`);
+    expect(s.voice).toBe(`Saved ${time(sec(new Date(), 30))}.`);
+    expect(projectStatus(today.slice(0, 2)).voice).toBe(`Since ${time(sec(new Date(), 5))} (second save).`);
+    expect(pointClock(today[0]!, today)).toBe(`${time(sec(new Date(), 5))} #1`);
+    expect(sameSecondLine(today[1]!, today)).toEqual({ time: time(sec(new Date(), 5)), line: "Second save in that second" });
+    // Another day: the day comes in front, "Wed 14 Oct 6:04:05 PM (first save)", and the sentences never say "#N" or "the second save at".
+    const day = new Date(2026, 9, 14);
+    const old = sameSecond(day);
+    const dayName = day.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+    expect(versionPhrase(old[0]!, old)).toBe(`the ${dayName} ${time(sec(day, 5))} version (first save)`);
+    const broken = projectStatus([...old, pt(4, "FAIL", sec(day, 50), "Broke again")]);
+    // The first failure after the pass is the second save in that second.
+    expect(broken.voice).toBe(`Since ${dayName} ${time(sec(day, 5))} (second save).`);
+    expect(broken.body).toContain(`The ${dayName} ${time(sec(day, 5))} version (first save) still works.`);
+    for (const words of [broken.head, broken.voice, broken.body, broken.primary.label, broken.primary.title ?? ""]) expect(words).not.toMatch(/#\d|the \w+ save (at|on)/);
+    expect(broken.primary.label).toBe(`Bring back ${time(sec(day, 5))} (first save)`);
   });
 
   test("a save point names its agent once: dropped beside an author line, kept without one", () => {
@@ -157,6 +222,14 @@ describe("project status", () => {
     expect(streaks.get("cp-0001")).toBe(2);
     expect(streaks.get("cp-0002")).toBe(1);
     expect(streaks.get("cp-0003")).toBe(0);
+  });
+});
+
+describe("journal times", () => {
+  test("a row's time stays whole on one line, and a same-second ordinal goes on a line of its own", () => {
+    expect(clockParts("2:43:36 AM #3")).toEqual({ time: "2:43:36 AM", ord: "#3" });
+    expect(clockParts("2:43 AM")).toEqual({ time: "2:43 AM", ord: "" });
+    expect(clockParts("14:03:22")).toEqual({ time: "14:03:22", ord: "" });
   });
 });
 
@@ -218,7 +291,7 @@ describe("engine guards", () => {
     const dir = tmp();
     const state = new AppState(join(dir, "app"));
     const projectId = "0b8f2f5e-3f7c-4a59-9a43-1d2f6c1b2a10";
-    state.projects.push({ id: projectId, path: dir, name: "acme", addedAt: "2026-10-15T00:00:00Z", demo: false, features: { ask: false, vercel: null } });
+    state.projects.push({ id: projectId, path: dir, name: "acme", addedAt: "2026-10-15T00:00:00Z", demo: false, features: { ask: false, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" });
     const noCipher = { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => "" };
     const offline = (): Promise<Response> => Promise.reject(new Error("no network in tests"));
     return { engine: new Engine(state, { candidates, version: "9.9.9" }, { credentials: new Credentials(join(dir, "credentials.json"), noCipher, {}), fetch: offline }), projectId, dir };

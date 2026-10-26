@@ -7,6 +7,8 @@
 export const SPLASH_MIN_MS = 600;
 /** How long the fade out takes. */
 export const SPLASH_FADE_MS = 300;
+/** Fired on the window when the splash starts to lift. */
+export const SPLASH_OUT = "tm-splash-out";
 
 export type SplashPhase = "showing" | "fading" | "gone";
 
@@ -75,6 +77,8 @@ export function mountSplash(): Splash {
       window.removeEventListener("keydown", onKey, true);
       el.style.transitionDuration = `${ms}ms`;
       el.classList.add("out");
+      // The window's arrivals (the page, its ruler, its rows) play as the splash lifts, not hidden under it.
+      window.dispatchEvent(new Event(SPLASH_OUT));
     },
     remove: () => el.remove(),
   });

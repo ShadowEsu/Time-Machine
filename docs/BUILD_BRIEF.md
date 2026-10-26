@@ -238,7 +238,7 @@ The "Now" row is built. The rest is planned.
 
 | When | Capability |
 |---|---|
-| Now (MVP) | Code, uncommitted work, chosen files, config key changes, dependency and environment definitions, safe copy check, find last working, recover to a branch, honest report, small local backup, Claude Code hooks, MCP, audit log, the web app |
+| Now (MVP) | Code, uncommitted work, chosen files, config key changes, dependency and environment definitions, safe copy check, find last working, recover to a branch, honest report, small local backup, Claude Code hooks, MCP, audit log, the web app, plain folder projects with a copy-only recovery (ADR 0014), auto save while the app is open, run notes |
 | Next (6 to 12 months) | One timeline across Claude Code, Cursor, Codex and Gemini; Lovable, Replit and Bolt through GitHub sync; environment fingerprint and "works on my machine" diff; test evidence and flaky test notes; local SQLite and Docker Postgres snapshots before risky commands; Vercel deploy references; "What broke?"; ML save points and "rewind to the best run"; agent rules regressions; morning report for overnight agents |
 | Later | Team sharing, an off-machine encrypted copy, guided Neon or Supabase branch recovery, game projects, verified research badges |
 | Never | Unsend emails or payments, undo a deploy people saw, reverse production database writes, restore secret values, promise identical GPU results, replace a full disk backup |

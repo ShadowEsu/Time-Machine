@@ -6,7 +6,7 @@ import { loadConfig, LOCKFILES, VERSION_PINS, type ProjectConfig } from "./confi
 import { git, gitTry, safeRemote, short, splitZ } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import { runSync } from "./exec.js";
-import { resolveProject, type Project } from "./project.js";
+import { configRoot, resolveProject, type Project } from "./project.js";
 import { clipSafe, fingerprint, isSecretFileName, looksSecret, parseDotenv } from "./secrets.js";
 import { ensureStore, listIds, nextNumber, putBlob, readManifest, sha256, storeKey, withLock, writeManifest } from "./store.js";
 import type { AgentInfo, CheckpointResult, CheckpointSummary, Ctx } from "./types.js";
@@ -150,7 +150,7 @@ export interface CheckpointOptions {
 
 export async function checkpoint(ctx: Ctx, opts: CheckpointOptions = {}): Promise<CheckpointResult> {
   const p = resolveProject(ctx);
-  const { config: cfg } = loadConfig(p.root);
+  const { config: cfg } = loadConfig(configRoot(p));
   ensureStore(p);
   return withLock(p, async () => {
     const ids = listIds(p);

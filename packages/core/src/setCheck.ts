@@ -5,17 +5,19 @@ import { audit } from "./audit.js";
 import { CONFIG_FILE, ProjectConfigSchema } from "./config.js";
 import { recordConsent } from "./consent.js";
 import { TmError } from "./errors.js";
-import { resolveProject } from "./project.js";
+import { configRoot, resolveProject } from "./project.js";
 import type { Ctx, SetCheckResult } from "./types.js";
 
 /**
  * Changes the check (verify.command) in timemachine.yml and keeps the rest of the file,
  * comments included. The user chose this check, so it is approved on this computer too.
- * The audit log records that it changed, never the command itself.
+ * The audit log records that it changed, never the command itself. A plain folder keeps its
+ * timemachine.yml in the store, made here when it has none yet.
  */
 export async function setCheck(ctx: Ctx, command: string): Promise<SetCheckResult> {
   const p = resolveProject(ctx);
-  const path = join(p.root, CONFIG_FILE);
+  const path = join(configRoot(p), CONFIG_FILE);
+  if (p.kind === "folder" && !existsSync(path)) writeFileSync(path, "# Time Machine settings for this folder. They live in the store, never in the folder.\nversion: 1\n", { flag: "wx" });
   if (!existsSync(path)) throw new TmError("usage", `There is no ${CONFIG_FILE} yet. Run tm init first.`);
   // Never write through a link: it could point at a file outside the project. A hard link shares its contents with another path.
   const st = lstatSync(path);

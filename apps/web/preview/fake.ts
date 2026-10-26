@@ -1,11 +1,12 @@
 // An in-memory stand-in for the engine, used only by the browser preview. It replays the
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
-import type { DiffResult, FindGoodResult, RecoverResult, TimelineEntry, VerifyResult } from "@timetm/core";
-import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, Method, ProjectEntry, ProjectStatus, Res, Results, Settings, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
+import type { DiffResult, FindGoodResult, RecoverResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
+import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, FeatureChange, Features, LicenseStatus, Method, ProjectEntry, ProjectStatus, Res, Results, RunNote, Settings, SourceRow, ThinPreview, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
 import { ASK_EXAMPLES } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "../src/shared/links.js";
+import { looksSecret, NOTE_LOOKS_SECRET } from "../../../packages/core/src/secret-patterns.js";
 
 type FileMap = Record<string, string>;
 
@@ -82,6 +83,182 @@ export function previewStory(state: string | null): { scenario: Scenario; featur
 
 const PREVIEW_LINK = { teamId: "team_preview", projectId: "prj_marigold", name: "marigold-tips" } as const;
 
+const THESIS_ID = "3a5c7e90-1b2d-4f6a-8c0e-2d4f6a8c0e1b";
+const TRIAL_ID = "4b6d8fa1-2c3e-4a7b-9d1f-3e5a7b9d1f2c";
+const FOLDER_MANUAL = "Files over 5 MB and files that look secret are not saved";
+
+/** A small project beside the demo: a plain folder of notes, or a research repo. All data is synthetic. */
+interface SideStory {
+  project: ProjectEntry;
+  points: Point[];
+  /** Null when no check is set. A check is optional for folders. */
+  check: string | null;
+  passes: (files: FileMap) => boolean;
+  copies: Set<string>;
+  audit: { at: string; action: string; target: string | null; result: string }[];
+}
+
+/** A save point of a side project. A folder has no repo, so no HEAD and no branch; every file is in the save point. */
+function sidePoint(n: number, note: string, time: string, files: FileMap, folder: boolean, trigger = "app"): Point {
+  const id = `cp-${String(n).padStart(4, "0")}`;
+  const commit = hash(`${id}${JSON.stringify(files)}`);
+  const count = Object.keys(files).length;
+  const plural = (k: number): string => `${k} file${k === 1 ? "" : "s"}`;
+  return {
+    entry: {
+      id, createdAt: time, note, trigger, commit, head: folder ? null : commit, branch: folder ? null : "main", dirty: false, files: folder ? count : 0, agent: null,
+      coverage: folder
+        ? { captured: [`Files: ${plural(count)} in the folder`, "Environment: platform darwin-arm64, node v24.9.0, git 2.50.1"], restorable: [`${count} saved file${count === 1 ? "" : "s"}`], missing: [], manual: [FOLDER_MANUAL] }
+        : { captured: [`Code: commit ${commit.slice(0, 7)} on main`, "Environment: platform darwin-arm64, python 3.13.1, git 2.50.1"], restorable: ["Code"], missing: [], manual: ["Data outside the project folder is not captured"] },
+      verdict: null, isolation: null,
+    },
+    // Like the engine: a folder's files are saved files beside an empty commit, so a diff lists them under files.
+    tracked: folder ? {} : files, untracked: folder ? files : {}, lockfiles: {},
+  };
+}
+
+/** The next save point number. Never reused, even after old auto saves were thinned. */
+function nextNumber(points: Point[]): number {
+  return Number(points.at(-1)?.entry.id.slice(3) ?? 0) + 1;
+}
+
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * The engine's thinning rule (packages/core/src/thin.ts) on preview data. Only auto saves can go.
+ * Working, pinned, named or noted, recovery-linked, the newest 20 and the last 24 hours always stay.
+ * Older auto saves keep one per hour for 7 days, then one per day.
+ */
+function thinPlan(points: Point[], notes: Record<string, RunNote>, audit: SideStory["audit"], now: number): ThinPreview {
+  const linked = new Set(audit.filter((e) => e.action === "recover" || e.action === "undo-recover").flatMap((e) => (e.target ? [e.target] : [])));
+  const newest = new Set(points.slice(-20).map((p) => p.entry.id));
+  const covered = new Set<string>();
+  const remove: ThinPreview["remove"] = [];
+  for (const { entry } of [...points].reverse()) {
+    const at = Date.parse(entry.createdAt);
+    const age = now - at;
+    const bucket = age <= 7 * DAY_MS ? `hour ${Math.floor(at / HOUR_MS)}` : `day ${Math.floor(at / DAY_MS)}`;
+    const stays = entry.trigger !== "auto" || age < DAY_MS || entry.verdict === "PASS" || entry.id in notes || linked.has(entry.id) || newest.has(entry.id);
+    if (stays || !covered.has(bucket)) {
+      covered.add(bucket);
+      continue;
+    }
+    remove.push({ id: entry.id, at: entry.createdAt, reason: bucket.startsWith("hour") ? "Another save point from the same hour stays." : "Another save point from the same day stays." });
+  }
+  remove.reverse();
+  // About one changed chapter per auto save, compressed.
+  return { remove, keep: points.length - remove.length, bytesFreed: remove.length * 18_432, unreadable: [] };
+}
+
+function thesisStory(): SideStory {
+  const v1 = { "chapters/01-introduction.md": "1", "references.bib": "1" };
+  const methods = (k: number): FileMap => ({ ...v1, "chapters/02-methods.md": String(k) });
+  const v3 = { ...methods(41), "chapters/02-methods.md": "rewrite", "figures/timeline.png": "1" };
+  const v4 = { ...v3, "chapters/01-introduction.md": "2", "references.bib": "2" };
+  const v5 = { ...v4, "chapters/03-results.md": "1" };
+  const v6 = { ...v5, "chapters/03-results.md": "2" };
+  // Auto saves while the app was open, over nine days of writing the methods chapter: two saves
+  // 25 minutes apart, every 11 hours. Old enough that thinning has real numbers to show.
+  const autos = Array.from({ length: 40 }, (_, k) => sidePoint(k + 2, "Auto save", ago(60 * 24 * 11 - Math.floor(k / 2) * 60 * 11 - (k % 2) * 25), methods(k + 1), true, "auto"));
+  const points = [
+    sidePoint(1, "Outline and introduction", ago(60 * 24 * 12), v1, true),
+    ...autos,
+    sidePoint(42, "Methods draft done", ago(60 * 30), methods(41), true),
+    sidePoint(43, "Methods rewrite with figure", ago(60 * 5), v3, true),
+    sidePoint(44, "Tightened the introduction", ago(41), v4, true),
+    // Saved while the app was open, after the folder was quiet for 20 seconds, as the engine does.
+    sidePoint(45, "Auto save", ago(18), v5, true, "auto"),
+    sidePoint(46, "Auto save", ago(6), v6, true, "auto"),
+  ];
+  return {
+    project: { id: THESIS_ID, path: "/Users/you/Documents/thesis-notes", name: "thesis-notes", addedAt: ago(60 * 24 * 12 + 5), demo: false, features: { ask: false, vercel: null, autoSave: "change" }, kind: "folder", purpose: "documents" },
+    points, check: null, passes: () => true, copies: new Set(), audit: points.map((p) => ({ at: p.entry.createdAt, action: "checkpoint", target: p.entry.id, result: "saved" })),
+  };
+}
+
+function trialStory(): SideStory {
+  const v1 = { "analysis/summary.py": "ok", "data/run-01.csv": "1", "notes/protocol.md": "1" };
+  const v2 = { ...v1, "data/run-02.csv": "1" };
+  const v3 = { ...v2, "analysis/summary.py": "ok", "data/run-03.csv": "1", "notes/protocol.md": "2" };
+  const v4 = { ...v3, "analysis/summary.py": "broken", "data/run-04.csv": "1" };
+  const points = [
+    sidePoint(1, "Run 01, first pass", ago(60 * 50), v1, false),
+    sidePoint(2, "Run 02, more samples", ago(60 * 30), v2, false),
+    sidePoint(3, "Run 03, seed 42", ago(60 * 9), v3, false),
+    sidePoint(4, "Run 04, new summary script", ago(95), v4, false),
+  ];
+  const story: SideStory = {
+    project: { id: TRIAL_ID, path: "/Users/you/research/trial-run-analysis", name: "trial-run-analysis", addedAt: ago(60 * 51), demo: false, features: { ask: false, vercel: null, autoSave: "off" }, kind: "git", purpose: "research" },
+    points, check: "python3 analysis/summary.py --check", passes: (f) => f["analysis/summary.py"] === "ok", copies: new Set(),
+    audit: points.map((p) => ({ at: p.entry.createdAt, action: "checkpoint", target: p.entry.id, result: "saved" })),
+  };
+  for (const p of points.slice(0, 3)) p.entry = { ...p.entry, verdict: "PASS", isolation: "host" };
+  const last = points[3];
+  if (last) last.entry = { ...last.entry, verdict: "FAIL", isolation: "host" };
+  return story;
+}
+
+/** What the preview reports as found on this computer: iCloud Drive with an Obsidian vault in it, Documents and Desktop. */
+const FAKE_SOURCES: SourceRow[] = [
+  { id: "icloud", label: "iCloud Drive", path: "/Users/you/Library/Mobile Documents/com~apple~CloudDocs", found: true },
+  { id: "dropbox", label: "Dropbox", path: "/Users/you/Dropbox", found: false },
+  { id: "gdrive", label: "Google Drive", path: "/Users/you/Library/CloudStorage/GoogleDrive", found: false },
+  { id: "onedrive", label: "OneDrive", path: "/Users/you/Library/CloudStorage/OneDrive", found: false },
+  { id: "obsidian", label: "Obsidian", path: "/Users/you/Library/Mobile Documents/iCloud~md~obsidian", found: true },
+  { id: "documents", label: "Documents", path: "/Users/you/Documents", found: true },
+  { id: "desktop", label: "Desktop", path: "/Users/you/Desktop", found: true },
+];
+
+/** A project's features after one setFeature change, as the engine applies it. */
+function withFeature(f: Features, c: FeatureChange): Features {
+  if (c.feature === "ask") return { ...f, ask: c.enabled };
+  if (c.feature === "vercel") return { ...f, vercel: c.link };
+  return { ...f, autoSave: c.autoSave };
+}
+
+function cmpFiles(x: FileMap, y: FileMap): { added: string[]; removed: string[]; changed: string[] } {
+  return {
+    added: Object.keys(y).filter((k) => !(k in x)),
+    removed: Object.keys(x).filter((k) => !(k in y)),
+    changed: Object.keys(x).filter((k) => k in y && x[k] !== y[k]),
+  };
+}
+
+function diffPoints(pa: Point, pb: Point): DiffResult {
+  const code = cmpFiles(pa.tracked, pb.tracked);
+  const deps = cmpFiles(pa.lockfiles, pb.lockfiles);
+  return {
+    a: pa.entry.id, b: pb.entry.id,
+    code: [...code.added.map((path) => ({ status: "A", path })), ...code.removed.map((path) => ({ status: "D", path })), ...code.changed.map((path) => ({ status: "M", path }))].sort((x, y) => x.path.localeCompare(y.path)),
+    files: cmpFiles(pa.untracked, pb.untracked),
+    config: { added: [], removed: [], changed: [] },
+    dependencies: { changed: [...deps.added, ...deps.removed, ...deps.changed] },
+    environment: { changed: [] },
+  };
+}
+
+function statusOf(projectId: string, points: Point[]): ProjectStatus {
+  const newest = points.at(-1)?.entry;
+  const working = [...points].reverse().find((p) => p.entry.verdict === "PASS" && p.entry.id !== newest?.id)?.entry;
+  return {
+    projectId,
+    newest: newest ? { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt } : null,
+    lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
+    problem: null,
+  };
+}
+
+/** A side project's check record, the shape a real check returns. */
+function record(entry: TimelineEntry, command: string, at: string): VerifyResult {
+  const pass = entry.verdict === "PASS";
+  return {
+    at, checkpoint: entry.id, verdict: entry.verdict ?? "FAIL", isolation: "host", network: { policy: "allow", enforcedBy: null },
+    command, durationMs: pass ? 1640 : 1810, exitCode: pass ? 0 : 1,
+    reason: pass ? "The check passed." : "The check failed with exit code 1.", log: null,
+  };
+}
+
 export class FakeEngine implements TmBridge {
   private listeners = new Set<(e: AppEvent) => void>();
   private points: Point[] = [];
@@ -92,20 +269,33 @@ export class FakeEngine implements TmBridge {
   private seed: Point | null = null;
   private stopping = false;
   settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [] };
-  readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null } };
+  /** No key in the preview: the free app, as the real engine reports it (core FREE_PROJECT_LIMIT is 3). */
+  private readonly license: LicenseStatus = { active: false, id: null, issued: null, problem: null, freeProjectLimit: 3 };
+  readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
+  /** The projects beside the demo: a plain folder of thesis notes and a research repo. None in the "new" story. */
+  private readonly sides: SideStory[];
+  /** Run notes per project, keyed by save point id, as the engine keeps them in a sidecar file. */
+  private readonly notes = new Map<string, Record<string, RunNote>>();
   /** Whether each key is set. The preview never holds a real key. */
   private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
+  /** The email signed in with code 123456, or null. The preview's sign-in is pretend: nothing is sent. */
+  private signedIn: string | null = null;
 
   constructor(readonly scenario: Scenario = "broken", readonly features: FeatureStory = "off") {
     this.reset();
-    if (features === "on" || features === "ask-error") this.project.features = { ask: true, vercel: { ...PREVIEW_LINK } };
-    if (features === "ask-off") this.project.features = { ask: false, vercel: { ...PREVIEW_LINK } };
+    this.sides = scenario === "new" ? [] : [thesisStory(), trialStory()];
+    if (this.sides.length) {
+      this.notes.set(TRIAL_ID, { "cp-0003": { title: "Baseline run, seed 42", note: "The reference run. Same data as run 02 with a fixed seed. Compare new runs against this one.", pinned: true, updated: ago(60 * 8) } });
+    }
+    const off = this.project.features;
+    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, vercel: { ...PREVIEW_LINK } };
+    if (features === "ask-off") this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
     if (features === "no-key") {
-      this.project.features = { ask: false, vercel: { ...PREVIEW_LINK } };
+      this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
       this.credentials = { ...this.credentials, gemini: false };
     }
     if (features === "no-vercel") {
-      this.project.features = { ask: true, vercel: null };
+      this.project.features = { ...off, ask: true, vercel: null };
       this.credentials = { ...this.credentials, vercel: false };
     }
   }
@@ -184,15 +374,134 @@ export class FakeEngine implements TmBridge {
     return p;
   }
 
-  private status(): ProjectStatus {
-    const newest = this.points.at(-1)?.entry;
-    const working = [...this.points].reverse().find((p) => p.entry.verdict === "PASS" && p.entry.id !== newest?.id)?.entry;
-    return {
-      projectId: PROJECT_ID,
-      newest: newest ? { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt } : null,
-      lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
-      problem: null,
+  /** Any listed project: the demo or one beside it. */
+  private entry(projectId: string): ProjectEntry {
+    const p = projectId === PROJECT_ID && this.added ? this.project : this.sides.find((s) => s.project.id === projectId)?.project;
+    if (!p) throw new Error("That project is no longer in the list.");
+    return p;
+  }
+
+  /** The save points and audit log of any listed project. */
+  private history(projectId: string): { points: Point[]; audit: SideStory["audit"] } {
+    if (projectId === PROJECT_ID && this.added) return { points: this.points, audit: this.audit };
+    const s = this.sides.find((x) => x.project.id === projectId);
+    if (!s) throw new Error("That project is no longer in the list.");
+    return { points: s.points, audit: s.audit };
+  }
+
+  /** The calls for a project beside the demo. Same shapes as the engine; a folder recovers to a copy only. */
+  private async sideDispatch(call: Call, s: SideStory): Promise<unknown> {
+    const p = s.project;
+    const find = (id: string): Point => {
+      const x = s.points.find((y) => y.entry.id === id);
+      if (!x) throw new Error(`There is no checkpoint ${id}. Run tm timeline to see them.`);
+      return x;
     };
+    const verify = async (id: string): Promise<VerifyResult> => {
+      if (!s.check) throw new Error(`${p.name} has no check yet. A check is optional for a folder. Add one to test a save point in a safe copy.`);
+      const x = find(id);
+      await wait(700 + Math.random() * 400);
+      const verdict: Verdict = s.passes(x.tracked) ? "PASS" : "FAIL";
+      x.entry = { ...x.entry, verdict, isolation: "host" };
+      s.audit.push({ at: new Date().toISOString(), action: "verify", target: id, result: verdict });
+      return record(x.entry, s.check, new Date().toISOString());
+    };
+    switch (call.method) {
+      case "timeline":
+        return { project: p.path, checkpoints: s.points.map((x) => x.entry) };
+      case "diff":
+        await wait(120);
+        return diffPoints(find(call.a), find(call.b));
+      case "open":
+        await wait(500);
+        return { id: call.id, dir: `/private/var/folders/tm/tm-open-${p.name}-${call.id}`, isolation: "host", restored: find(call.id).entry.coverage.restorable, missing: [], manual: [] };
+      case "verify":
+        return verify(call.id);
+      case "checkLogTail": {
+        const x = find(call.id);
+        if (!x.entry.verdict || !s.check) return null;
+        return { log: `/Users/you/.timemachine/projects/${p.name}/logs/${call.id}.log`, binary: false, hidden: false, lines: [`$ ${s.check}`, "", x.entry.verdict === "PASS" ? "summary ok: 3 runs, no missing values" : "summary failed: column 'dose_mg' not found"] };
+      }
+      case "checkRecord": {
+        const x = find(call.id);
+        return x.entry.verdict && s.check ? record(x.entry, s.check, x.entry.createdAt) : null;
+      }
+      case "findGood": {
+        if (!s.check) throw new Error(`${p.name} has no check yet, so there is nothing to test save points with.`);
+        const tried: FindGoodResult["tried"] = [];
+        for (const x of [...s.points].reverse()) {
+          const v = await verify(x.entry.id);
+          tried.push({ id: v.checkpoint, verdict: v.verdict, reason: v.reason });
+          this.emit({ type: "progress", projectId: p.id, checkpoint: v.checkpoint, verdict: v.verdict });
+          if (v.verdict === "PASS") return { verdict: "PASS", found: v.checkpoint, tried };
+        }
+        return { verdict: "FAIL", found: null, tried };
+      }
+      case "stopCheck":
+        return false;
+      case "checkpoint": {
+        const last = s.points.at(-1);
+        if (!last) throw new Error("No project");
+        if (call.ifChanged) return { checkpoint: last.entry, skipped: true };
+        await wait(300);
+        const x = sidePoint(nextNumber(s.points), call.note ?? "Saved by you", new Date().toISOString(), { ...last.tracked, ...last.untracked }, p.kind === "folder");
+        s.points.push(x);
+        s.audit.push({ at: x.entry.createdAt, action: "checkpoint", target: x.entry.id, result: "saved" });
+        return { checkpoint: x.entry, skipped: false };
+      }
+      case "recover": {
+        await wait(700);
+        const target = find(call.id);
+        const last = s.points.at(-1);
+        if (!last) throw new Error("No save points");
+        const saved = sidePoint(nextNumber(s.points), `Before recovering ${call.id}`, new Date().toISOString(), { ...last.tracked, ...last.untracked }, p.kind === "folder");
+        s.points.push(saved);
+        const copyDir = `${p.path}-recovered-${call.id}`;
+        s.copies.add(copyDir);
+        const folder = p.kind === "folder";
+        const r: RecoverResult = {
+          id: call.id, branch: folder ? "" : `tm/recover/${call.id}`, copyDir, savedBefore: saved.entry.id, reportPath: `/Users/you/.timemachine/projects/${p.name}/reports/recover-${call.id}.md`,
+          lastVerdict: target.entry.verdict, restored: target.entry.coverage.restorable, notRestored: target.entry.coverage.manual,
+          manualSteps: [
+            ...(folder ? ["No branch was made: this folder has no Git repo, so the save point came back as a copy only."] : []),
+            `Review the recovery copy at ${copyDir}.`,
+            "Copy back the files you want to keep. Your folder was not touched.",
+          ],
+          pushed: false, ...(folder ? { copyOnly: true as const } : {}),
+        };
+        s.audit.push({ at: new Date().toISOString(), action: "recover", target: call.id, result: folder ? `copy ${copyDir}` : `branch ${r.branch}` });
+        return r;
+      }
+      case "undoRecover": {
+        await wait(300);
+        if (!s.copies.delete(call.copyDir)) throw new Error(`${call.copyDir} is not a recovery copy this app made, so it was left alone.`);
+        const r: UndoRecoverResult = { id: call.id, removedBranch: call.branch, removedCopy: call.copyDir };
+        return r;
+      }
+      case "log":
+        return { entries: s.audit };
+      case "init":
+        return { configPath: `/Users/you/.timemachine/projects/${p.name}/timemachine.yml`, created: false, verifyCommand: s.check ?? "", verifySetup: "", network: "allow", sandbox: null, approvedCheck: s.check };
+      case "setCheck":
+        s.check = call.command;
+        return { configPath: `/Users/you/.timemachine/projects/${p.name}/timemachine.yml`, verifyCommand: call.command };
+      case "hookPreview":
+        return { settingsPath: `${p.path}/.claude/settings.json`, command: "tm", runs: true, plugin: false, lines: [] };
+      case "hookInstall":
+        throw new Error("The preview connects Claude Code to the demo project only.");
+      case "cleanStore":
+        return { files: [], bytes: 0, applied: call.apply };
+      case "setFeature": {
+        p.features = withFeature(p.features, call.change);
+        return p;
+      }
+      case "ask":
+        throw new Error(`The preview answers questions about the demo project only. Ask about ${p.name} in the app.`);
+      case "deployments":
+        return null;
+      default:
+        throw new Error(`The preview can't do ${call.method} for ${p.name}.`);
+    }
   }
 
   private async verify(id: string): Promise<VerifyResult> {
@@ -206,26 +515,6 @@ export class FakeEngine implements TmBridge {
       at: new Date().toISOString(), checkpoint: id, verdict, isolation: "host", network: { policy: "allow", enforcedBy: null },
       command: "npm test", durationMs: Math.round(1800 + Math.random() * 900), exitCode: pass ? 0 : 1,
       reason: pass ? "The check passed." : "The check failed with exit code 1.", log: `/Users/you/.timemachine/projects/demo/logs/${id}.log`,
-    };
-  }
-
-  private diff(a: string, b: string): DiffResult {
-    const pa = this.find(a);
-    const pb = this.find(b);
-    const cmp = (x: FileMap, y: FileMap): { added: string[]; removed: string[]; changed: string[] } => ({
-      added: Object.keys(y).filter((k) => !(k in x)),
-      removed: Object.keys(x).filter((k) => !(k in y)),
-      changed: Object.keys(x).filter((k) => k in y && x[k] !== y[k]),
-    });
-    const code = cmp(pa.tracked, pb.tracked);
-    const deps = cmp(pa.lockfiles, pb.lockfiles);
-    return {
-      a, b,
-      code: [...code.added.map((path) => ({ status: "A", path })), ...code.removed.map((path) => ({ status: "D", path })), ...code.changed.map((path) => ({ status: "M", path }))].sort((x, y) => x.path.localeCompare(y.path)),
-      files: cmp(pa.untracked, pb.untracked),
-      config: { added: [], removed: [], changed: [] },
-      dependencies: { changed: [...deps.added, ...deps.removed, ...deps.changed] },
-      environment: { changed: [] },
     };
   }
 
@@ -279,15 +568,86 @@ export class FakeEngine implements TmBridge {
   private async dispatch(call: Call): Promise<unknown> {
     switch (call.method) {
       case "bootstrap":
-        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project] : [], storeDir: "~/.timemachine", preview: true };
+        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project, ...this.sides.map((s) => s.project)] : [], storeDir: "~/.timemachine", preview: true, license: this.license };
+      case "sources":
+        return FAKE_SOURCES.map((s) => ({ ...s }));
+      case "setPurpose": {
+        const p = this.entry(call.projectId);
+        p.purpose = call.purpose;
+        return p;
+      }
+      case "thinPreview": {
+        const h = this.history(call.projectId);
+        return thinPlan(h.points, this.notes.get(call.projectId) ?? {}, h.audit, Date.now());
+      }
+      case "thinApply": {
+        // Like the engine: a fresh preview first, and any id not in it refuses the whole call.
+        const h = this.history(call.projectId);
+        const allowed = new Set(thinPlan(h.points, this.notes.get(call.projectId) ?? {}, h.audit, Date.now()).remove.map((r) => r.id));
+        const bad = call.ids.find((id) => !allowed.has(id));
+        if (bad !== undefined) throw new Error(`${bad} can't be thinned now: only old auto saves in a fresh preview can go. Nothing was removed.`);
+        const gone = new Set(call.ids);
+        if (!gone.size) return { removed: 0 };
+        const kept = h.points.filter((x) => !gone.has(x.entry.id));
+        h.points.splice(0, h.points.length, ...kept);
+        h.audit.push({ at: new Date().toISOString(), action: "thin", target: null, result: `removed ${gone.size} old auto save${gone.size === 1 ? "" : "s"}: ${[...gone].join(", ")}` });
+        return { removed: gone.size };
+      }
+      case "notes":
+        this.entry(call.projectId);
+        return { ...this.notes.get(call.projectId) };
+      case "setNote": {
+        // The same check as the engine, so the preview never keeps a note the app would refuse.
+        if ([call.title, call.note].some((t) => t !== undefined && looksSecret(t))) throw new Error(NOTE_LOOKS_SECRET);
+        const p = this.entry(call.projectId);
+        const side = this.sides.find((s) => s.project.id === p.id);
+        if (!(side ? side.points : this.points).some((x) => x.entry.id === call.id)) throw new Error(`There is no checkpoint ${call.id}. Run tm timeline to see them.`);
+        const all = { ...this.notes.get(p.id) };
+        const before = all[call.id];
+        const title = (call.title ?? before?.title)?.trim();
+        const note = call.note ?? before?.note;
+        const next: RunNote = { ...(title ? { title } : {}), ...(note ? { note } : {}), pinned: call.pinned ?? before?.pinned ?? false, updated: new Date().toISOString() };
+        if (next.title === undefined && next.note === undefined && !next.pinned) delete all[call.id];
+        else all[call.id] = next;
+        this.notes.set(p.id, all);
+        return next;
+      }
+      case "license":
+      case "removeLicense":
+        return this.license;
+      case "setLicense":
+        throw new Error("The preview can't check license keys. Download the app to add yours.");
+      case "siteStatus":
+        return { checkout: true, auth: true };
+      case "signIn":
+        return { ok: true };
+      case "verifyCode":
+        if (call.code !== "123456") throw new Error("That code didn't match.");
+        this.signedIn = call.email;
+        return { ok: true };
+      case "signOut":
+        this.signedIn = null;
+        return { ok: true };
+      case "accountLicenses":
+        // One made-up key for the screens. It is not signed, so no app accepts it.
+        return this.signedIn
+          ? { email: this.signedIn, licenses: [{ key: "TM1.eyJ2IjoxLCJpZCI6ImNzX3ByZXZpZXciLCJwbGFuIjoid2ViIn0.cHJldmlldy1vbmx5", id: "cs_preview0000000000000000", issued: "2026-10-22" }] }
+          : null;
       case "addProject":
         if (this.scenario !== "new") throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
         this.added = true;
+        if (call.purpose) this.project.purpose = call.purpose;
         return this.project;
       case "removeProject":
         throw new Error("The preview keeps the demo project. Reload the page to start over.");
       case "statuses":
-        return this.added ? [this.status()] : [];
+        return this.added ? [statusOf(PROJECT_ID, this.points), ...this.sides.map((s) => statusOf(s.project.id, s.points))] : [];
+      default:
+        break;
+    }
+    const side = "projectId" in call ? this.sides.find((s) => s.project.id === call.projectId) : undefined;
+    if (side) return this.sideDispatch(call, side);
+    switch (call.method) {
       case "init":
         return { configPath: `${ROOT}/timemachine.yml`, created: this.scenario === "new", verifyCommand: "npm test", verifySetup: "npm ci --prefer-offline --no-audit --no-fund", network: "allow", sandbox: null };
       case "setCheck":
@@ -307,7 +667,7 @@ export class FakeEngine implements TmBridge {
         return { project: ROOT, checkpoints: this.timelineEntries() };
       case "diff":
         await wait(150);
-        return this.diff(call.a, call.b);
+        return diffPoints(this.find(call.a), this.find(call.b));
       case "open": {
         await wait(700);
         const p = this.find(call.id);
@@ -315,6 +675,28 @@ export class FakeEngine implements TmBridge {
       }
       case "verify":
         return this.verify(call.id);
+      case "checkLogTail": {
+        // Synthetic output, the shape a real npm test log ends with. Not checked yet means no log.
+        const p = this.find(call.id);
+        if (!p.entry.verdict) return null;
+        const pass = p.entry.verdict === "PASS";
+        return {
+          log: `/Users/you/.timemachine/projects/demo/logs/${call.id}.log`, binary: false, hidden: false,
+          lines: pass ? ["$ npm test", "", "> marigold-tips@1.0.0 test", "> node test.js", "", "ok"] : ["$ npm test", "", "> marigold-tips@1.0.0 test", "> node test.js", "", "total: expected 3, got 4"],
+        };
+      }
+      case "checkRecord": {
+        // The stored record of a verdict seeded before this session: the same shape and log label a check here returns.
+        const p = this.find(call.id);
+        const verdict = p.entry.verdict;
+        if (!verdict) return null;
+        const pass = verdict === "PASS";
+        return {
+          at: p.entry.createdAt, checkpoint: call.id, verdict, isolation: "host", network: { policy: "allow", enforcedBy: null },
+          command: "npm test", durationMs: pass ? 2140 : 2310, exitCode: pass ? 0 : 1,
+          reason: pass ? "The check passed." : "The check failed with exit code 1.", log: `/Users/you/.timemachine/projects/demo/logs/${call.id}.log`,
+        };
+      }
       case "findGood": {
         const tried: FindGoodResult["tried"] = [];
         this.stopping = false;
@@ -387,7 +769,12 @@ export class FakeEngine implements TmBridge {
         return { project: this.project, result: { dir: ROOT, checkpoints, findGood, recover } };
       }
       case "storage":
-        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" }] : [];
+        return this.added
+          ? [
+            { projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" },
+            ...this.sides.map((s, i) => ({ projectId: s.project.id, name: s.project.name, bytes: 92_160 + i * 311_296 + s.points.length * 6144, storeDir: `~/.timemachine/projects/${hash(s.project.id).slice(0, 16)}` })),
+          ]
+          : [];
       case "cleanStore":
         await wait(200);
         return { files: [], bytes: 0, applied: call.apply };
@@ -414,8 +801,7 @@ export class FakeEngine implements TmBridge {
         window.open(call.url, "_blank", "noopener,noreferrer");
         return true;
       case "setFeature": {
-        const c = call.change;
-        this.project.features = c.feature === "ask" ? { ...this.project.features, ask: c.enabled } : { ...this.project.features, vercel: c.link };
+        this.project.features = withFeature(this.project.features, call.change);
         return this.project;
       }
       case "credentials":

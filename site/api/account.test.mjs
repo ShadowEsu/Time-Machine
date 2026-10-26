@@ -19,7 +19,7 @@ const json = (value, status = 200) => new Response(JSON.stringify(value), { stat
 // Sessions as Stripe lists them with expand[]=data.payment_intent.latest_charge.
 const session = (id, extra = {}, chargeExtra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, livemode: false, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, payment_intent: { id: `pi_${id.slice(3)}`, object: "payment_intent", latest_charge: { id: `ch_${id.slice(3)}`, object: "charge", refunded: false, amount_refunded: 0, ...chargeExtra } }, ...extra });
 const isDisputes = (url) => String(url).startsWith("https://api.stripe.com/v1/disputes?");
-const user = () => json({ id: "00000000-0000-4000-8000-000000000000", email: EMAIL, role: "authenticated" });
+const user = (extra = {}) => json({ id: "00000000-0000-4000-8000-000000000000", email: EMAIL, email_confirmed_at: "2026-10-22T07:00:00Z", role: "authenticated", ...extra });
 
 // Routes each fetch by URL: the Supabase user call, the dispute list for one payment (`disputes` maps a
 // payment intent id to its dispute statuses), then one or more Stripe session pages.
@@ -126,6 +126,16 @@ describe("account handler", () => {
     expect((await handleAccount(request(), shape.deps)).status).toBe(502);
     expect(shape.log).toHaveBeenCalledWith("account: supabase user returned an unexpected shape");
     expect((await handleAccount(request({ method: "POST" }), deps)).status).toBe(405);
+  });
+
+  it("is 401 for a user whose email Supabase never confirmed, and Stripe is never asked (Security L1)", async () => {
+    for (const extra of [{ email_confirmed_at: null }, { email_confirmed_at: "" }, { email_confirmed_at: undefined }]) {
+      const unconfirmed = setup({ userReply: () => user(extra) });
+      expect(await handleAccount(request(), unconfirmed.deps)).toEqual({ status: 401, headers: {}, body: { ok: false, error: "unauthorized" } });
+      expect(unconfirmed.fetch).toHaveBeenCalledTimes(1);
+    }
+    const confirmed = setup();
+    expect((await handleAccount(request(), confirmed.deps)).status).toBe(200);
   });
 
   it("is closed with the right 503 when sign-in or checkout is not set up", async () => {

@@ -8,7 +8,7 @@ import { checkCommand } from "./consent.js";
 import { TmError } from "./errors.js";
 import { runWithTimeout, type TimedResult } from "./exec.js";
 import { materialize, removeWorktree } from "./materialize.js";
-import { resolveProject, type Project } from "./project.js";
+import { configRoot, resolveProject, type Project } from "./project.js";
 import { detectSandbox } from "./sandbox.js";
 import { looksSecret, parseDotenv, redact } from "./secrets.js";
 import type { Manifest } from "./manifest.js";
@@ -61,7 +61,7 @@ export interface VerifyOptions {
 
 export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): Promise<VerifyResult> {
   const p = resolveProject(ctx);
-  const { config: cfg } = loadConfig(p.root);
+  const { config: cfg } = loadConfig(configRoot(p));
   ensureStore(p);
   const target = id ?? latestId(p);
   const started = Date.now();
@@ -103,7 +103,11 @@ export async function verify(ctx: Ctx, id?: string, opts: VerifyOptions = {}): P
     throw e;
   }
   if (opts.signal?.aborted) return stopped();
-  if (!cfg.verify.command.trim()) return finish("BLOCKED", "No check is set up. Add verify.command to timemachine.yml, for example npm test.");
+  if (!cfg.verify.command.trim()) {
+    return finish("BLOCKED", p.kind === "folder"
+      ? "No check is set up. A check is optional for a plain folder. Set one, for example a script that opens your files, to test a save point in a safe copy."
+      : "No check is set up. Add verify.command to timemachine.yml, for example npm test.");
+  }
   if (policy === "deny" && !sandbox) {
     return finish("BLOCKED", "The network is set to deny, but no sandbox is available to enforce it, so the check did not run. Install bubblewrap (Linux), or set verify.network to allow in timemachine.yml.");
   }

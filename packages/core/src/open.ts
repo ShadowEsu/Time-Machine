@@ -15,7 +15,8 @@ export async function open(ctx: Ctx, id: string, opts: { dir?: string } = {}): P
   const m = readManifest(p, id);
   const dir = opts.dir ? resolve(ctx.cwd, opts.dir) : join(tmpdir(), `tm-open-${p.name}-${id}-${randomBytes(3).toString("hex")}`);
   if (isInside(p.root, dir)) throw new TmError("usage", `${dir} is inside the project. Pick a folder outside it, so your working copy stays untouched.`);
-  const r = materialize(p, m, dir);
+  // A plain folder's safe copy is plain files, with no .git linking it to the store.
+  const r = materialize(p, m, dir, { plain: p.kind === "folder" });
   audit(p, "open", id, "opened");
   return { id, dir, isolation: "host", restored: r.restored, missing: r.missing, manual: r.manual };
 }

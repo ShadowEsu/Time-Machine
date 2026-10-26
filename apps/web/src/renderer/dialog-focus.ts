@@ -35,11 +35,19 @@ export class DialogFocus {
         child = child.parentElement;
       }
     }
-    const target = restore ? root.querySelector<HTMLElement>(restore) : null;
-    if (target && !target.closest('[inert]') && !target.matches(':disabled') && (!dialog || dialog.contains(target))) {
+    // The same selector can name several elements: a journal row and its title both open the save point, Jump to has a
+    // button in the rail and one in the phone toolbar, and a sheet's trigger can repeat on the page behind a phone dialog.
+    // Focus goes to the first one that can take focus, is on screen and is inside the open dialog, if there is one.
+    const usable = (el: HTMLElement): boolean => (el.tabIndex >= 0 || el.hasAttribute('tabindex')) && el.getClientRects().length > 0 && !el.closest('[inert]') && (!dialog || dialog.contains(el));
+    const target = restore ? [...root.querySelectorAll<HTMLElement>(restore)].find(usable) ?? null : null;
+    if (target && !target.matches(':disabled')) {
       target.focus({ preventScroll: true });
     } else if (dialog && !dialog.contains(document.activeElement)) {
-      (this.controls(dialog)[0] ?? dialog).focus({ preventScroll: true });
+      // A dialog can name the control that matters most (the Rewind's dial, a finished check's main
+      // action). Otherwise the first control gets focus.
+      const controls = this.controls(dialog);
+      const named = dialog.querySelector<HTMLElement>('[data-autofocus]');
+      (named && controls.includes(named) ? named : controls[0] ?? dialog).focus({ preventScroll: true });
     }
   }
 

@@ -1,336 +1,592 @@
-/* Quiet recovery instrument (design/APP_V3_DIRECTION.md). Neutral surfaces keep the record
-   ahead of the chrome. Colour means a recorded verdict; shape and words carry it too.
-   Newsreader leads status, Inter carries the record, Geist Mono carries technical facts.
-   Fonts ship with the app (SIL OFL 1.1, licences in fonts/). Nothing loads from the network. */
-@font-face { font-family: "Newsreader"; font-style: normal; font-weight: 200 800; font-display: block; src: url("fonts/newsreader-latin-opsz-normal.woff2") format("woff2"); }
-@font-face { font-family: "Newsreader"; font-style: italic; font-weight: 200 800; font-display: block; src: url("fonts/newsreader-latin-opsz-italic.woff2") format("woff2"); }
+/* Time Machine, the Unvibe sibling (agents/design/tm-app-direction-2026-10-23.md). Warm paper shell, a white
+   canvas, light first. Bricolage Grotesque says the status, Instrument Serif italic is the voice, Inter carries
+   the record, IBM Plex Mono the times, ids and commands. Controls are ink pills with a hard offset shadow.
+   Sky marks the target, keycaps and focus; colour on a save point always means a recorded verdict, and its
+   shape and word carry it too. Fonts ship with the app (SIL OFL 1.1, licences in fonts/). Nothing loads from the network. */
+@font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 200 800; font-display: block; src: url("fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2"); }
+@font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: block; src: url("fonts/instrument-serif-latin-400-italic.woff2") format("woff2"); }
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: block; src: url("fonts/inter-latin-opsz-normal.woff2") format("woff2"); }
-@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: block; src: url("fonts/geist-mono-latin-wght-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: block; src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: block; src: url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
 
-/* Neutral surfaces, 4 px spacing base, quiet raised controls. */
 :root {
-  --ink: #202020; --ink-2: #555550; --ink-3: #656560; --ink-4: #96968e; --ink-5: #d4d4cc;
-  --paper: #f8f8f6; --soft: #f2f2ef; --card: #ebebe7; --side: #f0f0ed; --mist: #eaeae5; --surface: #ffffff; --sheet: var(--surface); --press: #dfdfd8;
-  --line: #e4e4df; --line-2: #d2d2cb; --sel: rgba(0,0,0,.04); --veil: rgba(248,248,246,.8);
-  --accent: #343432; --accent-bg: #eaeae5; --accent-line: #a1a19a;
-  /* The primary action is ink here and paper in dark (option A), so it never competes with clay.
-     Clay marks only the active project, the Now playhead and focus. Verdict colours are separate. */
-  --action: #202020; --action-ink: #f8f8f6; --action-hover: #3a3a38; --action-active: #4a4a47; --action-kbd: #b4b4ae; --keycap: #0c0c0c;
-  --clay: #d97757;
-  --pass-fg: #0f7a3d; --pass-bg: #e4f1e6; --pass-dot: #16a34a;
-  --amber-fg: #8a5a00; --amber-bg: #fbf0d9; --amber-dot: #d97706;
-  --fail-fg: #b42318; --fail-bg: #fbe8e4; --fail-dot: #dc2626;
-  --err-fg: #555550; --err-bg: #ebebe7; --err-dot: #656560;
-  --shadow-lg: 0 0 0 1px rgba(0,0,0,.07), 0 3px 8px rgba(0,0,0,.04), 0 24px 64px -20px rgba(0,0,0,.25);
-  --shadow-md: 0 0 0 1px var(--line), 0 1px 2px rgba(0,0,0,.03), 0 8px 20px -14px rgba(0,0,0,.16);
-  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  /* Paper, canvas, ink (direction §3). */
+  --paper: #f4f2ed; --paper-2: #ece9e2; --surface: #ffffff; --sunken: #faf9f6;
+  --ink: #141414; --ink-2: #3a3936; --ink-3: #66635d; --faint: #6f6b63; --ink-4: #8b877f; --ink-5: #d6d1c6;
+  --line: #e4e0d7; --line-2: #d6d1c6; --hair: #efece5;
+  --sky: #cfe6ff; --sky-ink: #0d4a8f; --sky-line: #9cc8f5;
+  /* The focus ring is the brand's orange, at 4.2 : 1 or more against paper and canvas. Sky stays for keycaps and links. */
+  --focus: #2f7fd8; --ring: #c2410c;
+  /* An ink chip (the ruler's Now): ink with paper text in both themes. */
+  --chip-ink: #141414; --chip-text: #f4f2ed;
+  /* Verdicts: Works, Broken, Not checked yet; amber for Couldn't check and Needs something. */
+  --works: #17733e; --works-bg: #dff3e4; --broken: #b3261e; --broken-bg: #fbe1db; --unk: #66635d; --unk-bg: #efece6;
+  --amber: #8a5a00; --amber-bg: #fbefd6;
+  --hard: 3px 3px 0 var(--ink); --hard-sm: 2px 2px 0 var(--ink); --hard-lg: 6px 6px 0 var(--ink);
+  --display: "Bricolage Grotesque", Inter, system-ui, sans-serif;
+  --voice: "Instrument Serif", Georgia, serif;
   --font: "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
-  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px;
-  --dur: 220ms; --dur-slow: 420ms;
-  --ease: cubic-bezier(.22,1,.36,1); --ease-io: cubic-bezier(.65,0,.35,1);
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px;
+  /* Surfaces over the page share one corner and two shadows (see "One surface language" below). */
+  --r-pop: var(--r-xl); --shadow-pop: var(--hard-lg); --shadow-pop-sm: var(--hard);
+  /* Motion (direction §3; ui-review-rubric §5). Press 180 ms on a little overshoot, hover 160, sheets 220 on Unvibe's ease,
+     the History playhead's glide 260, travel along the Rewind's ruler 420. Only transform and opacity move. The two idle
+     loops (the rail's dot, the pulse on Now) rest under Pause animation and never start under Reduce motion. */
+  --t-press: 180ms; --t-hover: 160ms; --t-snap: 120ms; --t-enter: 220ms; --t-exit: 150ms; --t-glide: 260ms; --t-travel: 420ms;
+  --press-ease: cubic-bezier(.3, 1.5, .5, 1); --ease: cubic-bezier(.16, 1, .3, 1); --ease-io: cubic-bezier(.65, 0, .35, 1);
+  /* Names the other screens still use, on the new palette, until each is rebuilt. */
+  --soft: var(--sunken); --card: var(--paper-2); --side: var(--paper); --mist: #efece6; --sheet: var(--surface); --press: #e7e3da;
+  --sel: rgba(20, 20, 20, .045); --veil: rgba(244, 242, 237, .72);
+  --accent: var(--ink); --accent-bg: var(--sky); --accent-line: var(--sky-line); --clay: var(--focus);
+  --action: var(--ink); --action-ink: var(--paper); --action-hover: #2a2a28; --action-active: #3a3936; --action-kbd: var(--sky-ink); --keycap: #000;
+  --pass-fg: var(--works); --pass-bg: var(--works-bg); --pass-dot: var(--works);
+  --fail-fg: var(--broken); --fail-bg: var(--broken-bg); --fail-dot: var(--broken);
+  --amber-fg: var(--amber); --amber-dot: #b97a0b;
+  --err-fg: var(--ink-2); --err-bg: var(--unk-bg); --err-dot: var(--ink-3);
+  --shadow-lg: 0 0 0 1.5px var(--ink), 4px 4px 0 var(--ink);
+  --shadow-md: 0 0 0 1px var(--line);
+  --serif: var(--voice);
   color-scheme: light;
 }
-/* Dark is the default theme: warm charcoal and ivory, like paper under a desk lamp. Every text step
-   meets AA on --paper and --card (ink-3 7.1:1 and 6.4:1). Verdict colours are unchanged. */
+/* Dark is designed second: warm charcoal, the same family. The main button is the ink pill inverted: paper with ink text.
+   Borders sit a step lighter than in light so cards keep their edge on charcoal (1.5 : 1 against the canvas). */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --ink: #faf9f5; --ink-2: #d6d3c8; --ink-3: #a8a59a; --ink-4: #85827a; --ink-5: #45433d;
-  --paper: #1a1918; --soft: #1e1d1b; --card: #2b2a26; --side: #141413; --mist: #2e2d29; --surface: #24231f; --press: #3a3832;
-  --line: #33312c; --line-2: #4a4741; --sel: rgba(250,249,245,.055); --veil: rgba(26,25,24,.8);
-  --accent: #e8e6dc; --accent-bg: #33312b; --accent-line: #85827a;
-  --pass-fg: #4ade80; --pass-bg: #11271a; --pass-dot: #22c55e;
-  --amber-fg: #facc15; --amber-bg: #2b2208; --amber-dot: #eab308;
-  --fail-fg: #f87171; --fail-bg: #2e1513; --fail-dot: #ef4444;
-  --err-fg: #d6d3c8; --err-bg: #2b2a26; --err-dot: #a8a59a;
-  --action: #faf9f5; --action-ink: #1a1918; --action-hover: #ecebe5; --action-active: #dfddd5; --action-kbd: #6f6c64; --keycap: #b9b6ac;
-  --shadow-lg: 0 0 0 1px rgba(250,249,245,.07), 0 30px 80px -24px rgba(0,0,0,.9);
-  --shadow-md: 0 0 0 1px var(--line), 0 24px 48px -24px rgba(0,0,0,.8);
+  --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
+  --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
+  --line: #45423c; --line-2: #57534c; --hair: #36332f;
+  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --ring: #fb923c;
+  --works: #6fd39a; --works-bg: #1e3a2a; --broken: #ff9a8b; --broken-bg: #43221d; --unk: #b3aea4; --unk-bg: #33312d;
+  --amber: #f5c96a; --amber-bg: #3a2d10; --amber-dot: #e0a630;
+  --hard: 3px 3px 0 #000; --hard-sm: 2px 2px 0 #000; --hard-lg: 6px 6px 0 #000;
+  --mist: #33312d; --press: #3a3833; --sel: rgba(244, 242, 237, .06); --veil: rgba(27, 26, 24, .72);
+  --action: #f4f2ed; --action-ink: #141414; --action-hover: #dedad2; --action-active: #c9c4ba; --keycap: #000;
+  --shadow-lg: 0 0 0 1.5px #000, 4px 4px 0 #000;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --ink: #faf9f5; --ink-2: #d6d3c8; --ink-3: #a8a59a; --ink-4: #85827a; --ink-5: #45433d;
-  --paper: #1a1918; --soft: #1e1d1b; --card: #2b2a26; --side: #141413; --mist: #2e2d29; --surface: #24231f; --press: #3a3832;
-  --line: #33312c; --line-2: #4a4741; --sel: rgba(250,249,245,.055); --veil: rgba(26,25,24,.8);
-  --accent: #e8e6dc; --accent-bg: #33312b; --accent-line: #85827a;
-  --pass-fg: #4ade80; --pass-bg: #11271a; --pass-dot: #22c55e;
-  --amber-fg: #facc15; --amber-bg: #2b2208; --amber-dot: #eab308;
-  --fail-fg: #f87171; --fail-bg: #2e1513; --fail-dot: #ef4444;
-  --err-fg: #d6d3c8; --err-bg: #2b2a26; --err-dot: #a8a59a;
-  --action: #faf9f5; --action-ink: #1a1918; --action-hover: #ecebe5; --action-active: #dfddd5; --action-kbd: #6f6c64; --keycap: #b9b6ac;
-  --shadow-lg: 0 0 0 1px rgba(250,249,245,.07), 0 30px 80px -24px rgba(0,0,0,.9);
-  --shadow-md: 0 0 0 1px var(--line), 0 24px 48px -24px rgba(0,0,0,.8);
+  --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
+  --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
+  --line: #45423c; --line-2: #57534c; --hair: #36332f;
+  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --ring: #fb923c;
+  --works: #6fd39a; --works-bg: #1e3a2a; --broken: #ff9a8b; --broken-bg: #43221d; --unk: #b3aea4; --unk-bg: #33312d;
+  --amber: #f5c96a; --amber-bg: #3a2d10; --amber-dot: #e0a630;
+  --hard: 3px 3px 0 #000; --hard-sm: 2px 2px 0 #000; --hard-lg: 6px 6px 0 #000;
+  --mist: #33312d; --press: #3a3833; --sel: rgba(244, 242, 237, .06); --veil: rgba(27, 26, 24, .72);
+  --action: #f4f2ed; --action-ink: #141414; --action-hover: #dedad2; --action-active: #c9c4ba; --keycap: #000;
+  --shadow-lg: 0 0 0 1.5px #000, 4px 4px 0 #000;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 13px; line-height: 1.45; -webkit-font-smoothing: antialiased; overflow: hidden; user-select: none; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.55 var(--font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow: hidden; user-select: none; }
 /* Keep scroll position discoverable without a bright gutter cutting through the record. */
 * { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
-::selection { background: var(--accent-bg); color: var(--ink); }
+::selection { background: var(--sky); color: var(--ink); }
 body.overlay-body { background: transparent; }
 button, input, select { font: inherit; color: inherit; }
-/* One focus ring for the whole app: clay, 2 px, just outside the control's own corners, so a focused pill stays a pill. */
-:focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
-.mono { font-family: var(--mono); font-size: 12px; }
+/* One focus ring for the whole app: the brand orange, 3 px, 3 px outside the control's own corners, so a focused pill stays a pill. */
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
+.mono, code { font-family: var(--mono); font-size: 13px; }
 .muted { color: var(--ink-3); }
-.small { font-size: 12px; }
+.small { font-size: 13.5px; }
 .sel-text { user-select: text; }
-h1, h2, h3, h4 { margin: 0; letter-spacing: -.015em; text-wrap: balance; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; }
 p { margin: 0; text-wrap: pretty; }
-/* Shortcut hints are quiet but readable: ink-3 meets AA on every paper; on ink they keep the button's own color.
-   11 px is the one size under the 12 px floor, because a hint repeats a visible label. */
-kbd { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.pill kbd { color: inherit; }
-.btn.dark kbd { color: var(--action-kbd); }
-.btn kbd { margin-left: 1px; }
-/* Headlines speak in Newsreader. Italic is an accent, never a paragraph. Body stays Inter, technical facts Geist Mono. */
-.hero-h, .page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--serif); font-weight: 400; letter-spacing: -.02em; }
-.hero-h em, .tv-head em, .page h1 em { font-style: italic; }
+/* Keycaps are neutral paper chips: a hint beside the action, never a second accent. Mono 13, 22 px tall. */
+kbd { display: inline-flex; align-items: center; justify-content: center; height: 22px; min-width: 22px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--sunken); color: var(--ink-2); font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* In the rail and in menus a keycap is quieter still: it is a hint, not the target. */
+.it kbd, .mn-l kbd, .search kbd { border-color: var(--line); background: var(--sunken); color: var(--ink-3); }
+/* On an ink pill or the main button the keycap is a faint wash of the button's own text colour. */
+.pill kbd, .btn.dark kbd { border-color: transparent; background: color-mix(in srgb, currentColor 16%, transparent); color: inherit; }
+.btn kbd { margin-left: 2px; }
+/* Display headings: Bricolage 750, tight. The voice line after one is Instrument Serif italic. */
+.hero-h, .page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--display); font-weight: 750; letter-spacing: -.035em; }
+.voice { font-family: var(--voice); font-style: italic; font-weight: 400; letter-spacing: -.005em; }
+.hero-h em, .tv-head em, .page h1 em { font-family: var(--voice); font-style: italic; font-weight: 400; }
 
-/* A brief monochrome launch. The bar indicates work, never a fabricated percentage. */
-.splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: #141413; color: #faf9f5; transition: opacity 220ms var(--ease); cursor: default; }
+/* A brief launch on paper: the name in the display face, a bar that shows work, never a fabricated percentage. */
+.splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: var(--paper); color: var(--ink); transition: opacity 220ms var(--ease); cursor: default; }
 .splash.out { opacity: 0; pointer-events: none; }
-.splash-word { margin: 0 0 12px; font: 300 clamp(56px, 8.5vw, 120px)/.9 var(--serif); font-variation-settings: "opsz" 72; letter-spacing: -.03em; white-space: nowrap; }
+.splash-word { margin: 0 0 12px; font: 750 clamp(48px, 7.5vw, 104px)/.95 var(--display); letter-spacing: -.04em; white-space: nowrap; }
 .splash-word span, .splash-word em { display: inline-block; animation: splash-rise .32s var(--ease) both; }
-.splash-word em { font-style: normal; animation-delay: .06s; }
+.splash-word em { font-family: var(--voice); font-style: italic; font-weight: 400; letter-spacing: -.01em; animation-delay: .06s; }
 @keyframes splash-rise { from { opacity: 0; transform: translateY(.12em); } }
-.splash-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
-.splash-bar i { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; background: linear-gradient(90deg, transparent, #b0aea5 30%, #faf9f5); animation: splash-load 1.1s cubic-bezier(.65, 0, .35, 1) infinite; }
+.splash-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--hair); overflow: hidden; }
+.splash-bar i { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; background: linear-gradient(90deg, transparent, var(--sky-line) 30%, var(--sky-ink)); animation: splash-load 1.1s cubic-bezier(.65, 0, .35, 1) infinite; }
 @keyframes splash-load { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 @media (prefers-reduced-motion: reduce) { .splash-bar i { animation: none; width: 100%; opacity: .5; } }
 
 /* Arrivals. A new page fades in and rises 8 px; a project's journal rows rise in one after another,
    the first time only. motion.ts sets the delays, so a redraw continues them instead of restarting. */
-.page-in { animation: page-in var(--dur) var(--ease) both; }
+.page-in { animation: page-in var(--t-enter) var(--ease) both; }
 @keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
 .row-in { animation: row-in .26s var(--ease) both; }
-@keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes row-in { from { opacity: 0; transform: translateY(10px); } }
 /* Something that closed fades out over the new draw. It takes no clicks, and nothing inside it replays. */
 .leave { pointer-events: none; }
 .leave * { animation: none !important; }
 
-/* Shell */
+/* Shell: the rail on paper, the work on a white canvas card. */
 #root { height: 100%; }
 .shell { height: 100%; display: flex; flex-direction: column; }
-.banner { flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 16px; background: var(--ink); color: var(--paper); font-size: 12.5px; text-align: center; }
+.banner { flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 16px; background: var(--ink); color: var(--paper); font-size: 13.5px; text-align: center; }
 .banner b { font-weight: 600; }
-/* Rail 212 px, the document, and a right column only when it holds something: Ask (340 px) or an entry (380 px). */
-.app { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: 212px minmax(0, 1fr); }
-.app.has-ask { grid-template-columns: 212px minmax(0, 1fr) 340px; }
-.app.has-detail { grid-template-columns: 212px minmax(0, 1fr) 380px; }
-.side { background: var(--side); border-right: 1px solid var(--line); padding: 46px 12px 14px; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; overflow-x: hidden; min-width: 0; -webkit-app-region: drag; }
-.side > * { -webkit-app-region: no-drag; }
-.side .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 18px; font: 600 14px/1 var(--font); letter-spacing: -.025em; color: var(--ink); -webkit-app-region: drag; }
-/* The app icon in small: the website's orange playhead on the dark tile, as in the Dock (scripts/app-icon.mjs). */
-.mark { width: 20px; height: 20px; position: relative; flex: none; border-radius: 5px; background: linear-gradient(#1e1c19, #0c0b0a); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); forced-color-adjust: none; }
-.mark::before { content: ""; position: absolute; left: 9px; top: 6px; width: 2px; height: 11px; background: #ff791f; }
-.mark::after { content: ""; position: absolute; left: 6px; top: 3px; width: 8px; height: 7px; background: #ff791f; clip-path: polygon(0 0, 100% 0, 100% 37%, 62.5% 100%, 37.5% 100%, 0 37%); }
-.sec { font-size: 12px; color: var(--ink-3); font-weight: 500; padding: 14px 8px 6px; letter-spacing: .01em; }
-.sec-b { border: 0; background: none; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
-.sec-b:hover, .sec-b.on { color: var(--ink); }
-.it { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 8px; color: var(--ink-2); border: 0; background: none; text-align: left; cursor: pointer; width: 100%; min-height: 40px; }
+/* Rail 268 px, the canvas, and a right column only when it holds something: Ask (340 px) or an entry (380 px). */
+/* The x-clip keeps a drawer's slide-in (translateX(24px)) from latching a wider layout on phones (Design b5+6, P3-2). */
+.app { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: 268px minmax(0, 1fr); overflow-x: clip; }
+.app.has-ask { grid-template-columns: 268px minmax(0, 1fr) 340px; }
+.app.has-detail { grid-template-columns: 268px minmax(0, 1fr) 380px; }
+.buddy { width: 34px; height: 34px; flex: none; display: block; overflow: visible; }
+.buddy.big { width: 64px; height: 64px; }
+
+.side { background: var(--paper); padding: 22px 16px 14px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; min-width: 0; -webkit-app-region: drag; }
+/* The rail scrolls instead of squeezing its rows: a short window or the phone drawer keeps 44 px targets. */
+.side > * { -webkit-app-region: no-drag; flex-shrink: 0; }
+.side .brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 14px; font: 750 21px/1 var(--display); letter-spacing: -.03em; color: var(--ink); -webkit-app-region: drag; }
+.search { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 12px; margin-bottom: 8px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink-3); font-size: 15px; cursor: pointer; text-align: left; transition: border-color var(--t-hover) var(--ease); }
+.search svg { width: 16px; height: 16px; flex: none; }
+.search span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search:hover { border-color: var(--line-2); color: var(--ink); }
+.group { margin: 12px 0 2px; padding: 0 10px; font: italic 400 21px/1.2 var(--voice); color: var(--ink-3); }
+.group-b { border: 0; background: none; text-align: left; cursor: pointer; border-radius: var(--r-sm); min-height: 40px; align-self: start; padding-right: 10px; }
+.group-b:hover, .group-b.on { color: var(--ink); }
+.side-empty { padding: 4px 10px; color: var(--ink-3); font-size: 14px; }
+.it { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 10px; border-radius: var(--r-md); border: 1.5px solid transparent; background: none; color: var(--ink-2); font-weight: 500; text-align: left; cursor: pointer; width: 100%;
+  transition: transform var(--t-press) var(--press-ease), scale var(--t-press) var(--press-ease), box-shadow var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
 .it:hover { background: var(--sel); }
 .it:active, .it.kf { background: var(--press); }
-.it.on { background: var(--mist); color: var(--ink); font-weight: 500; }
+.it.on { background: var(--surface); border-color: var(--ink); box-shadow: var(--hard-sm); color: var(--ink); }
+.it.on:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
 .it .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.it .plus { width: 16px; text-align: center; color: var(--ink-3); }
-.it small { margin-left: auto; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.it.quiet { color: var(--ink-3); }
-.it.ag { min-height: 54px; padding: 8px; font-size: 12.5px; color: var(--ink-2); }
+.it .plus { width: 18px; text-align: center; font-size: 18px; line-height: 1; color: var(--ink-3); }
+.it small { color: var(--ink-3); font-size: 13.5px; font-weight: 400; white-space: nowrap; }
+/* A count beside a rail item (Storage's size): quiet, right-aligned, in the body face. */
+.it .ct { margin-left: auto; font: 500 13px/1 var(--font); color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* A project's purpose icon with its status dot on the corner: 8 px of colour inside a 2 px ring of the rail's paper. */
+.pj-ic { position: relative; display: inline-grid; flex: none; }
+.pj-ic .dot { position: absolute; right: -4px; bottom: -4px; width: 12px; height: 12px; margin: 0; border: 2px solid var(--paper); background-clip: padding-box; }
+.pj-ic .dot.v-fail { width: 11px; height: 11px; right: -3px; bottom: -3px; border-radius: 3px; }
+.it.on .pj-ic .dot { border-color: var(--surface); }
+.pj-ic .dot:not(.v-pass):not(.v-fail) { background-color: var(--paper); }
+.it.on .pj-ic .dot:not(.v-pass):not(.v-fail) { background-color: var(--surface); }
+.it.add { color: var(--ink-3); }
+.it.ag { min-height: 54px; color: var(--ink-2); }
 .it.ag.off { color: var(--ink-3); }
-.it.ag.off small { font-size: 12px; }
-.amark { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--surface); font: 500 12px/1 var(--mono); letter-spacing: -.04em; color: var(--ink-2); }
-.off .amark { color: var(--ink-3); background: none; }
-.breath { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; animation: breath 2.4s ease-in-out infinite; }
+.dot { width: 10px; height: 10px; flex: none; border-radius: 50%; margin: 0 3px; box-shadow: inset 0 0 0 2px var(--ink-4); }
+.dot.v-pass { background: var(--works); box-shadow: none; }
+.dot.v-fail { background: var(--broken); box-shadow: none; border-radius: 2px; transform: rotate(45deg); width: 9px; height: 9px; }
+.dot.v-incomplete, .dot.v-blocked { box-shadow: inset 0 0 0 2.5px var(--amber-dot); }
+.dot.v-error { box-shadow: inset 0 0 0 2.5px var(--ink-3); }
+.amark { display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 7px; box-shadow: inset 0 0 0 1.5px var(--ink); background: var(--surface); font: 500 13px/1 var(--mono); letter-spacing: -.04em; color: var(--ink); }
+/* Our own agent symbols (app.ts agentMark): a filled tile in one of three related oranges with the glyph cut out of it. On
+   light the tiles are dark enough for 4 : 1 or more against paper and canvas (#ea580c or darker, Design's floor), with a
+   white glyph; on dark they are the bright oranges with an ink glyph. Shapes differ, so the three hold apart in grey too. */
+:root { --ag-claude: #c2410c; --ag-codex: #b45309; --ag-gemini: #9a3412; --ag-ink: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ag-claude: #f97316; --ag-codex: #f59e0b; --ag-gemini: #fb923c; --ag-ink: #141414; } }
+:root[data-theme="dark"] { --ag-claude: #f97316; --ag-codex: #f59e0b; --ag-gemini: #fb923c; --ag-ink: #141414; }
+.amark.am-claude, .amark.am-codex, .amark.am-gemini { box-shadow: none; color: var(--ag-ink); }
+.amark.am-claude { background: var(--ag-claude); }
+.amark.am-codex { background: var(--ag-codex); }
+.amark.am-gemini { background: var(--ag-gemini); }
+.amark svg { width: 76%; height: 76%; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.breath { width: 8px; height: 8px; border-radius: 50%; background: var(--works); flex: none; animation: breath 2.4s ease-in-out infinite; }
 @keyframes breath { 0%, 100% { opacity: .35 } 50% { opacity: 1 } }
-.side-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 1px; }
+.side-foot { margin-top: auto; padding-top: 12px; display: grid; gap: 8px; }
+.stored { display: flex; align-items: center; gap: 10px; padding: 0 10px; font-size: 13.5px; color: var(--ink-3); }
+.stored::before { content: ""; width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--works); box-shadow: 0 0 0 4px var(--works-bg); }
+.plan { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 14px; text-align: left; cursor: pointer; transition: border-color var(--t-hover) var(--ease); }
+.plan:hover { border-color: var(--line-2); }
+.plan-r { display: flex; justify-content: space-between; gap: 8px; }
+.plan b { font-weight: 600; }
+.plan small { color: var(--ink-3); font-size: 13.5px; }
+.plan .bar { display: block; height: 6px; margin-top: 8px; border-radius: 9px; background: var(--paper-2); overflow: hidden; }
+.plan .bar i { display: block; height: 100%; border-radius: 9px; background: var(--ink); }
 
-.main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--paper); }
-.toolbar { flex: none; position: relative; z-index: 16; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 28px; border-bottom: 1px solid var(--line); -webkit-app-region: drag; }
+.main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; margin: 12px 12px 12px 0; border: 1px solid var(--line); border-radius: var(--r-xl); background: var(--surface); overflow: hidden; }
+.toolbar { flex: none; position: relative; z-index: 16; height: 68px; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 24px; border-bottom: 1px solid var(--hair); -webkit-app-region: drag; }
 .toolbar > * { -webkit-app-region: no-drag; }
-.crumb { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; }
-.crumb > span[aria-hidden] { color: var(--ink-4); }
-.cr-p { border: 0; background: none; padding: 2px 4px; margin-left: -4px; border-radius: var(--r-sm); font-weight: 500; color: var(--ink-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; min-width: 40px; }
-.cr-p:hover { background: var(--sel); color: var(--ink); }
+.crumb { display: flex; align-items: baseline; gap: 6px; min-width: 0; font: 700 19px/1.2 var(--display); letter-spacing: -.02em; color: var(--ink); white-space: nowrap; overflow: hidden; }
+.crumb > span { color: var(--faint); font-weight: 500; }
+.crumb > span:only-child { color: var(--ink); font-weight: 700; }
+.cr-p { border: 0; background: none; padding: 4px 6px; margin-left: -6px; border-radius: var(--r-sm); font: inherit; color: var(--ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; min-width: 40px; }
+.cr-p:hover { background: var(--sel); }
 .cr-p:active { background: var(--press); }
-.setup-hide { min-width: 40px; }
 .tb-sp { flex: 1; -webkit-app-region: drag; }
-.pill { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.tb-buddy, .nav-toggle, .toolbar .jump { display: none; }
+.icon-b { width: 44px; height: 44px; display: grid; place-items: center; flex: none; padding: 0; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.icon-b svg { width: 18px; height: 18px; }
+.icon-b:hover { border-color: var(--line-2); }
+.icon-b:active { background: var(--press); }
+.nav-toggle { align-items: center; gap: 8px; min-width: 0; height: 44px; padding: 0 12px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 600; cursor: pointer; }
+.nav-toggle .nt-n { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-toggle .chev { width: 12px; height: 12px; flex: none; color: var(--ink-3); }
+.nav-toggle .dot { margin: 0; width: 9px; height: 9px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: transform var(--t-press) var(--press-ease); }
 .pill:hover { background: color-mix(in srgb, var(--ink) 86%, var(--paper)); }
 .pill:active, .pill.kf { transform: scale(.97); }
 
-/* The right column: Ask, or the open entry. When the window is narrow it does not squeeze the page:
-   Ask becomes a drawer you summon, and an entry becomes a full sheet over the page. */
-.rcol { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--line); }
-.rcol.enter { animation: slide var(--dur) var(--ease); }
-.rc-top { flex: none; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--line); }
+/* The right column: Ask, or the open entry, as a second white card. When the window is narrow it does not
+   squeeze the page: Ask becomes a drawer you summon, and an entry becomes a full sheet over the page. */
+.rcol { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; margin: 12px 12px 12px 0; border: 1px solid var(--line); border-radius: var(--r-xl); background: var(--surface); overflow: hidden; }
+.rcol.enter { animation: slide var(--t-enter) var(--ease); }
+.rc-top { flex: none; height: 68px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 22px; border-bottom: 1px solid var(--hair); }
 .rc-top .eyebrow { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ask-h { font: 400 19px/1 var(--serif); letter-spacing: -.01em; }
+.ask-h { font: italic 400 24px/1 var(--voice); }
 .ask-about { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ask-mount { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.rc-body { flex: 1; min-height: 0; overflow: auto; padding: 20px 22px 28px; display: grid; gap: 14px; align-content: start; }
+.rc-body { flex: 1; min-height: 0; overflow: auto; padding: 22px 24px 32px; display: grid; gap: 16px; align-content: start; }
 @media (max-width: 1099px) {
-  .app.has-ask, .app.has-detail { grid-template-columns: 212px minmax(0, 1fr); }
-  .rcol { position: absolute; top: 0; bottom: 0; right: 0; z-index: 18; box-shadow: var(--shadow-lg); }
-  .rcol.ask-col { width: min(360px, 100%); }
-  .rcol.detail { left: 212px; border-left: 0; box-shadow: none; }
-  .rcol.detail .rc-body { width: min(640px, 100%); margin: 0 auto; padding: 24px 28px 40px; }
+  .app.has-ask, .app.has-detail { grid-template-columns: 268px minmax(0, 1fr); }
+  .rcol { position: absolute; top: 0; bottom: 0; right: 0; z-index: 18; border-radius: var(--r-pop); box-shadow: var(--shadow-pop); border: 1.5px solid var(--ink); }
+  .rcol.ask-col { width: min(360px, calc(100% - 24px)); }
+  .rcol.detail { left: 268px; }
+  .rcol.detail .rc-body { width: min(640px, 100%); margin: 0 auto; padding: 26px 28px 40px; }
 }
 
-/* Buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; border: 0; cursor: pointer; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-md); transition: transform .12s var(--ease), opacity .2s; white-space: nowrap; }
-.btn:hover:not([disabled]) { box-shadow: 0 0 0 1px var(--line-2), 0 1px 2px rgba(9,9,11,.06), 0 8px 20px -10px rgba(9,9,11,.2); }
-.btn:active:not([disabled]), .btn.kf { transform: scale(.97); background: var(--press); transition-duration: .08s; }
-.btn.dark { background: var(--action); color: var(--action-ink); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
-.btn.dark:hover:not([disabled]) { background: var(--action-hover); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
-.btn.dark:active:not([disabled]), .btn.dark.kf { background: var(--action-active); }
-.btn.big { height: 42px; padding: 0 18px; font-size: 13px; border-radius: var(--r-md); }
-.btn.big.dark { border-radius: var(--r-md); padding: 0 18px; font-size: 13px; }
-.btn.ghost { background: none; box-shadow: none; color: var(--ink-2); }
-.btn.ghost:hover:not([disabled]) { background: var(--sel); box-shadow: none; }
-.btn.ghost:active:not([disabled]), .btn.ghost.kf { background: var(--press); }
-.btn[disabled] { opacity: .4; cursor: not-allowed; }
-.btn.dark[disabled] { opacity: 1; background: var(--mist); color: var(--ink-4); box-shadow: none; }
-.btn.dark[disabled] kbd { color: inherit; }
-.btn.link { height: auto; min-height: 26px; padding: 2px 2px; background: none; box-shadow: none; border-radius: 4px; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; text-decoration-thickness: 1px; }
-.btn.link:hover:not([disabled]) { box-shadow: none; color: var(--ink); text-decoration-color: var(--ink-3); }
-.btn.link:active:not([disabled]), .btn.link.kf { background: none; transform: none; color: var(--ink); }
-.btn.link.small { font-size: 12px; justify-self: start; }
-.row-btns { display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: center; }
+/* Buttons: ink-outlined pills with a hard offset shadow and a springy press. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--surface); color: var(--ink);
+  font: 600 15px/1.2 var(--font); cursor: pointer; box-shadow: var(--hard-sm); white-space: nowrap;
+  transition: transform var(--t-press) var(--press-ease), scale var(--t-press) var(--press-ease), box-shadow var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
+.btn:hover:not([disabled]) { background: var(--sunken); }
+.btn:active:not([disabled]), .btn.kf { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.btn.dark { background: var(--action); color: var(--action-ink); box-shadow: var(--hard); }
+:root[data-theme="dark"] .btn.dark { border-color: #000; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.dark { border-color: #000; } }
+.btn.dark:hover:not([disabled]) { background: var(--action-hover); }
+.btn.dark kbd { border-color: transparent; }
+.btn.big { min-height: 52px; padding: 0 24px; font-size: 16px; }
+.btn.quiet { border-color: var(--line); box-shadow: none; }
+.btn.quiet:hover:not([disabled]) { border-color: var(--line-2); background: var(--surface); }
+.btn.quiet:active:not([disabled]) { transform: scale(.98); background: var(--press); }
+.btn.ghost { border-color: transparent; background: none; box-shadow: none; color: var(--ink-2); }
+.btn.ghost:hover:not([disabled]) { background: var(--sel); }
+.btn.ghost:active:not([disabled]), .btn.ghost.kf { transform: scale(.98); background: var(--press); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn.dark[disabled] { opacity: 1; background: var(--mist); border-color: var(--line-2); color: var(--ink-3); box-shadow: none; }
+.btn.dark[disabled] kbd { background: none; color: inherit; }
+.btn.link { min-height: 40px; padding: 0 4px; border: 0; border-radius: 6px; background: none; box-shadow: none; color: var(--ink); text-decoration: underline; text-decoration-color: var(--sky-line); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.btn.link:hover:not([disabled]) { background: none; text-decoration-color: var(--focus); }
+.btn.link:active:not([disabled]), .btn.link.kf { transform: none; color: var(--ink-2); }
+.btn.link.small { font-size: 14px; justify-self: start; }
+.row-btns { display: flex; gap: 10px 14px; flex-wrap: wrap; align-items: center; }
 
-/* Verdict badges: shape + word, color confirms */
-.vb { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: var(--r-sm); font-size: 12px; font-weight: 500; background: var(--card); color: var(--ink-3); white-space: nowrap; }
-.vb.lg { height: 28px; padding: 0 12px; font-size: 12px; font-weight: 600; }
+/* Verdict pills: the shape and the word, colour confirms. */
+.vb { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 8px; border-radius: 999px; font: 600 13.5px/1 var(--font); background: var(--unk-bg); color: var(--unk); white-space: nowrap; }
+.vb .vi { width: 14px; height: 14px; flex: none; }
+.vb.vb-lg { height: 30px; padding: 0 12px 0 10px; font-size: 14px; }
+.vb .g { display: none; }
+.vb.v-pass { background: var(--works-bg); color: var(--works); }
+.vb.v-fail { background: var(--broken-bg); color: var(--broken); }
+.vb.v-incomplete, .vb.v-blocked { background: var(--amber-bg); color: var(--amber); }
+.vb.v-error { background: var(--unk-bg); color: var(--ink-2); }
+/* The small verdict glyph other screens still use: a dot, a diamond, a ring. */
 .g { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
-.v-pass { background: var(--pass-bg); color: var(--pass-fg); } .v-pass .g, .g.v-pass { background: var(--pass-dot); box-shadow: none; }
-.v-fail { background: var(--fail-bg); color: var(--fail-fg); } .v-fail .g, .g.v-fail { background: var(--fail-dot); box-shadow: none; border-radius: 1.5px; transform: rotate(45deg); width: 7px; height: 7px; }
-.v-incomplete { background: var(--amber-bg); color: var(--amber-fg); } .v-incomplete .g, .g.v-incomplete { box-shadow: inset 0 0 0 1.5px var(--amber-dot); background: linear-gradient(90deg, var(--amber-dot) 50%, transparent 50%); }
-.v-blocked { background: var(--amber-bg); color: var(--amber-fg); } .v-blocked .g, .g.v-blocked { box-shadow: inset 0 0 0 2px var(--amber-dot); clip-path: polygon(0 0, 38% 0, 38% 40%, 62% 40%, 62% 0, 100% 0, 100% 100%, 0 100%); }
-.v-error { background: var(--err-bg); color: var(--err-fg); } .v-error .g, .g.v-error { box-shadow: inset 0 0 0 1.5px var(--err-dot); background: linear-gradient(45deg, transparent 44%, var(--err-dot) 44%, var(--err-dot) 56%, transparent 56%); }
-.v-none .g, .g.v-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
+.g.v-pass { background: var(--works); box-shadow: none; }
+.g.v-fail { background: var(--broken); box-shadow: none; border-radius: 1.5px; transform: rotate(45deg); width: 7px; height: 7px; }
+.g.v-incomplete { box-shadow: inset 0 0 0 1.5px var(--amber-dot); background: linear-gradient(90deg, var(--amber-dot) 50%, transparent 50%); }
+.g.v-blocked { box-shadow: inset 0 0 0 2px var(--amber-dot); clip-path: polygon(0 0, 38% 0, 38% 40%, 62% 40%, 62% 0, 100% 0, 100% 100%, 0 100%); }
+.g.v-error { box-shadow: inset 0 0 0 1.5px var(--err-dot); background: linear-gradient(45deg, transparent 44%, var(--err-dot) 44%, var(--err-dot) 56%, transparent 56%); }
+.g.v-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
 .v-checking .g { animation: breathe 1.1s ease-in-out infinite; box-shadow: inset 0 0 0 1.5px var(--ink); }
 @keyframes breathe { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
 @keyframes spin { to { transform: rotate(360deg) } }
-.spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink-5); border-top-color: var(--ink); animation: spin .9s linear infinite; flex: none; display: inline-block; }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink-5); border-top-color: var(--ink); animation: spin .9s linear infinite; flex: none; display: inline-block; }
 /* A new verdict settles in once. No overshoot: a verdict is a fact, not a celebration. */
 .stamp { animation: stamp .24s var(--ease); }
 @keyframes stamp { from { transform: scale(.94); opacity: 0 } to { transform: none; opacity: 1 } }
+/* The check's verdict card slides up into place once, 220 ms, transform and opacity only. */
+.ck-card.stamp { animation: ck-in var(--t-enter) var(--ease); }
+@keyframes ck-in { from { transform: translateY(10px); opacity: 0 } to { transform: none; opacity: 1 } }
 
-/* A single reading measure leaves room for real history, not a permanent assistant. */
-.page.proj { padding: 0 0 64px; }
-.doc { max-width: 760px; margin: 0 auto; padding: 36px 40px 0; }
-.eyebrow { font: 500 12px/1.3 var(--font); color: var(--ink-3); }
-.hero { display: grid; gap: 0; justify-items: start; }
-.hero-e { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
-.hero-e .path { text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-h { font-size: clamp(36px, 3.5vw, 48px); line-height: 1.08; margin: 14px 0 12px; text-wrap: balance; }
-.hero-p { font-size: 14px; line-height: 1.5; color: var(--ink-2); max-width: 64ch; text-wrap: pretty; }
-.hero-acts { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin: 20px 0 4px; }
-.honest { margin: 20px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; font-size: 12px; line-height: 1.6; color: var(--ink-2); align-self: stretch; }
-.honest dt { font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.honest dd { margin: 0; text-wrap: pretty; }
-.doc > .hintbar { margin: 20px 0 0; border-radius: var(--r-md); border: 0; box-shadow: inset 0 0 0 1px var(--line); flex-wrap: wrap; }
-.journal-empty { margin-top: 32px; padding: 20px 22px; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 6px; }
-.journal-empty h2 { font: italic 400 21px/1.2 var(--serif); }
-.journal-empty p { color: var(--ink-2); }
+/* History: the answer first. A status line, the status and the way out, the lead, one ink button. */
+.page.proj { padding: 0 0 80px; }
+.doc { max-width: 860px; margin: 0 auto; padding: 52px 48px 0; }
+.eyebrow { font: 500 13.5px/1.3 var(--font); color: var(--ink-3); }
+.hero { display: grid; justify-items: start; }
+.hero-e { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; max-width: 100%; font-size: 14px; color: var(--ink-3); }
+.hero-e .dot { margin: 0; width: 9px; height: 9px; }
+.hero-e > span:nth-child(2) { color: var(--ink-2); font-weight: 500; }
+.hero-cmd code { color: var(--ink-2); }
+.hero-e .path { font-family: var(--mono); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* One status line in the display face; the time it holds for sits under it as quiet text, not a second headline. */
+.hero-h { margin: 14px 0 0; font-size: 46px; line-height: 1.04; }
+.hero-h .hh { display: block; }
+.hero-when { margin-top: 8px; font: 500 16px/1.4 var(--font); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hero-p { margin-top: 18px; max-width: 58ch; font-size: 17px; line-height: 1.6; color: var(--ink-2); }
+.hero-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; margin-top: 28px; }
+/* The undo card after a bring back: a sky card with the way back in it. */
+.doc > .undo-card { margin: 28px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--sky); border: 1.5px solid var(--sky-line); color: var(--sky-ink); font-size: 15px; line-height: 1.5; }
+.undo-card > .g { flex: none; width: 10px; height: 10px; }
+.undo-card > p { flex: 1 1 300px; min-width: 0; }
+.undo-card .row-btns { flex: none; }
+/* The demo's three steps: a sky card under the answer. The current step is in ink. */
+.coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--sky) 40%, var(--surface)); border: 1px solid var(--sky-line); display: grid; gap: 10px; }
+.coach-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
+.coach-h .btn { min-height: 40px; }
+/* The bead to find in step 1 wears a still ring in the Works colour. Nothing moves. */
+.rt-tk.aim::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--works); pointer-events: none; }
+/* An empty list with direction: one line that says what to do and the button that does it, no illustration. */
+.empty-dir { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 18px 20px; border-radius: var(--r-lg); border: 1px dashed var(--line-2); background: var(--sunken); }
+.empty-dir p { flex: 1 1 260px; max-width: 60ch; font-size: 15px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.journal-empty { margin-top: 40px; }
+/* History while it reads: the page's shape in quiet blocks at the sizes of what replaces them. The pulse is opacity only. */
+.sk, .sk-head::before { display: block; border-radius: 8px; background: var(--paper-2); animation: skel 1.1s var(--ease-io) infinite alternate; }
+@keyframes skel { from { opacity: .5; } }
+/* The headline placeholder is the page's own h1 holding one empty line, so it is exactly the height of the headline that replaces it. */
+.sk-head { position: relative; justify-self: stretch; }
+.sk-head::before { content: ""; position: absolute; left: 0; top: 14%; bottom: 14%; width: min(520px, 82%); border-radius: 10px; }
+.sk-btn { width: 300px; height: 52px; border-radius: 999px; }
+.sk-honest { justify-self: stretch; margin-top: 20px; }
+.sk-dt, .sk-dd { height: 10px; margin: 6px 0; }
+.sk-dt { width: 150px; }
+.sk-dd { width: 92%; }
+.sk-dd + .sk-dd { width: 64%; }
+.sk-ruler { height: 150px; margin: 44px 0 0; border-radius: 18px; background: var(--sunken); border: 1px solid var(--hair); }
+.sk-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 18px 20px; }
+.sk-t { width: 44px; height: 11px; margin-top: 4px; }
+.sk-g { display: none; }
+.sk-l { width: 58%; height: 14px; }
+.sk-m { width: 34%; height: 11px; margin-top: 12px; }
+.sk-row:nth-child(2) .sk-l { width: 44%; }
+.sk-row:nth-child(3) .sk-l { width: 66%; }
 
-/* The slim ruler: past on the left, now on the right, agent sessions above, the playhead on the selection. */
-.hruler { position: relative; height: 66px; margin: 30px 0 4px; }
-.hruler .lane { position: absolute; left: 0; right: 0; top: 0; height: 18px; }
-.hruler .clip { position: absolute; top: 0; height: 18px; border-radius: 5px; background: var(--mist); box-shadow: inset 0 0 0 1px var(--line); font: 500 12px/18px var(--mono); color: var(--ink-3); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The ruler's well: a sunken tray, its header and legend, and the ruler itself. */
+.rwell { margin-top: 44px; padding: 18px 22px 10px; border-radius: 18px; background: var(--sunken); border: 1px solid var(--hair); }
+.rw-h { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--ink-3); }
+.rw-h b { color: var(--ink); font-weight: 600; }
+.legend { margin-left: auto; display: flex; gap: 14px; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.lg { width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%; }
+.lg .vi { width: 12px; height: 12px; }
+.lg.b-pass { background: var(--works-bg); color: var(--works); }
+.lg.b-fail { background: var(--broken-bg); color: var(--broken); }
+.lg.b-none { background: var(--unk-bg); color: var(--unk); }
+/* The ruler: sessions on top, the last-works flag, the beads on their track, labels under. It is one control: the whole band
+   is its target, and the beads are its marks. Pressing anywhere picks the nearest; a vertical swipe on a phone still scrolls the page. */
+.hruler { --b: 26px; --iy: 66px; position: relative; height: 106px; margin: 4px 4px 0; container-type: inline-size; cursor: pointer; touch-action: pan-y; border-radius: var(--r-md); }
+.hruler.d2 { --b: 20px; }
+.hruler.d3 { --b: 14px; }
+.hruler:focus-visible { outline-offset: 4px; }
+/* Pressed, not tabbed to: the ruler keeps focus for the arrow keys, without a ring until a key is used. */
+.hruler.by-pointer:focus-visible { outline: none; }
+.hruler.scrubbing { cursor: grabbing; }
+.hruler .lane { position: absolute; left: 0; right: 0; top: 0; height: 20px; }
+.hruler .clip { position: absolute; top: 0; height: 20px; border-radius: 6px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font: 500 13px/20px var(--mono); color: var(--ink-3); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hruler .clip span { overflow: hidden; text-overflow: ellipsis; display: block; }
-.hruler .base { position: absolute; left: 0; right: 0; top: 34px; height: 1px; background: var(--line-2); }
-/* 24 px ticks meet WCAG 2.5.8 on their own; each one also has its journal entry, a full-size control. */
-.rt-tk { position: absolute; top: 23px; width: 24px; height: 24px; margin-left: -12px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; border-radius: 50%; }
-.rt-tk .g { width: 9px; height: 9px; transition: transform .14s var(--ease); }
-.rt-tk .g.v-none { background: var(--paper); }
-.rt-tk .g.v-fail { width: 8px; height: 8px; }
-.rt-tk:hover .g { transform: scale(1.3); }
-.rt-tk:hover .g.v-fail { transform: rotate(45deg) scale(1.3); }
+.hruler .clip.clip-x { visibility: hidden; }
+.hruler .base { position: absolute; left: 0; right: 0; top: calc(var(--iy) - 2px); height: 4px; border-radius: 4px; background: var(--line); }
+/* A bead is placed by `translate` from --x (its place in percent; 1cqw is 1% of the ruler), so when a new save point
+   arrives and the ruler re-spaces, every bead glides to its new place. `transform` stays free for its turn and its size. */
+.rt-tk { position: absolute; left: 0; top: calc(var(--iy) - var(--b) / 2); width: var(--b); height: var(--b); margin-left: calc(var(--b) / -2); display: grid; place-items: center; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink-4); color: var(--ink-3);
+  translate: calc(var(--x) * 1cqw) 0; transition: transform var(--t-hover) var(--ease), opacity var(--t-hover) var(--ease), translate var(--t-glide) var(--ease); }
+.rt-tk .vi { width: calc(var(--b) * .54); height: calc(var(--b) * .54); }
+.hruler.d3 .rt-tk .vi { display: none; }
+.rt-tk.b-none .vi { display: none; }
+.rt-tk.b-pass { background: var(--works); border-color: var(--works); color: #fff; }
+.rt-tk.b-fail { background: var(--broken); border-color: var(--broken); color: #fff; border-radius: 28%; transform: rotate(45deg); }
+.rt-tk.b-fail .vi { transform: rotate(-45deg); }
+.rt-tk.b-incomplete, .rt-tk.b-blocked { background: var(--amber-bg); border-color: var(--amber-dot); color: var(--amber); }
+.rt-tk.b-error { background: var(--unk-bg); border-color: var(--ink-3); color: var(--ink-2); }
+:root[data-theme="dark"] .rt-tk.b-pass, :root[data-theme="dark"] .rt-tk.b-fail { color: #141414; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rt-tk.b-pass, :root:not([data-theme="light"]) .rt-tk.b-fail { color: #141414; } }
+.rt-tk:hover, .rt-tk.on { transform: scale(1.12); }
+.rt-tk.b-fail:hover, .rt-tk.b-fail.on { transform: rotate(45deg) scale(1.12); }
+.rt-tk.on { box-shadow: 0 0 0 3px var(--sunken), 0 0 0 5px var(--ink); }
 .rt-tk.after { opacity: .45; }
-.hruler .ph { position: absolute; top: 18px; width: 2px; height: 30px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transition: left .32s var(--ease-io); }
-.hruler .ph::before { content: ""; position: absolute; left: -4px; top: -6px; border: 5px solid transparent; border-top: 6px solid var(--ink); }
-/* At Now the playhead is clay, one of the four places clay appears. */
-.hruler .ph.now { background: var(--clay); }
-.hruler .ph.now::before { border-top-color: var(--clay); }
-.rlab { position: absolute; top: 52px; transform: translateX(-50%); font: 400 12px/1 var(--mono); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* The way back: a sky halo on the last version that works. */
+.rt-tk.lw { box-shadow: 0 0 0 6px var(--sky), 0 0 0 7.5px var(--sky-line); }
+.rt-tk.lw.on { box-shadow: 0 0 0 6px var(--sky), 0 0 0 8px var(--ink); }
+/* Placed by transform like the playhead (--x the bead's place, --s how far it hangs left of it), so when the last version that
+   works changes, the flag glides to it. */
+.lwflag { position: absolute; left: 0; top: 26px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--sky); color: var(--sky-ink); border: 1.5px solid var(--ink); box-shadow: var(--hard-sm); font: 600 13.5px/23px var(--font); white-space: nowrap; pointer-events: none;
+  transform: translateX(calc(var(--x) * 1cqw)) translateX(var(--s, -50%)); transition: transform var(--t-glide) var(--ease), opacity var(--t-hover) var(--ease); }
+.hruler.d1 .lwflag { top: 22px; }
+.hruler.d3 .lwflag { top: 32px; }
+.hruler.scrubbing .lwflag, .hruler:focus-visible:not(.by-pointer) .lwflag { opacity: 0; }
+/* The playhead sits at the ruler's left edge and moves by transform: --x is the bead's place in percent, 1cqw is 1% of the ruler.
+   At Now the Now pill marks the place, so the playhead steps aside. */
+.hruler .ph { position: absolute; left: 0; top: calc(var(--iy) - 26px); width: 2px; height: 52px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transform: translateX(calc(var(--x) * 1cqw)); transition: transform var(--t-glide) var(--ease), opacity var(--t-snap) var(--ease); }
+/* Under a dragging finger the playhead keeps up; from the keys or a click it glides. */
+.hruler.scrubbing .ph { transition-duration: 90ms, var(--t-snap); }
+.hruler .ph::before { content: ""; position: absolute; left: -5px; top: -7px; border: 6px solid transparent; border-top: 7px solid var(--ink); }
+.hruler .ph.now { opacity: 0; }
+.rlab { position: absolute; top: calc(var(--iy) + 20px); font: 500 13px/1 var(--mono); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rlab.on { color: var(--ink); font-weight: 500; }
+.rlab.now { top: calc(var(--iy) + 16px); padding: 4px 10px; border-radius: 999px; background: var(--chip-ink); color: var(--chip-text); box-shadow: 0 0 0 1px var(--line-2); font: 600 13.5px/1.1 var(--font); }
+.rlab.now .rl-t { font-family: var(--mono); font-weight: 500; }
 /* Set after measuring, so two labels never touch: Now without its time, or a label that gives way. */
 .rlab.rl-c .rl-t { display: none; }
 .rlab.rl-hide { visibility: hidden; }
-/* The clean-up choice sits on its own line under its row, apart from the row's Remove from app. */
-.table .tr .clean-ask { grid-column: 1 / -1; justify-self: start; padding: 6px 6px 6px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-2); }
+/* The flag rides above the ruler while it is dragged or has keyboard focus: the save point under the playhead in the
+   middle with its title, the ones either side quieter, like onion skins. It stays inside the ruler, and it goes when
+   the pointer lets go. */
+.rflag { --fw: min(460px, 100cqw); --fx: clamp(0px, calc(var(--x) * 1cqw - var(--fw) / 2), calc(100cqw - var(--fw)));
+  position: absolute; left: 0; bottom: calc(100% - 18px); z-index: 4; width: var(--fw); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1fr); gap: 2px; padding: 5px;
+  border-radius: var(--r-lg); background: var(--surface); border: 1.5px solid var(--ink); box-shadow: var(--hard); pointer-events: none;
+  opacity: 0; visibility: hidden; transform: translateX(var(--fx)) translateY(4px);
+  transition: transform var(--t-snap) var(--ease), opacity 120ms var(--ease), visibility 0s linear 120ms; }
+.hruler.scrubbing .rflag, .hruler:focus-visible:not(.by-pointer) .rflag { opacity: 1; visibility: visible; transform: translateX(var(--fx)); transition: transform var(--t-snap) var(--ease), opacity var(--t-hover) var(--ease), visibility 0s; }
+/* Each frame keeps its words inside it: one column that can shrink, and the time and the verdict wrap between words
+   instead of running past the ruler (Design b3+4 F1). The frame clips only as a last resort. */
+.rf { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 4px; min-width: 0; padding: 8px 9px; border-radius: 11px; overflow: hidden; overflow-wrap: normal; }
+.rf.on { background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); }
+.rf-t { font: 500 13px/1.2 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rf.on .rf-t { color: var(--ink); }
+.rf-v { display: flex; align-items: flex-start; gap: 6px; min-width: 0; font-size: 13.5px; line-height: 1.25; color: var(--ink-3); }
+.rf-v .g { margin-top: 4px; }
+.rf-v span { min-width: 0; }
+.rf .vb { justify-self: start; max-width: 100%; height: auto; min-height: 26px; padding-block: 4px; white-space: normal; line-height: 1.2; }
+/* The save point the flag is about gets its whole message, on up to two lines; the neighbours keep one. */
+.rf-n { font-size: 13.5px; line-height: 1.3; color: var(--ink-2); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
 
-/* The journal: time in the margin, the verdict glyph on a hairline, then the entry. */
+/* Setup: one card above the journal, the same three steps. */
+.setup { margin-top: 28px; padding: 18px 20px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); display: grid; gap: 14px; }
+.setup-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.setup-h h2 { font: 700 18px/1.25 var(--display); letter-spacing: -.02em; }
+/* The three steps share one height: the title on top, the words filling the middle, a button (when there is one) on the floor. */
+.steps3 { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: 10px; }
+.s3 { display: grid; grid-template-rows: auto 1fr auto; align-content: stretch; gap: 6px; padding: 14px; border-radius: 14px; background: var(--sunken); border: 1.5px solid var(--hair); font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.s3 b { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 15px; font-weight: 600; }
+.s3 .n { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1.5px solid var(--ink-3); display: grid; place-items: center; font: 600 13.5px/1 var(--font); }
+.s3.done .n { background: var(--works-bg); border-color: transparent; color: var(--works); }
+.s3.now { background: var(--surface); border-color: var(--ink); box-shadow: var(--hard-sm); }
+.s3.now .n { background: var(--sky); border-color: var(--sky-ink); color: var(--sky-ink); }
+.s3 .btn { justify-self: start; align-self: end; margin-top: 6px; }
+
+/* The journal: the day in the voice, its save points in one white card. The day's header sticks to the top of the page
+   while its rows scroll under it, on the page's own surface so nothing shows through. */
 .journal { padding-bottom: 8px; }
-.day { display: flex; align-items: baseline; gap: 12px; margin: 28px 0 6px; }
-.day h2 { font: 600 13px/1.3 var(--font); letter-spacing: -.01em; }
-.day span { font-size: 12px; color: var(--ink-3); }
-.entry { position: relative; display: grid; grid-template-columns: 76px 22px minmax(0, 1fr); padding: 16px 8px 18px 0; border-radius: var(--r-md); cursor: pointer; transition: background .3s var(--ease); }
-.entry::before { content: ""; position: absolute; left: 86px; top: 0; bottom: 0; width: 1px; background: var(--line); }
-.entry.first::before { top: 22px; }
-.entry:hover { background: color-mix(in srgb, var(--sel) 60%, transparent); }
-.entry:active { background: var(--sel); transition-duration: .08s; }
-.entry.on { background: var(--mist); }
-.entry.lit { background: var(--accent-bg); }
-/* A time and its AM/PM are two parts that each stay whole, so "2:08:06" never breaks inside; "AM" goes under it. */
-.entry .when { font: 400 12px/1.25 var(--font); color: var(--ink-3); text-align: right; padding: 4px 10px 0 0; font-variant-numeric: tabular-nums; }
-.entry .when span { display: block; white-space: nowrap; }
+.day { position: sticky; top: 0; z-index: 3; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 36px 0 4px; padding: 12px 0 10px; background: var(--surface); }
+.day h2 { font: italic 400 34px/1 var(--voice); color: var(--ink); }
+.day span { font-size: 14px; color: var(--ink-3); }
+.list { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface); }
+.entry { position: relative; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 20px; border-top: 1px solid var(--hair); cursor: pointer; }
+.list > :first-child { border-top: 0; }
+/* A journal row with keyboard focus wears the buttons' ring round the whole row, inside the card so the card's corners
+   do not clip it. ↑/↓ move it between rows. */
+.entry:has(.e-t:focus-visible), .list > .fold:focus-visible { outline: 3px solid var(--ring); outline-offset: -3px; z-index: 2; }
+.entry .e-t:focus-visible { outline: none; }
+/* Hover lifts the row a pixel onto a soft shadow; a press settles it back. The accent on the left says which row is open,
+   picked on the ruler, or the way back, and stays put while the row lifts. */
+.entry:hover { z-index: 1; background: var(--sunken); translate: 0 -1px; box-shadow: 0 6px 16px -10px rgb(0 0 0 / .28); }
+.entry:active { background: var(--paper-2); translate: none; box-shadow: none; transition-duration: .08s; }
+.entry::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--row-accent, transparent); pointer-events: none; }
+.entry.lw { background: color-mix(in srgb, var(--sky) 38%, var(--surface)); --row-accent: var(--sky-ink); }
+.entry.sel { background: var(--sunken); --row-accent: var(--ink-2); }
+.entry.on { background: var(--paper-2); --row-accent: var(--ink); }
+.entry.lit { background: var(--sky); }
+/* What a save point changed: a page icon and the names, in the body font. */
+.e-files { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: var(--ink-2); }
+.e-files > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.e-fi { flex: none; width: 14px; height: 14px; color: var(--ink-3); }
+/* A time and its AM/PM each stay whole, so "2:08:06" never breaks inside; "AM" goes beside it or under it. Mono and tabular,
+   like the ruler above, so the column of times lines up. */
+.entry .when, .fold .when { font: 500 13px/1.35 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; align-self: start; padding-top: 2px; }
+.entry .when span { display: inline-block; white-space: nowrap; margin-right: .35em; }
 .nw { white-space: nowrap; }
-.entry .gl { position: relative; display: grid; justify-items: center; padding-top: 8px; }
-.entry .gl .g { box-shadow: 0 0 0 3px var(--paper); }
-.entry .gl .g.v-none { box-shadow: inset 0 0 0 1.5px var(--ink-4), 0 0 0 3px var(--paper); background: var(--paper); }
-.entry .body { min-width: 0; padding-left: 8px; }
-.entry h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 500 14px/1.5 var(--font); letter-spacing: -.015em; }
-.e-t { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; border-radius: 4px; }
+.entry .body { min-width: 0; }
+.entry h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 600 16px/1.35 var(--font); letter-spacing: -.01em; }
+.e-t { border: 0; background: none; text-align: left; font: inherit; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; border-radius: 4px; }
 /* Text controls keep their line, with a 40 px tall hit area: the padding is taken back by the margin. */
-.e-t { padding-block: 10px; margin-block: -10px; }
+.e-t { padding: 10px 0; margin-block: -10px; }
 summary { padding-block: 12px; margin-block: -12px; }
-.wayback { font: 500 12px/1 var(--font); color: var(--pass-fg); }
-.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 5px; color: var(--ink-3); font-size: 12.5px; }
-.meta .mono { font-size: 12px; }
-.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 4px; border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--line); background: var(--surface); font-size: 12px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
-.chip .amark { width: 18px; height: 18px; font-size: 12px; border-radius: 4px; }
+.wayback { font: 600 13.5px/1.2 var(--font); color: var(--sky-ink); }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; color: var(--ink-3); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.meta .mono { font-size: 13px; }
+.meta .was { color: var(--ink-3); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 5px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font: 500 13.5px/1 var(--font); color: var(--ink-2); white-space: nowrap; }
+.chip .amark { width: 18px; height: 18px; font-size: 13px; border-radius: 5px; }
+.chip .amark:not([class*="am-"]) { box-shadow: inset 0 0 0 1px var(--line-2); }
+.chip.plain { padding: 0 10px; }
+.chip-slot { min-width: 0; max-width: 100%; }
 .chip-slot:empty { display: none; }
-.said { margin-top: 9px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; font-size: 12.5px; border-left: 2px solid var(--line-2); padding: 3px 0 3px 10px; color: var(--ink-2); }
-.said b { font: 500 12px/18px var(--font); color: var(--ink-3); white-space: nowrap; }
+/* A row's one action, in words, with a thick sky underline. */
+.go { align-self: center; min-height: 40px; display: inline-flex; align-items: center; padding: 0 2px; border: 0; background: none; font: 600 14px/1 var(--font); color: var(--ink); text-decoration: underline; text-decoration-color: var(--sky-line); text-decoration-thickness: 3px; text-underline-offset: 5px; cursor: pointer; white-space: nowrap; }
+span.go { color: var(--ink-3); text-decoration-color: var(--line-2); opacity: 0; transition: opacity var(--t-hover) var(--ease); }
+.entry:hover span.go, .fold:hover span.go { opacity: 1; }
+button.go:hover { text-decoration-color: var(--focus); }
+button.go[disabled] { opacity: .45; cursor: not-allowed; }
+.said { margin-top: 10px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; font-size: 14px; border-left: 3px solid var(--line); padding: 4px 0 4px 12px; color: var(--ink-2); }
+.said b { font: 600 13.5px/20px var(--font); color: var(--ink-3); white-space: nowrap; }
 .said.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .said.two > div { display: grid; gap: 2px; align-content: start; }
 .said.two > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
-.said .nr { color: var(--ink-3); font-style: italic; }
-.fold { width: 100%; display: grid; grid-template-columns: 76px 22px minmax(0, 1fr); padding: 6px 0; border: 0; background: none; color: var(--ink-3); font-size: 12.5px; text-align: left; position: relative; cursor: pointer; border-radius: var(--r-md); }
-.fold::before { content: ""; position: absolute; left: 86px; top: 0; bottom: 0; width: 1px; background: var(--line); }
-.fold .gl { display: grid; justify-items: center; padding-top: 7px; }
-.fold .gl i { width: 5px; height: 5px; border-radius: 50%; background: var(--line-2); box-shadow: 0 0 0 3px var(--paper); position: relative; }
-.fold .body { padding-left: 8px; }
-.fold:hover { color: var(--ink); background: color-mix(in srgb, var(--sel) 60%, transparent); }
-.fold:active { background: var(--sel); }
-.broke-rule { display: grid; grid-template-columns: 76px 22px minmax(0, 1fr); align-items: center; margin: 4px 0; color: var(--fail-fg); font: 500 12px/1 var(--mono); letter-spacing: .02em; }
-.broke-rule .line { grid-column: 2 / 4; height: 0; border-top: 1px dashed var(--fail-dot); position: relative; }
-/* Only the sentence is pinned above the rule; the time spans inside it stay in the line. */
-.broke-rule .line > span { position: absolute; right: 0; top: -7px; padding-left: 8px; background: var(--paper); }
+.said .nr { color: var(--ink-3); font-family: var(--voice); font-style: italic; font-size: 16px; }
+.fold { width: 100%; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 20px; border: 0; border-top: 1px solid var(--hair); background: var(--sunken); color: var(--ink-3); font-size: 14px; text-align: left; cursor: pointer; }
+.fold:hover { color: var(--ink); background: var(--paper-2); }
+/* Where it broke: one quiet line between the two rows, lined up with the titles, small red text after a 2 px red bar. */
+.broke-rule { padding: 4px 20px 10px 128px; }
+.broke-rule span { display: inline-block; padding: 1px 0 1px 10px; border-left: 2px solid var(--broken); color: var(--broken); font: 500 13.5px/1.4 var(--font); }
 
-/* The entry detail in the right column */
-.sp-h { font-size: 28px; line-height: 1.12; text-wrap: balance; }
-.sp-v { color: var(--ink-2); font-size: 13px; }
-.sp-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-.rcol .kv { padding-top: 12px; border-top: 1px solid var(--line); }
+/* Good to know: what does not come back, below the record, said by the buddy. */
+.know { margin-top: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 18px 20px; border-radius: 18px; background: var(--sunken); border: 1px dashed var(--line-2); font-size: 14.5px; color: var(--ink-2); }
+.know h2 { font: italic 400 24px/1.1 var(--voice); color: var(--ink); margin-bottom: 6px; }
+.know .honest { display: grid; gap: 4px; margin: 0; }
+.know .honest dt { font-weight: 600; color: var(--ink); font-size: 14px; }
+.know .honest dt:not(:first-child) { margin-top: 8px; }
+.know .honest dd { margin: 0; text-wrap: pretty; }
+
+/* The save point detail: the right column, or a full sheet when narrow. The time in the display face, the message
+   in the voice, then what the check said, one ink action and the record of what is kept. */
+.rcol.detail .rc-body { gap: 18px; padding-bottom: 40px; }
+.sp-h { display: grid; gap: 4px; font-size: 40px; line-height: 1.04; }
+.sp-h .sp-t { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sp-h .voice { font-size: 28px; line-height: 1.14; color: var(--ink-2); overflow-wrap: anywhere; text-wrap: pretty; }
+/* Which of two save points in one second this is, under the heading that shows only the time. */
+.sp-twin { margin-top: -8px; font-size: 14px; line-height: 1.4; color: var(--ink-3); }
+.sp-v { color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+.sp-acts { display: grid; gap: 10px; justify-items: start; }
+.sp-acts > .btn.big { width: 100%; }
+.sp-links { display: flex; flex-wrap: wrap; gap: 0 22px; }
+.sp-note { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+.sp-cols { display: grid; gap: 16px; padding-top: 16px; border-top: 1px solid var(--hair); }
+
+/* What the check said: a sunken block in the check's own words. The command and the exit code are mono, the
+   engine's reason is in ink (in Broken red after a broken check). */
+.cw { display: grid; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); }
+.cw-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13.5px; color: var(--ink-3); }
+.cw-h b, .cw.none b { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.cw-h .mono { white-space: nowrap; }
+.cw-b { display: grid; gap: 2px; font: 400 13px/1.6 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.cw-p { color: var(--ink-3); }
+.cw-r { color: var(--ink); }
+.cw.v-fail { border-color: color-mix(in srgb, var(--broken) 40%, var(--line)); }
+.cw.v-fail .cw-r { color: var(--broken); }
+.cw.none p { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+.cw > .btn.link { justify-self: start; }
+/* The end of what the check printed: a dark terminal panel with its own header, like Unvibe's "Selected code".
+   The same near-black in both themes, so it always reads as the terminal. */
+.cw-o { display: grid; border-radius: 14px; background: #161513; border: 1px solid #161513; overflow: hidden; }
+.cw-oh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; padding: 6px 8px 6px 14px; border-bottom: 1px solid rgb(255 255 255 / .12); font-size: 13.5px; color: #c9c4b9; }
+/* In a narrow column Copy these lines wraps under the label instead of squeezing it onto three lines. */
+.cw-oh .btn.link { color: #f4f2ed; white-space: nowrap; }
+.cw-out { margin: 0; max-height: 260px; overflow: auto; padding: 12px 14px; font: 400 13px/1.6 var(--mono); color: #ece9e2; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.cw-n { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+
+/* The files a save point changed, as the diff names them. */
+.files { display: grid; gap: 1px; padding: 12px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); font: 400 13px/1.65 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.files b { margin-bottom: 4px; font: 600 13.5px/1.4 var(--font); color: var(--ink-2); }
+.files .muted { font-family: var(--font); }
 
 /* ⋯ menus */
 .mn { position: relative; }
-.mn-b { width: 40px; padding: 0; font-size: 16px; letter-spacing: .05em; }
-.mn-l { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; min-width: 220px; display: grid; padding: 5px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); }
-.mn-l button { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 7px 10px; border: 0; border-radius: 7px; background: none; text-align: left; cursor: pointer; font-size: 13px; color: var(--ink); white-space: nowrap; }
+.btn.mn-b { width: 44px; padding: 0; font-size: 18px; letter-spacing: .05em; border-color: var(--line); border-radius: var(--r-md); background: var(--surface); }
+.btn.mn-b:hover:not([disabled]) { border-color: var(--line-2); background: var(--surface); }
+/* The ⋯ menu is a sticker card like a sheet: white, an ink edge, the hard shadow. Rows are 44 px; a shortcut sits on the right. */
+.mn-l { position: absolute; right: 0; top: calc(100% + 10px); z-index: 50; min-width: 264px; display: grid; gap: 2px; padding: 6px; border-radius: 18px; background: var(--surface); border: 1.5px solid var(--ink); box-shadow: var(--hard); }
+.mn-l button { display: flex; align-items: center; gap: 16px; justify-content: space-between; min-height: 44px; padding: 0 10px 0 14px; border: 0; border-radius: 12px; background: none; text-align: left; cursor: pointer; font-size: 15px; color: var(--ink); white-space: nowrap; }
+.mn-l button kbd { margin-left: auto; }
 .mn-l button:hover:not([disabled]) { background: var(--sel); }
 .mn-l button:active:not([disabled]) { background: var(--press); }
 .mn-l button[disabled] { opacity: .4; }
-.kv { display: grid; gap: 6px; font-size: 12.5px; align-content: start; }
-.kv .h { font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.kv .li { display: flex; gap: 8px; color: var(--ink-2); }
-.kv .li::before { content: "✓"; width: 12px; flex: none; color: var(--ink); }
-.kv.no .li::before { content: "○"; color: var(--ink-4); }
-.kv.todo .li::before { content: "☐"; color: var(--ink-3); }
+.kv { display: grid; gap: 6px; font-size: 14px; line-height: 1.5; align-content: start; }
+.kv .h { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.kv .li { display: flex; gap: 10px; color: var(--ink-2); }
+.kv .li::before { content: "✓"; width: 14px; flex: none; color: var(--works); font-weight: 700; }
+.kv.no .li::before { content: "○"; color: var(--ink-3); font-weight: 400; }
+.kv.todo .li::before { content: "☐"; color: var(--ink-3); font-weight: 400; }
 .kv .li span { min-width: 0; overflow-wrap: anywhere; }
-.git { border-radius: 10px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); padding: 10px 12px; display: grid; gap: 4px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); user-select: text; overflow-wrap: anywhere; }
+.git { border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 4px; font: 400 13px/1.55 var(--mono); color: var(--ink-2); user-select: text; overflow-wrap: anywhere; }
 .git .k { color: var(--ink-3); }
 .empty { margin: auto; max-width: 420px; text-align: center; display: grid; gap: 10px; justify-items: center; padding: 40px 20px; color: var(--ink-3); }
 .empty h2 { color: var(--ink); font-size: 18px; }
@@ -356,10 +612,11 @@ summary { padding-block: 12px; margin-block: -12px; }
 .big-verdict { display: flex; align-items: center; gap: 12px; font-size: 30px; line-height: 1.1; }
 .big-verdict .g { width: 14px; height: 14px; }
 .big-verdict .g.v-fail { width: 12px; height: 12px; }
-.note { font-size: 12.5px; color: var(--ink-2); padding: 10px 12px; border-radius: 10px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); }
+.note { font-size: 14px; line-height: 1.5; color: var(--ink-2); padding: 12px 14px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); }
 .note.warn { background: var(--amber-bg); color: var(--amber-fg); box-shadow: none; }
 .note.bad { background: var(--fail-bg); color: var(--fail-fg); box-shadow: none; }
-.note.tip { display: flex; align-items: flex-start; gap: 12px; }
+/* The verdict tip sits under the check's verdict card, so it shares that card's corner (--r-lg). */
+.note.tip { display: flex; align-items: flex-start; gap: 12px; border-radius: var(--r-lg); }
 .note.tip p { margin: 0; flex: 1; line-height: 1.5; }
 .opt { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 10px; cursor: pointer; box-shadow: inset 0 0 0 1px var(--line); }
 .opt.on { box-shadow: inset 0 0 0 1.5px var(--ink); }
@@ -374,15 +631,45 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .dots3 i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-5); }
 .dots3 i.on { background: var(--ink); }
 
-/* Compare */
-.cmp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 10px; }
-.cmp-l { display: grid; gap: 4px; min-width: 0; font-size: 12px; font-weight: 500; color: var(--ink-3); }
-.dsec { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
-.dsec:first-child { border-top: 0; }
-.dsec .h { font-weight: 600; }
-.dsec ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
-.dsec li { display: flex; gap: 8px; align-items: baseline; }
-.st { flex: none; font-size: 12px; font-weight: 500; line-height: 18px; padding: 0 7px; border-radius: 5px; background: var(--card); color: var(--ink); min-width: 62px; text-align: center; }
+/* Compare: two pill pickers, then one sticker card with a row per file under each kind of change. The engine names each file and
+   how it changed, not its lines: an added file sits on the Works tint, a removed one on the Broken tint, a changed one on paper. */
+.cmp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: stretch; gap: 14px; }
+.cmp-l { display: grid; grid-template-rows: auto 1fr; gap: 6px; min-width: 0; }
+.cmp-intro .lede { margin-top: 8px; }
+.cmp-lt { font: 500 13.5px/1.3 var(--font); color: var(--ink-3); }
+/* The face shows the whole label; the native select lies over it, see-through, so keys, name and the system list stay its own. */
+.cmp-pick { position: relative; display: block; min-height: 66px; padding: 10px 46px 11px 18px; border: 1.5px solid var(--ink); border-radius: 22px; background: var(--surface); box-shadow: var(--hard-sm); transition: transform var(--t-press) var(--press-ease), box-shadow var(--t-press) var(--press-ease); }
+.cmp-pick:hover { background: var(--sunken); }
+.cmp-pick:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.cmp-pick:has(select:focus-visible) { outline: 3px solid var(--ring); outline-offset: 3px; }
+.cmp-pick::after { content: ""; position: absolute; right: 20px; top: 50%; width: 8px; height: 8px; margin-top: -6px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); pointer-events: none; }
+.cmp-pick select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; opacity: 0; cursor: pointer; font-size: 16px; }
+.cmp-face { display: grid; gap: 4px; }
+.cmp-fw { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13.5px; color: var(--ink-3); }
+.cmp-fw .mono { color: var(--ink); }
+.cmp-fw b { font-weight: 600; color: var(--ink); }
+.cmp-fw .vb { height: 24px; }
+.cmp-ft { font: 600 15px/1.35 var(--font); color: var(--ink); }
+.cmp-fs { font-size: 13.5px; color: var(--ink-3); }
+.cmp-swap { align-self: end; justify-self: start; }
+.cmp-wait { display: flex; align-items: center; gap: 12px; padding: 22px 24px; border-radius: var(--r-xl); border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+.cmp-result { display: grid; gap: 18px; padding: 22px 24px 24px; border-radius: 24px; border: 1.5px solid var(--ink); background: var(--surface); box-shadow: var(--hard); }
+.cmp-rh { display: flex; align-items: center; gap: 14px; }
+.cmp-rh .buddy { flex: none; width: 48px; height: 48px; }
+.cmp-sum { font: 700 24px/1.2 var(--display); letter-spacing: -.025em; color: var(--ink); }
+.cmp-sec { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid var(--hair); }
+.cmp-ch { font: 600 16px/1.3 var(--font); color: var(--ink); }
+.cmp-files { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.cf { display: flex; align-items: center; justify-content: space-between; gap: 6px 16px; min-height: 44px; padding: 10px 14px; border-radius: 12px; border-left: 3px solid var(--line-2); background: var(--sunken); }
+.cf-p { min-width: 0; color: var(--ink); line-height: 1.5; overflow-wrap: anywhere; }
+.cf-s { flex: none; font: 600 13.5px/1 var(--font); color: var(--ink-3); }
+.cf-added { background: var(--works-bg); border-left-color: var(--works); }
+.cf-added .cf-s { color: var(--works); }
+.cf-removed { background: var(--broken-bg); border-left-color: var(--broken); }
+.cf-removed .cf-s { color: var(--broken); }
+.cmp-none { padding-top: 14px; border-top: 1px solid var(--hair); font-size: 13.5px; color: var(--ink-3); }
+.cmp-same { padding: 4px 20px; }
+@media (max-width: 600px) { .cmp-result { padding: 18px 16px 20px; } .cmp-rh { align-items: flex-start; } .cmp-rh .buddy { width: 36px; height: 36px; } .cmp-sum { font-size: 21px; } }
 
 /* Settings */
 .setrow { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
@@ -395,121 +682,192 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .toggle .seg { flex: none; }
 .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(28,24,16,.12); }
 .switch { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--ink-5); border: 0; cursor: pointer; flex: none; transition: background .2s; }
-.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .2s var(--ease); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform var(--t-hover) var(--ease); }
 .switch:hover { box-shadow: 0 0 0 3px var(--sel); }
 .switch.on { background: var(--ink); }
-.switch.on::after { left: 16px; }
-:root[data-theme="dark"] .switch.on::after { background: #1a1918; }
+/* On, the track is ink and the knob is paper, so the knob stands out in either theme, including a dark system theme. */
+.switch.on::after { transform: translateX(14px); background: var(--paper); }
 .toggle { display: flex; gap: 12px; align-items: flex-start; }
-.table { display: grid; gap: 0; }
-.table .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
-.table .t1 { font-weight: 600; }
-.table .tr:first-child { border-top: 0; }
-.planned { display: inline-block; font-size: 12px; font-weight: 500; padding: 0 6px; margin-right: 6px; line-height: 20px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
-.h2 { font: 400 24px/1.2 var(--serif); letter-spacing: -.015em; margin-top: 10px; }
-/* Agent channels: one row per agent. Planned ones are dimmed and say so. */
-.channels { gap: 0; padding: 4px 16px; }
-.ch { display: grid; grid-template-columns: 36px minmax(100px, 120px) 130px minmax(0, 1fr); gap: 14px; align-items: center; padding: 20px 0; border-top: 1px solid var(--line); }
-.ch:first-child { border-top: 0; }
-.ch-n { font-weight: 600; }
-.ch-s { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
-.ch-l { font-size: 12.5px; color: var(--ink-2); }
-.ch-planned .ch-n, .ch-planned .ch-s, .ch-planned .ch-l, .ch-not-connected .ch-s { color: var(--ink-3); }
-.ch-planned .amark { color: var(--ink-3); background: none; }
-.hook-words { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 12.5px; color: var(--ink-2); }
-.hook-exact { margin-top: 8px; font-size: 12px; }
-.hook-exact summary { cursor: pointer; color: var(--ink-2); width: max-content; border-radius: 4px; }
-.hook-exact summary:hover { color: var(--ink); }
-.hook-exact[open] summary { margin-bottom: 6px; }
-.hook-exact .code { margin-top: 4px; }
+.planned { display: inline-block; font-size: 13.5px; font-weight: 500; padding: 0 7px; margin-right: 6px; line-height: 20px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
+.hook-words { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13.5px; color: var(--ink-2); }
+.hook-exact { margin-top: 8px; font-size: 13.5px; }
+.hook-exact summary { cursor: pointer; width: max-content; max-width: 100%; padding: 6px 0; border-radius: 4px; color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--sky-line); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.hook-exact summary:hover { text-decoration-color: var(--focus); }
+.hook-exact[open] summary { margin-bottom: 8px; }
+.hook-exact .cw-oh > span { min-width: 0; padding: 4px 0; overflow-wrap: anywhere; }
+.hook-exact .cw-oh .mono { color: #f4f2ed; }
+/* The exact lines show whole: the sheet scrolls, not the panel, so the panel needs no Tab stop. */
+.hook-exact .cw-out { max-height: none; overflow: visible; }
+/* Connect Claude Code: the sheet with the agent's mark; the lines in plain words on paper, the exact lines in the terminal panel,
+   and the buttons in a bar that stays at the sheet's foot when the exact lines make it scroll. */
+.sheet.hook { padding-bottom: 0; }
+.hook-head { display: flex; align-items: center; gap: 14px; }
+.hook-head .amark { flex: none; width: 40px; height: 40px; border-radius: 11px; }
+.sheet.hook .hook-words { margin: 0; padding: 12px 16px; list-style: none; gap: 6px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); font-size: 15px; color: var(--ink); }
+.sheet.hook .hook-words li { display: flex; align-items: center; gap: 10px; }
+.sheet.hook .hook-words li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--sky-line); }
+.sheet.hook .hook-exact { margin-top: 0; }
+/* Connected: a sky card (green stays for a recorded verdict). */
+.hook-done { padding: 14px 16px; border-radius: 14px; background: var(--sky); border: 1px solid var(--sky-line); color: var(--ink); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
 
 /* Sheet, drawer */
-.scrim { position: absolute; inset: 0; z-index: 20; background: var(--veil); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: grid; place-items: center; padding: 24px; }
+.scrim { position: absolute; inset: 0; z-index: 20; background: var(--veil); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: grid; place-items: center; padding: 24px; }
 .scrim.enter { animation: fade .2s var(--ease); }
-.scrim.enter .sheet { animation: pop .22s var(--ease); }
-@keyframes pop { from { transform: scale(.97); opacity: 0 } }
+/* One surface language for everything that pops over the page (sheets, the confirm, Shortcuts, Jump to, the toast): the same
+   20 px corner (--r-pop), the same 1.5 px ink edge, one of two hard shadows (--shadow-pop for dialogs, --shadow-pop-sm for the
+   toast) and the same entrance: a 6 px rise from 97 % over --t-enter (220 ms) on the ease-out curve, transform and opacity only.
+   Under Reduce motion they only fade. */
+.scrim.enter .sheet, .scrim.enter .pal, .toast.enter { animation: pop var(--t-enter) var(--ease) both; }
+@keyframes pop { from { transform: translateY(6px) scale(.97); opacity: 0 } }
 @keyframes fade { from { opacity: 0 } }
-.sheet { width: min(560px, 100%); max-height: 100%; overflow: auto; overscroll-behavior: contain; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); padding: 22px; display: grid; gap: 14px; }
-.sheet.wide { width: min(720px, 100%); gap: 16px; padding: 24px; }
+@media (prefers-reduced-motion: reduce) { .scrim.enter .sheet, .scrim.enter .pal, .toast.enter { animation-name: fade; } }
+/* A sheet is a sticker card: white, an ink edge and the hard offset shadow the buttons wear. */
+.sheet { width: min(560px, 100%); max-height: 100%; overflow: auto; overscroll-behavior: contain; border-radius: var(--r-pop); background: var(--surface); border: 1.5px solid var(--ink); box-shadow: var(--shadow-pop); padding: 26px 28px 24px; display: grid; gap: 16px; }
+.sheet.wide { width: min(720px, 100%); gap: 16px; padding: 26px 28px; }
 .sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .sheet-head .steps { margin-top: 10px; }
-.rw-sheet .tv-head { font-size: 28px; }
 @keyframes rise { from { transform: translateY(8px); opacity: 0 } }
-.sheet h2 { font-size: 24px; line-height: 1.15; }
-.steplist { display: grid; gap: 8px; }
+.sheet h2 { font-size: 28px; line-height: 1.1; }
+.steplist { display: grid; gap: 8px; font-size: 14px; }
 .steplist .r { display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
-.steplist .r .ok { width: 12px; text-align: center; color: var(--ink); }
-.steplist .r .t { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
-.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100%); z-index: 30; background: var(--surface); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.steplist .r .ok { width: 14px; text-align: center; color: var(--works); font-weight: 700; }
+.steplist .r .ok.muted { color: var(--ink-3); }
+.steplist .r .t { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+
+/* Check it works. While it runs the buddy's screen blinks (steps, so it is a blink, not a fade) and the clock runs
+   in mono. Then the verdict as one card in its colour; the words of the check sit inside a broken one. */
+.ck-e { font: italic 400 18px/1.25 var(--voice); color: var(--ink-2); }
+.ck-run { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+.ck-run h2 { margin-top: 2px; }
+.ck-run p { margin-top: 4px; color: var(--ink-2); }
+.ck-el { align-self: start; font-size: 22px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ck-buddy .eye { animation: ck-blink 1.2s steps(1, end) infinite; }
+@keyframes ck-blink { 50% { opacity: .2; } }
+.ck-card { display: grid; gap: 10px; padding: 18px 20px; border-radius: var(--r-lg); background: var(--sunken); border: 1.5px solid var(--line); }
+.ck-card.v-pass { background: var(--works-bg); border-color: color-mix(in srgb, var(--works) 45%, transparent); }
+.ck-card.v-fail { background: var(--broken-bg); border-color: color-mix(in srgb, var(--broken) 45%, transparent); }
+.ck-card.v-incomplete, .ck-card.v-blocked { background: var(--amber-bg); border-color: color-mix(in srgb, var(--amber) 40%, transparent); }
+.ck-card.v-error { background: var(--unk-bg); border-color: var(--line-2); }
+.ck-v { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 30px; line-height: 1.08; }
+.ck-i { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface); }
+.ck-i .vi { width: 18px; height: 18px; }
+.ck-card.v-pass .ck-v { color: var(--works); }
+.ck-card.v-fail .ck-v { color: var(--broken); }
+.ck-card.v-incomplete .ck-v, .ck-card.v-blocked .ck-v { color: var(--amber); }
+.ck-card > p { font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.ck-card .cw { background: var(--surface); }
+/* The result's buttons stay at the sheet's foot while a long result scrolls, so the main one is seen and its focus too.
+   The sheet gives up its bottom padding to the bar (a sticky box stops at the padding, so lines would show under it). */
+.ck-acts { justify-content: flex-end; position: sticky; bottom: 0; z-index: 1; padding: 12px 0 20px; background: var(--surface); }
+.ck-scrim .sheet.ck { padding-bottom: 0; }
+/* The head's text Done exists only beside a main action, and shows only on a very narrow phone (below). */
+.btn.ck-top-done { display: none; }
+/* Phones: less padding at each level, so the check's lines keep their width; the tip's Hide goes under its words. */
+@media (max-width: 640px) {
+  .sheet { padding: 22px 18px 20px; }
+  .ck-card { padding: 16px; }
+  .ck-v { font-size: 26px; }
+  .cw { padding: 12px; }
+  .ck-run { grid-template-columns: auto minmax(0, 1fr); }
+  .ck-run .ck-el { grid-column: 2; }
+  .note.tip { flex-direction: column; gap: 6px; }
+  /* Hide this tip starts where the words start: its pill padding sits in the note's own padding (Design b3+4 P3). */
+  .note.tip > .btn { padding-inline: 8px; margin-left: -8px; }
+}
+/* Very narrow phones (Design b3+4, ruling 2): Done is a quiet text button in the sheet's head, a 44 px target, and the
+   sticky bar keeps the one main action. Esc and the focus rules are the same: both Dones are close-check. */
+@media (max-width: 360px) {
+  .ck-scrim .sheet.ck { position: relative; }
+  .btn.link.ck-top-done { display: inline-flex; position: absolute; top: 12px; right: 10px; min-width: 44px; min-height: 44px; padding: 0 8px; }
+  .sheet.ck:has(> .ck-top-done) > .ck-e { padding-right: 56px; }
+  .ck-acts .ck-dq { display: none; }
+}
+
+/* The Inspector: a sticker card over the right edge, the engine's raw words in sunken mono. */
+.drawer { position: absolute; top: 12px; right: 12px; bottom: 12px; width: min(460px, calc(100% - 24px)); z-index: 30; background: var(--surface); border: 1.5px solid var(--ink); border-radius: var(--r-xl); box-shadow: var(--hard-lg); display: flex; flex-direction: column; overflow: hidden; }
 .drawer.enter { animation: slide .22s var(--ease); }
 @keyframes slide { from { transform: translateX(24px); opacity: 0 } }
-.drawer header { display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
-.drawer header h2 { font-size: 14px; font-weight: 600; flex: 1; }
-.drawer .body { overflow: auto; padding: 14px 16px 24px; display: grid; gap: 14px; align-content: start; }
-.code { margin: 0; border-radius: 10px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); padding: 10px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; color: var(--ink-2); max-height: 420px; overflow: auto; }
+.drawer header { display: flex; align-items: center; gap: 10px; min-height: 68px; padding: 10px 14px 10px 22px; border-bottom: 1px solid var(--hair); }
+.drawer header h2 { flex: 1; font: 700 20px/1.2 var(--display); letter-spacing: -.02em; }
+.drawer .body { overflow: auto; padding: 18px 22px 28px; display: grid; gap: 20px; align-content: start; }
+.insp-b { display: grid; gap: 10px; }
+.code { margin: 0; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); padding: 12px 14px; font: 400 13px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; color: var(--ink-2); max-height: 420px; overflow: auto; }
 .code.cmd { color: var(--ink); }
 /* The toast sits over the work area, centred, never over the rail. Its host lives outside the redraw (app.ts),
-   so it is placed against the window: past the 212 px rail, and short of a right column when one is open. */
-.toast-host { position: fixed; left: 212px; right: 0; bottom: 20px; z-index: 50; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
-.toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; max-width: min(460px, 100%); padding: 4px 6px 4px 14px; border-radius: var(--r-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font-size: 13px; line-height: 1.4; }
+   so it is placed against the window: past the 268 px rail, and short of a right column when one is open. */
+.toast-host { position: fixed; left: 268px; right: 0; bottom: 24px; z-index: 50; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: min(480px, 100%); padding: 4px 8px 4px 18px; border: 1.5px solid var(--ink); border-radius: var(--r-pop); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop-sm); font: 500 15px/1.45 var(--font); }
 .toast .g { flex: none; }
 .toast-t { min-width: 0; padding: 8px 0; }
-.toast .toast-x { flex: none; margin-left: 2px; padding: 0 8px; color: var(--ink-3); font-size: 12.5px; }
-.toast.enter { animation: toast-in .22s var(--ease) both; }
-@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) { .toast.enter { animation-name: fade; } }
+.toast .toast-x { flex: none; min-height: 44px; margin-left: 0; padding: 0 8px; color: var(--ink-2); font-size: 14px; }
 @media (min-width: 1100px) {
   .toast-host[data-right="has-ask"] { right: 340px; }
   .toast-host[data-right="has-detail"] { right: 380px; }
 }
 
-/* Jump to (⌘K) and the shortcut sheet */
-.jump { display: inline-flex; align-items: center; gap: 18px; height: 30px; padding: 0 8px 0 12px; border: 0; border-radius: 8px; background: var(--card); color: var(--ink-3); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
-.jump:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
-.jump:active { background: var(--press); }
+/* Jump to (⌘K): Unvibe's search palette. A white card with an ink edge and the hard shadow, a 52 px field, rows of 44 px under
+   labelled sections, a shortcut as a keycap on the right. The row the arrows are on wears the journal's selected look. */
 .scrim.pal-scrim, .app > .scrim { z-index: 45; place-items: start center; padding-top: 12vh; }
-.pal { width: min(620px, 100%); max-height: 70vh; display: flex; flex-direction: column; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); overflow: hidden; }
-.scrim.enter .pal { animation: pop .2s var(--ease); }
-.pal-q { flex: none; height: 54px; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 0 20px; font-size: 16px; color: var(--ink); user-select: text; }
+.pal { width: min(640px, 100%); max-height: min(580px, 76vh); display: flex; flex-direction: column; border-radius: var(--r-pop); background: var(--surface); border: 1.5px solid var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
+.pal-top { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 22px; border-bottom: 1px solid var(--line); }
+.pal-top svg { flex: none; width: 18px; height: 18px; color: var(--ink-3); }
+.pal-q { flex: 1; min-width: 0; height: 52px; border: 0; background: none; padding: 0 10px; font: 400 17px/1.3 var(--font); color: var(--ink); user-select: text; }
 .pal-q::placeholder { color: var(--ink-4); }
-.pal-list { overflow: auto; padding: 6px; display: grid; align-content: start; }
-.pal-g { padding: 10px 12px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.pal-i { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 12px; border: 0; border-radius: 9px; background: none; text-align: left; cursor: pointer; color: var(--ink); font-size: 13.5px; }
+.pal-list { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 8px; }
+.pal-g { padding: 12px 14px 6px; font: italic 400 19px/1.1 var(--voice); color: var(--ink-3); }
+.pal-i { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 44px; padding: 0 10px 0 14px; border: 0; border-radius: 12px; background: none; text-align: left; cursor: pointer; color: var(--ink); font-size: 15px; }
 .pal-i:hover { background: var(--sel); }
 .pal-i:active { background: var(--press); }
-.pal-i.on { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+/* The row the arrows are on reads like the journal's selected row: a warm paper tint and an ink accent on the left. */
+.pal-i { position: relative; }
+.pal-i.on { background: color-mix(in srgb, var(--ink) 7%, var(--surface)); }
+.pal-i.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--ink); }
+.pal-i kbd { border-color: var(--line); background: var(--sunken); color: var(--ink-3); }
 .pal-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pal-h { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
-.pal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-4); justify-self: center; }
-.pal-empty { padding: 18px 14px; }
-.pal-foot { flex: none; display: flex; gap: 16px; padding: 9px 16px; border-top: 1px solid var(--line); font-size: 12px; }
-.pal-foot kbd, .ks kbd { display: inline-block; min-width: 18px; padding: 1px 5px; margin-right: 3px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--line-2); text-align: center; opacity: 1; color: var(--ink-2); }
-.ks { width: min(760px, 100%); }
-.ks-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
-.ks-h { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.ks-r { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; padding: 4px 0; font-size: 13px; color: var(--ink-2); }
-@media (max-width: 860px) { .ks-cols { grid-template-columns: 1fr; } }
+.pal-h { font-size: 13.5px; color: var(--ink-3); white-space: nowrap; }
+.pal-i.on .pal-h { color: var(--ink-2); }
+.pal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-4); justify-self: center; }
+.pal-none .empty-state { padding: 28px 20px 32px; }
+.pal-foot { flex: none; display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 10px 20px; border-top: 1px solid var(--line); background: var(--sunken); font-size: 13.5px; color: var(--ink-3); }
+.pal-foot span { display: inline-flex; align-items: center; gap: 4px; }
+.pal-foot kbd { margin-right: 2px; }
+/* A phone gives a save point's row two lines, like Compare's faces: its time and verdict, then the whole title under them,
+   on as many lines as it needs, so the title is never cut. The " · " between them is kept for the row's spoken name. */
+@media (max-width: 560px) {
+  .pal-i.pal-sp { position: relative; grid-template-areas: "g w h" ". t t"; gap: 2px 14px; padding-block: 9px; }
+  .pal-sp .pal-l { display: contents; }
+  .pal-sp > .g { grid-area: g; }
+  .pal-sp .pal-w { grid-area: w; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .pal-sp .pal-sep { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .pal-sp .pal-t { grid-area: t; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+  .pal-sp .pal-h { grid-area: h; }
+}
+/* Keyboard shortcuts (?): the sheet, two columns on a wide window and one below 860 px, every key a sky keycap. */
+.ks { width: min(800px, 100%); }
+.ks-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+.ks-h { margin: 18px 0 6px; font: italic 400 22px/1.15 var(--voice); color: var(--ink-2); }
+.ks-cols > div > .ks-h:first-child { margin-top: 0; }
+.ks-r { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: center; min-height: 40px; padding: 6px 0; border-top: 1px solid var(--hair); font-size: 14.5px; line-height: 1.4; color: var(--ink-2); }
+.ks-k { display: flex; flex-wrap: wrap; gap: 4px; }
+@media (max-width: 860px) { .ks-cols { grid-template-columns: 1fr; } .ks-cols > div + div > .ks-h:first-child { margin-top: 18px; } }
 
 /* Welcome */
 .welcome { flex: 1; display: grid; place-items: center; padding: 32px; overflow: auto; }
-.welcome .inner { max-width: 560px; display: grid; gap: 18px; justify-items: start; }
 .welcome h1 { font-size: 52px; line-height: 1.02; }
-.welcome .foot { font-size: 12px; color: var(--ink-3); }
-.welcome .foot.unsigned { margin-top: -10px; }
+.welcome .foot { font-size: 13.5px; color: var(--ink-3); }
 .mini-ruler { display: flex; align-items: center; gap: 14px; position: relative; padding: 14px 4px 4px; }
 .mini-ruler::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% + 5px); height: 1px; background: var(--ink-5); }
 .mini-ruler .g { width: 10px; height: 10px; position: relative; }
 .mini-ruler .g.v-none { background: var(--paper); }
 .mini-ruler .g.v-fail { width: 9px; height: 9px; }
-.mini-ruler .ph { top: 4px; bottom: -6px; left: 75px; transition: none; animation: phback 1.2s cubic-bezier(.65,0,.35,1) .3s both; }
+/* The welcome's one intro beat: the playhead glides back from the newest save point to the last one that works. */
+.mini-ruler .ph { position: absolute; left: 80px; top: 6px; bottom: -6px; width: 2px; border-radius: 1px; background: var(--ink); animation: phback 600ms var(--ease-io) .45s both; }
+.mini-ruler .ph::before { content: ""; position: absolute; left: -4px; top: -6px; border: 5px solid transparent; border-top: 6px solid var(--ink); }
 .mini-ruler .g { animation: tickin .3s var(--ease) both; }
 .mini-ruler .g:nth-child(2) { animation-delay: .06s; } .mini-ruler .g:nth-child(3) { animation-delay: .12s; } .mini-ruler .g:nth-child(4) { animation-delay: .18s; }
 .mini-ruler .g:nth-child(5) { animation-delay: .24s; } .mini-ruler .g:nth-child(6) { animation-delay: .3s; } .mini-ruler .g:nth-child(7) { animation-delay: .36s; }
 @keyframes tickin { from { opacity: 0; transform: scale(.4); } }
-@keyframes phback { from { left: 147px; opacity: 0; } 20% { opacity: 1; } }
-.hintbar { display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-bottom: 1px solid var(--line); background: var(--soft); font-size: 12.5px; color: var(--ink-2); }
-.hintbar .g { width: 8px; height: 8px; }
-.hintbar .btn { margin-left: auto; height: 26px; }
+@keyframes phback { from { transform: translateX(70px); opacity: 0; } 30% { opacity: 1; } }
 .first-sp { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--ink-2); }
 .first-sp b { color: var(--ink); font-weight: 600; }
 /* Onboarding's next step stays in view on short windows, so each step is one click. The page's
@@ -544,196 +902,238 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 @media (max-width: 860px) {
   .app, .app.has-ask, .app.has-detail { grid-template-columns: 1fr; }
   .side { display: none; }
-  .rcol.detail { left: 0; }
+  /* The canvas fills the window on a phone or a narrow window; the rail becomes a drawer. */
+  .main { margin: 0; border: 0; border-radius: 0; }
+  .rcol.detail { left: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
   .toast-host { left: 0; }
-  .ch { grid-template-columns: 20px minmax(0, 1fr); }
-  .ch-s, .ch-l { grid-column: 2; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .banner .btn { height: 24px; font-size: 12px; background: color-mix(in srgb, var(--paper) 18%, transparent); color: inherit; box-shadow: none; }
 
-/* The Rewind: a full window scene. The reading on the left, the dial and its key on the right, the ruler below.
-   The dial is the Instrument concept's control set on Notebook paper. It only moves the selection. */
-.tv { position: absolute; inset: 0; z-index: 25; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--paper); outline: none;
-  --knob-1: #3a3a38; --knob-2: #1e1e1d; }
-:root[data-theme="dark"] .tv { --knob-1: #4b4943; --knob-2: #262522; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tv { --knob-1: #4b4943; --knob-2: #262522; } }
-.tv.enter { animation: tvin .28s var(--ease); }
-@keyframes tvin { from { opacity: 0; } }
-.tv-top { display: flex; align-items: center; gap: 20px; height: 56px; padding: 0 20px 0 28px; border-bottom: 1px solid var(--line); background: var(--side); -webkit-app-region: drag; }
-.tv-top > * { -webkit-app-region: no-drag; }
-.mac.native .tv-top { padding-left: 92px; }
-.tv-name { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--ink-3); white-space: nowrap; }
-.tv-name b { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
-.tv-top .steps { margin: 0 auto; flex-wrap: nowrap; }
-.tv-top > .btn { flex: none; }
-
-.tv-body { min-height: 0; display: grid; grid-template-columns: minmax(0, 620px) 300px; justify-content: center; column-gap: 48px; padding: 36px 40px 0; }
-.tv-read { min-height: 0; overflow: auto; display: grid; gap: 16px; align-content: start; padding: 0 4px 28px 0; mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
-.tv-verdict { display: grid; gap: 8px; justify-items: start; }
-.tv-head { font-size: 38px; line-height: 1.06; text-wrap: balance; }
-.tv-meta { color: var(--ink-3); }
-.tv-lede { font-size: 14px; line-height: 1.5; color: var(--ink-2); max-width: 60ch; }
-.tv-ev { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--ink-2); font-size: 13px; }
-.tv-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding-top: 14px; border-top: 1px solid var(--line); }
-.tv-acts { display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: center; }
-.tv-acts .key { width: auto; min-height: 40px; }
-.changed { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); }
-.mosaic { display: grid; gap: 7px; }
-.mz { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 10px; }
-.mz-l { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mz-s { display: flex; flex-wrap: wrap; gap: 4px; }
-.mz-s i { width: 14px; height: 14px; border-radius: 3.5px; background: var(--ink-5); }
-.mz-s.named { gap: 6px; }
-.fc { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 5px; border-radius: 6px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
-.fc i { width: 10px; height: 10px; border-radius: 2.5px; background: var(--ink-5); }
-.cd-foot { font-size: 12px; color: var(--ink-3); }
+/* The Rewind (direction §4 #5): a sheet over the blurred History, with the sheet's ink edge and 6 px hard shadow. The reading
+   and its foot on the left, the white dial on the sunken side, the Rewind's ruler in a well under both. Simple rewind is the
+   same sheet in one column. The foot stays at the sheet's foot while the reading scrolls; the sheet's bottom padding is the foot's. */
+.app > .scrim.rw-scrim { z-index: 25; place-items: center; padding: 24px; }
+.sheet.rw { padding: 0; gap: 0; overflow: hidden; display: grid; }
+.sheet.rw.tv { width: min(1040px, 100%); height: min(880px, 100%); grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: minmax(0, 1fr) auto; }
+.sheet.rw.rw-sheet { width: min(720px, 100%); grid-template-rows: minmax(0, 1fr); }
+.rw-main { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; padding: 28px 44px 0; }
+.rw-main:focus-visible { outline-offset: -3px; }
+.rw .steps { font-size: 13.5px; gap: 8px 10px; }
+.rw .steps .n { width: 24px; height: 24px; font-size: 13.5px; }
+.rw .steps .bar { width: 20px; }
+.tv-read { display: grid; gap: 18px; align-content: start; padding: 22px 0 30px; }
+.rw-kicker { font: italic 400 24px/1.1 var(--voice); color: var(--ink-3); margin-bottom: -10px; }
+.rw .tv-head { font-size: 44px; line-height: 1.02; }
+.rw .tv-head .voice { display: block; margin-top: 2px; line-height: 1.1; color: var(--ink-2); }
+.rw-meta { margin-top: -8px; font-size: 14px; color: var(--ink-3); }
+.rw-proof { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; font-size: 14.5px; line-height: 1.45; color: var(--ink-3); }
+.rw-found, .rw-lede { font-size: 15px; line-height: 1.55; color: var(--ink-2); }
 .vb.v-checking { background: var(--card); color: var(--ink-2); }
-.vb.v-checking .g { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
-.will { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; color: var(--ink-2); }
-.will .h { font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.will ol { margin: 0; padding-left: 20px; display: grid; gap: 2px; }
-.will b { color: var(--ink); font-weight: 600; }
-.report { display: grid; gap: 12px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-md); }
-.report h3 { font: italic 400 19px/1.2 var(--serif); }
+.vb.v-checking .g { display: inline-block; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+/* The files a save point changed: the diff names paths, not kinds, so there are no −/~/+ marks. */
+.rw-files { gap: 2px; font-size: 13.5px; line-height: 1.75; }
+.rw-files b { margin-bottom: 4px; }
+.rw-fn { font: 400 13.5px/1.5 var(--font); color: var(--ink-3); }
+/* What going back does, in the engine's order: a numbered sequence with ink numbers, like the step bar above it. */
+.rw-steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 14px; counter-reset: rws; }
+.rw-steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; font-size: 15px; line-height: 1.5; color: var(--ink-2); counter-increment: rws; }
+.rw-steps li::before { content: counter(rws); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--paper); font: 700 14px/1 var(--font); }
+.rw-steps li > span { padding-top: 3px; }
+.rw-steps b, .rw-safe b { color: var(--ink); font-weight: 600; }
+.rw-safe { padding: 12px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.tv-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding-top: 18px; border-top: 1px solid var(--hair); }
+.rw-foot { position: sticky; bottom: 0; z-index: 2; margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 16px; padding: 18px 0 24px; border-top: 1px solid var(--hair); background: var(--surface); }
+.rw-alts { flex: 1 1 240px; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; }
+.rw-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 12px 14px; }
+.key-note { flex-basis: 100%; font-size: 13.5px; line-height: 1.45; color: var(--ink-3); }
+.rw-opened { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+/* Done: where the version is now, each with Copy, then what came back and what Undo does. */
+.rw-where { display: grid; gap: 10px; }
+.rw-loc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 12px 12px 12px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); }
+.rw-loc .k { font-size: 13.5px; font-weight: 600; color: var(--ink-3); }
+.rw-loc .v { grid-column: 1; font: 400 13px/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.rw-loc .btn { grid-column: 2; grid-row: 1 / span 2; }
+.report { display: grid; gap: 14px; padding: 18px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.report h3 { font: italic 400 26px/1.15 var(--voice); }
 .report .tv-cols { border-top: 0; padding-top: 0; }
-.endline { padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); }
+.endline { padding-top: 12px; border-top: 1px solid var(--hair); font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+.rw-undo-note { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
 
-/* The dial module: save point detents around a knurled knob, the key below. */
-.dialmod { align-self: start; display: flex; flex-direction: column; align-items: center; padding: 20px 20px 22px; border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow-md); }
-.silk { align-self: stretch; display: flex; justify-content: space-between; font: 500 12px/1 var(--font); color: var(--ink-3); }
-.silk.hint { justify-content: center; gap: 14px; }
-.dial { position: relative; width: 236px; height: 236px; margin: 22px 0 10px; touch-action: none; user-select: none; cursor: grab; }
+/* The dial's side: on sunken paper, the white dial lit from the upper left, the time it points at, how to turn it. */
+.sheet.rw .dialmod { grid-column: 2; grid-row: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; padding: 30px 26px 22px; background: var(--sunken); border-left: 1px solid var(--hair); }
+.silk { align-self: stretch; display: flex; justify-content: space-between; font: 600 14px/1 var(--font); color: var(--ink-3); }
+.dial { position: relative; width: 236px; height: 236px; margin: 26px 0 6px; flex: none; touch-action: none; user-select: none; cursor: grab; }
 .dial.drag { cursor: grabbing; }
 .dial.still { cursor: default; }
-.dets { position: absolute; inset: 0; pointer-events: none; }
+/* The knurled rim and the face stay still, so the light stays where it is; only the knob's groove and pointer turn. */
+.dial::before, .dial::after { content: ""; position: absolute; z-index: 0; border-radius: 50%; pointer-events: none; }
+.dial::before { inset: 26px; background: repeating-conic-gradient(from 0deg, #e9e6df 0deg 2.2deg, #fbfaf7 2.2deg 4.5deg);
+  box-shadow: 0 20px 30px rgba(40, 30, 15, .22), 0 6px 10px rgba(40, 30, 15, .16), inset 0 0 0 1px rgba(20, 20, 20, .1); }
+.dial::after { inset: 36px; background: radial-gradient(circle at 34% 28%, #ffffff 0%, #fbfaf7 34%, #efece5 70%, #e2ded5 100%);
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .9), inset 0 -10px 18px rgba(60, 45, 20, .1), 0 1px 0 rgba(255, 255, 255, .7); }
+.dets { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .det { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
-.det .dg { position: absolute; left: -7px; top: -125px; width: 14px; height: 14px; display: grid; place-items: center; }
-.det .g { width: 8px; height: 8px; transition: transform .16s var(--ease); }
-.det .g.v-none { background: var(--surface); }
-.det .g.v-fail { width: 7px; height: 7px; }
-.det.on .g { transform: scale(1.45); }
-.det.on .g.v-fail { transform: rotate(45deg) scale(1.45); }
-/* Dial labels are placed after measuring: outside their dot, inside the card, never on another label or dot. */
-.dlabs { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-.dl { position: absolute; left: 0; top: 0; visibility: hidden; padding: 1px 4px; border-radius: 4px; background: var(--surface); font: 500 12px/14px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.det .dg { position: absolute; left: -9px; top: -127px; width: 18px; height: 18px; display: grid; place-items: center; }
+.det .g { width: 12px; height: 12px; }
+.det .g.v-fail { width: 10px; height: 10px; }
+.det .g.v-none { background: var(--surface); box-shadow: inset 0 0 0 2px var(--ink-4); }
+/* The save point the dial points at wears the sky halo, the target's mark across the app. */
+.det.on .dg::before { content: ""; position: absolute; inset: -4px; z-index: -1; border-radius: 50%; background: var(--sky); box-shadow: 0 0 0 1.5px var(--sky-line); }
+/* Dial labels are placed after measuring: outside their dot, inside the side, never on another label, dot or word. */
+.dlabs { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.dl { position: absolute; left: 0; top: 0; visibility: hidden; padding: 1px 4px; border-radius: 4px; background: var(--sunken); font: 500 13px/15px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dl.on { color: var(--ink); }
 /* Placed by measuring, so a move must land at once, even under Reduce motion's near-zero transitions. */
 .dl, .rlab { transition: none !important; }
-.knob { position: absolute; left: 28px; top: 28px; width: 180px; height: 180px; border-radius: 50%; outline: none;
-  background: repeating-conic-gradient(from 0deg, var(--knob-1) 0 1.5deg, var(--knob-2) 1.5deg 3deg);
-  box-shadow: 0 14px 26px -8px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.06);
-  transition: transform .16s var(--ease); }
-.knob::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; background: radial-gradient(120% 120% at 35% 25%, var(--knob-1), var(--knob-2) 62%); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.45); }
-.knob::after { content: ""; position: absolute; left: 50%; top: 22px; width: 4px; height: 34px; margin-left: -2px; border-radius: 2px; background: #e4e4da; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
-.knob:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--clay), 0 14px 26px -8px rgba(0,0,0,.45); }
+.knob { position: absolute; z-index: 1; left: 36px; top: 36px; width: 164px; height: 164px; border-radius: 50%; transition: transform .16s var(--ease); }
+/* The groove pointer from the rim toward the middle, and the sky dot at its end. */
+.knob::after { content: ""; position: absolute; left: 50%; top: 12px; width: 7px; height: 58px; margin-left: -3.5px; border-radius: 6px; background: linear-gradient(90deg, #cfcabf, #e8e4dc); box-shadow: inset 1px 1px 2px rgba(0, 0, 0, .22); }
+.knob::before { content: ""; position: absolute; z-index: 1; left: 50%; top: 18px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #0d4a8f; }
+.knob:focus-visible { outline: 3px solid var(--ring); outline-offset: 12px; }
 .dial.drag .knob { transition: none; }
-.dial.still .knob { opacity: .8; }
-.dm-key { width: 100%; margin-top: 18px; }
-.key { width: 100%; min-height: 54px; border: 0; border-radius: 14px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; text-align: left;
-  background: var(--action); color: var(--action-ink); font: 500 14.5px/1.25 var(--font); letter-spacing: -.01em;
-  box-shadow: 0 5px 0 var(--keycap), 0 12px 18px -8px rgba(0,0,0,.35);
-  transition: transform .12s ease-out, box-shadow .12s ease-out; }
-.key:hover:not([disabled]) { background: var(--action-hover); }
-.key:active:not([disabled]), .key.kf { transform: translateY(1px); background: var(--action-active); box-shadow: 0 4px 0 var(--keycap), 0 4px 8px -4px rgba(0,0,0,.35); }
-.key[disabled] { cursor: not-allowed; background: var(--mist); color: var(--ink-4); box-shadow: none; }
-.key kbd { color: var(--action-kbd); flex: none; }
-.key[disabled] kbd { color: inherit; }
-.dm-alts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 14px; margin-top: 12px; text-align: center; }
-.key-note { flex-basis: 100%; font-size: 12px; color: var(--ink-3); margin-bottom: 4px; }
-.tv-acts .key-note { flex-basis: auto; margin: 0; }
+.dial.still .knob { opacity: .7; }
+.rw-when { display: grid; gap: 4px; justify-items: center; margin-top: 12px; text-align: center; }
+.rw-when b { font: 750 30px/1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rw-when span { font-size: 14px; color: var(--ink-3); }
+.rw-turn { margin-top: auto; padding-top: 16px; display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-3); }
+.rw-turn kbd { background: var(--surface); color: var(--ink-2); border-color: var(--line-2); }
+/* Under the time, what is known about that save point, so the panel holds facts instead of empty paper. */
+.rw-facts { list-style: none; margin: 18px 0 0; padding: 14px 0 0; width: 100%; display: grid; justify-items: center; gap: 10px; border-top: 1px solid var(--hair); font-size: 14px; color: var(--ink-2); }
+.rw-facts li { display: inline-flex; align-items: center; gap: 6px; }
+.rw-facts .e-fi { width: 14px; height: 14px; color: var(--ink-3); }
+.rwf-safe { color: var(--ink-3); }
 
-.tv-ruler { padding: 12px 32px 10px; border-top: 1px solid var(--line); background: var(--side); }
+/* The Rewind's ruler in a sunken well under both columns, like History's bead well. */
+.sheet.rw .tv-ruler { --side: var(--sunken); grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 12px 44px 10px; border-top: 1px solid var(--hair); background: var(--sunken); overflow: clip; }
 .tv-ruler.rise { animation: tvrise .22s var(--ease) .08s both; }
 @keyframes tvrise { from { transform: translateY(24px); opacity: 0; } }
-.tv-track { position: relative; }
-.tv-lane { position: relative; height: 18px; }
-.clip { position: absolute; top: 0; height: 18px; display: flex; align-items: center; padding: 0 8px; border-radius: 5px; background: var(--mist); box-shadow: inset 0 0 0 1px var(--line); font: 500 12px/1 var(--mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; }
+/* The track takes a press-and-drag; a vertical swipe on a phone still scrolls. */
+.tv-track { position: relative; container-type: inline-size; cursor: pointer; touch-action: pan-y; user-select: none; }
+.tv-lane { position: relative; height: 20px; }
+.clip { position: absolute; top: 0; height: 20px; display: flex; align-items: center; padding: 0 8px; border-radius: 6px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font: 500 13px/1 var(--mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; }
 .clip span { overflow: hidden; text-overflow: ellipsis; }
-.tv-band { position: relative; height: 26px; margin-top: 4px; }
-.tv-band i { position: absolute; bottom: 0; width: 6px; margin-left: -3px; border-radius: 2px 2px 0 0; background: var(--ink-5); transition: height .3s var(--ease); }
+.tv-band { position: relative; height: 22px; margin-top: 4px; }
+/* Bars are drawn full height and scaled, so a bar that learns its size grows without a layout pass. */
+.tv-band i { position: absolute; bottom: 0; width: 6px; height: 22px; margin-left: -3px; border-radius: 2px 2px 0 0; background: var(--ink-5); transform: scaleY(var(--h)); transform-origin: bottom; transition: transform var(--t-travel) var(--ease); }
 .tv-band i.unk { opacity: .5; }
 .tv-ticks { position: relative; height: 24px; }
-.tv-ticks::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-2); }
+.tv-ticks::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 2px); height: 4px; border-radius: 4px; background: var(--line); }
 .tvt { position: absolute; top: 0; width: 24px; height: 24px; margin-left: -12px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; }
-.tvt .g { width: 10px; height: 10px; transition: transform .14s var(--ease); }
+.tvt .g { width: 10px; height: 10px; transition: transform var(--t-hover) var(--ease); }
 .tvt .g.v-none { background: var(--side); }
 .tvt .g.v-fail { width: 9px; height: 9px; }
 .tvt:hover .g, .tvt.on .g { transform: scale(1.35); }
 .tvt:hover .g.v-fail, .tvt.on .g.v-fail { transform: rotate(45deg) scale(1.35); }
+/* The entry's two beats, timed in app.ts from the moment the Rewind opened (--d). A crossed tick flicks
+   up 3 px, on `translate` so a diamond keeps its turn; a Works save point the playhead lands on rings once. */
+.tvt.flick .g { animation: tvflick 180ms var(--ease) var(--d) both; }
+@keyframes tvflick { 40% { translate: 0 -3px; } }
+.tvt.ring::after { content: ""; position: absolute; left: 7px; top: 7px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--pass-dot); pointer-events: none; opacity: 0; animation: tvring 520ms var(--ease) var(--d) forwards; }
+@keyframes tvring { from { transform: scale(1); opacity: .7; } to { transform: scale(2.6); opacity: 0; } }
 .g.v-checking-tick { width: 11px; height: 11px; background: var(--paper); box-shadow: inset 0 0 0 2px var(--ink-2); animation: breathe 1.2s ease-in-out infinite; }
-.tv-labels { position: relative; height: 18px; margin-top: 2px; font-family: var(--mono); font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tv-labels { position: relative; height: 20px; margin-top: 2px; font-family: var(--mono); font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .tv-labels span { position: absolute; top: 2px; transform: translateX(-50%); white-space: nowrap; }
-.tv-labels span.on { color: var(--ink); font-weight: 600; }
-.tv-veil { position: absolute; top: 0; right: -32px; bottom: 20px; background: color-mix(in srgb, var(--side) 65%, transparent); pointer-events: none; transition: left .42s var(--ease-io); }
-.tv-veil span { position: absolute; top: 1px; right: 32px; padding: 0 6px; border-radius: 4px; background: var(--side); font-size: 12px; line-height: 16px; color: var(--ink-3); white-space: nowrap; }
-.tv-ruler.forked .tv-veil span { top: 41px; }
-.tv-ph { position: absolute; top: -6px; bottom: 18px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transition: left .42s var(--ease-io); }
+.tv-labels span.on { color: var(--ink); font-weight: 500; }
+/* The veil runs from the playhead to the ruler's right edge; the ruler clips what goes past it. */
+.tv-veil { position: absolute; left: 0; top: 0; right: -44px; bottom: 22px; background: color-mix(in srgb, var(--side) 65%, transparent); pointer-events: none; transform: translateX(calc(var(--x) * 1cqw)); transition: transform var(--t-travel) var(--ease-io); }
+.tv-veil-l { position: absolute; top: 1px; right: 0; padding: 0 6px; border-radius: 4px; background: var(--side); font-size: 13.5px; line-height: 18px; color: var(--ink-3); white-space: nowrap; }
+.tv-ruler.forked .tv-veil-l { top: 43px; }
+.tv-ph { position: absolute; left: 0; top: -6px; bottom: 20px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transform: translateX(calc(var(--x) * 1cqw)); transition: transform var(--t-travel) var(--ease-io); }
 .tv-ph::before { content: ""; position: absolute; top: -2px; left: -5px; width: 12px; height: 9px; background: var(--ink); clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .tv-ruler.forked .tv-track { padding-top: 40px; }
-.tv-fork { position: absolute; left: 0; top: 0; width: 100%; height: 100px; overflow: visible; pointer-events: none; animation: draw .4s var(--ease) .2s both; }
+/* The fork's stem starts at the middle of the ticks, whatever rows the track shows: above the labels row, half a tick up. */
+.tv-fork { position: absolute; left: 0; top: 0; width: 100%; height: calc(100% - 34px); overflow: visible; pointer-events: none; animation: draw .4s var(--ease) .2s both; }
 .tv-fork path { fill: none; stroke: var(--ink); stroke-width: 1.5px; }
 @keyframes draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-.fork-l { position: absolute; top: 6px; font-size: 12px; font-family: var(--mono); color: var(--ink); white-space: nowrap; animation: fade .3s var(--ease) .5s both; }
-.tv-legend { display: flex; align-items: center; gap: 16px; margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+/* The branch's label sits just right of the playhead and stays inside the ruler: it is mono, so 23ch is its own
+   width. It is drawn over the veil, which it describes. */
+.fork-l { --fl: min(calc(var(--x) * 1% + 34px), calc(100% - 23ch)); position: absolute; z-index: 2; top: 6px; left: var(--fl); max-width: calc(100% - var(--fl)); overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-family: var(--mono); color: var(--ink); white-space: nowrap; animation: fade .3s var(--ease) .5s both; }
+.tv-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13.5px; color: var(--ink-3); }
 .tv-legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.tv-legend .g { width: 7px; height: 7px; }
-.tv-legend .g.v-fail { width: 6px; height: 6px; }
+.tv-legend .g { width: 8px; height: 8px; }
+.tv-legend .g.v-fail { width: 7px; height: 7px; }
 .tv-legend .sp { flex: 1; }
-.tv-legend kbd { padding: 0 4px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line-2); opacity: 1; color: var(--ink-2); }
+.tv-legend kbd { background: var(--surface); color: var(--ink-2); border-color: var(--line-2); }
 
-@media (max-height: 780px) {
-  .tv-body { padding-top: 18px; }
-  .tv-head { font-size: 30px; }
+@media (max-height: 820px) {
   .tv-legend { display: none; }
   .tv-band { height: 14px; }
-  .dial { zoom: .8; margin: 20px 0 6px; }
-  .dialmod { padding: 12px 18px 14px; }
-  .dm-key { margin-top: 12px; }
+  .sheet.rw .dial { zoom: .82; margin-top: 16px; }
+  .sheet.rw .dialmod { padding-top: 22px; }
 }
-@media (max-width: 1100px) {
-  .tv-body { grid-template-columns: minmax(0, 1fr) 280px; column-gap: 28px; padding: 20px 24px 0; }
-  .tv-top .steps .bar { width: 16px; }
+@media (max-width: 960px) {
+  .sheet.rw.tv { grid-template-columns: minmax(0, 1fr) 270px; }
+  .sheet.rw .dial { zoom: .86; }
+  .rw-main { padding: 26px 30px 0; }
+  .sheet.rw .tv-ruler { padding-left: 36px; padding-right: 36px; }
 }
-@media (max-width: 860px) {
-  .tv-body { grid-template-columns: minmax(0, 1fr); overflow: auto; }
-  .tv-read { overflow: visible; mask-image: none; }
-  .tv-top .steps { display: none; }
+/* Phones: a bottom sheet. The dial small at the top beside its time, the reading scrolls, the actions stay at the foot:
+   the main key full width, the quiet one under it. */
+@media (max-width: 640px) {
+  .app > .scrim.rw-scrim, .scrim.rw-scrim { padding: 28px 0 0; place-items: end stretch; }
+  .sheet.rw, .sheet.rw.tv, .sheet.rw.rw-sheet { width: 100%; height: 100%; max-height: none; display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; padding: 0;
+    border-width: 1.5px 0 0; border-radius: 24px 24px 0 0; box-shadow: 0 -2px 0 var(--ink); }
+  .sheet.rw > * { flex: none; }
+  .rw-main { flex: 1 0 auto; overflow: visible; padding: 20px 20px 0; }
+  .sheet.rw .dialmod { order: -1; flex-direction: row; align-items: center; gap: 18px; padding: 14px 20px; border-left: 0; border-bottom: 1px solid var(--hair); }
+  .sheet.rw .dialmod .silk, .rw-turn, .dlabs, .rw-facts { display: none; }
+  .sheet.rw .dial { zoom: .56; margin: 0; }
+  /* The dial is zoomed, which scales its focus ring too: 4.5 px draws at about 2.5 px. */
+  .sheet.rw .knob:focus-visible { outline-width: 4.5px; }
+  .rw-when { justify-items: start; margin: 0; text-align: left; }
+  .rw-when b { font-size: 34px; }
+  .sheet.rw .tv-ruler { order: -1; padding: 8px 16px; border-top: 0; border-bottom: 1px solid var(--hair); }
+  .tv-band, .tv-lane, .tv-labels, .tv-legend, .tv-veil-l { display: none; }
+  .tv-veil { right: -16px; bottom: 0; }
+  /* Without the labels the track ends at the ticks: the playhead runs to their foot, and so does the fork. */
+  .tv-ph { bottom: 0; }
+  .tv-ruler.forked .tv-track { padding-top: 26px; }
+  /* The label sits above the fork's line: the line starts 16 px down, so it runs under the label, never through it. */
+  .fork-l { top: 2px; line-height: 16px; }
+  .tv-fork { top: 16px; height: calc(100% - 28px); }
+  .tv-read { gap: 16px; padding: 14px 0 24px; }
+  .rw-kicker { font-size: 22px; }
+  .rw .tv-head { font-size: 34px; line-height: 1.04; }
+  .tv-cols { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .rw-foot { flex-direction: column; align-items: stretch; margin: 0 -20px; padding: 14px 20px calc(18px + env(safe-area-inset-bottom)); }
+  .rw-alts { flex: none; justify-content: center; }
+  .rw-btns { flex-direction: column-reverse; align-items: stretch; }
+  .rw-btns .btn { width: 100%; }
+  .rw-loc { grid-template-columns: minmax(0, 1fr); }
+  .rw-loc .btn { grid-column: 1; grid-row: auto; justify-self: start; }
+}
+/* Small phones: a smaller dial and readout, so "12:45:01 PM" stays on one line beside it. */
+@media (max-width: 360px) {
+  .sheet.rw .dialmod { gap: 12px; padding-inline: 16px; }
+  .sheet.rw .dial { zoom: .46; }
+  .sheet.rw .knob:focus-visible { outline-width: 5.5px; }
+  .rw-when b { font-size: 28px; }
 }
 /* The native window is at least 960 px. These rules also keep the shared renderer
    usable in small previews without allowing fixed columns to force horizontal scroll. */
 @media (max-width: 600px) {
-  .toolbar { padding: 0 12px; gap: 6px; }
-  .toolbar .jump { gap: 4px; padding: 0 8px; }
-  .toolbar kbd, .btn kbd, .it kbd, .key kbd, .pill kbd, .mn-l kbd { display: none; }
-  .crumb { font-size: 13px; }
-  .doc { padding: 28px 20px 0; }
-  .hero-h { font-size: 34px; }
-  .hero-acts { align-items: stretch; flex-direction: column; gap: 6px; }
-  .hero-acts .btn { white-space: normal; height: auto; min-height: 44px; padding: 10px 14px; }
-  .day { flex-wrap: wrap; gap: 4px 8px; }
+  .toolbar kbd, .btn kbd, .it kbd, .pill kbd, .mn-l kbd, .search kbd { display: none; }
+  .doc { padding: 26px 20px 0; }
+  .hero-h { font-size: 36px; line-height: 1.06; }
+  .hero-when { font-size: 15px; }
+  .hero-p { font-size: 16px; }
+  .hero-acts { align-items: stretch; flex-direction: column; gap: 12px; width: 100%; }
+  .hero-acts .btn { white-space: normal; height: auto; min-height: 52px; padding: 10px 18px; }
+  .hero-acts .btn.link { align-self: center; min-height: 44px; }
+  .day { flex-wrap: wrap; gap: 4px 8px; margin-top: 36px; }
+  .day h2 { font-size: 30px; }
   .said.two { grid-template-columns: minmax(0, 1fr); }
   .said.two > div + div { padding-left: 0; padding-top: 8px; border-left: 0; border-top: 1px solid var(--line); }
   .page { padding: 24px 20px 40px; }
-  .setrow, .dsec, .tv-cols, .cmp-head { grid-template-columns: minmax(0, 1fr); }
-  .tv-body { padding: 24px 20px 0; gap: 24px; }
-  .tv-top { padding: 0 12px; gap: 8px; }
-  .tv-head { font-size: 32px; }
-  .dialmod { width: min(100%, 320px); justify-self: center; }
-  .tv-ruler { padding-left: 20px; padding-right: 20px; }
+  .setrow, .cmp-head { grid-template-columns: minmax(0, 1fr); }
   .welcome { padding: 24px; }
   .welcome h1 { font-size: 42px; }
   .scrim { padding: 16px; }
   .sheet, .sheet.wide { padding: 20px; }
 }
 
-.hintbar .btn + .btn { margin-left: 0; }
-
-/* Compare: the two sides */
-.cmp-sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
-.cmp-side { display: grid; gap: 4px; justify-items: start; padding: 12px 14px; border-radius: 12px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
-.cmp-side .t1 { font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Inspector command rows and the shortcut field */
 .cmdrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
@@ -741,50 +1141,28 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .field.hotkey { width: 220px; }
 
 /* Expand the controls themselves: adjacent hit areas never overlap. */
-.btn, .btn.link, .it, .it.ag, .pill, .cr-p, .seg button, .jump, .sec-b, .pal-i, .mn-l button, .tv-x, .ov-card .x { min-height: 40px; }
+.btn, .btn.link, .it, .it.ag, .pill, .cr-p, .seg button, .jump, .sec-b, .tv-x, .ov-card .x { min-height: 40px; }
 .tv-x, .ov-card .x { min-width: 40px; }
 .switch { box-sizing: content-box; border: 10px solid transparent; background-clip: padding-box; }
-.pal-q:focus-visible { outline-offset: -3px; }
+/* Jump to's field has focus while it is open: a 3 px bar in the ring's orange under the field says so, inside the card's edge. */
+.pal-q:focus-visible { outline: none; }
+.pal-top:has(.pal-q:focus-visible) { box-shadow: inset 0 -3px 0 var(--ring); }
 .meta, .day span, .pal-h, .tv-clock { font-variant-numeric: tabular-nums; }
 
 /* The record is the reading surface; the rail carries project and agent context. */
-.project-it { min-height: 54px; align-items: center; }
-.project-it .nm, .it.ag .nm { display: grid; gap: 3px; }
+.project-it { min-height: 58px; align-items: center; }
+.project-it .nm, .it.ag .nm { display: grid; gap: 2px; }
 .project-it .nm > span, .it.ag .nm > span { overflow: hidden; text-overflow: ellipsis; }
-.project-it .nm small, .it.ag .nm small { margin: 0; font-size: 12px; font-weight: 400; line-height: 1.3; }
-.project-it.on { box-shadow: inset 2px 0 var(--clay); }
-/* The planned agents share one row in the rail: the chip on the name line, the names under it. */
-.ag-more .nm > span { display: flex; align-items: center; gap: 6px; }
-.ag-more .planned { margin: 0; line-height: 18px; }
-.ag-more .nm small { white-space: normal; }
-/* Setup on History: three steps under the hero actions, until the first verdict and a connection or Hide. */
-.setup { width: 100%; display: grid; gap: 6px; justify-items: start; margin-top: 18px; }
-.steps3 { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.s3 { display: grid; align-content: start; gap: 4px; padding: 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
-.s3 b { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 500; }
-.s3 .n { width: 20px; height: 20px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); display: grid; place-items: center; font: 600 12px/1 var(--font); }
-.s3.done .n { background: var(--pass-bg); box-shadow: none; color: var(--pass-fg); }
-.s3.now { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
-.s3 code { font-size: 12px; }
-.s3 .btn { justify-self: start; margin-top: 6px; }
-@media (max-width: 600px) { .steps3 { grid-template-columns: minmax(0, 1fr); } }
-/* A confirm opens in the middle, Never mind first. */
-.app > .scrim.confirm-scrim { place-items: center; padding: 24px; }
+.project-it .nm > span:first-child { color: var(--ink); font-weight: 600; }
+.project-it .nm small, .it.ag .nm small { margin: 0; font-size: 13.5px; font-weight: 400; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; }
+/* A project's second line: its status on the left, its age on the right, so the name has the whole first line. */
+.project-it .nm small.project-verdict { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.project-verdict > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pj-age { flex: none; font: 500 13px/1.3 var(--font); color: var(--faint); font-variant-numeric: tabular-nums; }
+/* A confirm and Check it works open in the middle of the whole window, over the rail too. */
+.app > .scrim.confirm-scrim, .app > .scrim.ck-scrim { place-items: center; padding: 24px; }
 .sheet.confirm { width: min(460px, 100%); }
 .sheet.confirm .row-btns { justify-content: flex-end; }
-/* The buy link sits on its own row, so its 40 px target never stretches the sentence's lines. */
-.lic-free { display: grid; gap: 2px; justify-items: start; }
-.lic-free p { margin: 0; }
-.agent-logo { width: 32px; height: 32px; padding: 8px; background: #faf9f5; border-radius: 7px; box-shadow: none; }
-.agent-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.off .agent-logo, .ch-planned .agent-logo { background: #faf9f5; }
-.ch > .agent-logo { width: 40px; height: 40px; padding: 8px; border-radius: 9px; }
-.chip .agent-logo { width: 28px; height: 28px; padding: 8px; }
-.chip:has(.agent-logo) { height: 32px; }
-.ch-s { justify-self: start; border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 7px; font-size: 12px; }
-.ch-l { line-height: 1.55; }
-.honest { border-left: 2px solid var(--line-2); padding-left: 14px; }
-.hero-e { font-size: 13px; }
 .local-note { border-top: 1px solid var(--line); padding-top: 14px; width: 100%; }
 .path-form { display: grid; gap: 12px; }
 .path-form > label { font-weight: 500; }
@@ -796,83 +1174,71 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .connection-banner > div { flex: 1; min-width: 0; }
 .connection-banner p { color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }
 .connection-dot { width: 8px; height: 8px; border: 2px solid var(--ink-3); border-radius: 50%; flex: none; }
-.nav-toggle { display: none; }
 /* Jump to, Ask and Keyboard shortcuts are in the toolbar on wide screens and in ⋯ on phones. */
 .mn-l .mn-phone, .mn.mn-phone-only { display: none; }
 .app > .nav-scrim { z-index: 55; padding: 0; place-items: stretch start; }
-.side.mobile-side { display: flex; width: min(320px, 100%); height: 100%; padding: 20px 14px; box-shadow: var(--shadow-lg); }
+.side.mobile-side { display: flex; width: min(320px, 100%); height: 100%; padding: 20px 14px; border-right: 1.5px solid var(--ink); box-shadow: var(--hard-lg); }
 .mobile-side .brand { padding-bottom: 12px; flex: none; }
 .nav-close { margin-left: auto; padding: 0 8px; }
 .browser-runtime .side:not(.mobile-side) { padding-top: 24px; }
 .browser-runtime body { user-select: text; }
 .page, .doc, .col, .panel, .tv-read, .report, .sheet, .rc-body { overflow-wrap: anywhere; }
 .col > *, .panel > *, .sheet > *, .tv-read > *, .report > *, .toggle > *, .row-btns > *, .steplist .r > span { min-width: 0; }
-.tv-read:focus-visible { outline-offset: -2px; }
+.page:focus-visible { outline-offset: -2px; }
 
 /* Native windows retain their 960 px minimum. The browser has a complete compact
    navigation drawer, not a hidden rail with unreachable projects and settings. */
 @media (max-width: 1099px) {
   .setrow { grid-template-columns: minmax(110px, 150px) minmax(0, 1fr); }
-  .ch { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px 12px; }
-  .ch-l { grid-column: 2 / -1; }
 }
 @media (max-width: 860px) {
-  .nav-toggle { display: inline-flex; flex: none; }
-  .toolbar .crumb { flex: 1; }
-  .toolbar .tb-sp { display: none; }
+  /* Narrow: the buddy, a project switcher that opens the rail as a drawer, Jump to and ⋯. */
+  .toolbar { height: 60px; padding: 0 12px 0 14px; gap: 8px; }
+  .tb-buddy { display: block; width: 30px; height: 30px; }
+  .nav-toggle { display: inline-flex; flex: 0 1 auto; }
+  .toolbar .crumb { display: none; }
+  .toolbar .jump { display: grid; }
   .toolbar .pill { max-width: 100%; }
   .rcol.ask-col { width: min(400px, 100%); }
   .side.mobile-side { display: flex; }
-  .tv-body { display: flex; flex-direction: column; gap: 24px; padding-bottom: 28px; }
-  .tv-read { flex: none; min-height: auto; overflow: visible; padding-bottom: 0; }
-  .dialmod { flex: none; width: 300px; max-width: 100%; align-self: center; }
-  .tv-ruler { padding-top: 8px; }
-  .tv-band, .tv-lane { display: none; }
-  .ch { grid-template-columns: 36px minmax(0, 1fr) auto; }
-  .ch-s { grid-column: auto; font-size: 12px; }
 }
 @media (max-width: 600px) {
-  /* Phones: Projects, where you are, and ⋯. Jump to, Ask and the shortcuts are in ⋯. */
+  /* Phones: the buddy, the project switcher, Jump to and ⋯. Ask, Check it works and the shortcuts are in ⋯. */
   .toolbar { min-height: 60px; height: auto; padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
-  .toolbar .crumb { font-size: 13px; }
-  .toolbar .crumb:has(> span:only-child:empty) { display: none; }
-  .toolbar .pill { order: 6; flex-basis: 100%; justify-content: center; }
-  .toolbar .jump { display: none; }
+  .toolbar .pill { order: 6; flex-basis: 100%; justify-content: center; height: 40px; }
+  /* A long project name shortens with an ellipsis rather than push ⋯ onto a second line: a zero basis keeps the row
+     from wrapping, and the big grow lets the name take the free space first, up to its own width. */
+  .nav-toggle { flex: 1000 1 0; max-width: max-content; }
+  .toolbar .ask-t, .toolbar .tb-check { display: none; }
   .mn-l .mn-phone { display: flex; }
   .mn.mn-phone-only { display: inline; }
-  .toolbar .nav-toggle, .toolbar .mn-b { min-height: 44px; box-shadow: inset 0 0 0 1px var(--line-2); }
-  .nav-toggle { font-size: 13px; padding: 0 14px; }
-  .mn-b { width: 44px; }
   .page { padding: 24px 16px 40px; }
-  .doc { padding: 28px 16px 0; }
   .page h1 { font-size: 34px; }
-  .hero-h { font-size: 36px; }
-  .hero-acts { width: 100%; }
-  /* The main hero buttons: full width and 48 px, so the one action that matters is the easy one to hit. */
-  .hero-acts .btn.big, .welcome .row-btns .btn.big { min-height: 48px; font-size: 14px; }
-  .welcome .row-btns { display: grid; gap: 8px; justify-self: stretch; }
+  /* The main hero button: full width and 52 px, so the one action that matters is the easy one to hit. */
+  .hero-acts .btn.big { min-height: 52px; font-size: 16px; }
+  .hero-acts .sk-btn { width: auto; height: 52px; }
   /* The ruler names Now, the last working save point and the selected one; fitRulerLabels keeps them apart. */
   .rlab:not(.on):not(.now):not([data-lw]) { display: none; }
   .rlab.now:not(.on) .rl-t { display: none; }
+  .rwell { margin-top: 36px; padding: 16px 14px 8px; }
+  .rw-hint { display: none; }
+  /* A phone's ruler is too narrow for three frames: the flag reads only the save point under the playhead, at a width
+     that keeps its time on one line, and it stays inside the ruler (Design b3+4 F1). */
+  .rflag { --fw: min(280px, 100cqw); grid-template-columns: minmax(0, 1fr); }
+  .rf:not(.on) { display: none; }
+  .legend { margin-left: 0; flex-wrap: wrap; gap: 6px 14px; }
+  .steps3 { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }
   .setrow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .panel { padding: 16px; }
-  .table .tr { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .ch { grid-template-columns: 36px minmax(0, 1fr); }
-  .ch-s, .ch-l { grid-column: 2; }
-  .ch-n { font-size: 14px; }
-  .entry, .fold { grid-template-columns: 60px 18px minmax(0, 1fr); }
-  .entry::before, .fold::before { left: 68px; }
-  .entry .when { padding-right: 6px; }
-  .entry .body, .fold .body { padding-left: 6px; }
-  .entry h3 { font-size: 14px; }
-  .meta { gap: 6px; font-size: 12px; }
-  .broke-rule { display: block; margin: 8px 0 8px 78px; line-height: 1.5; }
-  .broke-rule .line { display: block; height: auto; padding-top: 4px; }
-  .broke-rule .line > span { position: static; padding: 0; }
-  .day span { font-size: 12px; }
-  .honest { font-size: 12px; line-height: 1.6; }
-  .cmp-sides { grid-template-columns: minmax(0, 1fr); }
-  .cmp-sides > span { justify-self: center; transform: rotate(90deg); }
+  .entry { grid-template-columns: 64px minmax(0, 1fr); gap: 2px 12px; padding: 14px 16px; }
+  .entry button.go { grid-column: 2; justify-self: start; min-height: 44px; }
+  .entry span.go { display: none; }
+  .fold { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; padding: 12px 16px; }
+  .entry h3 { font-size: 15.5px; }
+  .meta { gap: 6px 8px; font-size: 13.5px; }
+  .broke-rule { padding: 4px 16px 10px; }
+  .know { padding: 16px; gap: 12px; }
+  .empty-dir { padding: 16px; }
   .cmdrow { grid-template-columns: minmax(0, 1fr); }
   .cmdrow .btn { justify-self: start; }
   .field.hotkey { width: 100%; }
@@ -882,35 +1248,22 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .sheet, .sheet.wide { padding: 18px; }
   .sheet-head { gap: 8px; }
   .sheet-head .btn { padding: 0 8px; }
-  .rw-sheet .tv-acts { padding-bottom: 8px; }
   .btn, .btn.link { white-space: normal; height: auto; padding-top: 8px; padding-bottom: 8px; }
   .btn.big { min-height: 44px; }
-  .pal-h { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
-  .pal-q { min-width: 0; padding: 0 14px; font-size: 14px; }
-  .pal-foot { flex-wrap: wrap; gap: 6px 12px; }
+  .pal-h { max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+  .pal-top { padding-left: 16px; }
+  .pal-q { padding: 0 8px; font-size: 16px; }
+  .ks-r { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
+  /* The hook sheet's two buttons share one row, so the sticky bar stays short and the lines keep the room. */
+  .sheet.hook .ck-acts { flex-wrap: nowrap; gap: 8px; }
+  .sheet.hook .ck-acts .btn { padding-inline: 14px; }
+  /* A confirm's two buttons stack full width, the action last, like the Rewind sheet's own bar (Design b5+6, P3-1). */
+  .sheet.confirm .row-btns { flex-direction: column; align-items: stretch; }
+  .sheet.confirm .row-btns .btn { width: 100%; }
   .rc-top { padding-left: 16px; }
   .rcol.detail .rc-body { padding: 24px 18px 40px; }
-  .tv-top { min-height: 60px; height: auto; padding: 8px 12px; }
-  .tv-name { flex: 1; flex-wrap: wrap; gap: 2px 6px; font-size: 12px; }
-  .tv-name b { max-width: 100%; }
-  .tv-top .btn { max-width: 120px; }
-  .tv-top kbd { display: none; }
-  .tv-body { padding: 24px 16px 28px; }
-  .tv-read { gap: 16px; }
-  .tv-cols { gap: 18px; }
-  .tv-head { font-size: 32px; }
-  .dialmod { padding: 16px 14px 20px; }
-  .dial { zoom: .82; }
-  .tv-ruler { padding: 8px 16px; overflow: hidden; }
-  .tv-labels { display: none; }
-  /* The legend keeps the shapes; its keyboard hints are for keyboards. */
-  .tv-legend .sp, .tv-legend .sp ~ span { display: none; }
-  .tv-veil { right: -16px; bottom: 0; }
-  .tv-veil span { display: none; }
-  .fork-l { left: 8px !important; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
   .welcome { padding: 28px 20px; align-items: start; }
   .welcome h1 { font-size: 42px; }
-  .welcome .lede { line-height: 1.6; }
   .connection-banner { padding: 10px 12px; gap: 8px; align-items: flex-start; }
   .connection-banner .btn { font-size: 12px; padding: 6px 8px; }
   .connection-dot { margin-top: 6px; }
@@ -918,7 +1271,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .toast-host { bottom: calc(16px + env(safe-area-inset-bottom)); }
   .toast { width: 100%; max-width: none; }
   /* Every control is at least 44 px tall on a phone. */
-  .btn, .btn.link, .it, .pill, .cr-p, .seg button, .sec-b, .pal-i, .mn-l button, .tv-x { min-height: 44px; }
+  .btn, .btn.link, .it, .pill, .cr-p, .seg button, .sec-b, .tv-x { min-height: 44px; }
   .cr-p, .setup-hide { min-width: 44px; }
   .e-t { padding-block: 12px; margin-block: -12px; }
   summary { padding-block: 14px; margin-block: -14px; }
@@ -927,4 +1280,94 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
+}
+
+/* Motion pass (design/app-motion). Transform and opacity only, 150–320 ms on --ease, Unvibe's spring-like curve that lands
+   without overshoot. app.ts sets the timing so a redraw carries an entrance on: --in for a sheet, column, menu or stamp that
+   is drawn again while it plays, an animation-delay for staggered blocks, rows and beads, --vd for a verdict that changed. */
+.enter, .enter > .sheet, .enter > .pal, .enter > .side, .stamp { animation-delay: var(--in, 0ms) !important; }
+.tv-ruler.rise { animation-delay: calc(80ms + var(--in, 0ms)); }
+
+/* Arrivals: the page fades, its blocks rise one after another. */
+.page-fade { animation: fade var(--t-enter) var(--ease) both; }
+.block-in { animation: block-in .3s var(--ease) both; }
+@keyframes block-in { from { opacity: 0; transform: translateY(14px); } }
+
+/* Sheets, the palette and columns grow from what was pressed (app.ts sets the origin); the ⋯ menu drops from ⋯; the phone's
+   rail slides in from the left. */
+.mn-l.enter { transform-origin: top right; animation: pop .18s var(--ease) both; }
+.nav-scrim.enter > .side { animation: nav-in .24s var(--ease) both; }
+@keyframes nav-in { from { opacity: 0; transform: translateX(-28px); } }
+
+/* The History ruler: on first sight the line draws left to right and the beads pop in after it, then the labels. */
+.hruler .base.base-in { transform-origin: left center; animation: base-in .4s var(--ease) both; }
+@keyframes base-in { from { transform: scaleX(0); } }
+.rt-tk.tk-in { animation: tk-in .24s var(--ease) both; }
+@keyframes tk-in { from { opacity: 0; scale: .3; } }
+.lab-in { animation: fade .2s var(--ease) both; }
+/* The bead the playhead lands on settles into its ring. */
+.rt-tk.tk-sel { animation: tk-sel .22s var(--ease) both; }
+@keyframes tk-sel { from { scale: .8; } }
+/* From the keys the flag glides with the playhead, like the playhead itself. */
+.hruler:focus-visible:not(.by-pointer):not(.scrubbing) .rflag { transition: transform var(--t-glide) var(--ease), opacity var(--t-hover) var(--ease), visibility 0s; }
+
+/* A verdict that changed lands once: the bead grows into its new shape with a ring in its colour, the row's pill and the
+   status settle in. A fact, not a celebration: no overshoot. */
+.rt-tk { --ring: var(--ink-4); }
+.rt-tk.b-pass { --ring: var(--works); }
+.rt-tk.b-fail { --ring: var(--broken); }
+.rt-tk.v-land { animation: v-bead .32s var(--ease) var(--vd, 0ms) both; }
+@keyframes v-bead { from { opacity: .4; scale: .55; } }
+.rt-tk.v-land::before { content: ""; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 2px var(--ring); opacity: 0; pointer-events: none; animation: v-ring .32s var(--ease) var(--vd, 0ms); }
+@keyframes v-ring { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(1.9); } }
+.entry.v-land .meta > .vb { animation: v-badge .32s var(--ease) var(--vd, 0ms) both; }
+@keyframes v-badge { from { opacity: 0; transform: scale(.86); } }
+.hero.v-land .hero-h, .hero.v-land .hero-when, .hero.v-land .hero-e .dot { animation: v-hero .32s var(--ease) var(--vd, 0ms) both; }
+@keyframes v-hero { from { opacity: 0; transform: translateY(8px); } }
+
+/* A check that runs shows it in four places: the sheet's bar, the main button, its row and its bead. Each indeterminate, as
+   the check gives no percentage; each stops when the check ends. */
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(280%); } }
+.ck-bar { position: relative; height: 4px; margin: 4px 0 14px; border-radius: 4px; background: var(--paper-2); overflow: hidden; }
+.ck-bar i { position: absolute; top: 0; bottom: 0; left: 0; width: 36%; border-radius: inherit; background: var(--sky-ink); animation: sweep 1.3s var(--ease-io) infinite; }
+.btn.running { position: relative; overflow: hidden; }
+.btn.dark.running[disabled] { background: var(--action); border-color: var(--ink); color: var(--action-ink); }
+.btn.running::after { content: ""; position: absolute; left: 0; bottom: 0; width: 36%; height: 3px; border-radius: 3px; background: currentColor; opacity: .7; animation: sweep 1.3s var(--ease-io) infinite; }
+.entry.checking { background: var(--sunken); }
+.entry.checking::after { content: ""; position: absolute; left: 0; bottom: 0; width: 36%; height: 2px; background: var(--sky-ink); animation: sweep 1.3s var(--ease-io) infinite; pointer-events: none; }
+button.go.running[disabled] { opacity: 1; }
+.rt-tk.checking::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--ink); border-right-color: var(--ink); pointer-events: none; animation: spin .9s linear infinite; }
+
+/* Presses: every control gives a little under the finger (the sticker buttons also drop into their shadow). */
+.btn:active:not([disabled]), .btn.kf, .pill:active, .it:active, .search:active, .plan:active, .icon-b:active, .cr-p:active, .nav-toggle:active,
+.go:active:not([disabled]), .e-t:active, .fold:active, .mn-l button:active, .pal-i:active, .set-it:active:not(.on), .set-page .seg button:active, .wl-demo:active, .toast-undo:active, .chip:active { scale: .97; }
+.entry:active { scale: .99; }
+/* Presses and lifts move only: scale, transform and opacity. Colours and shadows change at once, never animated. */
+.search, .plan, .icon-b, .cr-p, .nav-toggle, .go, .e-t, .fold, .mn-l button, .pal-i, .set-page .seg button, .wl-demo { transition-property: scale, transform, opacity; transition-duration: var(--t-press), var(--t-press), var(--t-hover); transition-timing-function: var(--press-ease), var(--press-ease), var(--ease); }
+.entry { transition-property: scale, translate; transition-duration: var(--t-press), var(--t-hover); transition-timing-function: var(--press-ease), var(--ease); }
+@media (prefers-reduced-motion: reduce) { .entry:hover, .entry:active { translate: none; scale: none; } }
+.pill { transition: transform var(--t-press) var(--press-ease), scale var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
+.pill:active, .pill.kf { transform: none; }
+
+/* Idle, low and slow: the rail's dot breathes, Now pulses. Pause animation (in the toolbar) rests both on their still frame,
+   and so does every other loop that runs on its own (Claude Code's working dot, loading shapes); a check you started keeps
+   showing its progress. */
+.stored::before { animation: idle-breath 3.2s ease-in-out infinite; }
+@keyframes idle-breath { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .6; transform: scale(.78); } }
+.rt-tk.nowtk::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 2px var(--ink-4); opacity: 0; pointer-events: none; animation: now-pulse 3s var(--ease) 1.2s infinite; }
+@keyframes now-pulse { 0% { opacity: .55; transform: scale(1); } 55%, 100% { opacity: 0; transform: scale(1.75); } }
+.calm .stored::before, .calm .rt-tk.nowtk::after, .calm .breath, .calm .sk, .calm .sk-head::before, .calm .b9-sk i { animation: none; }
+/* Pause animation stills this sprint's motion too: an entrance (sheets, Jump to, the toast, the check's verdict) is a
+   fade, and presses and lifts happen at once. */
+.calm .scrim.enter .sheet, .calm .scrim.enter .pal, .calm .toast.enter, .calm .ck-card.stamp { animation-name: fade; }
+.calm .entry, .calm .theme-tile, .calm .search, .calm .plan, .calm .icon-b, .calm .cr-p, .calm .nav-toggle, .calm .go, .calm .e-t, .calm .fold, .calm .mn-l button, .calm .pal-i, .calm .set-page .seg button, .calm .wl-demo { transition: none; }
+.calm .entry:hover, .calm .entry:active { translate: none; scale: none; }
+.motion-b svg { width: 16px; height: 16px; }
+.motion-b[aria-pressed="true"] { background: var(--sky); border-color: var(--sky-line); color: var(--sky-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Nothing idles, the pause has nothing to pause, and progress is a still bar: the end frames, at once. */
+  .stored::before, .rt-tk.nowtk::after, .rt-tk.checking::before { animation: none; }
+  .motion-b { display: none; }
+  .ck-bar i, .btn.running::after, .entry.checking::after { animation: none; width: 100%; opacity: .35; }
 }

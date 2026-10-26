@@ -1,7 +1,7 @@
 // The launch splash and the entrance timing. The splash runs on a fake clock, so the tests say
 // exactly when it fades and when it is gone. No window needed.
 import { describe, expect, test } from "vitest";
-import { entranceDelay, PAGE_IN_MS, ROW_IN_MS, ROW_STAGGER_CAP_MS, rowDelay } from "../src/renderer/motion.ts";
+import { BEAD_IN_MS, BEAD_STAGGER_CAP_MS, beadDelay, BLOCK_STAGGER_MAX, BLOCK_STAGGER_MS, blockDelay, entranceDelay, PAGE_IN_MS, ROW_IN_MS, ROW_STAGGER_CAP_MS, rowDelay } from "../src/renderer/motion.ts";
 import { SPLASH_FADE_MS, SPLASH_MIN_MS, splashController, splashFadeAt, type SplashHost } from "../src/renderer/splash.ts";
 
 /** A splash on a fake clock. `events` records when it started fading, for how long, and when it went. */
@@ -82,13 +82,30 @@ describe("entrances", () => {
     expect(entranceDelay(0, PAGE_IN_MS, PAGE_IN_MS)).toBeNull();
   });
 
-  test("journal rows stagger, and the last starts at most 300 ms after the first however long the journal is", () => {
+  test("journal rows stagger: eight rows one after another, the rest with the eighth, however long the journal is", () => {
     expect(rowDelay(0, 0)).toBe(0);
     expect(rowDelay(1, 0)).toBeGreaterThan(0);
     const starts = Array.from({ length: 60 }, (_, i) => rowDelay(i, 0) ?? 0);
     expect(Math.max(...starts)).toBe(ROW_STAGGER_CAP_MS);
     expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(new Set(starts).size).toBe(8);
     // Once every row has arrived, a redraw draws them plainly.
     expect(rowDelay(59, ROW_STAGGER_CAP_MS + ROW_IN_MS)).toBeNull();
+  });
+
+  test("the History ruler's beads pop in left to right within a cap, and a redraw carries them on", () => {
+    const starts = Array.from({ length: 60 }, (_, i) => beadDelay(i, 0) ?? 0);
+    expect(starts[0]).toBe(0);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(Math.max(...starts)).toBe(BEAD_STAGGER_CAP_MS);
+    expect(beadDelay(0, 100)).toBe(-100);
+    expect(beadDelay(59, BEAD_STAGGER_CAP_MS + BEAD_IN_MS)).toBeNull();
+  });
+
+  test("a page's blocks rise one after another, and only the first few stagger", () => {
+    expect(blockDelay(0, 0, 300)).toBe(0);
+    expect(blockDelay(1, 0, 300)).toBe(BLOCK_STAGGER_MS);
+    expect(blockDelay(BLOCK_STAGGER_MAX + 3, 0, 300)).toBe(BLOCK_STAGGER_MAX * BLOCK_STAGGER_MS);
+    expect(blockDelay(2, BLOCK_STAGGER_MAX * BLOCK_STAGGER_MS + 300, 300)).toBeNull();
   });
 });

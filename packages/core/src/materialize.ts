@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { TmError } from "./errors.js";
 import { git, gitTry, short } from "./git.js";
@@ -32,16 +32,34 @@ export function removeWorktree(p: Project, dir: string): void {
   gitTry(p.root, p.env, ["worktree", "prune"]);
 }
 
+/** A plain copy is as closed as the folder it comes from: that folder's mode, or 0700 when it can't be read. */
+function copyMode(root: string): number {
+  try {
+    return statSync(root).mode & 0o777;
+  } catch {
+    return 0o700;
+  }
+}
+
 /**
  * Rebuilds a checkpoint in a separate Git worktree. The user's working copy,
- * index and current branch are never touched.
+ * index and current branch are never touched. With `plain`, for a plain folder's save point
+ * (an empty commit plus saved files), it writes a folder of plain files with no Git link at all.
  */
-export function materialize(p: Project, m: Manifest, dir: string, opts: { branch?: string } = {}): Materialized {
+export function materialize(p: Project, m: Manifest, dir: string, opts: { branch?: string; plain?: boolean } = {}): Materialized {
   checkRef(p, m);
-  if (existsSync(dir)) throw new TmError("usage", `${dir} already exists. Pick another folder.`);
+  // lstat, so a symbolic link at the name counts as taken even when it points nowhere.
+  if (lstatSync(dir, { throwIfNoEntry: false })) throw new TmError("usage", `${dir} already exists. Pick another folder.`);
+  if (opts.plain && p.kind !== "folder") throw new TmError("internal", "Only a plain folder's save point can be written as plain files.");
   mkdirSync(dirname(dir), { recursive: true });
-  const args = opts.branch ? ["worktree", "add", "-q", dir, opts.branch] : ["worktree", "add", "-q", "--detach", dir, m.git.snapshot];
-  git(p.root, p.env, args);
+  if (opts.plain) {
+    try {
+      mkdirSync(dir, { mode: copyMode(p.root) });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EEXIST") throw new TmError("usage", `${dir} was made by something else just now. Nothing was written there; try again.`);
+      throw e;
+    }
+  } else git(p.root, p.env, opts.branch ? ["worktree", "add", "-q", dir, opts.branch] : ["worktree", "add", "-q", "--detach", dir, m.git.snapshot]);
   try {
     const missing: string[] = [];
     let written = 0;
@@ -79,7 +97,8 @@ export function materialize(p: Project, m: Manifest, dir: string, opts: { branch
       }
       for (const k of c.keys.filter((k) => k.kind === "secret")) manual.push(`Set ${k.name} in ${c.file}`);
     }
-    const restored = [`Code at commit ${short(m.git.snapshot)}`];
+    // A folder's save point keeps every file as a saved file; its commit is only an empty tree.
+    const restored = p.kind === "folder" ? [] : [`Code at commit ${short(m.git.snapshot)}`];
     if (written) restored.push(plural(written, "saved file"));
     if (plainNames.length) restored.push(`Config: ${plainNames.join(", ")}`);
     // Lockfiles and environment definition files count as restored only when the copy holds the exact recorded bytes.

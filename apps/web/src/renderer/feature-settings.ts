@@ -1,14 +1,17 @@
-// Settings > Features for one project: Ask on or off, the Gemini API key, the Vercel token and
+// Settings > Features for one project: saving when files change, Ask on or off, the Gemini API key, the Vercel token and
 // which Vercel project is linked. Keys go straight to the main process. The window only ever
 // learns whether each one is set, and a pasted key is never written into markup.
-import type { CredentialName, VercelLink, VercelProjectOption } from "../shared/api.js";
+import type { AutoSave, CredentialName, VercelLink, VercelProjectOption } from "../shared/api.js";
 import { ASK_CONSENT } from "../shared/ask.js";
 import { esc } from "../shared/format.js";
+import { AUTO_SAVE_LABEL, AUTO_SAVE_NOTE } from "./add-flow.js";
 import { announceFeatures, errorText, FEATURES_CHANGED, isolateTyping, patch, type FeatureApi } from "./feature-dom.js";
 
 export interface FeatureSettingsView {
   phase: "loading" | "ready" | "unavailable";
   ask: boolean;
+  /** "change": the engine saves when files change, while Time Machine is open. */
+  autoSave: AutoSave;
   link: VercelLink | null;
   keys: Record<CredentialName, boolean>;
   /** Vercel projects the token can see, once the person asked to choose one. */
@@ -87,6 +90,11 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
   const dis = v.busy ? " disabled" : "";
   const status = v.problem ? `<p class="ft-err" role="alert">${esc(v.problem)}</p>` : v.status ? `<p class="ft-status" role="status">${esc(v.status)}</p>` : "";
   return `<div class="ft-settings">
+    <h3 class="ft-sec">Saving</h3>
+    <div class="setrow"><span class="l">On change</span><div class="ft-stack">
+      <div class="toggle"><button type="button" class="switch ${v.autoSave === "change" ? "on" : ""}" role="switch" aria-checked="${v.autoSave === "change"}" aria-label="${esc(AUTO_SAVE_LABEL)}" data-fa="autosave"${dis}></button><span class="ft-muted">${esc(AUTO_SAVE_LABEL)}.</span></div>
+      <span class="ft-muted">${esc(AUTO_SAVE_NOTE)} Save now always works.</span>
+    </div></div>
     <h3 class="ft-sec">Ask about your history</h3>
     <div class="setrow"><span class="l">Ask</span><div class="ft-stack">
       <div class="toggle"><button type="button" class="switch ${v.ask ? "on" : ""}" role="switch" aria-checked="${v.ask}" aria-label="Ask about your history for this project" data-fa="ask"${dis}></button><span class="ft-muted">${esc(ASK_CONSENT.summary)}</span></div>
@@ -105,7 +113,7 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
 /** Fills host with the feature rows for one project. Returns a function that removes them. */
 export function renderFeatureSettings(host: HTMLElement, projectId: string, api: FeatureApi): () => void {
   let alive = true;
-  const v: FeatureSettingsView = { phase: "loading", ask: false, link: null, keys: { gemini: false, vercel: false }, options: null, busy: false, status: null, problem: null };
+  const v: FeatureSettingsView = { phase: "loading", ask: false, autoSave: "off", link: null, keys: { gemini: false, vercel: false }, options: null, busy: false, status: null, problem: null };
   const draw = (): void => {
     if (alive) patch(host, featureSettingsHtml(v));
   };
@@ -119,7 +127,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
       v.problem = !boot.ok ? boot.error.message : !creds.ok ? creds.error.message : "That project is no longer in the list.";
       return draw();
     }
-    Object.assign(v, { phase: "ready", ask: p.features.ask, link: p.features.vercel, keys: creds.data, runtime: "browser" });
+    Object.assign(v, { phase: "ready", ask: p.features.ask, autoSave: p.features.autoSave, link: p.features.vercel, keys: creds.data, runtime: "browser" });
     if (v.link || !v.keys.vercel) v.options = null;
     draw();
   };
@@ -160,6 +168,12 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-fa]");
     if (!el || (el instanceof HTMLButtonElement && el.disabled)) return;
     switch (el.dataset.fa) {
+      case "autosave":
+        return void run(async () => {
+          const r = await api.call({ method: "setFeature", projectId, change: { feature: "autoSave", autoSave: v.autoSave === "change" ? "off" : "change" } });
+          if (!r.ok) throw new Error(r.error.message);
+          return r.data.features.autoSave === "change" ? "Saving when files change, while Time Machine is open." : "Saving only when you press Save now.";
+        });
       case "ask":
         return void run(async () => {
           const r = await api.call({ method: "setFeature", projectId, change: { feature: "ask", enabled: !v.ask } });

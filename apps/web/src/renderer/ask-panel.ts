@@ -88,9 +88,12 @@ function turnHtml(t: AskTurn, k: number, points: ReadonlyMap<string, CitedPoint>
   return t.result ? `${q}${answerHtml(t.result, points)}` : q;
 }
 
-function settingsPointer(v: AskView, sentence: string): string {
-  const link = v.canOpenSettings ? ` <button type="button" class="ft-link" data-fa="settings">Open Settings &gt; Features</button>` : "";
-  return `<p class="ft-note">${esc(sentence)}${link}</p>`;
+/** No Gemini key yet: the exact variable to set with a Copy button, and Settings as the other way in. Never a dead panel. */
+function keyNeeded(v: AskView): string {
+  const settings = v.canOpenSettings ? '<button type="button" class="ft-link" data-fa="settings">add it in Settings &gt; Features</button>' : "add it in Settings &gt; Features";
+  return `<div class="ft-key" role="note"><p><b>Ask needs your own Gemini API key.</b> Set GEMINI_API_KEY and restart tm ui.</p>
+    <div class="ft-env"><code class="mono">GEMINI_API_KEY</code><button type="button" class="btn ghost small" data-fa="copy-env" aria-label="Copy GEMINI_API_KEY">Copy</button></div>
+    <p class="ft-note">Or ${settings}.</p></div>`;
 }
 
 function consentCard(v: AskView): string {
@@ -103,7 +106,7 @@ function consentCard(v: AskView): string {
     <p>${esc(ASK_CONSENT.where)}</p>
     <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
     <p class="ft-muted">${esc(ASK_CONSENT.accuracy)} ${esc(ASK_CONSENT.off)}</p>
-    ${v.hasKey ? "" : settingsPointer(v, "There is no Gemini API key on this computer yet. Add your own key in Settings > Features before you ask.")}
+    ${v.hasKey ? "" : keyNeeded(v)}
     <button type="button" class="btn dark big" data-fa="on"${v.busy ? " disabled" : ""}>Turn on Ask for this project</button>
   </div>`;
 }
@@ -118,7 +121,7 @@ export function askPanelHtml(v: AskView): string {
     v.menuOpen ? `<div class="ft-menu" role="menu"><button type="button" role="menuitem" data-fa="off">Turn off Ask for this project</button></div>` : ""
   }</div></div>`;
   const intro = v.turns.length ? "" : `<p class="ft-intro">Ask a question about this project’s save points. Gemini answers from the history only, and can be wrong.</p>`;
-  const noKey = v.hasKey ? "" : settingsPointer(v, "Add a Gemini API key in Settings > Features before you ask.");
+  const noKey = v.hasKey ? "" : keyNeeded(v);
   const disabled = v.busy || !v.hasKey ? " disabled" : "";
   return `${bar}
     <div class="ft-thread" aria-live="polite">${intro}${v.turns.map((t, k) => turnHtml(t, k, v.points)).join("")}${problem}${noKey}${suggestions(v)}</div>
@@ -245,6 +248,11 @@ export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOp
         return void api.call({ method: "openExternal", url: ASK_CONSENT.termsUrl });
       case "settings":
         return onOpenSettings?.();
+      case "copy-env":
+        // Only the variable's name is copied; the key itself is never in the app's page.
+        return void api.call({ method: "copy", text: "GEMINI_API_KEY" }).then((r) => {
+          el.textContent = r.ok ? "Copied" : "Couldn’t copy";
+        });
       case "reload":
         v.phase = "loading";
         draw();
