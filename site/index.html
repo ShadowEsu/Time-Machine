@@ -41,7 +41,6 @@
     <nav class="nav" aria-label="Main">
       <a href="how-it-works.html">How it works</a>
       <a href="security.html">Security</a>
-      <a href="story.html">The story</a>
       <a href="company.html">Company</a>
     </nav>
     <a class="top-signin" href="account.html" data-checkout-open hidden>Sign in</a>
@@ -580,7 +579,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <details><summary>Does it replace Git?</summary><p>No. It works next to Git. A recovery is a new branch you inspect before you merge it yourself.</p></details>
       <details><summary>Why not the agent’s own rewind?</summary><p>Claude Code’s docs say rewind leaves a file as it is when only Bash commands changed it. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Read the Claude Code docs</a></p></details>
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
-      <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; Preston writes to the list himself when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
+      <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; we write to the list ourselves when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
       <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and nothing on it needs a password.</p></details>
       <details><summary>What does the $50 buy?</summary><p>A license key that lets the web app list as many projects as you like, instead of 3 at a time, on any number of your own computers, with updates while we ship them. One payment, no subscription. Paste the key in <code translate="no">tm ui</code> under Settings, then License, or run <code translate="no">tm license &lt;key&gt;</code>. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall. Checkout is not open yet, so nothing is for sale today.</p></details>
     </div>
@@ -589,7 +588,6 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <p class="ft-h">Navigation</p>
       <ul>
         <li><a href="how-it-works.html">How it works</a></li>
-        <li><a href="story.html">The story</a></li>
         <li><a href="security.html">Security</a></li>
         <li><a href="company.html">Company</a></li>
         <li><a href="blog/index.html">Blog</a></li>
@@ -603,10 +601,10 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
   </div>
 
   <p class="ft-word" aria-hidden="true" translate="no">Time <em>Machine</em></p>
-  <p class="ft-legal">© 2026 Preston Susanto. MIT licensed. Not affiliated with Apple Inc.</p>
+  <p class="ft-legal">© 2026 The Time Machine authors. MIT licensed. Not affiliated with Apple Inc.</p>
 </footer>
 
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Time Machine","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux","description":"Saves your project before an AI coding agent acts, runs your own tests on each save point in a separate copy, and brings back the newest one that passes.","url":"https://time-machine-site.vercel.app/","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Preston Susanto","email":"preston@unvibe.site"},"codeRepository":"https://github.com/ShadowEsu/Time-Machine"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Time Machine","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux","description":"Saves your project before an AI coding agent acts, runs your own tests on each save point in a separate copy, and brings back the newest one that passes.","url":"https://time-machine-site.vercel.app/","license":"https://opensource.org/licenses/MIT","author":{"@type":"Organization","name":"Time Machine"},"codeRepository":"https://github.com/ShadowEsu/Time-Machine"}</script>
 <script src="assets/motion.js" defer></script>
 <script src="assets/blueprint.js" defer></script>
 <script src="assets/tree.js" defer></script>

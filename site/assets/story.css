@@ -225,10 +225,6 @@ main { position: relative; }
 
 /* end */
 .a-end { padding: 22vh 0 14vh; border-top: 1px solid var(--line); }
-.end-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(30px, 6vw, 100px); align-items: start; }
-.letter-p { max-width: 30ch; margin: 0 0 20px; font: 400 clamp(24px, 2.2vw, 32px)/1.25 var(--serif); letter-spacing: -.01em; color: var(--ink); }
-.letter-sig { margin: 30px 0 0; font-weight: 620; }
-.letter-sig span { font: 400 13px/1.4 var(--mono); color: var(--ink-3); }
 .join .hx { font-size: clamp(52px, 6.4vw, 110px); }
 #waitlist { scroll-margin-top: 120px; margin-top: 26px; }
 .wl-status:empty { min-height: 0; }
@@ -471,7 +467,6 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .a-pay { padding: 12vh 0 10vh; }
 
   .a-end { padding: 14vh 0 10vh; }
-  .end-grid { grid-template-columns: 1fr; gap: 64px; }
 }
 @media (max-width: 820px) and (max-height: 700px) {
   .pf .kick { display: none; }
