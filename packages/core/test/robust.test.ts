@@ -564,7 +564,8 @@ describe("config files a save can't check (Security N1, T7, T8)", () => {
     const home = join(root, "store");
     mkdirSync(join(dir, "Settings"), { recursive: true });
     git(dir, "init", "-q", "-b", "main");
-    if (git(dir, "config", "--bool", "core.ignorecase") !== "true") t.skip();
+    // Git writes core.ignorecase only on a disk that ignores case; elsewhere (Linux) the key is unset.
+    if (git(dir, "config", "--bool", "--default", "false", "core.ignorecase") !== "true") t.skip();
     writeFileSync(join(dir, "timemachine.yml"), "config:\n  files: [settings/app.env]\n");
     writeFileSync(join(dir, "Settings", "App.env"), "MODE=committed\n");
     git(dir, "add", ".");
@@ -583,7 +584,7 @@ describe("config files a save can't check (Security N1, T7, T8)", () => {
     const home = join(root, "store");
     mkdirSync(join(dir, "conf"), { recursive: true });
     git(dir, "init", "-q", "-b", "main");
-    const icase = git(dir, "config", "--bool", "core.ignorecase") === "true";
+    const icase = git(dir, "config", "--bool", "--default", "false", "core.ignorecase") === "true";
     writeFileSync(join(dir, "timemachine.yml"), "config:\n  files: [conf, settings.env]\n");
     git(dir, "add", ".");
     git(dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "first");
