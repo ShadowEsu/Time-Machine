@@ -75,7 +75,7 @@ Status: research for the next site build. Nothing here is implemented. October 2
   --paper: #fafaf7;  --card: #ffffff;  --mist: #f2f1ec;  --hairline: #e6e4dd;
   --ink: #0a0a0a;    --ink-2: #3d3d3a; --ink-3: #6b6a65;
   --glass: rgba(255,255,255,.72);  --glass-line: rgba(10,10,10,.08);
-  /* atmosphere: hero and final CTA backgrounds only. Never on controls or verdicts. Needs founder OK */
+  /* atmosphere: hero and final CTA backgrounds only. Never on controls or verdicts. Needs team OK */
   --dawn-1: #eef4ff; --dawn-2: #d9e6ff;
 
   /* verdicts: unchanged from WEBSITE_SPEC 9.0, the only meaningful colour */
@@ -104,7 +104,7 @@ Status: research for the next site build. Nothing here is implemented. October 2
 }
 ```
 
-**Usage rules:** serif for headlines, Inter for anything clickable, one italic serif word for emphasis at most, `tabular-nums` for times and counts. The warm paper and the dawn gradient change WEBSITE_SPEC 9.0 ("no other accent"), so the founder decides.
+**Usage rules:** serif for headlines, Inter for anything clickable, one italic serif word for emphasis at most, `tabular-nums` for times and counts. The warm paper and the dawn gradient change WEBSITE_SPEC 9.0 ("no other accent"), so the team decides.
 
 ## 3. Scroll story: 14 beats
 
@@ -125,7 +125,7 @@ Every number shown comes from a recorded `tm` run on the synthetic Marigold fixt
 | 11 | Honest about the rest. | What came back, and what you set again by hand. | Report card: "Not brought back: database rows, secret values" | Rows reveal, 70 ms stagger |
 | 12 | Next time, you'll know first. | A quiet card when a change breaks your check. | Menu bar dot turns red, corner card slides in | Card spring (300/32) from 12 px right |
 | 13 | Works where you build. | One line for the terminal. A Mac app for everyone else. | Fork into builders, developers, agents; terminal types `npx timetm init` with Copy | Path draws on scroll; typing 18 ms per character, once |
-| 14 | Built with a way back. | Free to rescue. Here is who is building it. | Founder note, one CTA, one quiet link | Plain fade, then nothing moves |
+| 14 | Built with a way back. | Free to rescue. Here is who is building it. | Team note, one CTA, one quiet link | Plain fade, then nothing moves |
 
 After beat 14 the page goes static: a chip strip of what is captured today (README list), "What it does not do", pricing labelled planned, an FAQ with "Does it replace Git? No.", and a large wordmark footer.
 
@@ -154,11 +154,11 @@ These tokens extend WEBSITE_SPEC 6.2. Keep its easings and add:
 
 **Phones:** headline above the visual, pins shortened to 90 to 110 vh, 16 px gutters, no horizontal scroll, 44 px tap targets, "Skip the story" under the hero.
 
-## 5. Founder section (facts as written on unvibe.site/about)
+## 5. Team section (facts as written on unvibe.site/about)
 
-**Before publishing:** age only with the founder's and a parent's consent, location only if he wants it (WEBSITE_SPEC 4.9). Never reuse Unvibe numbers as Time Machine traction. Unvibe's pages disagree on startup support ($232,700 vs $267,700), so leave it out.
+**Before publishing:** no age or location (WEBSITE_SPEC 4.9). Never reuse Unvibe numbers as Time Machine traction. Unvibe's pages disagree on startup support ($232,700 vs $267,700), so leave it out.
 
-**Suggested line:** "I'm Preston. I build with coding agents, and I kept losing versions that worked. Time Machine is the record I wanted: every step saved, and an honest answer to which one still works."
+**Suggested line:** "We build with coding agents, and we kept losing versions that worked. Time Machine is the record we wanted: every step saved, and an honest answer to which one still works."
 
 ## 6. Overlay notes for the app team (from Unvibe)
 
@@ -178,6 +178,6 @@ These tokens extend WEBSITE_SPEC 6.2. Keep its easings and add:
 3. **Calibrated trust beats maximal trust.** Show what the check covers and the exact command. One false Works can cause lasting algorithm aversion. (Lee and See 2004; Dietvorst 2015, 2018; research 30, 1.16)
 4. **Polish signals reliability**, so the craft pays. Verdicts still stay plain and literal. (Kurosu and Kashimura 1995; Tractinsky 2000; research 30, 1.14)
 5. **One primary action per screen**, one quiet alternative. (Iyengar and Lepper 2000; EXPERIENCE 8)
-6. **Real social proof only.** No invented counts or testimonials; fake reviews are illegal (FTC 16 CFR 465). Fixa's unsourced figures are the anti-example. Use the founder story and the open test suite. (Salganik et al. 2006; research 30, 1.22; research 31, 34)
+6. **Real social proof only.** No invented counts or testimonials; fake reviews are illegal (FTC 16 CFR 465). Fixa's unsourced figures are the anti-example. Use the team story and the open test suite. (Salganik et al. 2006; research 30, 1.22; research 31, 34)
 7. **No fake urgency.** Mild dark patterns roughly doubled sign-ups in experiments, which is why they are banned here. Supaste's "5 spots left" is the pattern to avoid. (Luguri and Strahilevitz 2021; research 30, 3.1)
 8. **One promise, then separate doors.** Top developer sites tell one story, then split by nav, pages or docs, with no persona toggle. CTAs are named by tool ("Download for Mac", "Install the CLI"), plus a copyable line for agents. (Stripe, Vercel, Supabase, Clerk; research 33, 3.4)

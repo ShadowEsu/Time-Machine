@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { RunNote } from "../src/shared/api.ts";
-import { changedLine, filterBar, filtered, noPinned, noteBlock, rowTitle, shownTitle, unitWords } from "../src/renderer/runs.ts";
+import { changedLine, filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, rowTitle, shownTitle, unitWords } from "../src/renderer/runs.ts";
 import { filterPalette, savePointItem } from "../src/renderer/palette.ts";
 
 const note = (over: Partial<RunNote> = {}): RunNote => ({ pinned: false, updated: "2026-10-25T05:00:00Z", ...over });
@@ -35,6 +35,18 @@ describe("runs: name, note and pin", () => {
     expect(html).toContain('maxlength="80"');
     expect(html).toContain('maxlength="2000"');
     expect(html).toContain("Saved on this computer");
+  });
+
+  test("the name shows how much of 80 is used, and the button and toast say what is saved", () => {
+    const html = noteBlock("cp-0003", undefined, { id: "cp-0003", title: "Draft before advisor notes", note: "" }, "documents", false);
+    expect(html).toContain('<span class="rn-count" id="rn-count">26/80</span>');
+    expect(html).toContain('aria-describedby="rn-count"');
+    expect(html).toContain(">Save name</button>");
+    expect(noteSaveWords({ id: "x", title: "Draft", note: "" }, undefined)).toEqual({ button: "Save name", toast: "Name saved on this computer." });
+    expect(noteSaveWords({ id: "x", title: "", note: "tried seed 7" }, undefined)).toEqual({ button: "Save note", toast: "Note saved on this computer." });
+    expect(noteSaveWords({ id: "x", title: "Draft", note: "tried seed 7" }, undefined)).toEqual({ button: "Save name and note", toast: "Name and note saved on this computer." });
+    expect(noteSaveWords({ id: "x", title: "Draft", note: "new" }, note({ title: "Draft", note: "old" })).button).toBe("Save note");
+    expect(nameCount("   ")).toBe("0/80");
   });
 
   test("Jump to lists a renamed save point by its new name, finds it by that name, and says it is pinned", () => {

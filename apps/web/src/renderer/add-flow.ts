@@ -1,8 +1,8 @@
 // The Add flow: what to protect, then the folder, then a check (required for code, optional for the rest), then
 // when to save. The words and choices are decided here, from the purpose alone, so the window and the tests agree.
-import type { AutoSave, Purpose } from "../shared/api.js";
-import { esc } from "../shared/format.js";
-import { ADD_PURPOSES, checkRequired, PURPOSES, purposeIcon } from "./purpose.js";
+import type { AutoSave, ProjectKind, Purpose } from "../shared/api.js";
+import { esc, plural } from "../shared/format.js";
+import { ADD_PURPOSES, checkRecommended, PURPOSES, purposeIcon } from "./purpose.js";
 
 export type AddStep = 1 | 2 | 3 | 4;
 /** One word each, so the stepper stays on one line above 600 px. Each step's heading says the rest. */
@@ -27,15 +27,48 @@ export function autoSaveRow(autoSave: AutoSave): string {
   return `<label class="opt ${on ? "on" : ""}"><input type="checkbox" data-act="ob-autosave" data-v="${on ? "off" : "change"}"${on ? " checked" : ""}><span><div class="t">${esc(AUTO_SAVE_LABEL)}</div><div class="d">${esc(AUTO_SAVE_NOTE)}</div></span><span></span></label>`;
 }
 
-/** Step 1: four cards. Picking one goes straight on to the folder. Research says plainly what it is: backups of your own files. */
+/** Step 1: four cards. Picking one goes straight on to the folder. `busy` (or a full free plan) disables them. */
 export function purposeCards(selected: Purpose | null, busy: boolean): string {
   const cards = ADD_PURPOSES.map((p) => {
     const w = PURPOSES[p];
-    const extra = p === "research" ? '<span class="ad-own">Backups of your own files on this computer.</span>' : "";
-    return `<li><button class="ad-card${selected === p ? " on" : ""}" data-act="ob-purpose" data-v="${p}" aria-pressed="${selected === p}" ${busy ? "disabled" : ""}>${purposeIcon(p)}<span class="ad-t"><b>${esc(w.label)}</b><span>${esc(w.hint)}</span>${extra}</span></button></li>`;
+    return `<li><button class="ad-card${selected === p ? " on" : ""}" data-act="ob-purpose" data-v="${p}" aria-pressed="${selected === p}" ${busy ? "disabled" : ""}>${purposeIcon(p)}<span class="ad-t"><b>${esc(w.label)}</b><span>${esc(w.hint)}</span></span></button></li>`;
   }).join("");
   return `<div><h1 id="ad-h" tabindex="-1">What do you want to protect?</h1><p class="lede">Pick what is in the folder. It only changes the words and the setup. Everything stays on this computer.</p></div>
     <ul class="ad-cards" aria-labelledby="ad-h">${cards}</ul>`;
+}
+
+/** What the Protect buttons and step 1 say when the free plan lists as many projects as it can. */
+export const ADD_FULL = "Free plan full: remove one in Storage";
+
+/** Step 1 on a full free plan: said before anything is picked, with the way to Storage (where Remove is) and to a key. */
+export function addFullCard(limit: number): string {
+  return `<div class="note warn ad-full" role="status" id="ad-full"><p><b>${esc(ADD_FULL)}.</b> ${esc(`The free plan lists up to ${plural(limit, "project")}. A license, $50 once, lifts that limit. Every restore stays free.`)}</p>
+    <div class="row-btns"><button class="btn" data-act="storage">Open Storage</button><button class="btn link" data-act="plan">Paste a key</button></div></div>`;
+}
+
+/** What the folder field is missing before anything is asked of the engine; null when the engine can judge it. ~ is fine: the engine expands it. */
+export function pathProblem(path: string): string | null {
+  const t = path.trim();
+  if (!t) return "Enter a folder path.";
+  if (t === "~" || t.startsWith("~/") || t.startsWith("/") || /^[A-Za-z]:\\/.test(t)) return null;
+  return "Enter the whole path to the folder, starting with / or ~/.";
+}
+
+/** Build it is a choice only when package.json has a build script and it is not already the detected check. */
+export function buildOffered(purpose: Purpose, scripts: readonly string[], detected: string): boolean {
+  return purpose === "code" && scripts.includes("build") && detected !== "npm run build";
+}
+
+/** "Found 7 save points from before." for a folder added again, or set up with tm init; null when it is new. */
+export function foundBefore(n: number, purpose: Purpose): string | null {
+  if (n <= 0) return null;
+  const w = PURPOSES[purpose];
+  return `Found ${plural(n, w.unit, w.units)} from before.`;
+}
+
+/** Saving on change starts on for a plain folder of documents, research or agent work, as the engine sets it when adding. */
+export function defaultAutoSave(kind: ProjectKind, purpose: Purpose): AutoSave {
+  return kind === "folder" && purpose !== "code" && purpose !== "other" ? "change" : "off";
 }
 
 /** Step 2's lede: a Git project or a plain folder both work. */
@@ -45,20 +78,28 @@ export function pathLede(purpose: Purpose): string {
     : "Any folder on this computer. Git is not needed. Your files stay here. This is not an upload.";
 }
 
-/** What adding writes, said before anything is added. */
-export const PATH_SETUP_NOTE = "Setup starts when you add it, and we make your first save point. A Git project gets one small settings file, timemachine.yml. A plain folder gets nothing new: its settings and history live in the Time Machine store. Save points are always kept outside your folder.";
+/** What adding writes, said before anything is added. Only code projects hear about Git. */
+export function pathSetupNote(purpose: Purpose): string {
+  return purpose === "code"
+    ? "Nothing is added until the last step. Then a Git project gets one small settings file, timemachine.yml, and a plain folder gets nothing new. Save points are always kept outside your folder."
+    : "Nothing is added until the last step, and your folder gets nothing new. Its history is kept in the Time Machine store, outside the folder.";
+}
 
-/** The check step: whether it can be skipped, and its words. */
+/** The check step: its words, and the "no check" choice. */
 export interface CheckStepCopy {
   heading: string;
   lede: string;
-  /** The "no check" choice, or null when a check is required. */
-  skip: { title: string; note: string } | null;
+  /** The "no check" choice. A code project is told what it gives up (no Works or Broken); the others only save versions. */
+  skip: { title: string; note: string };
 }
 
 export function checkStepCopy(purpose: Purpose, name: string): CheckStepCopy {
-  if (checkRequired(purpose)) {
-    return { heading: `How should we check that ${name} works?`, lede: "A check is a command. If it finishes without an error, the version works.", skip: null };
+  if (checkRecommended(purpose)) {
+    return {
+      heading: `How should we check that ${name} works?`,
+      lede: "A check is a command. If it finishes without an error, the version works.",
+      skip: { title: "No tests yet: only save versions", note: "From now on, save points are saved without a check, so they are not called Works or Broken. You compare versions and put files back by hand. Add a check later in Settings." },
+    };
   }
   const what = purpose === "research" ? "a run" : "a version";
   return {
@@ -68,10 +109,17 @@ export function checkStepCopy(purpose: Purpose, name: string): CheckStepCopy {
   };
 }
 
+/** The "no check" choice's note. When the project's own timemachine.yml already had a check, it says this empties it and
+ *  Back puts it back (Security B6); a Git project also hears that Git will show that edit as a change. */
+export function skipNote(note: string, emptiesCheck: boolean, kind: ProjectKind): string {
+  if (!emptiesCheck) return note;
+  return `${note} This empties the check in your timemachine.yml${kind === "git" ? " (a change Git will show)" : ""}; Back puts it back.`;
+}
+
 /** The choice the check step starts on: the detected command if there is one, else typing one for code, else no check. */
 export function firstCheckChoice(purpose: Purpose, detected: string): "detected" | "custom" | "none" {
   if (detected.trim()) return "detected";
-  return checkRequired(purpose) ? "custom" : "none";
+  return checkRecommended(purpose) ? "custom" : "none";
 }
 
 /** The toast when setup ends without a check: nothing claims the folder works. */

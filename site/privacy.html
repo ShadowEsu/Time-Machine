@@ -46,7 +46,8 @@
     <p>Short version: your code never leaves your computer. We collect as little as we can, we never sell it, and secret values from config files like <code>.env</code> are never stored anywhere, even on your own machine. Only their key names and a fingerprint are kept.</p>
 
     <h2>1. What stays on your computer</h2>
-    <p>The <code>tm</code> tool and the web app keep everything locally: save points, Git bundles, file copies, check logs, the audit log, and the names of settings you choose. We cannot see any of it. For settings, Time Machine stores only key names and a keyed fingerprint, never the values. Two optional web app features talk to other services, and only after you turn them on: Ask sends a short summary of your history to Google's Gemini API with your own key, and Vercel links read your deployments with your own token.</p>
+    <p>The <code>tm</code> tool and the web app keep everything locally: save points, Git bundles, file copies, check logs, the audit log, and the names of settings you choose. We cannot see any of it. For settings, Time Machine stores only key names and a keyed fingerprint, never the values.</p>
+    <p>Two optional web app features talk to other services, and only after you turn them on. Ask sends a short summary of your history, with your own key, to Google's Gemini API, or to Anthropic's Claude API when only an Anthropic key is set. With a free Gemini key, Google may use what Ask sends to improve its products, and people at Google may read it (<a href="https://ai.google.dev/gemini-api/terms" rel="noopener">Gemini API terms</a>). Anthropic's <a href="https://www.anthropic.com/legal/commercial-terms" rel="noopener">commercial terms</a> cover what is sent with an Anthropic key. Vercel links read your deployments with your own token.</p>
 
     <h2>2. What we collect</h2>
     <div class="tablewrap" tabindex="0" role="region" aria-label="What we collect">

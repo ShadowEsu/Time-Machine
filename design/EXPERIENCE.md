@@ -113,7 +113,7 @@ The full vocabulary table, CLI style rules and sample terminal output are in `.p
 
 ## 8. Ethical attention rules
 
-Source: the founder's "Ethical attention design" guide (October 2026). Attention is borrowed. People must be able to understand, choose, pause and leave without penalty. Each rule below is a design hypothesis to test with real users, not a law.
+Source: the team's "Ethical attention design" guide (October 2026). Attention is borrowed. People must be able to understand, choose, pause and leave without penalty. Each rule below is a design hypothesis to test with real users, not a law.
 
 | Study | What it found | Our rule |
 |---|---|---|

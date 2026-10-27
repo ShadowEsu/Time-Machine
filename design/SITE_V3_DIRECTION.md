@@ -1,10 +1,10 @@
 # Site v3 direction
 
-Status (20 October 2026): Preston requested a Claude-inspired black-and-white refinement, using Unvibe as a quality reference. The live direction is now charcoal and off-white, with neutral controls and the existing Time Machine icon in the header. Newsreader, Inter, the interactive rewind instrument and honest product copy remain. The comparison has larger type, stronger rules and a sticky first column on phones; it scrolls within its labelled region. Section spacing is tighter and footer wordmarks have full line-height and padding rather than a cropped baseline. Shared pages retain light/dark appearance with neutral accents. Verdict colours still mean Works/Broken. The concept material below records the earlier editorial exploration, not current colour requirements.
+Status (20 October 2026): the team requested a Claude-inspired black-and-white refinement, using Unvibe as a quality reference. The live direction is now charcoal and off-white, with neutral controls and the existing Time Machine icon in the header. Newsreader, Inter, the interactive rewind instrument and honest product copy remain. The comparison has larger type, stronger rules and a sticky first column on phones; it scrolls within its labelled region. Section spacing is tighter and footer wordmarks have full line-height and padding rather than a cropped baseline. Shared pages retain light/dark appearance with neutral accents. Verdict colours still mean Works/Broken. The concept material below records the earlier editorial exploration, not current colour requirements.
 
 Concepts: `design/concepts/site-v3-a.html` (editorial) and `design/concepts/site-v3-b.html` (instrument). Shared parts are in `design/concepts/site-v3-assets/`. Screenshots at 1440x900 and 390x844 are in `design/concepts/shots/site-v3-*`.
 
-## 1. The founder's brief
+## 1. The team's brief
 
 - The site is "so far so good" but "a bit basic".
 - Keep the launch feel: the power on intro and the 3D device you can hover and turn.
@@ -74,7 +74,7 @@ The concepts build the hero and the next two sections. The full page should run 
 7. **The receipt.** What came back and what did not. Kept from the current site.
 8. **Pricing preview, The Ladder.** Labelled "Planned. Nothing is for sale yet." $9 a month, then $8 from month 7, $7 from month 13, a $6 floor from month 25. Restores are never paywalled. The CLI is free. Students pay half of every step. The current fader stays.
 9. **FAQ.** About 8 plain questions, each with a short answer. Proposed questions: Does it replace Git? No. Does it undo database changes? No. Does it store my secrets? No, only key names. Does it push or deploy? No. Does it work without Claude Code? Yes, through the MCP server or by hand. Is it on npm? Not yet. Is the Mac app out? Not yet. What does it cost? Nothing yet. The plan is The Ladder.
-10. **Founder and waitlist.** Kept from the current site.
+10. **Team and waitlist.** Kept from the current site.
 
 The 9 act scroll story on the current home page can stay as a "Watch the story" page or a section further down. The new hero is no longer pinned, so the page reads fast on a phone.
 
@@ -121,7 +121,7 @@ Rules from WEB_V2_RESEARCH section 4 still apply: transform and opacity only, na
 | Section 3 | How it works, and the agents supported | The spec sheet, with the 128 test counter as an LCD |
 | Risk | Can read as quiet. Needs the device to carry the energy | Dark can feel heavy for non technical builders. Orange must not read as a warning |
 
-**Recommendation:** A's light paper and serif for the page, with B's proof section, signal orange LED and LCD counter used as moments on the device. If the founder wants one concept as is, A carries the "calm, premium, worth paying for" brief better. B is the stronger launch film.
+**Recommendation:** A's light paper and serif for the page, with B's proof section, signal orange LED and LCD counter used as moments on the device. If the team wants one concept as is, A carries the "calm, premium, worth paying for" brief better. B is the stronger launch film.
 
 ## 8. Checks run on the concepts
 
@@ -134,7 +134,7 @@ Run with Playwright on Chromium against a local static server, at 1440x900 and 3
 
 Not checked yet: Safari and Firefox, a real phone, and frame timing on a real low-end laptop.
 
-## 9. Open decisions for the founder
+## 9. Open decisions for the team
 
 1. A, B, or the mix in section 7.
 2. Whether the 9 act scroll story stays on the home page or moves to its own page.
@@ -143,7 +143,7 @@ Not checked yet: Safari and Firefox, a real phone, and frame timing on a real lo
 
 ## 10. Premium home refinement (20 Oct)
 
-Preston asked for Linear, Vercel and Raycast level craft on the home page, using real content only. What changed and why:
+The team asked for Linear, Vercel and Raycast level craft on the home page, using real content only. What changed and why:
 
 - **One container and one scale.** `site/assets/home.css` sets `--container` 1200 px, `--inline` side padding, `--section-y` rhythm and five type steps (`--t-display`, `--t-h2`, `--t-h3`, `--t-lead`, `--t-cap`). Every block uses them.
 - **Hero.** Left aligned. A pill badge, the serif claim at up to 104 px, then the lead and the waitlist form side by side. The real recording starts inside the first screen at 1440 x 900.
@@ -156,7 +156,7 @@ Preston asked for Linear, Vercel and Raycast level craft on the home page, using
 
 ## 11. Warm dark, everywhere (21 Oct)
 
-Preston asked for the whole site to be dark, warm and closer to Claude and Anthropic, with nothing light, and for a better demo video from the real app.
+The team asked for the whole site to be dark, warm and closer to Claude and Anthropic, with nothing light, and for a better demo video from the real app.
 
 - **One theme.** `site/assets/site.css` holds a single warm dark token set for every page, with no light branch and `color-scheme: dark`: charcoal `#1a1918`, card `#24231f`, ivory text `#faf9f5`, secondary `#d6d3c8` and `#a8a59a` (7.1:1 on the page). Every page has one `theme-color` of `#1a1918`.
 - **Clay is the main action.** `#d97757` with dark text (5.9:1) for primary buttons and the header CTA, and as a small accent: the glow behind the recording, the playback line, the dial pointer. Links and focus stay ivory. Green and red still mean Works and Broken only.

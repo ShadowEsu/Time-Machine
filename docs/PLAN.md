@@ -1,8 +1,8 @@
 # Plan to MVP
 
-Status (22 October 2026): M0 to M3 code is built and merged to `main`. License: MIT (ADR 0010). `timetm` is one command from npm (`docs/launch/NPM_PUBLISH.md`); publishing waits on two-factor on the founder's npm account. 384 automated tests (382 on macOS, 2 run only on Linux) in CI on macOS and Linux, Node 22 and 24. The web app (Phase B, W01 to W07) is built and served by `tm ui` from the CLI; the Electron Mac app was retired on 22 October (ADR 0012). The web app costs $50 once (ADR 0013): `tm license` and the Settings panel are built, the site shows the price, and checkout opens once an adult signer and a Stripe account exist (`docs/launch/CHECKOUT_SETUP.md`). The website is public at https://time-machine-site.vercel.app: one page with the promise and the waitlist in the first screen, a real recording, a step-by-step section for people who don't code, the developer view with an agent-readable `install.md`, plain-word definitions, a changelog and a dense footer. The waitlist saves pending signups once Supabase is set up (`docs/launch/SUPABASE_SETUP.md`); the site sends no email. The action connector remains proposed v2 (ADR 0007). Full session memory: `docs/HANDOFF.md`.
+Status (22 October 2026): M0 to M3 code is built and merged to `main`. License: MIT (ADR 0010). `timetm` is one command from npm (`docs/launch/NPM_PUBLISH.md`); publishing waits on two-factor on the owner's npm account. 384 automated tests (382 on macOS, 2 run only on Linux) in CI on macOS and Linux, Node 22 and 24. The web app (Phase B, W01 to W07) is built and served by `tm ui` from the CLI; the Electron Mac app was retired on 22 October (ADR 0012). The web app costs $50 once (ADR 0013): `tm license` and the Settings panel are built, the site shows the price, and checkout opens once an adult signer and a Stripe account exist (`docs/launch/CHECKOUT_SETUP.md`). The website is public at https://time-machine-site.vercel.app: one page with the promise and the waitlist in the first screen, a real recording, a step-by-step section for people who don't code, the developer view with an agent-readable `install.md`, plain-word definitions, a changelog and a dense footer. The waitlist saves pending signups once Supabase is set up (`docs/launch/SUPABASE_SETUP.md`); the site sends no email. The action connector remains proposed v2 (ADR 0007). Full session memory: `docs/HANDOFF.md`.
 
-Waiting on the founder: npm account (publish), who signs for money (blocks checkout), a Stripe account, lawyer review, a domain, and the demo video. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
+Waiting on the owner: npm account (publish), who signs for money (blocks checkout), a Stripe account, lawyer review, a domain, and the demo video. Anything not marked done is planned. Scope comes from `docs/BUILD_BRIEF.md`. This file says the order and the dates.
 
 ## Goal
 
@@ -24,13 +24,13 @@ Measured 17 October on a real repo (`sindresorhus/slugify`, packed `timetm`, fre
 
 Each milestone ends with a commit and push. A milestone is not done if any test is skipped.
 
-## Founder tasks (only you can do these)
+## Owner tasks (only a person can do these)
 
 | Task | By | Note |
 |---|---|---|
 | Create an npm account and claim `timetm` | 20 Oct | The name is free today. Turn on 2FA |
 | Pick an open source license for the engine and CLI | 20 Oct | Apache 2.0 or MIT keep adoption easy. Recorded as an ADR |
-| Decide who signs for money: a parent or guardian, or a company with an adult officer | 28 Oct | Blocks Stripe and the Terms. See `docs/legal/README.md` and `docs/launch/CHECKOUT_SETUP.md` |
+| Decide who signs for money: an adult legal signer, or a company with an adult officer | 28 Oct | Blocks Stripe and the Terms. See `docs/legal/README.md` and `docs/launch/CHECKOUT_SETUP.md` |
 | Pick and buy a domain | 28 Oct | Needed for the site and support email |
 | Find 5 builders who use coding agents for think aloud tests | 31 Oct | How and what to say: `docs/OUTREACH.md` |
 | Lawyer review of Terms and Privacy | Before the first paid user | A law school clinic or startup program can help |
@@ -55,7 +55,7 @@ The CLI and the web app are fully local. The only backend is on the site:
 | Sign in | Supabase Auth email codes through `/api/auth`; `/api/account` lists a buyer's keys from Stripe by email. No password, no table | Built, closed until the keys are set |
 | Hosting | Vercel functions: `checkout`, `license`, `auth`, `account`, plus `health` | Built |
 
-## Proposed decisions waiting on the founder
+## Proposed decisions waiting on the team
 
 - Refund window: full refund within 14 days of the first payment (written into the Terms draft).
 - Telemetry: off by default, opt in only (written into the Privacy draft).

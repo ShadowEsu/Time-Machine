@@ -11,7 +11,7 @@ import * as tm from "@timetm/core";
 import { Credentials } from "../../../../apps/web/src/server/credentials.js";
 import type { Cipher } from "../../../../apps/web/src/server/credentials.js";
 import { Engine } from "../../../../apps/web/src/server/engine.js";
-import { AppState } from "../../../../apps/web/src/server/state.js";
+import { acquireServerLock, AppState } from "../../../../apps/web/src/server/state.js";
 import { StoreWatcher } from "../../../../apps/web/src/server/watch.js";
 import { CallSchema } from "../../../../apps/web/src/shared/api.js";
 import type { AppEvent, Bootstrap, Call, ProjectEntry, Res } from "../../../../apps/web/src/shared/api.js";
@@ -37,6 +37,8 @@ export interface UiServerOptions {
   port?: number;
   /** The actual bundled CLI, for hooks that survive npm bin symlinks. */
   script?: string;
+  /** The environment that names the store (TM_HOME, TM_UI_USER_DATA) and the keys. Defaults to process.env. */
+  env?: NodeJS.ProcessEnv;
 }
 export interface UiServer {
   origin: string;
@@ -71,15 +73,30 @@ function respond(res: ServerResponse, status: number, value: Res<unknown>): void
 export async function startUiServer(options: UiServerOptions): Promise<UiServer> {
   if (options.port !== undefined && (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535)) throw new tm.TmError("usage", "UI port must be an integer between 1 and 65535.");
   const assets = loadAssets(options.assetsDir);
-  const home = process.env.TM_HOME ?? join(homedir(), ".timemachine");
-  const userData = options.userDataDir ?? process.env.TM_UI_USER_DATA ?? join(home, "ui");
-  const state = new AppState(userData);
-  const credentials = new Credentials(join(userData, "credentials.json"), unavailableCipher, process.env);
-  const own = options.script ? `${tm.shellQuote(process.execPath)} ${tm.shellQuote(realpathSync(options.script))}` : null;
-  const engine = new Engine(state, {
-    candidates: process.env.TM_HOOK_COMMAND ? [process.env.TM_HOOK_COMMAND] : [...(own ? [own] : []), ...tm.npxHookCandidates(VERSION)],
-    version: VERSION,
-  }, { credentials, fetch: globalThis.fetch, licensePublicKey: tm.licensePublicKeyFromEnv(process.env) });
+  const env = options.env ?? process.env;
+  const home = env.TM_HOME ?? join(homedir(), ".timemachine");
+  const userData = options.userDataDir ?? env.TM_UI_USER_DATA ?? join(home, "ui");
+  // One app per store. A second tm ui throws a usage error (exit 64) naming the running app's address.
+  const lock = acquireServerLock(userData);
+  let state: AppState;
+  let engine: Engine;
+  try {
+    state = new AppState(userData);
+    const credentials = new Credentials(join(userData, "credentials.json"), unavailableCipher, env);
+    const own = options.script ? `${tm.shellQuote(process.execPath)} ${tm.shellQuote(realpathSync(options.script))}` : null;
+    engine = new Engine(state, {
+      candidates: env.TM_HOOK_COMMAND ? [env.TM_HOOK_COMMAND] : [...(own ? [own] : []), ...tm.npxHookCandidates(VERSION)],
+      version: VERSION,
+    }, { credentials, fetch: globalThis.fetch, licensePublicKey: tm.licensePublicKeyFromEnv(env) });
+  } catch (e) {
+    lock.release();
+    throw e;
+  }
+  /** A start that fails after this point gives back everything it took: auto save watchers, then the store. */
+  const giveBack = (): void => {
+    engine.close();
+    lock.release();
+  };
   const token = randomBytes(32).toString("hex");
   const expectedAuth = Buffer.from(`Bearer ${token}`);
   const streams = new Set<ServerResponse>();
@@ -97,6 +114,8 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
       } else stream.write(data);
     }
   };
+  // Auto save's own save points, with the reasons files were left out (AppEvent "saved").
+  engine.onEvent(send);
   const prime = async (): Promise<void> => {
     for (const p of state.projects) {
       if (auditSeen.has(p.id)) continue;
@@ -120,14 +139,24 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
   const dispatch = async (call: Call): Promise<Res<unknown>> => {
     switch (call.method) {
       case "bootstrap": {
-        const localBrandMarks = process.env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
+        const localBrandMarks = env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
         const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
         return { ok: true, data };
       }
       case "setCredential":
-        return { ok: false, error: { kind: "usage", message: "The browser app does not store API keys. Set GEMINI_API_KEY or VERCEL_TOKEN in the environment before running tm ui." } };
+        return { ok: false, error: { kind: "usage", message: "The browser app does not store API keys. Set GEMINI_API_KEY, ANTHROPIC_API_KEY or VERCEL_TOKEN in the environment before running tm ui." } };
       case "setSettings": {
-        const settings = state.updateSettings(call.patch);
+        let settings;
+        try {
+          settings = state.updateSettings(call.patch);
+        } catch (e) {
+          // Settings live in the app's own folder, not the store; only a refused write is a permission problem (Security F10).
+          const code = e instanceof Error && "code" in e ? e.code : undefined;
+          if (code === "EACCES" || code === "EPERM" || code === "EROFS") {
+            return { ok: false, error: { kind: "permission", message: `Time Machine can't save its settings in ${userData}. Check that folder's permissions.` } };
+          }
+          return { ok: false, error: { kind: "internal", message: `Settings were not saved: ${e instanceof Error ? e.message : String(e)}` } };
+        }
         send({ type: "settings", settings });
         return { ok: true, data: settings };
       }
@@ -143,7 +172,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
       default: {
         const result = await engine.run(call);
         if (result.ok) {
-          if (call.method === "addProject" || call.method === "demo" || call.method === "removeProject") {
+          if (call.method === "addProject" || call.method === "demo" || call.method === "removeProject" || call.method === "relinkProject") {
             watcher?.sync();
             await prime();
             const p = state.active();
@@ -227,11 +256,27 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
   server.maxConnections = 64;
   const listening = once(server, "listening");
   server.listen(options.port ?? 0, "127.0.0.1");
-  await listening;
+  try {
+    await listening;
+  } catch (e) {
+    // The port is taken or cannot be bound: stop auto save and give the store back before the error reaches the caller.
+    giveBack();
+    throw e;
+  }
   const address = server.address();
-  if (!address || typeof address === "string") throw new Error("Could not bind the local app.");
+  if (!address || typeof address === "string") {
+    server.close();
+    giveBack();
+    throw new Error("Could not bind the local app.");
+  }
   host = `127.0.0.1:${address.port}`;
   origin = `http://${host}`;
+  if (!lock.setPort(address.port)) {
+    // Another start took the store over while this one was starting (Security F2): one app per store, so this one stops.
+    server.close();
+    giveBack();
+    throw new tm.TmError("usage", "Another Time Machine is starting for this store. Try again in a moment.");
+  }
   watcher = new StoreWatcher(state, (p) => { void onStoreChange(p); });
   const heartbeat = setInterval(() => {
     for (const stream of streams) {
@@ -246,6 +291,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
       if (stopping) { await closed; return; }
       stopping = true;
       watcher?.close();
+      engine.close();
       clearInterval(heartbeat);
       tm.runInterruptCleanups();
       for (const stream of streams) stream.end();
@@ -253,6 +299,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
       server.close();
       server.closeAllConnections();
       await closed;
+      lock.release();
     },
   };
 }
@@ -270,7 +317,7 @@ function launchBrowser(url: string, stderr: Io["stderr"]): void {
 export async function runUi(io: Io, options: { port?: number; open: boolean }): Promise<number> {
   if (!io.script) throw new tm.TmError("usage", "Run tm ui from the packaged CLI so its browser assets can be located.");
   const script = realpathSync(io.script);
-  const server = await startUiServer({ assetsDir: resolve(dirname(script), "ui"), script, ...(options.port !== undefined ? { port: options.port } : {}) });
+  const server = await startUiServer({ assetsDir: resolve(dirname(script), "ui"), script, env: io.env, ...(options.port !== undefined ? { port: options.port } : {}) });
   // prepend makes synchronous watcher/check/socket cleanup happen before bin.ts exits on a signal.
   const stop = (): void => { void server.close(); };
   process.prependOnceListener("SIGINT", stop);

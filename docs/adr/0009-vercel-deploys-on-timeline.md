@@ -4,7 +4,7 @@ Date: 16 October 2026. Status: accepted. Engine side built in the Mac app. The w
 
 ## Context
 
-People who ship with Vercel want to see which save point is live. The brief lists "Vercel deploy references" as a later feature. The founder approved it as a read only view. Deployment rollback stays out of scope.
+People who ship with Vercel want to see which save point is live. The brief lists "Vercel deploy references" as a later feature. The team approved it as a read only view. Deployment rollback stays out of scope.
 
 ## Decision
 

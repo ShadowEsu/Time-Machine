@@ -6,7 +6,7 @@ Each signup is saved as pending and unconfirmed. The site sends no email. Pendin
 
 ## Where it lives
 
-- **Supabase project:** `jaymini-prod` (`wzgfjuxcprignwdlopvl`, us-west-1). Preston's free Supabase organization allows 2 projects and both are used, so Time Machine shares this one.
+- **Supabase project:** `jaymini-prod` (`wzgfjuxcprignwdlopvl`, us-west-1). The owner's free Supabase organization allows 2 projects and both are used, so Time Machine shares this one.
 - **Kept separate:** every Time Machine table and function is in its own schema, `tm_waitlist`. Nothing is in Jaymini's `public` schema.
 - **The key the site holds:** the project's anon key, in the Vercel setting `SUPABASE_KEY`. In `tm_waitlist` that key can only call three functions: save a pending signup, look up a place in line, and add a funnel count. It cannot read any table, and it gets nothing in `tm_waitlist` beyond those three functions. The service role key is not used by the site.
 

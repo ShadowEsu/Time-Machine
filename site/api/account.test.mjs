@@ -12,9 +12,14 @@ const PUB = publicKey.export({ type: "spki", format: "der" }).subarray(-32).toSt
 const PRIV = privateKey.export({ type: "pkcs8", format: "der" }).subarray(-32).toString("base64url");
 const ENV = { SUPABASE_URL: "https://fake-project.supabase.test", SUPABASE_ANON_KEY: "synthetic-anon-key", STRIPE_SECRET_KEY: "sk_test_synthetic_secret", TM_LICENSE_PRIVATE_KEY: PRIV };
 const EMAIL = "buyer@example.test";
-const TOKEN = "synthetic.access.token-0123456789";
-const AUTH = `Bearer ${TOKEN}`;
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
+// A token shaped like Supabase's: header.payload.signature, base64url. Only the payload's amr is read, after Supabase
+// itself accepts the token; the signature here is synthetic.
+const b64 = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+const tokenWith = (payload) => `${b64({ alg: "HS256", typ: "JWT" })}.${b64(payload)}.c3ludGhldGljLXNpZ25hdHVyZQ`;
+const OTP_SESSION = { sub: "00000000-0000-4000-8000-000000000000", aal: "aal1", amr: [{ method: "otp", timestamp: CREATED }] };
+const TOKEN = tokenWith(OTP_SESSION);
+const AUTH = `Bearer ${TOKEN}`;
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 // Sessions as Stripe lists them with expand[]=data.payment_intent.latest_charge.
 const session = (id, extra = {}, chargeExtra = {}) => ({ id, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete", created: CREATED, livemode: false, metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000, customer_details: { email: EMAIL, name: "Synthetic Buyer" }, payment_intent: { id: `pi_${id.slice(3)}`, object: "payment_intent", latest_charge: { id: `ch_${id.slice(3)}`, object: "charge", refunded: false, amount_refunded: 0, ...chargeExtra } }, ...extra });
@@ -136,6 +141,27 @@ describe("account handler", () => {
     }
     const confirmed = setup();
     expect((await handleAccount(request(), confirmed.deps)).status).toBe(200);
+  });
+
+  it("is 401 unless the session was signed in with an emailed code only, and Stripe is never asked (Security: pre-registered password)", async () => {
+    const refused = [
+      // Someone signed up first with the buyer's email and a password; the buyer's code later confirmed that email.
+      { ...OTP_SESSION, amr: [{ method: "password", timestamp: 1 }] },
+      // A refreshed session keeps its amr, so a refreshed password session reads the same.
+      { ...OTP_SESSION, amr: [{ method: "password", timestamp: 1 }], session_id: "refreshed" },
+      { ...OTP_SESSION, amr: [{ method: "otp", timestamp: 1 }, { method: "password", timestamp: 2 }] },
+      { ...OTP_SESSION, amr: [{ method: "oauth", timestamp: 1 }] },
+      { ...OTP_SESSION, amr: [] },
+      { ...OTP_SESSION, amr: "otp" },
+      { ...OTP_SESSION, amr: undefined },
+    ];
+    const garbled = [`${b64({ alg: "HS256" })}.not-json-at-all.c2ln`, `${b64({ alg: "HS256" })}.${b64("otp")}.c2ln`, "only-one-part-but-long-enough-to-pass"];
+    for (const token of [...refused.map(tokenWith), ...garbled]) {
+      const s = setup();
+      expect(await handleAccount(request({ authorization: `Bearer ${token}` }), s.deps)).toEqual({ status: 401, headers: {}, body: { ok: false, error: "unauthorized" } });
+      expect(s.fetch).toHaveBeenCalledTimes(1);
+    }
+    expect((await handleAccount(request(), setup().deps)).status).toBe(200);
   });
 
   it("is closed with the right 503 when sign-in or checkout is not set up", async () => {
