@@ -120,7 +120,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 774 automated tests in 73 files, passing locally on macOS at `7ef1bff` (3 skipped there), plus 99 for the site's functions. CI runs them on macOS and Linux with Node 22 and 24. Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 776 automated tests in 73 files, 99 of them for the site's functions, passing locally on macOS at `bee70a3` (3 skipped there). CI runs them on macOS and Linux with Node 22 and 24. Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Website | Static site in `site/`: a waitlist (pending signups, no email yet) and anonymous visit counts. Public at https://time-machine-site.vercel.app | Live |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
