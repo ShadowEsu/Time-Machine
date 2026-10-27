@@ -7,8 +7,8 @@ These steps are for a person or a coding agent such as Claude Code. Run them in 
 ## Before you start
 
 - macOS or Linux. The `tm` CLI and the web app (`tm ui`) work on both.
-- Node 22 or newer, and Git.
-- A Git project with a check command, such as `npm test`.
+- Node 22 or newer, and Git 2.36 or newer. Every `tm` command that works on a project stops with a message that names your Git version when it is older.
+- A Git project with a check command, such as `npm test`. A project with no tests can still save versions, and a plain folder (notes, a thesis, research data) needs no Git; both are set up in the web app or with `tm init` in that folder.
 - The CLI is not on npm yet. Install it from source as shown below.
 
 ## 1. Install from source
@@ -86,6 +86,11 @@ Or open `tm ui`, go to Settings, then License, and paste the key. The key works 
 tm checkpoint -m "works"   # save now
 tm find-good               # check save points, newest first, each in a fresh copy
 tm recover cp-0001         # bring one back on a new branch, tm/recover/cp-0001
+tm restore cp-0001 -- src/app.js   # put one file back into your folder; saves first, deletes nothing
+tm relink <old> <new>      # the project folder moved: keep its history at the new path
+tm list                    # every project Time Machine keeps, with save points and size
+tm thin                    # which old auto saves can go; --apply removes them
+tm doctor                  # check every save point in the store for damage
 tm ui                      # the web app, in your browser, on this computer
 tm license <key>           # enter the web app license key
 ```

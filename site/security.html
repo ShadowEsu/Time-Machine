@@ -93,7 +93,7 @@
   <div class="wrap">
     <div class="sec-h">
       <div class="rv"><h2 class="hx2" id="st-h">Outside your project.<br><span class="dim">On your machine.</span></h2></div>
-      <p class="sub rv" style="--d:1">If an agent runs <code>rm -rf</code> on your project, the save points are somewhere else.</p>
+      <p class="sub rv" style="--d:1">If an agent runs <code class="flag">rm -rf</code> on your project, the save points are somewhere else.</p>
     </div>
     <div class="split">
       <pre class="tree rv" tabindex="0" role="region" aria-label="The store folder layout">~/.timemachine/          <span class="d">or $TM_HOME</span>
@@ -110,7 +110,7 @@
       <ul class="facts rv" style="--d:1">
         <li><b>One folder per project,</b> named by a hash of the project path. A store inside the project is refused.</li>
         <li><b>Code survives the folder.</b> Each save point is a Git commit pinned at <code>refs/tm/&lt;id&gt;</code>, and also written as a Git bundle into the store. Deleting your project does not delete its save points.</li>
-        <li><b>Files are stored once by content</b> and compressed, so repeats cost nothing. Check disk use with <code>du -sh ~/.timemachine</code>.</li>
+        <li><b>Files are stored once by content</b> and compressed, so repeats cost nothing. Check disk use with <code class="flag">du -sh ~/.timemachine</code>.</li>
         <li><b>Keep the key.</b> <code>~/.timemachine/key</code> signs every save point, so edits by other tools are caught. Save points are not encrypted: anyone who can read your disk can read them.</li>
       </ul>
     </div>

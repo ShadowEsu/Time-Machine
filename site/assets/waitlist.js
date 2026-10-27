@@ -5,6 +5,7 @@
 (function () {
   "use strict";
 
+  // The one contact address until a Time Machine mailbox exists (the same one in buy.js, thanks.js, account.js).
   var CONTACT = "preston@unvibe.site";
   var CODE_RE = /^[a-z0-9]{10}$/;
   var MSG = {

@@ -145,7 +145,7 @@
     <div class="copy">
       <h2 class="hx" id="promise-h"><span class="r" data-r=".06 .18">Save.</span> <span class="r" data-r=".28 .4">Check.</span> <span class="r" data-r=".5 .62">Bring back.</span></h2>
       <ul class="trio">
-        <li class="r" data-r=".1 .22"><b>Save.</b> Before each prompt, and before risky commands like <code>rm -rf</code> or <code>git reset --hard</code>.</li>
+        <li class="r" data-r=".1 .22"><b>Save.</b> Before each prompt, and before risky commands like <code class="flag">rm -rf</code> or <code class="flag">git reset --hard</code>.</li>
         <li class="r" data-r=".32 .44"><b>Check.</b> Your own test runs in a separate copy, with the network off when a sandbox is available.</li>
         <li class="r" data-r=".54 .66"><b>Bring back.</b> The newest save point that works, on a new branch. Your folder is never touched.</li>
       </ul>
@@ -267,7 +267,7 @@
           <dt><code>tm find-good</code></dt><dd>Find the newest save point that passes.</dd>
           <dt><code>tm recover</code></dt><dd>A new branch and a recovery copy. Your folder is never touched.</dd>
           <dt><code>tm demo</code></dt><dd>The whole rescue above, on a synthetic app.</dd>
-          <dt>Claude Code hooks</dt><dd>Save before each prompt, and before risky shell commands such as <code>rm -rf</code> and <code>git reset --hard</code>.</dd>
+          <dt>Claude Code hooks</dt><dd>Save before each prompt, and before risky shell commands such as <code class="flag">rm -rf</code> and <code class="flag">git reset --hard</code>.</dd>
           <dt>MCP server</dt><dd>7 tools. Agents that speak MCP can save, check and find the good one.</dd>
         </dl>
       </div>
@@ -301,7 +301,7 @@
           <div class="app-bar" aria-hidden="true"><span>Time Machine</span></div>
           <picture>
             <source media="(max-width: 860px)" srcset="assets/img/app/history-390.jpg" width="390" height="844">
-            <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. The newest save point failed its check. A Go back button leads to the last version that passed. The history shows each save point's own verdict.">
+            <img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The Time Machine web app on the synthetic Marigold Tips project. It says Broken and names the last version that passed its check, with a Bring back button for it. A ruler shows each save point's own verdict.">
           </picture>
         </div>
         <figcaption>Real web app screen on a synthetic project, opened with <code>tm ui</code> from a source install.</figcaption>

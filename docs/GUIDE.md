@@ -13,14 +13,14 @@ What it is not:
 - It is not universal undo. It does not restore databases, deployed versions, emails, payments or anything outside your project folder.
 - It never stores secret values from config files like `.env`, only key names and a fingerprint. You set those again by hand. Other files are skipped only when their name or content matches a secret pattern.
 - It does not replace a full disk backup.
-- Checks run in host mode by default. That is weaker isolation than a container, and every verdict says so.
+- Checks run in host mode by default: in a separate copy, but with your rights, so a check that writes to an absolute path can write anywhere you can, your project folder included. That is weaker isolation than a container, and every verdict says so. On macOS, with `verify.network: deny` and no install step, the check runs under `sandbox-exec` with writes outside the copy and the system temp folders blocked too; the verdict then says "confined mode". Reads are not blocked.
 - A save point that was never checked is shown as "not checked", never as working.
 
 ## 2. Install
 
 Time Machine is not on npm yet. `npx timetm init` will work only once it is published. For now, build it from source.
 
-You need Node 22 or newer, pnpm and Git.
+You need Node 22 or newer, pnpm and Git 2.36 or newer. Every command that works on a project stops with a message that names your version if Git is older, for example "Time Machine needs Git 2.36 or later. This computer has Git 2.35.9." Usage errors like this exit 64. `tm license`, `--help` and `--version` still work.
 
 ```sh
 git clone <this repository> Time-Machine
@@ -62,7 +62,7 @@ The demo ends with the next step: `cd` into your own project, run `tm init`, the
 
 ## 4. Your own project in ten minutes
 
-Your project must be a Git repository.
+These steps are for a code project in a Git repository. For notes, a thesis or research data with no Git, see "Plain folders" in section 7.
 
 **Step 1. Set it up.**
 
@@ -157,42 +157,77 @@ Report: /home/you/.timemachine/projects/9f2c41d07a3be815/reports/recover-cp-0003
 
 Your broken state was saved first as cp-0007, so you can always come back to it.
 
+### Put one file back
+
+Built. When only one file or folder went wrong, you can put just that back into your folder instead of making a recovery copy:
+
+```
+$ tm restore cp-0003 -- src/billing/ README.md
+Put back 3 files from cp-0003 into your folder.
+  Changed 2, added 1, already the same 4
+  Saved first     cp-0008, your folder before this restore
+Restored
+  README.md
+  src/billing/invoice.ts
+  src/billing/tax.ts
+Kept (not in cp-0003, left as they are)
+  src/billing/refunds.ts
+Files written; nothing committed.
+```
+
+- Paths are relative to the project's folder. A folder brings back every file saved under it.
+- Your folder is saved first (a save point with the trigger `before-restore`), so every version this replaces stays in the history. A file whose version now that save could not hold (it looks like it has a secret, or could not be read) is not replaced, and is named under Skipped.
+- Nothing is deleted. Files under the folder that are there now but not in the save point stay, listed under Kept.
+- Each file is written through a temp file and a rename, with its saved permissions and, when the save point recorded it, its saved modified time. Nothing is written through a symbolic link or outside the folder.
+- Paths outside the folder, secrets files such as `.env`, config files whose keys are recorded and paths the save point does not have are skipped by name, for example "nope.md: not in cp-0003".
+- In a Git project only the files are written. The index, branch and commits are not touched; committing is your call.
+- `--dry-run` prints the same report and writes nothing.
+- It needs the folder to be there. For a folder that was moved or deleted, use `tm recover <cp> --to <folder>`.
+
 ## 5. Commands reference
 
-Every command takes `--json`. The JSON and the human output come from the same result. `-h`, `--help` and `--version` work everywhere.
+Every command takes `--json`. The JSON and the human output come from the same result. `-h`, `--help` and `--version` work everywhere; `tm <command> --help` shows that command's usage, options and an example. Project commands take `-C, --project <path>` to name the project's folder instead of the current one, including a plain folder that was moved or deleted.
 
 | Command | What it does |
 |---|---|
-| `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. Approves the current check on this computer for the Claude Code plugin and the MCP `verify` and `find_good` tools. Run it again to approve a changed check. `--no-approve` only writes or keeps the file, and prints how to approve. |
-| `tm status` | Says if this project has `timemachine.yml` and if this computer approved its check. Changes nothing. `--json` prints `{"initialized", "approved", "check"}`; `check` is null when there is no `verify.command`. The plugin's setup skill uses it. |
-| `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. |
-| `tm timeline` | Lists save points, newest first, with verdicts. |
+| `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. Approves the current check on this computer for the Claude Code plugin and the MCP `verify` and `find_good` tools. Run it again to approve a changed check. `--no-approve` only writes or keeps the file, and prints how to approve. For a plain folder the settings go in the store and a check is optional. |
+| `tm status` | Says if this project is set up, where its settings file is, and if this computer approved its check. Changes nothing. In a folder that is not set up it prints "Not set up here. Run tm init." and exits 0. `--json` prints `{"initialized", "approved", "check", "kind", "configPath"}`; `check` is null when there is no `verify.command`. The plugin's setup skill uses it. |
+| `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. "Not saved" lists every file left out and why: a folder that could not be read ("notes/secret: could not be read"), a file over the size cap ("interview.wav: over the 5 MB limit (capture.maxFileMB in <settings path>)"). |
+| `tm timeline` | Lists save points, newest first, with verdicts. A damaged save point (its manifest fails its seal, its Git ref was moved, or a saved copy is gone from the store) shows DAMAGED and why. |
 | `tm diff <a> <b>` | Compares code, files, config keys, dependencies and environment. |
-| `tm open <cp> [--dir path]` | Rebuilds a save point in a separate folder. Default is a temp folder. |
+| `tm open <cp> [--dir path]` | Rebuilds a save point in a separate folder. Default is a temp folder. Saved files keep the modified time they were saved with, when the save point recorded it. |
 | `tm verify [cp]` | Runs the check on a save point. Default is the newest. |
 | `tm find-good` | Checks save points from newest to oldest until one passes. |
-| `tm recover <cp>` | Saves your current state, then makes a recovery branch and copy. |
-| `tm log` | Shows the append-only audit log. |
+| `tm recover <cp> [--to folder]` | Saves your current state, then makes a recovery branch and copy. `--to` puts the copy in an existing folder you pick; the default is next to the project. For a plain folder that was moved or deleted (`-C <old path>`), there is nothing to save first and the copy is made from the store. |
+| `tm restore <cp> [--dry-run] -- <path>...` | Puts files or folders back from a save point into your folder (see "Put one file back" above). Saves your folder first, deletes nothing, commits nothing. `--dry-run` writes nothing. |
+| `tm relink <old path> <new path>` | The project's folder moved: Time Machine protects the new path, with the same save points, settings, notes and checks. The new path is checked like a new project. A Git project's new path must be the same repository. |
+| `tm list` | Lists every project in the store: path, plain folder or Git, save points, size, last save, and whether the folder is gone. |
+| `tm thin [--apply]` | Shows which old auto saves can go and why (the same rules as the app's thinning), or says why none can. `--apply` removes them. Later save points' store copies are rebuilt first; if Git can't rebuild one, or one can't be put in place, nothing is removed and the message names each save point it could not rebuild. |
+| `tm doctor` | Checks every save point of every project in the store: the manifest seal, the Git ref, and each saved copy's bytes. Exits 2 when anything is damaged, 0 when every save point is whole. |
+| `tm log` | Shows the append-only audit log, in local time with the time zone. `--json` keeps UTC times. |
 | `tm demo [dir]` | Builds the Marigold Tips demo and runs the rescue. |
 | `tm hook install` | Adds Claude Code hooks to `.claude/settings.json`. |
 | `tm hook <prompt\|pre-bash\|stop> [--if-initialized]` | What the hooks call. Reads hook JSON on stdin. `--if-initialized` does nothing, silently, unless this computer approved the project's check with `tm init`. The Claude Code plugin uses it. |
 | `tm mcp` | Runs an MCP server over stdio. |
+| `tm ui [--port N] [--no-open]` | Opens the local browser app. A port in use is a usage error that names a port to try. |
 
-`checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`. A trigger that starts with `claude-code` is refused with a usage error (exit code 64), because only the hooks (`tm hook`) can mark a save point as made by Claude Code.
+`checkpoint` also takes `--trigger <name>` to label what caused the save point: `manual` (the default), `auto`, `app` or `mcp`. Any other name is a usage error (exit code 64). A trigger that starts with `claude-code` is refused too, because only the hooks (`tm hook`) can mark a save point as made by Claude Code.
 
 Each save point also records which agent made it, when one did: `agent: { name, prompt }` in `tm timeline --json`. The Claude Code hooks record "Claude Code" and the prompt of the current turn, clipped to one line. A prompt is stored as "(text hidden...)" instead when it looks like it holds a secret (the same rule as notes), when it contains any current secret value from the project's config files such as `.env`, or when it contains a URL with a user and password, like `postgres://user:pass@host`. `--trigger mcp` records "MCP agent". Save points made by you, the app, or older versions of Time Machine have `agent: null`.
 
 `timeline` rows look like this:
 
 ```
-History of my-app
+History of my-app (times in PDT)
 cp-0004   FAIL        2026-10-15 10:51  8a03f6e  Agent: fixed lint warnings
 cp-0003   PASS        2026-10-15 10:42  4e1d0b7  Added dark mode
 ```
 
+A plain folder's rows have no commit column.
+
 `diff` lines use `+` added, `-` removed, `~` changed, and Git's `A`, `M`, `D` for code.
 
-**Exit codes.** `verify` and `find-good` exit with the verdict code: PASS 0, FAIL 1, INCOMPLETE 2, BLOCKED 3, ERROR 4. Other commands exit 0 on success and 4 on an error, such as "There are no checkpoints yet". Usage errors exit 64. That includes bad flags, unknown commands and an invalid `timemachine.yml`.
+**Exit codes.** `verify` and `find-good` exit with the verdict code: PASS 0, FAIL 1, INCOMPLETE 2, BLOCKED 3, ERROR 4. `open` and `recover` exit 2 (INCOMPLETE) when something saved is missing from the copy, for example "the saved copy of f3.txt is gone from the store"; `restore` exits 2 when it skipped a path; `doctor` exits 2 when it finds damage. Other commands exit 0 on success and 4 on an error, such as "There are no checkpoints yet". Usage errors exit 64. That includes bad flags ("Unknown option --frob. Run tm checkpoint --help."), unknown commands, an invalid `timemachine.yml`, and a save point ID that does not exist. An ID that thinning removed says so: "cp-0002 was removed by thinning on 26 Oct 2026; nearest kept: cp-0003".
 
 ## 6. timemachine.yml reference
 
@@ -256,13 +291,19 @@ config:
 
 Every save point lists what it did not save.
 
-**Plain folders.** A folder outside any Git repository, such as notes, documents or research data, can be protected too. Run `tm init` in it, or add it in the app. Its history lives in a shadow Git folder in the store (`projects/<hash>/shadow.git`), and nothing is created or changed inside your folder. Every file is saved as a saved file, so the secret check and `capture.maxFileMB` apply to all of them, and a `.gitignore` in the folder is still respected. Its `timemachine.yml` lives in the store too. A check is optional for a folder. A recovery makes a copy of plain files next to the folder, with no `.git` and no branch, because the folder has no repository. Claude Code hook lines are never written into a plain folder.
+**Plain folders.** A folder outside any Git repository, such as notes, documents or research data, can be protected too. Run `tm init` in it, or add it in the app. Its history lives in a shadow Git folder in the store (`projects/<hash>/shadow.git`), and nothing is created or changed inside your folder unless you ask for it with `tm restore`. Every file is saved as a saved file, so the secret check and `capture.maxFileMB` apply to all of them, and a `.gitignore` in the folder is still respected. Its `timemachine.yml` lives in the store too. A check is optional for a folder. A recovery makes a copy of plain files next to the folder, with no `.git` and no branch, because the folder has no repository. Claude Code hook lines are never written into a plain folder.
 
-**Auto save.** While the app (`tm ui`) is open, a project with auto save on gets a save point named "Auto save" once its files have been quiet for 20 seconds, at most once a minute, and only when something changed. Changes in `.git`, `node_modules`, the store and editor temp files do not count. New plain folders for documents, research or agent work start with it on; other projects start with it off. It never runs while the app is closed.
+**Auto save.** While the app (`tm ui`) is open, a project with auto save on gets a save point named "Auto save" once its files have been quiet for 20 seconds, or after 2 minutes while changes keep coming. Saves are at least a minute apart and happen only when something changed. When the app opens, it makes one catch-up save of each such project for edits made while it was closed. Changes in `.git`, `node_modules`, the store and editor temp files do not count. New plain folders for documents, research or agent work start with it on; other projects start with it off. It never runs while the app is closed.
 
 **Run notes.** In the app you can give a save point a title (up to 80 characters), a note (up to 2000) and a pin, for example to mark a research or trial run. They are kept in `notes.json` in the project's store, never in the save point or your folder. Text that looks like a secret is refused.
 
 **Where the store lives.** In `~/.timemachine`, or `$TM_HOME` if you set it. Each project gets a folder at `projects/<hash of the project path>/` with `objects/`, `checkpoints/`, `bundles/`, `logs/`, `reports/`, `audit.jsonl` and `project.json`. Deleting your project folder does not delete its save points. Keep `~/.timemachine/key` too. It signs every save point, so edits by other tools are caught. Save points are not encrypted: anyone who can read your disk can read them.
+
+**Put one file back in the app.** Open a save point and press **Compare with now**. Every file that version still has gets a **Put it back** button, and one button puts them all back. The app saves your folder first (a save point named "Before putting back"), writes the files, and deletes nothing. Files that are not in that save point are left alone.
+
+**No tests yet.** A code project may skip the check when you add it ("No tests yet: only save versions"). Then no save point is called Works or Broken: you compare versions and put files back by hand. Add a check later under the project's Settings.
+
+**App settings.** The app's settings (theme, Reduce motion, git details) are kept in `ui/settings.json` in the store, so they follow the store, not the browser. Reduce motion is also followed from the system setting.
 
 ## 8. Verdicts and what to do
 
@@ -318,6 +359,7 @@ It brings the same three hooks, the MCP server (`tm mcp`) and a `/time-machine:s
 
 - **A `timemachine.yml` alone is not consent.** A cloned repo can ship one. `tm init` (or setting the check in the app) records `consent.json` in the project's store, `~/.timemachine/projects/<id>/`, outside the repo: a SHA-256 hash of `verify.setup`, `verify.command` and `verify.network`, encoded as a JSON array so the fields cannot run together. All three hooks need it, because save points copy files like `.env` and Stop runs the check. `tm init --no-approve` writes the file without approving it, so you can read the guessed check first.
 - **A changed check stops the hooks.** When `verify.setup`, `verify.command` or `verify.network` no longer matches the approval (for example a pulled change from `deny` to `allow`), the hooks save nothing and run nothing. Once per changed check, the next prompt hook prints `{"systemMessage":"Time Machine: the check in timemachine.yml changed; run tm init to approve it."}`, which Claude Code shows you as a warning. The pre-bash and Stop hooks stay silent. `tm init` keeps the file as it is, approves the new check and prints it on the `Approved` line.
+- **An older Git stops the hooks too.** Below Git 2.36 they save nothing. In a project that already has a store on this computer, the next prompt hook shows the version message once, for example "Time Machine needs Git 2.36 or later. This computer has Git 2.35.9." Pre-bash and Stop stay silent, and a repo that was never set up here gets no message and no store.
 - **Only Time Machine's `tm` runs.** The hooks and the MCP server call `scripts/tm-hook` in the plugin. It checks once per `tm` path and modification time that the first line of `tm --help` is "tm: save points for your project, checked with your own tests.", with no stdin and a 10 second limit, and caches the answer in `~/.timemachine/plugin-tm-check`. Otherwise, or when `tm` is missing, it exits 0 with no output.
 - **No double saves.** If a project also has hooks from `tm hook install` in `.claude/settings.json` or `.claude/settings.local.json`, the plugin steps aside there.
 
@@ -331,15 +373,20 @@ claude mcp add timemachine -- tm mcp
 
 ## 10. Safety promises
 
-- **Your folder and branch are never touched.** `open`, `verify` and `find-good` work in separate Git worktrees. `recover` creates a new branch and a recovery copy next to your project. Switching is up to you.
+- **Time Machine itself never writes in your folder or branch**, except the files you name in `tm restore`, after saving your folder first. `open`, `verify` and `find-good` work in separate Git worktrees. `recover` creates a new branch and a recovery copy next to your project. Switching is up to you. A check is your own command: in host mode it runs with your rights (see section 1).
+- **One project per Git repository.** Save points are pinned as `refs/tm/cp-N` in the repository's `.git`, so a second worktree of a repository Time Machine already protects is refused: "<path> shares its Git repository with <other path>, which Time Machine already protects. Protect one of them."
 - **Nothing is pushed, merged or deployed.** Ever.
-- **Your current state is saved before a recovery**, so a recovery can be undone.
+- **Your current state is saved before a recovery or a restore**, so a recovery can be undone and a restored file's previous version stays in the history.
 - **Secret values from config files like `.env` are never stored**, only key names and a fingerprint. Files that match a secret pattern are skipped; a secret that matches none, or one already committed to Git, is saved like any code. Check logs are scrubbed of current secret values.
 - **Host mode is always labeled.** Every verdict says which isolation mode and network rule it ran with.
 - **Save points are signed.** A changed save point fails its integrity check and gives ERROR, not PASS.
 - **Every action is in the audit log.** See `tm log`.
 
 ## 11. FAQ and troubleshooting
+
+**"Time Machine needs Git 2.36 or later."** Time Machine relies on Git features from 2.36. Update Git (on macOS, `brew install git` or the latest Xcode Command Line Tools), then check with `git --version`. If the message says `git --version failed`, the text after it is what your `git` printed. On macOS that is often `xcrun: error: invalid active developer path`, which means the developer tools need installing: run `xcode-select --install`.
+
+**"<path> shares its Git repository with <other path>, which Time Machine already protects."** Both folders are worktrees of one repository, so their save points would share one `.git`. Keep using Time Machine in the first one. This is also checked again when a repository's `.git` moved (for example after `git submodule absorbgitdirs` or `git init --separate-git-dir`). When the other folder is gone (say, after `git worktree remove`), the message adds its store folder. If you no longer need that project's save points, move that folder out of `~/.timemachine/projects` (or `$TM_HOME/projects`), and this folder can be protected. `tm list --json` shows each project's store folder too.
 
 **"This folder is not inside a Git repository, and it is not a folder Time Machine protects yet."** For notes, documents or data, run `tm init` in the folder (or add it in the app) to protect it as a plain folder. For a code project, run `git init`, then make a first commit. Time Machine works best with at least one commit. Without one, every file counts as not in Git, so the size limit and secret scan apply to all of them.
 
@@ -365,5 +412,5 @@ These are planned. None of them work today.
 - **Container isolation** with Docker, OrbStack or Apple `container`, labeled as stronger than host mode.
 - **Dependency cache**, so checks do not reinstall packages every time.
 - **npm package** `timetm`, with `npx timetm init`.
-- **Store thinning** with a size budget. Pinned and newest PASS save points will never be thinned.
+- **Store thinning** with a size budget. `tm thin` and the app's Storage page thin by hand today. Pinned and newest PASS save points will never be thinned.
 - Hook kits for Cursor, Codex and Gemini CLI.

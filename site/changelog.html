@@ -50,6 +50,59 @@
 
 <div class="wrap cl">
 
+  <section class="cl-day" aria-labelledby="d-2026-10-26">
+    <h2 class="cl-date" id="d-2026-10-26"><time datetime="2026-10-26">26 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">Protect a folder with no Git: notes, a thesis, research data</h3>
+        <p>Add any folder in the web app, or run <code translate="no">tm init</code> in it. Its history lives in the Time Machine store, and nothing is created inside your folder. A check is optional for a folder.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/38">PR #38</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Auto save while the app is open</h3>
+        <p>With auto save on, the app makes a save point once your files have been quiet for <span class="num">20</span> seconds, or after <span class="num">2</span> minutes while you keep working, and only when something changed. When the app opens, it saves once for edits made while it was closed. New folders for documents and research start with it on.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/38">PR #38</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Titles, notes and pins on save points</h3>
+        <p>Give a save point a title, a note and a pin, for example to mark a research run. They are kept in the store, never in your folder, and pinned save points are never thinned.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/38">PR #38</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Put one file back</h3>
+        <p>Open a save point and press Compare with now. Every file that version still has gets Put it back, and there is Put all back. Your folder is saved first and nothing is deleted. From the terminal: <code translate="no">tm restore cp-0003 -- chapter-1.md</code>, with <code class="flag" translate="no">--dry-run</code> to preview.</p>
+      </li>
+      <li>
+        <h3 class="h4">A moved or deleted folder keeps its history</h3>
+        <p>When a project folder is gone, the app says so within seconds and keeps its save points readable. It moved… points Time Machine at the new path, and Bring back a copy… makes a copy of a save point in a folder you choose. From the terminal: <code translate="no">tm relink &lt;old&gt; &lt;new&gt;</code>.</p>
+      </li>
+      <li>
+        <h3 class="h4">Checks you can watch, and the failing tests named</h3>
+        <p>A running check shows its latest output as it goes. Values from your configured env files are redacted and lines that look like secrets are hidden; a secret printed any other way can still show. For Jest, Vitest, Mocha, <code class="flag" translate="no">node --test</code> and TAP output, a Broken result lists the failing test names above the log.</p>
+      </li>
+      <li>
+        <h3 class="h4">Projects without tests, and check settings in the app</h3>
+        <p>A code project with no tests yet can choose No tests yet: only save versions. It still saves, and you can compare and put files back. Settings now has each project's check: the command, the install step, the time limit and internet access.</p>
+      </li>
+      <li>
+        <h3 class="h4">Five new commands</h3>
+        <p><code translate="no">tm restore</code>, <code translate="no">tm relink</code>, <code translate="no">tm list</code> (every project and its size), <code translate="no">tm thin</code> (which old auto saves can go) and <code translate="no">tm doctor</code> (checks every save point for damage). Every command has its own <code class="flag" translate="no">--help</code>, and <code class="flag" translate="no">-C</code> names the project's folder for commands that work on one project.</p>
+      </li>
+      <li>
+        <h3 class="h4">Thinning removes nothing unless the rest stays whole</h3>
+        <p>Before old auto saves go, the store copies of the save points that stay are rebuilt and put in place. If any of them can't be, nothing is removed, and the message names each one.</p>
+      </li>
+      <li>
+        <h3 class="h4">One project per Git repository, and Git 2.36 or newer</h3>
+        <p>A second worktree of a repository Time Machine already protects is refused with both paths named, including after its <code translate="no">.git</code> was moved, so its save points don't land in the same <code translate="no">.git</code>. Every command that works on a project now checks for Git 2.36 or newer and names your version when it is older. The Claude Code plugin says it once, on your next prompt, instead of going quiet.</p>
+      </li>
+      <li>
+        <h3 class="h4">Ask works with an Anthropic key</h3>
+        <p>The opt-in Ask feature now accepts an Anthropic key as well as a Gemini key.</p>
+      </li>
+    </ol>
+  </section>
+
   <section class="cl-day" aria-labelledby="d-2026-10-22">
     <h2 class="cl-date" id="d-2026-10-22"><time datetime="2026-10-22">22 October 2026</time></h2>
     <ol class="cl-list">
@@ -75,7 +128,7 @@
       </li>
       <li>
         <h3 class="h4">See Time Machine save before a risky command</h3>
-        <p>When Time Machine saves before a risky command such as <code translate="no">git reset --hard</code>, Claude Code now shows you one line: "Time Machine saved cp-0007 before git reset --hard." Prompts and the end of a turn stay quiet. <code translate="no">tm demo</code> now ends with the next step for your own project. When <code translate="no">tm init</code> finds no test command, it says so plainly. <code translate="no">tm status</code> tells you, and the plugin's setup skill, what is missing.</p>
+        <p>When Time Machine saves before a risky command such as <code class="flag" translate="no">git reset --hard</code>, Claude Code now shows you one line: "Time Machine saved cp-0007 before <span class="flag">git reset --hard</span>." Prompts and the end of a turn stay quiet. <code translate="no">tm demo</code> now ends with the next step for your own project. When <code translate="no">tm init</code> finds no test command, it says so plainly. <code translate="no">tm status</code> tells you, and the plugin's setup skill, what is missing.</p>
         <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/29">PR #29</a></p>
       </li>
       <li>

@@ -71,7 +71,7 @@
           <p class="wl-status" id="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
           <p class="wl-privacy">Joining means we write to you when the CLI is on npm, nothing else. We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. <a href="privacy.html">Privacy (draft)</a></p>
         </form>
-        <p class="hero-alt"><a href="how-it-works.html">See how it works</a> <a href="#try">Install from source</a> <span>Works on macOS and Linux. Needs Node 22 and Git.</span></p>
+        <p class="hero-alt"><a href="how-it-works.html">See how it works</a> <a href="#try">Install from source</a> <span>Works on macOS and Linux. Needs Node 22 and Git 2.36.</span></p>
       </div>
       <div class="subs" aria-hidden="true">
         <div data-sub="1"><p class="sub">Every save point, checked. <span class="voice">With your own tests.</span></p><p class="sub-s">cp-0006, cp-0005 and cp-0004 failed their tests.</p></div>
@@ -145,10 +145,10 @@
         <li class="story-row">
           <div class="story-text">
             <p class="story-n">1</p>
-            <h3>Add your project and pick the check</h3>
-            <p>Point the web app at your project folder. It guesses the command that shows your project works, such as <code translate="no">npm test</code>, and you confirm it.</p>
+            <h3>Protect your folder and pick the check</h3>
+            <p>Point the web app at your project folder. It guesses the command that shows your project works, such as <code translate="no">npm test</code>, and you confirm it. A project with no tests yet can still save versions, and a folder of notes, a thesis or research data works with no Git at all.</p>
           </div>
-          <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/welcome-390.jpg" width="390" height="844"><img src="assets/img/app/welcome-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The web app's first screen, before any project is added. It offers two buttons: Try the demo and Add a project."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+          <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/welcome-390.jpg" width="390" height="844"><img src="assets/img/app/welcome-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The web app's first screen, before any folder is protected. It offers two choices: Protect a folder, and Try the demo."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
         </li>
         <li class="story-row flip">
           <div class="story-text">
@@ -162,15 +162,15 @@
               <div><dt><span class="pill pill-none">Not checked yet</span></dt><dd>Saved, but not checked. Never shown as working.</dd></div>
             </dl>
           </div>
-          <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/history-390.jpg" width="390" height="844"><img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The history screen lists each save point with its verdict. The newest is broken. An earlier one works, and a Go back button leads to it."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+          <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/history-390.jpg" width="390" height="844"><img src="assets/img/app/history-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The history screen says the project is Broken, names the earlier version that still works, and offers a Bring back button for it. Below, a ruler marks each save point's verdict."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
         </li>
         <li class="story-row">
           <div class="story-text">
             <p class="story-n">3</p>
             <h3>Rewind to the last version that works, in a separate copy</h3>
-            <p>Before anything happens, you see what comes back and what does not, like passwords or your database. The good version then comes back next to your work. Your current folder stays as it was, so nothing is lost, and you can undo the rewind.</p>
+            <p>Before anything happens, you see what comes back and what does not, like passwords or your database. The good version then comes back next to your work. Your current folder stays as it was, so nothing is lost, and you can undo the rewind. When only one file went wrong, Compare with now puts back that file alone, after saving your folder first.</p>
           </div>
-          <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/rewind-390.jpg" width="390" height="844"><img src="assets/img/app/rewind-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The rewind screen shows the save point that passed, what comes back, the secret values and database contents that do not, and the button that brings it back as a separate copy."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
+          <figure class="shot"><picture><source media="(max-width: 860px)" srcset="assets/img/app/rewind-390.jpg" width="390" height="844"><img src="assets/img/app/rewind-1440.jpg" width="1440" height="900" loading="lazy" decoding="async" alt="The rewind review for the version that passed its check in a copy. It lists the files that changed and what happens next: your current version is saved first, the old one goes on a new local branch, and a copy is built next to your folder. A Bring it back button starts it."></picture><figcaption>Real screen, synthetic project.</figcaption></figure>
         </li>
       </ol>
     </section>
@@ -398,7 +398,7 @@
         <caption class="sr-only">What Claude Code’s rewind, Git and Time Machine each do</caption>
         <thead><tr><th scope="col"><span class="sr-only">Capability</span></th><th scope="col">Claude Code rewind</th><th scope="col">Git</th><th scope="col" class="tm" translate="no">Time Machine</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="part">Only in files Claude also edited</td><td class="part">Only what you committed</td><td class="yes">Saved before each prompt and before commands like <code>rm -rf</code></td></tr>
+          <tr><th scope="row">Files changed by shell commands like <code>rm</code></th><td class="part">Only in files Claude also edited</td><td class="part">Only what you committed</td><td class="yes">Saved before each prompt and before commands like <code class="flag">rm -rf</code></td></tr>
           <tr><th scope="row">Saves automatically while the agent works</th><td class="yes">Yes</td><td class="no">No, you commit</td><td class="yes">Yes, with Claude Code hooks</td></tr>
           <tr><th scope="row">Tells you which version passes your tests</th><td class="no">No</td><td class="no">No, you test by hand</td><td class="yes">Yes, each in a separate copy</td></tr>
           <tr><th scope="row">Going back leaves your current work alone</th><td class="no">Restores in place</td><td class="part">Depends on the command</td><td class="yes">New branch and a copy</td></tr>
@@ -427,7 +427,7 @@
         </ul>
         <button class="btn btn-primary" type="button" data-buy disabled aria-disabled="true">Buy once for $50</button>
         <p class="plan-status" data-buy-status role="status" aria-live="polite"></p>
-        <noscript><p class="plan-status">Checkout needs JavaScript. Email preston@unvibe.site instead.</p></noscript>
+        <noscript><p class="plan-status">Checkout needs JavaScript. Turn it on, or join the list below and we will reply from there.</p></noscript>
       </div>
       <div class="plan-aside">
         <p class="plan-note"><b>Why pay once.</b> No subscription to cancel, no password to keep. The web app runs on your computer, and so does the key.<span data-checkout-open hidden> Already bought it? <a href="account.html">Sign in</a> to see your key again.</span></p>
@@ -452,7 +452,7 @@ tm demo</pre>
         <button class="btn btn-ghost btn-sm" type="button" data-copy="install-cmds" hidden>Copy</button>
         <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
       </div>
-      <p class="install-note">Needs Node 22 or newer and Git. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
+      <p class="install-note">Needs Node 22 or newer and Git 2.36 or newer. No pnpm? Run <code translate="no">npm install -g pnpm</code> first. Keep the <code translate="no">Time-Machine</code> folder. The <code translate="no">tm</code> command runs from it.</p>
       <p class="install-note"><code translate="no">tm demo</code> builds a small synthetic project in a temporary folder, breaks it, then brings back the last version that passed. Your own projects are not touched. Most of the first run is downloading and building.</p>
     </div>
     <div class="term-block install install-ui" data-copy-box>
@@ -547,7 +547,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
     <div class="ft-about">
       <p class="ft-brand" translate="no">Time Machine</p>
       <p class="ft-lead">A safety net for people who let AI coding agents change their projects. It saves, checks with your tests, and tells you plainly what it couldn’t bring back.</p>
-      <p class="ft-mail"><a href="mailto:preston@unvibe.site">preston@unvibe.site</a></p>
+      <p class="ft-mail">Questions about a purchase: join the list below and say so; we reply from there.</p>
       <dl class="ft-status">
         <div><dt>CLI</dt><dd>Works today from source. Not on npm yet.</dd></div>
         <div><dt>Web app</dt><dd><code translate="no">tm ui</code>. Works from source. Free for up to 3 projects at a time; $50 once for more.</dd></div>
@@ -579,7 +579,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <details><summary>Does it replace Git?</summary><p>No. It works next to Git. A recovery is a new branch you inspect before you merge it yourself.</p></details>
       <details><summary>Why not the agent’s own rewind?</summary><p>Claude Code’s docs say rewind leaves a file as it is when only Bash commands changed it. <a href="https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked" rel="noopener">Read the Claude Code docs</a></p></details>
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
-      <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; we write to the list ourselves when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
+      <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; we write to the list when the CLI is on npm. If the form says the list isn’t open yet, come back later; nothing is for sale until then.</p></details>
       <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and nothing on it needs a password.</p></details>
       <details><summary>What does the $50 buy?</summary><p>A license key that lets the web app list as many projects as you like, instead of 3 at a time, on any number of your own computers, with updates while we ship them. One payment, no subscription. Paste the key in <code translate="no">tm ui</code> under Settings, then License, or run <code translate="no">tm license &lt;key&gt;</code>. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall. Checkout is not open yet, so nothing is for sale today.</p></details>
     </div>
