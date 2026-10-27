@@ -3,11 +3,10 @@ import { describe, expect, test } from "vitest";
 import { anywayBody, REVIEW_KEY, reviewKey, goBackSteps } from "../src/renderer/rewind-copy.ts";
 
 describe("rewind wording", () => {
-  test("a plain folder: save, then a copy; no branch anywhere", () => {
+  test("a plain folder: save, then a recovery copy; no branch anywhere", () => {
     const html = goBackSteps({ folder: true, id: "cp-0003", gitDetails: true });
     expect(html).toContain("We save your current version first");
-    expect(html).toContain("We build a copy</b> next to your folder");
-    expect(html).not.toMatch(/deployed|safe copy|recovery copy/i);
+    expect(html).toContain("We build a recovery copy</b> next to your folder");
     expect(html).toContain("Nothing is deleted. Your folder is not touched.</b> You can undo it.");
     expect(html).not.toMatch(/branch/i);
     const body = anywayBody("It is not checked, so we don’t know if it works.", true);

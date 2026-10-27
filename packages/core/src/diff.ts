@@ -20,7 +20,7 @@ export async function diff(ctx: Ctx, a: string, b: string): Promise<DiffResult> 
   const p = resolveProject(ctx);
   const ma = readManifest(p, a);
   const mb = readManifest(p, b);
-  const raw = splitZ(git(p.root, p.env, ["diff", "-z", "--name-status", "--no-renames", ma.git.snapshot, mb.git.snapshot, "--"]));
+  const raw = splitZ(git(p.root, p.env, ["diff", "-z", "--name-status", "--no-renames", ma.git.snapshot, mb.git.snapshot]));
   const code: DiffResult["code"] = [];
   for (let i = 0; i + 1 < raw.length; i += 2) code.push({ status: raw[i] ?? "", path: raw[i + 1] ?? "" });
   const files = compare(new Map(ma.files.map((f) => [f.path, f.sha256])), new Map(mb.files.map((f) => [f.path, f.sha256])), (x, y) => x === y);

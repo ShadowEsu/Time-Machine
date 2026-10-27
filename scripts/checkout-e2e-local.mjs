@@ -50,14 +50,11 @@ const json = (value, status = 200) => new Response(JSON.stringify(value), { stat
 const calls = [];
 let created = null;
 // Like Stripe: the payment intent is an id, or the object with its latest charge when the caller expands it.
-// With TM_E2E_PROMO=1 the session is paid with a 50% promotion code: $25 charged, amount_subtotal still $50.
-const PROMO = process.env.TM_E2E_PROMO === "1";
 const paidSession = (expanded) => ({
   id: SESSION, object: "checkout.session", mode: "payment", payment_status: "paid", status: "complete",
   created: created?.at ?? Math.floor(Date.now() / 1000), livemode: false,
   payment_intent: expanded ? { id: PI, object: "payment_intent", latest_charge: { id: "ch_test_e2e", object: "charge", refunded: false, amount_refunded: 0 } } : PI,
-  metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: PROMO ? 2500 : 5000,
-  ...(PROMO ? { total_details: { amount_discount: 2500, amount_shipping: 0, amount_tax: 0 }, discounts: [{ promotion_code: "promo_test_calhacks50", coupon: "calhacks50" }] } : {}),
+  metadata: { product: "tm-web" }, currency: "usd", amount_subtotal: 5000, amount_total: 5000,
   customer_details: { email: EMAIL },
 });
 async function fakeFetch(input, init = {}) {
@@ -101,12 +98,10 @@ const jsonBody = (value) => {
 const checkout = await handleCheckout({ method: "POST", ...browser }, deps);
 check("POST /api/checkout", checkout.status === 200 && checkout.body.url === `https://checkout.stripe.com/c/pay/${SESSION}`, `${checkout.status} ${checkout.body.url ?? checkout.body.error}`);
 const lifetime = Number(created?.form.expires_at) - (created?.at ?? 0);
-check("  session is $50 one-time, tagged, returns to localhost, expires, promotion codes allowed", created?.form.mode === "payment"
+check("  session is $50 one-time, tagged, returns to localhost, expires", created?.form.mode === "payment"
   && created.form["line_items[0][price_data][unit_amount]"] === "5000" && created.form["metadata[product]"] === "tm-web"
-  && created.form.allow_promotion_codes === "true"
   && created.form.success_url === `${ORIGIN}/thanks?session={CHECKOUT_SESSION_ID}` && lifetime >= 30 * 60 && lifetime <= 31 * 60,
-  `success_url ${created?.form.success_url}, expires in ${Math.round(lifetime / 60)} min, allow_promotion_codes ${created?.form.allow_promotion_codes}`);
-if (PROMO) process.stdout.write("     promotion code on: the paid session charges $25.00 (amount_total 2500) of a $50.00 subtotal\n");
+  `success_url ${created?.form.success_url}, expires in ${Math.round(lifetime / 60)} min`);
 
 const license = await handleLicense({ method: "GET", session: SESSION, ip: browser.ip }, deps);
 const key = license.body.key;

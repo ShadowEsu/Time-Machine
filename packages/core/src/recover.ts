@@ -1,13 +1,11 @@
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { audit } from "./audit.js";
-import { NOT_CAPTURED, summarize } from "./checkpoint.js";
-import { checkpoint, describeSummary } from "./folder.js";
+import { checkpoint, NOT_CAPTURED } from "./checkpoint.js";
 import { TmError } from "./errors.js";
 import type { Manifest } from "./manifest.js";
 import { git, gitTry, short, splitZ } from "./git.js";
 import { checkRef, materialize, type Materialized } from "./materialize.js";
-import { isInside } from "./paths.js";
 import { resolveProject, type Project } from "./project.js";
 import { ensureStore, readManifest, sha256, stamp } from "./store.js";
 import type { Ctx, RecoverResult, UndoRecoverResult } from "./types.js";
@@ -52,30 +50,21 @@ function freeDir(base: string): string {
 
 /**
  * Prepares a recovery: saves the current state first, creates a local branch at the
- * checkpoint, and builds a recovery copy next to the project, or inside `dest` when given. It never
- * switches the user's branch, never touches their folder, and never pushes, merges or deploys.
- * A plain folder has no repository, so there is no branch: the recovery is the copy only. A plain
- * folder that was moved or deleted still recovers from the store; there is nothing to save first.
+ * checkpoint, and builds a recovery copy next to the project. It never switches the
+ * user's branch, never touches their folder, and never pushes, merges or deploys.
+ * A plain folder has no repository, so there is no branch: the recovery is the copy only.
  */
-export async function recover(ctx: Ctx, id: string, opts: { dest?: string } = {}): Promise<RecoverResult> {
+export async function recover(ctx: Ctx, id: string): Promise<RecoverResult> {
   const p = resolveProject(ctx);
   ensureStore(p);
   const m = readManifest(p, id);
   checkRef(p, m);
   const folder = p.kind === "folder";
-  let parent = dirname(p.root);
-  if (opts.dest !== undefined) {
-    parent = resolve(ctx.cwd, opts.dest);
-    const st = statSync(parent, { throwIfNoEntry: false });
-    if (!st) throw new TmError("usage", `${parent} does not exist. Pick a folder that exists for the recovery copy.`);
-    if (!st.isDirectory()) throw new TmError("usage", `${parent} is a file, not a folder. Pick a folder for the recovery copy.`);
-    if (isInside(p.root, parent)) throw new TmError("usage", `${parent} is inside the project. Pick a folder outside it, so your working copy stays untouched.`);
-  }
 
-  const saved = p.missing ? null : await checkpoint(ctx, { note: `Before recovering ${id}`, trigger: "recover" });
+  const saved = await checkpoint(ctx, { note: `Before recovering ${id}`, trigger: "recover" });
   const branch = folder ? "" : freeBranch(p, `tm/recover/${id}`);
   if (!folder) git(p.root, p.env, ["branch", branch, m.git.snapshot]);
-  const copyDir = freeDir(join(parent, `${basename(p.root)}-recovered-${id}`));
+  const copyDir = freeDir(join(dirname(p.root), `${basename(p.root)}-recovered-${id}`));
   let r: Materialized;
   try {
     // A folder's copy is plain files, with no .git linking it to the store.
@@ -99,15 +88,15 @@ export async function recover(ctx: Ctx, id: string, opts: { dest?: string } = {}
   // because they looked secret, ignored folders, and anything missing from the store.
   const secretLines = m.coverage.manual.filter((x) => x.startsWith("Secret values"));
   const otherManual = m.coverage.manual.filter((x) => !x.startsWith("Secret values") && x !== NOT_CAPTURED);
-  const notRestored = [...secretLines, ...otherManual, ...describeSummary(p, summarize(m)).coverage.missing, ...r.missing, NOT_CAPTURED];
+  const notRestored = [...secretLines, ...otherManual, ...m.coverage.missing, ...r.missing.map((f) => `${f} (its saved copy is missing)`), NOT_CAPTURED];
   if (!secretLines.length) notRestored.unshift("Secret values: none were recorded");
   const manualSteps = [
     ...(folder ? [NO_BRANCH] : []),
     ...r.manual.map((s) => `${s} in the recovery copy.`),
-    ...r.gone.map((f) => `Recreate ${f} by hand.`),
+    ...r.missing.map((f) => `Recreate ${f} by hand.`),
     `Review the recovery copy at ${copyDir}.`,
     folder
-      ? p.missing ? "Copy the files you want into place. The folder was not there, so nothing else was touched." : "Copy back the files you want to keep. Your folder was not touched."
+      ? "Copy back the files you want to keep. Your folder was not touched."
       : "Keep working in the recovery copy. Review and commit the restored files you want to keep before moving or removing it.",
   ];
 
@@ -116,10 +105,8 @@ export async function recover(ctx: Ctx, id: string, opts: { dest?: string } = {}
     `# Recovery report: ${id}`,
     "",
     `Created ${new Date().toISOString()} from "${m.note}" (${m.createdAt}).`,
-    p.missing ? "Nothing was pushed, merged or deployed." : "Nothing was pushed, merged or deployed. Your current folder and branch were not touched.",
-    saved
-      ? `Before this recovery, your current state was saved as ${saved.checkpoint.id}, so you can come back to it.`
-      : `${p.root} was not there, so there was nothing to save before this recovery.`,
+    "Nothing was pushed, merged or deployed. Your current folder and branch were not touched.",
+    `Before this recovery, your current state was saved as ${saved.checkpoint.id}, so you can come back to it.`,
     "",
     folder ? NO_BRANCH : `Branch: ${branch} at commit ${short(m.git.snapshot)}`,
     `Recovery copy: ${copyDir}`,
@@ -146,13 +133,12 @@ export async function recover(ctx: Ctx, id: string, opts: { dest?: string } = {}
     id,
     branch,
     copyDir,
-    savedBefore: saved?.checkpoint.id ?? null,
+    savedBefore: saved.checkpoint.id,
     reportPath,
     lastVerdict: last?.verdict ?? null,
     restored: r.restored,
     notRestored,
     manualSteps,
-    missing: r.missing,
     pushed: false,
     ...(folder ? { copyOnly: true as const } : {}),
   };
@@ -267,8 +253,7 @@ export async function undoRecover(ctx: Ctx, opts: { id: string; branch: string; 
 function undoFolderRecover(p: Project, m: Manifest, id: string, branch: string, copyDir: string, escaped: string): UndoRecoverResult {
   if (branch !== "") throw new TmError("usage", `${p.name} is a plain folder, so its recovery made no branch. ${branch} was left alone.`);
   const dir = real(copyDir);
-  // Named for this save point and recorded when it was made: the copy may sit next to the folder or in a folder the person picked.
-  const named = new RegExp(`^${basename(p.root).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-recovered-${escaped}(-\\d+)?$`).test(basename(dir));
+  const named = dirname(dir) === dirname(real(p.root)) && new RegExp(`^${basename(p.root).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-recovered-${escaped}(-\\d+)?$`).test(basename(dir));
   const copies = readCopies(p);
   if (!named || !copies.some((c) => c.id === id && c.dir === dir)) throw new TmError("usage", `${copyDir} is not the recovery copy for ${id}, so it was left alone.`);
   const rest = copies.filter((c) => !(c.id === id && c.dir === dir));

@@ -256,14 +256,6 @@
 .ob-page .path-form > label { font: 600 16px/1.35 var(--font); }
 .ob-page .field { height: 48px; padding: 0 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1.5px var(--line-2); font-size: 14px; }
 .ob-page .field:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
-/* The folder field asks for input; an orange ring there read as an error before anything was typed (writer#37). Errors get their own red line. */
-.ob-page .path-form .field:focus-visible { outline-color: color-mix(in srgb, var(--ink) 30%, transparent); }
-.ob-page .path-form .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--broken); }
-.path-in { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.path-in .field { flex: 1 1 260px; min-width: 0; }
-.path-err { margin: -2px 0 0; font-size: 14px; line-height: 1.5; color: var(--fail-fg); }
-.ad-full { display: grid; gap: 10px; margin-bottom: 4px; }
-.ad-full p { margin: 0; }
 .ob-page .opt { gap: 12px; padding: 14px 16px; border-radius: var(--r-md); }
 .ob-page .opt.on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--hard-sm); }
 .ob-page .opt .t { font-size: 15.5px; font-weight: 600; }
@@ -402,9 +394,6 @@ section > .b9-lede { margin: -2px 0 16px; }
 @media (prefers-reduced-motion: reduce) { .sk, .sk-head::before, .b9-sk i { animation: none; } }
 .ov-facts { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: -6px; font-size: 13.5px; line-height: 1.5; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .ov-add { margin-top: 16px; }
-.ov-full { margin: 10px 0 0; font-size: 14px; color: var(--ink-3); }
-.it.add .nm { display: grid; gap: 2px; }
-.it.add .nm small { font-size: 12.5px; line-height: 1.3; color: var(--amber-fg); white-space: normal; }
 @media (max-width: 600px) { .ov-big { font-size: 24px; } }
 
 /* The last 24 hours as a slim axis: a hairline, a tick every 6 hours, a taller ink tick for now, and one dot per save
@@ -442,6 +431,7 @@ section > .b9-lede { margin: -2px 0 16px; }
 .ad-t { display: grid; gap: 4px; min-width: 0; }
 .ad-t b { font: 650 17px/1.3 var(--display); letter-spacing: -.015em; }
 .ad-t > span { font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.ad-t > .ad-own { margin-top: 2px; font-size: 13.5px; color: var(--ink-3); }
 .ad-chose { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px; font: 500 14.5px/1.3 var(--font); color: var(--ink-2); }
 @media (max-width: 600px) {
   .ad-cards { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }
@@ -533,9 +523,7 @@ section > .b9-lede { margin: -2px 0 16px; }
 .rn-pin.on { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .rn-form { display: grid; gap: 6px; }
 .rn-form label { font: 600 13.5px/1.3 var(--font); color: var(--ink-2); }
-.rn-form label + .field, .rn-l + .field { margin-bottom: 6px; }
-.rn-l { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.rn-count { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rn-form label + .field { margin-bottom: 6px; }
 .rn-form .field { font: 400 14px/1.45 var(--font); height: 40px; }
 .rn-form textarea.field { height: auto; min-height: 76px; padding: 8px 10px; resize: vertical; }
 .rn-form .field::placeholder { color: var(--ink-4); }

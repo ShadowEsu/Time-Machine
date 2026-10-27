@@ -7,20 +7,19 @@ import { z } from "zod";
 import { TmError } from "./errors.js";
 import { ManifestSchema, type Manifest } from "./manifest.js";
 import { privateDir } from "./paths.js";
-import { recordProject, type Project } from "./project.js";
+import type { Project } from "./project.js";
 
 export { storeDirFor } from "./project.js";
 
 const DIRS = ["objects", "checkpoints", "bundles", "logs", "reports"];
 
-/**
- * The store holds a copy of every saved file, so the store home and the project store are this user's only (0700).
- * The first time, it records the project in project.json, and refuses a Git project whose repository another project protects.
- */
+/** The store holds a copy of every saved file, so the store home and the project store are this user's only (0700). */
 export function ensureStore(p: Project): void {
   privateDir(p.home);
-  recordProject(p);
+  privateDir(p.store);
   for (const d of DIRS) mkdirSync(join(p.store, d), { recursive: true, mode: 0o700 });
+  const meta = join(p.store, "project.json");
+  if (!existsSync(meta)) writeFileSync(meta, JSON.stringify({ storeVersion: 1, root: p.root, createdAt: new Date().toISOString() }, null, 2) + "\n");
 }
 
 /** Per-store key for fingerprints and manifest integrity. Never leaves this machine. */
@@ -124,28 +123,10 @@ export function listIds(p: Project): string[] {
     .sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)));
 }
 
-const ThinEntry = z.object({ action: z.literal("thin"), at: z.string(), result: z.string() });
-
-/**
- * The error for an ID with no save point: a usage error, like a mistyped ID. When thinning removed it,
- * it says when and names the nearest save point that was kept.
- */
-export function noSuchCheckpoint(p: Project, id: string): TmError {
-  const n = Number(id.slice(3));
-  const thinned = readJsonl(join(p.store, "audit.jsonl")).flatMap((e) => {
-    const r = ThinEntry.safeParse(e);
-    return r.success && r.data.result.split(/[:,]\s*/).includes(id) ? [r.data] : [];
-  })[0];
-  if (!thinned) return new TmError("usage", `There is no checkpoint ${id}. Run tm timeline to see them.`);
-  const nearest = listIds(p).sort((a, b) => Math.abs(Number(a.slice(3)) - n) - Math.abs(Number(b.slice(3)) - n) || Number(b.slice(3)) - Number(a.slice(3)))[0];
-  const on = new Date(thinned.at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  return new TmError("usage", `${id} was removed by thinning on ${on}; ${nearest ? `nearest kept: ${nearest}` : "no save points are left"}.`);
-}
-
 export function readManifest(p: Project, id: string): Manifest {
   if (!/^cp-\d{4,}$/.test(id)) throw new TmError("usage", `"${id}" is not a checkpoint ID. IDs look like cp-0003.`);
   const path = join(p.store, "checkpoints", `${id}.json`);
-  if (!existsSync(path)) throw noSuchCheckpoint(p, id);
+  if (!existsSync(path)) throw new TmError("not_found", `There is no checkpoint ${id}. Run tm timeline to see them.`);
   const bad = (): TmError => new TmError("integrity", `${id} failed its integrity check. It was changed after it was saved, so Time Machine will not use it.`);
   let parsed: Manifest;
   try {

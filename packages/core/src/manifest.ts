@@ -10,9 +10,6 @@ const CoverageSchema = z.object({
   manual: z.array(z.string()),
 });
 
-/** The largest time, in ms either side of 1970, that a Date can hold. */
-const MAX_DATE_MS = 8.64e15;
-
 export const ManifestSchema = z.object({
   storeVersion: z.literal(1),
   id: z.string().regex(/^cp-\d{4,}$/),
@@ -30,17 +27,7 @@ export const ManifestSchema = z.object({
     changedTracked: z.number().int(),
     dirty: z.boolean(),
   }),
-  /** mtimeMs: the file's modified time when saved, given back to copies. Older manifests have none, and still read. A save records
-   *  only the permission bits and a real date, so set-id bits or a time outside what a Date holds mean a changed file (Security F5). */
-  files: z.array(
-    z.object({
-      path: SafePath,
-      sha256: z.string(),
-      size: z.number(),
-      mode: z.number().int().min(0).max(0o777),
-      mtimeMs: z.number().min(-MAX_DATE_MS).max(MAX_DATE_MS).optional(),
-    }),
-  ),
+  files: z.array(z.object({ path: SafePath, sha256: z.string(), size: z.number(), mode: z.number() })),
   config: z.array(
     z.object({
       file: SafePath,

@@ -4,7 +4,6 @@
 import type { TimelineEntry } from "@timetm/core";
 import type { ProjectEntry, ProjectStatus, Purpose, Verdict } from "../shared/api.js";
 import { esc, plural, verdictKey, when } from "../shared/format.js";
-import { ADD_FULL } from "./add-flow.js";
 import { projectMeta, purposeIcon, unitCount } from "./purpose.js";
 
 /** The report looks back this far. */
@@ -40,13 +39,11 @@ export function digest(points: readonly DigestPoint[], now: number, hours = DIGE
   for (const p of points) {
     const t = Date.parse(p.createdAt);
     const inside = !Number.isNaN(t) && t >= from && t <= now + 60_000;
-    // "Needs something" means the check could not run: it counts as not checked (cli#10).
-    const checked = !!p.verdict && p.verdict !== "BLOCKED";
-    if (checked) out.everChecked = true;
+    if (p.verdict) out.everChecked = true;
     if (p.verdict === "PASS") out.lastWorking = p;
     if (inside) {
       out.saves++;
-      if (checked) out.checked++;
+      if (p.verdict) out.checked++;
       if (p.verdict === "PASS") out.works++;
       if (p.verdict === "FAIL" && before === "PASS") out.breaks++;
       if (p.agent) {
@@ -70,18 +67,11 @@ export interface ReportRow {
  * The report's headline across every project: "8 saves in the last 24 hours across 3 projects. pricing-page has 2 not
  * checked yet." Checks are spoken of only for projects that have one; a folder that just saves versions never makes the
  * line say "not checked". `name` dresses a project's name where the line says it (the page keeps it on one line).
- * `unread` names the projects whose history could not be read: they are said, never counted as quiet (writer#3).
  */
-export function reportLine(rows: readonly ReportRow[], hours = DIGEST_HOURS, name = (n: string): string => n, unread: readonly string[] = []): string {
+export function reportLine(rows: readonly ReportRow[], hours = DIGEST_HOURS, name = (n: string): string => n): string {
   const busy = rows.filter((r) => r.d.saves);
   const saves = busy.reduce((n, r) => n + r.d.saves, 0);
-  const cant = unread.length ? `Can’t read ${unread.length === 1 ? name(unread[0] ?? "") : plural(unread.length, "project")} right now.` : "";
-  if (!saves) return cant || `Quiet. Nothing was saved in the last ${hours} hours.`;
-  const line = reportBody(busy, saves, hours, name);
-  return cant ? `${line} ${cant}` : line;
-}
-
-function reportBody(busy: readonly ReportRow[], saves: number, hours: number, name: (n: string) => string): string {
+  if (!saves) return `Quiet. Nothing was saved in the last ${hours} hours.`;
   const head = `${plural(saves, "save")} in the last ${hours} hours${busy.length > 1 ? ` across ${plural(busy.length, "project")}` : ""}.`;
   const checked = busy.filter((r) => r.checks);
   const breaks = checked.reduce((n, r) => n + r.d.breaks, 0);
@@ -186,16 +176,13 @@ function card(p: ProjectEntry, i: number, input: OverviewInput): string {
   const s = input.statuses.get(p.id);
   const tl = input.timelines.get(p.id);
   const checks = input.checks.has(p.id);
-  // A missing folder, a store that can't be written and any other problem each say what they are (cli#5).
-  const problem = s?.problemKind === "missing" ? "Can’t find it" : s?.problemKind === "permission" ? "Can’t save" : s?.problem ? "Needs a look" : "";
-  const status = problem ? `<span class="vb v-error">${problem}</span>`
+  const status = s?.problem ? '<span class="vb v-error">Can’t find it</span>'
     : !s ? '<i class="sk ov-sk-pill" aria-hidden="true"></i>'
       : s.newest && checks ? input.badge(s.newest.verdict)
         : `<span class="vb v-none">${esc(saveState(s.newest ?? null, input.now))}</span>`;
   const head = `<button class="ov-open" data-act="project" data-id="${esc(p.id)}" title="${esc(p.path)}">${purposeIcon(p.purpose)}<span class="ov-name"><b>${esc(p.name)}</b><small>${esc(projectMeta(p))}</small></span><span class="ov-status">${status}</span></button>`;
   let body: string;
-  // A problem says its sentence; its history, when it could still be read from the store, shows under it.
-  if (s?.problem && !Array.isArray(tl)) body = `<p class="ov-dig">${esc(s.problem)}</p>`;
+  if (s?.problem) body = `<p class="ov-dig">${esc(s.problem)}</p>`;
   // While its history reads, the card holds the strip's and the sentence's shape in quiet bars, so nothing jumps in.
   else if (tl === undefined) body = '<div class="ov-wait" aria-hidden="true"><i class="sk ov-sk-strip"></i><i class="sk ov-sk-line"></i><i class="sk ov-sk-fact"></i></div>';
   else if (tl === "error") body = '<p class="ov-dig">We can’t read its history right now.</p>';
@@ -205,7 +192,7 @@ function card(p: ProjectEntry, i: number, input: OverviewInput): string {
     const facts = checks
       ? [d.newest ? `Last saved ${when(d.newest.createdAt, new Date(input.now))}` : "", d.lastWorking ? `Last working version ${when(d.lastWorking.createdAt, new Date(input.now))}` : d.everChecked ? "No version has passed its check yet" : ""].filter(Boolean)
       : [];
-    body = `${s?.problem ? `<p class="ov-dig">${esc(s.problem)}</p>` : ""}${activityStrip(tl, input.now, { purpose: p.purpose, checks })}<p class="ov-dig${d.breaks ? " broke" : ""}">${d.breaks ? '<i class="g v-fail" aria-hidden="true"></i>' : ""}${esc(digestLine(d, p.purpose))}</p>${facts.length ? `<p class="ov-facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</p>` : ""}`;
+    body = `${activityStrip(tl, input.now, { purpose: p.purpose, checks })}<p class="ov-dig${d.breaks ? " broke" : ""}">${d.breaks ? '<i class="g v-fail" aria-hidden="true"></i>' : ""}${esc(digestLine(d, p.purpose))}</p>${facts.length ? `<p class="ov-facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</p>` : ""}`;
   }
   return `<li class="ov-proj" style="--i:${i}">${head}${body}</li>`;
 }
@@ -217,19 +204,17 @@ export function overviewPage(input: OverviewInput): string {
     const t = input.timelines.get(p.id);
     return Array.isArray(t) ? [{ name: p.name, d: digest(t, input.now), checks: input.checks.has(p.id) }] : [];
   });
-  const unread = input.projects.filter((p) => input.timelines.get(p.id) === "error").map((p) => p.name);
-  const reading = rows.length + unread.length < input.projects.length;
+  const reading = rows.length < input.projects.filter((p) => input.timelines.get(p.id) !== "error").length;
   const plan = input.freeLimit === null ? "" : `<span>${esc(`${n} of ${plural(input.freeLimit, "project")} on the free plan`)}</span>`;
   // A project's name in the headline stays whole on one line ("pricing-page", never "pricing-" then "page"). It is marked
   // with two private-use characters, escaped with the rest of the line, then wrapped.
-  const headline = esc(reportLine(rows, DIGEST_HOURS, (name) => `\u{E000}${name}\u{E001}`, unread)).replace(/\u{E000}(.*?)\u{E001}/gu, '<span class="ov-nm">$1</span>');
+  const headline = esc(reportLine(rows, DIGEST_HOURS, (name) => `\u{E000}${name}\u{E001}`)).replace(/\u{E000}(.*?)\u{E001}/gu, '<span class="ov-nm">$1</span>');
   return `<div class="page b9-page ov-page" id="overview-page" tabindex="-1" role="region" aria-label="Overview"><div class="b9">
     <header class="b9-head"><h1>Overview</h1><p class="voice b9-voice">${esc(`${plural(n, "thing")} protected on this computer.`)}</p></header>
     <section class="ov-report" aria-labelledby="ov-r-h"><div class="b9-day"><h2 id="ov-r-h">Since you last looked</h2><span>${esc(`The last ${DIGEST_HOURS} hours, from your local history`)}</span></div>
       ${reading ? '<p class="ov-big ov-big-sk" aria-busy="true"><span class="sr-only">Reading your history…</span><i class="sk" aria-hidden="true"></i><i class="sk" aria-hidden="true"></i></p>' : `<p class="ov-big">${headline}</p>`}</section>
     <section aria-labelledby="ov-p-h"><div class="b9-day"><h2 id="ov-p-h">Protected</h2>${plan}</div>
       <ul class="ov-list${input.enter ? ` ${input.enter}` : ""}">${input.projects.map((p, i) => card(p, i, input)).join("")}</ul>
-      <div class="row-btns ov-add"><button class="btn" data-act="add">Protect a folder</button><button class="btn link" data-act="sources">See folders found on this computer</button></div>
-      ${input.freeLimit !== null && input.projects.length >= input.freeLimit ? `<p class="ov-full">${esc(ADD_FULL)}. <button class="btn link" data-act="storage">Open Storage</button></p>` : ""}</section>
+      <div class="row-btns ov-add"><button class="btn" data-act="add">Protect a folder</button><button class="btn link" data-act="sources">See folders found on this computer</button></div></section>
   </div></div>`;
 }

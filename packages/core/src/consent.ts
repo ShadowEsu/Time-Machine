@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import { CONFIG_FILE, loadConfig, type ProjectConfig } from "./config.js";
+import { loadConfig, type ProjectConfig } from "./config.js";
 import { privateDir } from "./paths.js";
 import { configRoot, resolveProject, type Project } from "./project.js";
 import type { Ctx, StatusResult } from "./types.js";
@@ -74,5 +74,5 @@ export function status(ctx: Ctx): StatusResult {
   const p = resolveProject(ctx);
   const { config, exists } = loadConfig(configRoot(p));
   const check = exists && config.verify.command.trim() ? checkCommand(config) : null;
-  return { initialized: exists, approved: check !== null && consentState(p, config) === "approved", check, kind: p.kind, configPath: join(configRoot(p), CONFIG_FILE) };
+  return { initialized: exists, approved: check !== null && consentState(p, config) === "approved", check };
 }

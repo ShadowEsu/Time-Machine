@@ -32,7 +32,7 @@
   --r-pop: var(--r-xl); --shadow-pop: var(--hard-lg); --shadow-pop-sm: var(--hard);
   /* Motion (direction §3; ui-review-rubric §5). Press 180 ms on a little overshoot, hover 160, sheets 220 on Unvibe's ease,
      the History playhead's glide 260, travel along the Rewind's ruler 420. Only transform and opacity move. The two idle
-     loops (the rail's dot, the pulse on Now) never start under Reduce motion, the app's own or the computer's. */
+     loops (the rail's dot, the pulse on Now) rest under Pause animation and never start under Reduce motion. */
   --t-press: 180ms; --t-hover: 160ms; --t-snap: 120ms; --t-enter: 220ms; --t-exit: 150ms; --t-glide: 260ms; --t-travel: 420ms;
   --press-ease: cubic-bezier(.3, 1.5, .5, 1); --ease: cubic-bezier(.16, 1, .3, 1); --ease-io: cubic-bezier(.65, 0, .35, 1);
   /* Names the other screens still use, on the new palette, until each is rebuilt. */
@@ -212,7 +212,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .cr-p:hover { background: var(--sel); }
 .cr-p:active { background: var(--press); }
 .tb-sp { flex: 1; -webkit-app-region: drag; }
-.tb-buddy, .nav-toggle, .toolbar .jump, .toolbar .tb-main { display: none; }
+.tb-buddy, .nav-toggle, .toolbar .jump { display: none; }
 .icon-b { width: 44px; height: 44px; display: grid; place-items: center; flex: none; padding: 0; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .icon-b svg { width: 18px; height: 18px; }
 .icon-b:hover { border-color: var(--line-2); }
@@ -239,7 +239,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
   .app.has-ask, .app.has-detail { grid-template-columns: 268px minmax(0, 1fr); }
   .rcol { position: absolute; top: 0; bottom: 0; right: 0; z-index: 18; border-radius: var(--r-pop); box-shadow: var(--shadow-pop); border: 1.5px solid var(--ink); }
   .rcol.ask-col { width: min(360px, calc(100% - 24px)); }
-  .toasting .rcol { bottom: calc(var(--toast-room, 0px) + 24px); }
   .rcol.detail { left: 268px; }
   .rcol.detail .rc-body { width: min(640px, 100%); margin: 0 auto; padding: 26px 28px 40px; }
 }
@@ -280,11 +279,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .vb.v-fail { background: var(--broken-bg); color: var(--broken); }
 .vb.v-incomplete, .vb.v-blocked { background: var(--amber-bg); color: var(--amber); }
 .vb.v-error { background: var(--unk-bg); color: var(--ink-2); }
-/* A save point that failed its integrity check: its own mark, outlined in Broken red, never the crashed ring. */
-.vb.v-damaged { background: var(--surface); color: var(--broken); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--broken) 55%, transparent); }
-.dmg { color: var(--broken); font-size: 13.5px; }
-/* The branch a row was saved on, where it changed from the row before. */
-.br-chip { font: 500 12.5px/1 var(--mono); padding: 5px 8px; border-radius: 999px; background: var(--sunken); color: var(--ink-2); border: 1px solid var(--line); }
 /* The small verdict glyph other screens still use: a dot, a diamond, a ring. */
 .g { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
 .g.v-pass { background: var(--works); box-shadow: none; }
@@ -325,15 +319,10 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .undo-card > .g { flex: none; width: 10px; height: 10px; }
 .undo-card > p { flex: 1 1 300px; min-width: 0; }
 .undo-card .row-btns { flex: none; }
-/* A folder that is gone: its notice and the two ways out sit where the main action was. */
-.hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
-.gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
-.gone-done { font-size: 14px; color: var(--ink-2); }
 /* The demo's three steps: a sky card under the answer. The current step is in ink. */
 .coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--sky) 40%, var(--surface)); border: 1px solid var(--sky-line); display: grid; gap: 10px; }
 .coach-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-/* Hide keeps its one word on a phone; the title wraps instead (it broke as "Hid" / "e" at 390). */
-.coach-h .btn { min-height: 40px; flex: none; white-space: nowrap; }
+.coach-h .btn { min-height: 40px; }
 /* The bead to find in step 1 wears a still ring in the Works colour. Nothing moves. */
 .rt-tk.aim::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--works); pointer-events: none; }
 /* An empty list with direction: one line that says what to do and the button that does it, no illustration. */
@@ -527,7 +516,7 @@ button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .fold:hover { color: var(--ink); background: var(--paper-2); }
 /* Where it broke: one quiet line between the two rows, lined up with the titles, small red text after a 2 px red bar. */
 .broke-rule { padding: 4px 20px 10px 128px; }
-.broke-rule > span { display: inline-block; padding: 1px 0 1px 10px; border-left: 2px solid var(--broken); color: var(--broken); font: 500 13.5px/1.4 var(--font); }
+.broke-rule span { display: inline-block; padding: 1px 0 1px 10px; border-left: 2px solid var(--broken); color: var(--broken); font: 500 13.5px/1.4 var(--font); }
 
 /* Good to know: what does not come back, below the record, said by the buddy. */
 .know { margin-top: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 18px 20px; border-radius: 18px; background: var(--sunken); border: 1px dashed var(--line-2); font-size: 14.5px; color: var(--ink-2); }
@@ -573,18 +562,11 @@ button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .cw-oh .btn.link { color: #f4f2ed; white-space: nowrap; }
 .cw-out { margin: 0; max-height: 260px; overflow: auto; padding: 12px 14px; font: 400 13px/1.6 var(--mono); color: #ece9e2; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .cw-n { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
-/* The failing tests the log names, above the lines: the first thing to read in a Broken sheet. */
-.cw-f { font: 600 13.5px/1.5 var(--mono); color: var(--broken); overflow-wrap: anywhere; }
 
 /* The files a save point changed, as the diff names them. */
 .files { display: grid; gap: 1px; padding: 12px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); font: 400 13px/1.65 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
 .files b { margin-bottom: 4px; font: 600 13.5px/1.4 var(--font); color: var(--ink-2); }
 .files .muted { font-family: var(--font); }
-/* One changed file and the button that puts it back; the button keeps its place at the right and the name wraps. */
-.files .file-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.files .file-row > span { min-width: 0; }
-.files .file-row .btn.link.small { flex: none; font-family: var(--font); }
-.files > .btn.link.small { justify-self: start; margin-top: 6px; font-family: var(--font); }
 
 /* ⋯ menus */
 .mn { position: relative; }
@@ -751,9 +733,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .steplist .r .ok { width: 14px; text-align: center; color: var(--works); font-weight: 700; }
 .steplist .r .ok.muted { color: var(--ink-3); }
 .steplist .r .t { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--ink-3); white-space: nowrap; }
-/* The one duration a finished check shows, from the press to the verdict. */
-.ck-took { font-size: 13.5px; color: var(--ink-3); }
-.ck-took .mono { font-size: 13px; color: var(--ink-2); }
 
 /* Check it works. While it runs the buddy's screen blinks (steps, so it is a blink, not a fade) and the clock runs
    in mono. Then the verdict as one card in its colour; the words of the check sit inside a broken one. */
@@ -781,13 +760,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
    The sheet gives up its bottom padding to the bar (a sticky box stops at the padding, so lines would show under it). */
 .ck-acts { justify-content: flex-end; position: sticky; bottom: 0; z-index: 1; padding: 12px 0 20px; background: var(--surface); }
 .ck-scrim .sheet.ck { padding-bottom: 0; }
-/* While a check runs the sheet keeps room for what it prints: the live block (the done sheet's terminal block) rises in
-   once under the steps, into space that was already there, so Stop stays where it is. It goes with the running sheet. */
-.sheet.ck:not(.ck-done) { min-height: min(560px, 100%); display: flex; flex-direction: column; }
-.sheet.ck:not(.ck-done) > * { flex: none; }
-.sheet.ck:not(.ck-done) > .sp-note { margin-top: auto; }
-.ck-live .cw-out { max-height: 160px; }
-.ck-live.enter { animation: page-in var(--t-enter) var(--ease) both; }
 /* The head's text Done exists only beside a main action, and shows only on a very narrow phone (below). */
 .btn.ck-top-done { display: none; }
 /* Phones: less padding at each level, so the check's lines keep their width; the tip's Hide goes under its words. */
@@ -821,12 +793,9 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .insp-b { display: grid; gap: 10px; }
 .code { margin: 0; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); padding: 12px 14px; font: 400 13px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; color: var(--ink-2); max-height: 420px; overflow: auto; }
 .code.cmd { color: var(--ink); }
-/* The toast sits under the work area, centred, never over the rail. Its host lives outside the redraw (app.ts),
-   so it is placed against the window: past the 268 px rail, and short of a right column when one is open. While one
-   shows, the page card ends above it (app.ts sets --toast-room to its height), so it never covers a card or a button (dev#39). */
-.toast-host { position: fixed; left: 268px; right: 0; bottom: 12px; z-index: 50; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
-.main { transition: margin-bottom var(--t-enter) var(--ease); }
-.toasting .main { margin-bottom: calc(var(--toast-room, 0px) + 24px); }
+/* The toast sits over the work area, centred, never over the rail. Its host lives outside the redraw (app.ts),
+   so it is placed against the window: past the 268 px rail, and short of a right column when one is open. */
+.toast-host { position: fixed; left: 268px; right: 0; bottom: 24px; z-index: 50; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
 .toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: min(480px, 100%); padding: 4px 8px 4px 18px; border: 1.5px solid var(--ink); border-radius: var(--r-pop); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop-sm); font: 500 15px/1.45 var(--font); }
 .toast .g { flex: none; }
 .toast-t { min-width: 0; padding: 8px 0; }
@@ -940,9 +909,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* Skip to the page: out of sight until it has keyboard focus, then an ink pill over the rail's corner. */
-.skip { position: fixed; left: 12px; top: 12px; z-index: 100; height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--ink); color: var(--paper); font: 600 14px/1 var(--font); cursor: pointer; transform: translateY(-160%); }
-.skip:focus-visible { transform: none; }
 .banner .btn { height: 24px; font-size: 12px; background: color-mix(in srgb, var(--paper) 18%, transparent); color: inherit; box-shadow: none; }
 
 /* The Rewind (direction §4 #5): a sheet over the blurred History, with the sheet's ink edge and 6 px hard shadow. The reading
@@ -1244,8 +1210,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
      from wrapping, and the big grow lets the name take the free space first, up to its own width. */
   .nav-toggle { flex: 1000 1 0; max-width: max-content; }
   .toolbar .ask-t, .toolbar .tb-check { display: none; }
-  /* The page's next step stays one press away beside ⋯; the project name gives way first. */
-  .toolbar .tb-main { display: inline-flex; flex: none; white-space: nowrap; padding-inline: 14px; }
   .mn-l .mn-phone { display: flex; }
   .mn.mn-phone-only { display: inline; }
   .page { padding: 24px 16px 40px; }
@@ -1305,7 +1269,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .connection-dot { margin-top: 6px; }
   .banner { flex-wrap: wrap; font-size: 12px; }
   .toast-host { bottom: calc(16px + env(safe-area-inset-bottom)); }
-  .toasting .main { margin-bottom: calc(var(--toast-room, 0px) + 24px + env(safe-area-inset-bottom)); }
   .toast { width: 100%; max-width: none; }
   /* Every control is at least 44 px tall on a phone. */
   .btn, .btn.link, .it, .pill, .cr-p, .seg button, .sec-b, .tv-x { min-height: 44px; }
@@ -1314,12 +1277,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   summary { padding-block: 14px; margin-block: -14px; }
   .field, .path-form .field { height: 44px; }
   .switch { border-width: 11px; }
-}
-@media (max-width: 440px) {
-  /* Phones have no room for the buddy, the switcher, Jump to, the main action and ⋯ on one line: at 390 the switcher
-     kept 8 px of the project name, one cut letter (Design 1542733). The main action takes a full row of its own under
-     them, so the project name keeps room for itself, shortened with an ellipsis. */
-  .toolbar .tb-main { order: 7; flex: 1 1 100%; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
@@ -1392,25 +1349,25 @@ button.go.running[disabled] { opacity: 1; }
 .pill { transition: transform var(--t-press) var(--press-ease), scale var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
 .pill:active, .pill.kf { transform: none; }
 
-/* Idle, low and slow: the rail's dot breathes, Now pulses. Settings > Appearance > Reduce motion (the .calm class) rests
-   both on their still frame, and so does every other loop that runs on its own (Claude Code's working dot, loading shapes),
-   just as the computer's own Reduce motion does; a check you started keeps showing its progress. */
+/* Idle, low and slow: the rail's dot breathes, Now pulses. Pause animation (in the toolbar) rests both on their still frame,
+   and so does every other loop that runs on its own (Claude Code's working dot, loading shapes); a check you started keeps
+   showing its progress. */
 .stored::before { animation: idle-breath 3.2s ease-in-out infinite; }
 @keyframes idle-breath { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .6; transform: scale(.78); } }
 .rt-tk.nowtk::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 2px var(--ink-4); opacity: 0; pointer-events: none; animation: now-pulse 3s var(--ease) 1.2s infinite; }
 @keyframes now-pulse { 0% { opacity: .55; transform: scale(1); } 55%, 100% { opacity: 0; transform: scale(1.75); } }
 .calm .stored::before, .calm .rt-tk.nowtk::after, .calm .breath, .calm .sk, .calm .sk-head::before, .calm .b9-sk i { animation: none; }
-/* Reduce motion stills the rest too: an entrance (sheets, Jump to, the toast, the check's verdict) is a fade, presses and
-   lifts happen at once, and every other animation lands on its end frame. */
+/* Pause animation stills this sprint's motion too: an entrance (sheets, Jump to, the toast, the check's verdict) is a
+   fade, and presses and lifts happen at once. */
 .calm .scrim.enter .sheet, .calm .scrim.enter .pal, .calm .toast.enter, .calm .ck-card.stamp { animation-name: fade; }
 .calm .entry, .calm .theme-tile, .calm .search, .calm .plan, .calm .icon-b, .calm .cr-p, .calm .nav-toggle, .calm .go, .calm .e-t, .calm .fold, .calm .mn-l button, .calm .pal-i, .calm .set-page .seg button, .calm .wl-demo { transition: none; }
 .calm .entry:hover, .calm .entry:active { translate: none; scale: none; }
-.calm *, .calm *::before, .calm *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
-.calm .rt-tk.checking::before { animation: none; }
-.calm .ck-bar i, .calm .btn.running::after, .calm .entry.checking::after { animation: none; width: 100%; opacity: .35; }
+.motion-b svg { width: 16px; height: 16px; }
+.motion-b[aria-pressed="true"] { background: var(--sky); border-color: var(--sky-line); color: var(--sky-ink); }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Nothing idles and progress is a still bar: the end frames, at once. */
+  /* Nothing idles, the pause has nothing to pause, and progress is a still bar: the end frames, at once. */
   .stored::before, .rt-tk.nowtk::after, .rt-tk.checking::before { animation: none; }
+  .motion-b { display: none; }
   .ck-bar i, .btn.running::after, .entry.checking::after { animation: none; width: 100%; opacity: .35; }
 }

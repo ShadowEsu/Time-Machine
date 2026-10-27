@@ -9,8 +9,7 @@ import { pointAt, pointTime, sentenceStart, twinOrdinal, verdictWord, versionPhr
  * three that are always there, then any other verdict among the save points shown.
  */
 export function legendItems(checks: boolean, shown: readonly (Verdict | null)[]): { v: Verdict | null; word: string }[] {
-  // No check now: old verdicts stay in the legend as history, and a save point with none is "Saved", never "Not checked yet".
-  if (!checks) return [...(["PASS", "FAIL", "INCOMPLETE", "BLOCKED", "ERROR"] as const).filter((v) => shown.includes(v)).map((v) => ({ v, word: verdictWord(v) })), { v: null, word: "Saved" }];
+  if (!checks && shown.every((v) => v === null)) return [{ v: null, word: "Saved" }];
   const extra = (["INCOMPLETE", "BLOCKED", "ERROR"] as const).filter((v) => shown.includes(v));
   return [...(["PASS", "FAIL", null] as const), ...extra].map((v) => ({ v, word: verdictWord(v) }));
 }
@@ -77,10 +76,10 @@ export function brokenSince<T extends StatusPoint>(points: T[]): T | null {
 export const goBackLabel = (c: StatusPoint, peers: readonly StatusPoint[]): string => `Bring back ${versionPhrase(c, peers)}`;
 
 /** The button form: "Bring back 2:36 AM". The time alone, with seconds only when another save point shares the minute,
- *  and a twin by its order first ("Bring back the first save at 2:36:56 AM"), never "#N". `goBackLabel` is its title. */
+ *  and a twin's order after it ("Bring back 2:36:56 AM (first save)"), never "#N". `goBackLabel` is its title. */
 export function goBackShort(c: StatusPoint, peers: readonly StatusPoint[]): string {
   const nth = twinOrdinal(c, peers);
-  return nth ? `Bring back the ${nth} save at ${pointTime(c, peers)}` : `Bring back ${pointTime(c, peers)}`;
+  return `Bring back ${pointTime(c, peers)}${nth ? ` (${nth} save)` : ""}`;
 }
 
 /** The go-back button: the short label on the face, the whole phrase in its title. */
@@ -97,11 +96,11 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
   const check: StatusButton = { label: "Check it works", act: "check" };
   if (!newest) return { v: null, head: "No save points yet.", voice: "", body: checks ? "Save now, then check that it works." : "Save now to keep the first version.", primary: save, secondary: null };
   // Times say the minute, and add the seconds only when another save point shares that minute, as the buttons do:
-  // "the 9:48 AM version" must never name two versions. Two in one second are said by order, "the second save at 9:48:05 AM", never "#N".
+  // "the 9:48 AM version" must never name two versions. Two in one second add their order, "9:48:05 AM (second save)", never "#N".
   const said = (c: StatusPoint): string => pointAt(c, points);
-  const savedAt = (c: StatusPoint): string => `Saved ${twinOrdinal(c, points) ? "as " : ""}${said(c)}.`;
+  const savedAt = (c: StatusPoint): string => `Saved ${said(c)}.`;
   if (!checks && newest.verdict === null) {
-    return { v: null, head: savedAt(newest), voice: "", body: "Kept on this computer, outside the folder. Open any version to compare it or bring it back as a copy.", primary: save, secondary: null };
+    return { v: null, head: `Saved ${said(newest)}.`, voice: "", body: "Kept on this computer, outside the folder. Open any version to compare it or bring it back as a copy.", primary: save, secondary: null };
   }
   const lw = lastWorking(points);
   const goBack: StatusButton | null = lw ? goBackButton(lw, points) : null;
@@ -115,7 +114,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
         v: "FAIL",
         head: "Broken.",
         voice,
-        body: `${stillWorks} Bringing it back puts it on a new branch and in a copy. Your folder is not touched.`,
+        body: `${stillWorks} Bringing it back puts it on a new branch and in a recovery copy. Your folder is not touched.`,
         primary: goBackButton(lw, points),
         secondary: { label: "See what changed", act: "compare", a: lw.id, b: "now" },
       };
@@ -125,7 +124,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
         v: "PASS",
         head: "Works.",
         voice: checkedAt ? `Checked at ${when(checkedAt)}.` : savedAt(newest),
-        body: "Your newest save point passed its check in a copy. Save again after your next change.",
+        body: "Your newest save point passed its check in a safe copy. Save again after your next change.",
         primary: save,
         secondary: check,
       };
@@ -140,7 +139,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
         v: null,
         head: "Not checked yet.",
         voice: savedAt(newest),
-        body: "Run your check in a copy to find out if this version works.",
+        body: "Run your check in a safe copy to find out if this version works.",
         primary: check,
         secondary: goBack,
       };
@@ -159,111 +158,4 @@ export function passStreaks(entries: readonly { action: string; target: string |
     streaks.set(e.target, e.result === "PASS" ? (streaks.get(e.target) ?? 0) + 1 : 0);
   }
   return streaks;
-}
-
-/** True for an engine reason that says a save point failed its integrity check: it is damaged, not a check that crashed. */
-export function isDamagedReason(reason: string): boolean {
-  return /failed its integrity check|is missing from this repository|gone from the store/i.test(reason);
-}
-
-/** The engine's reason as the app says it. "No check is set up" for a Git project names the file and key for the tm
- *  command line (packages/core/src/verify.ts); the app points to its own place for a check instead. */
-export function checkReason(reason: string): string {
-  return /^No check is set up\. Add verify\.command to timemachine\.yml\b/.test(reason) ? "No check is set up yet. Set one in Settings, under Check." : reason;
-}
-
-/**
- * The sentence that says why a save point is damaged, or null when it is whole. From the engine's `damaged` field when it
- * sends one; else from the shape an unreadable save point has in the timeline (no time, no trigger, the reason as its note).
- */
-export function damagedReason(c: Pick<TimelineEntry, "createdAt" | "trigger" | "note" | "verdict"> & { damaged?: string }): string | null {
-  if (c.damaged) return c.damaged;
-  if (!c.createdAt && !c.trigger && c.verdict === "ERROR") return c.note || "This save point can’t be read.";
-  return null;
-}
-
-/** What one save point changed since the one before it, by kind, as the diff reports it. */
-export interface ChangeKinds {
-  added: readonly string[];
-  removed: readonly string[];
-  changed: readonly string[];
-}
-
-/** Files the system writes on its own: never the news of a save point. */
-const OS_JUNK = /(^|\/)(\.DS_Store|Thumbs\.db|desktop\.ini|\._[^/]*)$/;
-const VERB: { [K in keyof ChangeKinds]: string } = { removed: "deleted", added: "added", changed: "changed" };
-
-/**
- * A save point's change in a few words, the biggest event first, grouped by top folder: "309 files deleted",
- * "300 added in notes/, chapter-2.md changed, chapter-3.md deleted and 1 more". A single file is named. Empty when
- * nothing changed. The diff has no renames, so a rename reads as one deleted and one added.
- */
-export function changeSummary(k: ChangeKinds): string {
-  const kinds = (["removed", "added", "changed"] as const).map((kind) => ({ kind, paths: k[kind].filter((f) => !OS_JUNK.test(f)) }));
-  const total = kinds.reduce((n, x) => n + x.paths.length, 0);
-  if (!total) return "";
-  const base = (f: string): string => f.split("/").filter(Boolean).at(-1) ?? f;
-  const top = (f: string): string => (f.includes("/") ? `${f.split("/")[0]}/` : "");
-  const used = kinds.filter((x) => x.paths.length);
-  const [only] = used;
-  if (used.length === 1 && only) {
-    const verb = VERB[only.kind];
-    const [first] = only.paths;
-    if (only.paths.length === 1 && first) return `${base(first)} ${verb}`;
-    const folders = new Set(only.paths.map(top));
-    const [folder] = folders;
-    return `${only.paths.length} files ${verb}${folders.size === 1 && folder ? ` in ${folder}` : ""}`;
-  }
-  // One event per kind and top folder, biggest first; equal sizes keep the order deleted, added, changed.
-  const events: { kind: keyof ChangeKinds; folder: string; paths: string[] }[] = [];
-  for (const { kind, paths } of used) {
-    for (const f of paths) {
-      const folder = top(f);
-      const e = events.find((x) => x.kind === kind && x.folder === folder);
-      if (e) e.paths.push(f);
-      else events.push({ kind, folder, paths: [f] });
-    }
-  }
-  events.sort((a, b) => b.paths.length - a.paths.length);
-  const said = events.slice(0, 3).map((e) => {
-    const [first] = e.paths;
-    return e.paths.length === 1 && first ? `${base(first)} ${VERB[e.kind]}` : `${e.paths.length} ${VERB[e.kind]}${e.folder ? ` in ${e.folder}` : ""}`;
-  });
-  const rest = events.slice(3).reduce((n, e) => n + e.paths.length, 0);
-  return rest ? `${said.join(", ")} and ${rest} more` : said.join(", ");
-}
-
-/** Save points newest first by when they were made; equal times keep the newer id first. For the journal's day groups. */
-export function newestByTime<T extends { createdAt: string }>(points: readonly T[]): T[] {
-  return points.map((c, i) => ({ c, i, t: Date.parse(c.createdAt) })).sort((a, b) => b.t - a.t || b.i - a.i).map((x) => x.c);
-}
-
-/** What the Git details line needs from a save point. `subject` is the HEAD commit's subject, when the engine read it. */
-export type GitPoint = Pick<TimelineEntry, "id" | "head" | "branch" | "coverage"> & { subject?: string | null };
-
-/** How many tracked files had changes not committed yet ("including 2 uncommitted changes"); untracked files never count (dev#38). */
-export function uncommittedCount(c: Pick<TimelineEntry, "coverage">): number {
-  for (const l of c.coverage.captured) {
-    const m = l.startsWith("Code:") ? /including (\d+) uncommitted/.exec(l) : null;
-    if (m?.[1]) return Number(m[1]);
-  }
-  return 0;
-}
-
-/**
- * The Git details line for a row: the person's own HEAD, never the snapshot commit Time Machine made ("main · 497e8b8
- * Tweak discount tier 29 + 2 uncommitted", "detached at e5dd44b"). A plain folder has no Git of its own: only the id.
- */
-export function gitLine(c: GitPoint, kind: "git" | "folder"): string {
-  if (kind === "folder" || !c.head) return c.id;
-  const sha = c.head.slice(0, 7);
-  const where = c.branch ? `${c.branch} · ${sha}` : `detached at ${sha}`;
-  const n = uncommittedCount(c);
-  return `${where}${c.subject ? ` ${c.subject}` : ""}${n ? ` + ${n} uncommitted` : ""}`;
-}
-
-/** The branch a row was saved on, when it differs from the save point before it: "on feature/x", "detached at e5dd44b". Else "". */
-export function branchShift(c: Pick<TimelineEntry, "branch" | "head">, before: Pick<TimelineEntry, "branch" | "head"> | undefined, kind: "git" | "folder"): string {
-  if (kind === "folder" || !before || !c.head || c.branch === before.branch) return "";
-  return c.branch ? `on ${c.branch}` : `detached at ${c.head.slice(0, 7)}`;
 }

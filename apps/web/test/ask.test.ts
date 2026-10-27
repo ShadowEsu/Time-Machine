@@ -3,11 +3,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { z } from "zod";
 import * as tm from "@timetm/core";
 import { FAKE_SECRET } from "../../../packages/core/src/demo-project.ts";
 import { setupDemo, tempDir } from "../../../fixtures/demo/setup.ts";
-import { ANTHROPIC_MODEL, ANTHROPIC_URL, askHistory, buildContext, gatherFacts, GEMINI_MODEL, GEMINI_URL, MAX_POINTS, parseAnswer, type AskDeps } from "../src/server/ask.ts";
+import { askHistory, buildContext, gatherFacts, GEMINI_MODEL, GEMINI_URL, MAX_POINTS, parseAnswer, type AskDeps } from "../src/server/ask.ts";
 import { Credentials, readDevEnv, type Cipher } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
@@ -16,7 +15,6 @@ import { ASK_EXAMPLES } from "../src/shared/ask.ts";
 import { FakeEngine } from "../preview/fake.ts";
 
 const KEY = "test-gemini-key-not-real";
-const ANTHROPIC_KEY = "test-anthropic-key-not-real";
 /** A value that does not look like a key. Only the project's .env says it is secret. */
 const ENV_VALUE = "marigold-river-otter";
 const CONTENT = "CONTENT-MARKER-42";
@@ -121,7 +119,7 @@ describe("asking", () => {
     const { ctx, entry } = await seeded();
     const { fetch, sent } = fakeFetch(() => answer("x", []));
     await expect(askHistory({ ...entry, features: { ask: false, vercel: null, autoSave: "off" } }, ctx, "When did it last work?", { key: KEY, fetch })).rejects.toThrow(/off for marigold/);
-    await expect(askHistory(entry, ctx, "When did it last work?", { key: null, anthropicKey: null, fetch })).rejects.toThrow(/Add a Gemini API key in Settings, or set GEMINI_API_KEY or ANTHROPIC_API_KEY/);
+    await expect(askHistory(entry, ctx, "When did it last work?", { key: null, fetch })).rejects.toThrow(/Add a Gemini API key/);
     expect(sent).toHaveLength(0);
   });
 
@@ -164,40 +162,6 @@ describe("asking", () => {
     const text = err instanceof Error ? err.message : "";
     expect(text).toMatch(message);
     expect(text).not.toContain(KEY);
-  });
-
-  test("with only an Anthropic key: one Messages request with the same history and redaction, and the JSON in the reply is read", async () => {
-    const { ctx, entry } = await seeded();
-    const reply = { id: "msg_x", type: "message", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: '```json\n{"answer": "It last worked at the save at 10:42.", "cites": ["cp-0003"]}\n```' }] };
-    const { fetch, sent } = fakeFetch(() => new Response(JSON.stringify(reply), { status: 200, headers: { "content-type": "application/json" } }));
-    const r = await askHistory(entry, ctx, "When did it last work?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch });
-    expect(r).toEqual({ answer: "It last worked at the save at 10:42.", cites: ["cp-0003"], basis: 7 });
-    const req = sent[0];
-    if (!req) throw new Error("no request");
-    expect(sent).toHaveLength(1);
-    expect(req.url).toBe(ANTHROPIC_URL);
-    expect(req.headers).toMatchObject({ "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" });
-    const body: unknown = JSON.parse(req.body);
-    expect(body).toMatchObject({ model: ANTHROPIC_MODEL, max_tokens: 2048, system: expect.stringContaining("Answer only from the history"), messages: [{ role: "user", content: expect.stringMatching(/Question: When did it last work\?$/) }] });
-    for (const leak of [ANTHROPIC_KEY, ENV_VALUE, FAKE_SECRET, CONTENT]) expect(req.body).not.toContain(leak);
-    // The same facts as the Gemini request: only the envelope differs.
-    const gemini = fakeFetch(() => answer("x", []));
-    await askHistory(entry, ctx, "When did it last work?", { key: KEY, anthropicKey: ANTHROPIC_KEY, fetch: gemini.fetch });
-    expect(gemini.sent[0]?.url).toBe(GEMINI_URL);
-    const claudeInput = z.object({ messages: z.array(z.object({ content: z.string() })).length(1) }).parse(body).messages[0]?.content;
-    expect(JSON.parse(gemini.sent[0]?.body ?? "{}")).toMatchObject({ input: claudeInput });
-  });
-
-  test("TM_ASK_MODEL picks the Claude model, and Anthropic errors are plain sentences without the key", async () => {
-    const { ctx, entry } = await seeded();
-    const missing = fakeFetch(() => new Response(JSON.stringify({ type: "error", error: { message: `bad ${ANTHROPIC_KEY}` } }), { status: 404 }));
-    const err = await askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, anthropicModel: "claude-haiku-4-5", fetch: missing.fetch }).catch((e: unknown) => e);
-    expect(JSON.parse(missing.sent[0]?.body ?? "{}")).toMatchObject({ model: "claude-haiku-4-5" });
-    expect(err instanceof Error && err.message).toBe("Claude does not offer the model claude-haiku-4-5. Check TM_ASK_MODEL, or unset it to use claude-sonnet-4-5.");
-    const denied = fakeFetch(() => new Response("{}", { status: 401 }));
-    await expect(askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch: denied.fetch })).rejects.toThrow("Claude did not accept the API key. Check ANTHROPIC_API_KEY.");
-    const cut = fakeFetch(() => new Response(JSON.stringify({ stop_reason: "max_tokens", content: [{ type: "text", text: '{"answer": "It' }] }), { status: 200 }));
-    await expect(askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch: cut.fetch })).rejects.toThrow(/Claude stopped before the answer was finished/);
   });
 
   test("a request that takes too long is stopped", async () => {
@@ -246,7 +210,7 @@ describe("the engine", () => {
     const { dir, ctx, entry } = await seeded();
     const appDir = join(tempDir("app"), "data");
     const state = new AppState(appDir);
-    state.updateProjects((list) => [...list, { ...entry, features: { ask: false, vercel: null, autoSave: "off" } }]);
+    state.projects.push({ ...entry, features: { ask: false, vercel: null, autoSave: "off" } });
     const { fetch, sent } = fakeFetch(() => answer("It last worked at the save at 10:42, Added dark mode.", ["cp-0003"]));
     const engine = new Engine(state, { candidates: ["false"], version: "9.9.9" }, { credentials: new Credentials(join(dir, "..", "credentials.json"), noCipher, { GEMINI_API_KEY: KEY }), fetch });
     const before = process.env.TM_HOME;
@@ -260,7 +224,7 @@ describe("the engine", () => {
       expect(new AppState(appDir).find(entry.id)?.features.ask).toBe(true);
       const r = await engine.run({ method: "ask", projectId: entry.id, question: "When did it last work?" });
       expect(r).toEqual({ ok: true, data: { answer: "It last worked at the save at 10:42, Added dark mode.", cites: ["cp-0003"], basis: 7 } });
-      expect(await engine.run({ method: "credentials" })).toEqual({ ok: true, data: { gemini: true, anthropic: false, vercel: false, provider: "gemini" } });
+      expect(await engine.run({ method: "credentials" })).toEqual({ ok: true, data: { gemini: true, vercel: false } });
     } finally {
       if (before === undefined) delete process.env.TM_HOME;
       else process.env.TM_HOME = before;
@@ -279,22 +243,14 @@ describe("keys", () => {
   test("are stored encrypted, read back, removed, and the environment wins", () => {
     const file = join(tempDir("keys"), "credentials.json");
     const c = new Credentials(file, cipher, {});
-    expect(c.status()).toEqual({ gemini: false, anthropic: false, vercel: false, provider: null });
+    expect(c.status()).toEqual({ gemini: false, vercel: false });
     c.set("gemini", KEY);
     expect(readFileSync(file, "utf8")).not.toContain(KEY);
     expect(c.get("gemini")).toBe(KEY);
-    expect(c.status()).toEqual({ gemini: true, anthropic: false, vercel: false, provider: "gemini" });
+    expect(c.status()).toEqual({ gemini: true, vercel: false });
     expect(new Credentials(file, cipher, { GEMINI_API_KEY: "from-env" }).get("gemini")).toBe("from-env");
     c.set("gemini", null);
     expect(c.get("gemini")).toBeNull();
-  });
-
-  test("ANTHROPIC_API_KEY is read too; Ask uses it when no Gemini key is set", () => {
-    const file = join(tempDir("keys"), "credentials.json");
-    const c = new Credentials(file, cipher, { ANTHROPIC_API_KEY: ANTHROPIC_KEY });
-    expect(c.get("anthropic")).toBe(ANTHROPIC_KEY);
-    expect(c.status()).toEqual({ gemini: false, anthropic: true, vercel: false, provider: "anthropic" });
-    expect(new Credentials(file, cipher, { ANTHROPIC_API_KEY: ANTHROPIC_KEY, GEMINI_API_KEY: KEY }).status().provider).toBe("gemini");
   });
 
   test("are not saved when this Mac can't encrypt them", () => {

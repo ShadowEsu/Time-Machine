@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { tempDir } from "../../../fixtures/demo/setup.ts";
-import { failingLine, failingTests, tailHtml } from "../src/renderer/log-tail.ts";
+import { tailHtml } from "../src/renderer/log-tail.ts";
 import { Credentials, type Cipher } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
@@ -47,32 +47,5 @@ describe("T11 the lines on screen", () => {
     expect(tailHtml(log, { state: "done", tail: { log, lines: [], binary: true, hidden: false } })).not.toContain("<pre");
     expect(tailHtml(log, { state: "done", tail: { log, lines: [], binary: false, hidden: true } })).not.toContain("<pre");
     expect(tailHtml(log, { state: "done", tail: null })).toBe("");
-  });
-
-  test("while the end is read it says so, so a slow read never looks like a check that printed nothing", () => {
-    expect(tailHtml(log, { state: "loading" })).toContain("Reading the end of what it printed");
-    expect(tailHtml(log, undefined)).toContain("Reading the end of what it printed");
-  });
-
-  test("the failing tests' names lead the block", () => {
-    const html = tailHtml(log, done(["✖ failing tests:", "", "✖ price multiplies (3.68ms)", "  AssertionError: 301 !== 300"]));
-    expect(html).toContain("Failing: price multiplies");
-    expect(html.indexOf("Failing:")).toBeLessThan(html.indexOf("<pre"));
-  });
-});
-
-describe("failing test names", () => {
-  test("node's test runner, TAP, Jest and Vitest", () => {
-    expect(failingTests(["✔ price adds (0.4ms)", "✖ price multiplies (3.689416ms)", "✖ failing tests:", "✖ price multiplies (3.689416ms)"])).toEqual(["price multiplies"]);
-    expect(failingTests(["ok 1 - adds", "not ok 2 - multiplies", "not ok 3 rounds # TODO"])).toEqual(["multiplies", "rounds"]);
-    expect(failingTests(["PASS src/a.test.js", "FAIL src/price.test.js", " FAIL  src/b.test.ts > rounds"])).toEqual(["src/price.test.js", "src/b.test.ts > rounds"]);
-    expect(failingTests(["  ● price › multiplies", "  ● Console"])).toEqual(["price › multiplies"]);
-    expect(failingTests(["all good", "exit code 1"])).toEqual([]);
-  });
-
-  test("the line names at most three, then how many more", () => {
-    expect(failingLine([])).toBe("");
-    expect(failingLine(["a"])).toBe("Failing: a");
-    expect(failingLine(["a", "b", "c", "d", "e"])).toBe("Failing: a, b, c and 2 more");
   });
 });

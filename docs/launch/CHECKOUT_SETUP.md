@@ -68,9 +68,8 @@ Until then, everything above runs in Stripe test mode only, with test keys (`sk_
 The site has no license database. When a buyer signs in, the site asks Stripe for the paid sessions under that email and derives the same keys the thanks page showed. Sign-in uses a one-time code sent by email through Supabase Auth.
 
 1. Use the same Supabase project as the waitlist (`docs/launch/SUPABASE_SETUP.md`).
-2. In Supabase, Authentication, Providers: turn **Email** on, keep **Confirm email** on, and keep **Enable email OTP** on. Never turn Confirm email off: with it off, anyone can sign up with a buyer's email and a password of their choosing, and Supabase marks that email as confirmed at once. The account page refuses a password session (it accepts only sessions signed in with a code, see step 7), so it would not show that buyer's keys, but the account in Supabase would still be theirs to sign in to. A new sign-in still takes one step with Confirm email on: Supabase creates the user and sends the code in the **Confirm signup** mail, and the site's code check accepts it.
-3. In Authentication, Email Templates, put `{{ .Token }}` in the body of both **Confirm signup** (a buyer's first sign-in) and **Magic Link** (every sign-in after that). Without it the mail holds only a link, and the site's form asks for a code.
-   Keep **Phone** sign-in off. The account page accepts only a session that signed in with a code (`amr` method `otp`), and a phone code counts as one too.
+2. In Supabase, Authentication, Providers: turn **Email** on. Turn **Confirm email** off and keep **Enable email OTP** on, so a new sign-in creates the user and sends a code in one step.
+3. In Authentication, Email Templates, edit **Magic Link** so it shows the code: put `{{ .Token }}` in the body. Without it the mail holds only a link, and the site's form asks for a code.
 4. In Vercel, set `SUPABASE_ANON_KEY` to the project's anon key (`SUPABASE_URL` is already set for the waitlist). The site never falls back to `SUPABASE_KEY`: sign-in stays off until `SUPABASE_ANON_KEY` is set on purpose. Redeploy and check that `/api/health` shows `"auth": true`.
 5. Supabase's built-in email sender is for testing only. It allows a few messages per hour and may be delayed. Before launch, set a custom SMTP provider in Authentication, SMTP Settings, and raise the rate limits in Authentication, Rate Limits.
 
@@ -81,7 +80,6 @@ The site has no license database. When a buyer signs in, the site asks Stripe fo
 
 Until one is chosen and `SUPABASE_ANON_KEY` is set, sign-in answers `503 auth_closed` and the thanks page remains the only place a key is shown. The built-in email sender limit above applies either way.
 6. Test it: on the site, open the sign-in page, enter the email used for the test purchase, enter the code from the mail, and check that the same `TM1.` key appears.
-7. Before sign-in opens, run the takeover test once on a test Supabase project with a test purchase. First sign up the buyer's email with a password (`POST /auth/v1/signup`). Then sign in as the buyer with the emailed code. Then sign in with that password (`POST /auth/v1/token?grant_type=password`) and call `/api/account` with its token. It must answer `401`. The account page refuses any session whose `amr` is not only `otp`, because a password set before the buyer confirmed the email survives that confirmation.
 
 A sign-in only ever shows keys for the email that paid. Codes expire after the time set in Supabase (one hour by default). The site keeps nothing about the sign-in; the browser holds the session until the tab closes.
 

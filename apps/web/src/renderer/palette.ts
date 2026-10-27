@@ -30,11 +30,6 @@ export function filterPalette(items: PaletteItem[], query: string): PaletteItem[
   });
 }
 
-/** The Reduce motion switch of Settings > Appearance, one item away in Jump to. Its hint says whether it is on now. */
-export function reduceMotionItem(on: boolean): PaletteItem {
-  return { group: "Actions", label: "Reduce motion", hint: on ? "On" : "Off", act: "reduce-motion" };
-}
-
 /** A save point in Jump to: its time, then the name it was given in its detail (else the one History made), then its verdict
  *  word, after "Pinned" when it is pinned. The given name is searched like any title. */
 export function savePointItem(c: { id: string; verdict: Verdict | null }, time: string, made: string, note: RunNote | undefined, hint: string): PaletteItem {

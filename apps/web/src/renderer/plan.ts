@@ -15,11 +15,6 @@ export interface LicenseView {
   error: string | null;
 }
 
-/** The license once a save answered: a saved key clears the field, a refused one keeps it and says the engine's sentence. */
-export function licenseAfterSave(l: LicenseView, outcome: { status: LicenseStatus } | { error: string }): LicenseView {
-  return "status" in outcome ? { status: outcome.status, draft: "", working: false, error: null } : { ...l, working: false, error: outcome.error };
-}
-
 /** Signing in to get a key. Held in memory only: quitting tm ui signs out and forgets it all. */
 export interface AccountView {
   /** What the site has open; null while it is read, "error" when it could not be reached. */

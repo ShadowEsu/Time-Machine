@@ -1,21 +1,15 @@
 // Ask about your history: answers a question about one project from its save points, with
-// Google's Gemini API or Anthropic's Claude API, whichever key the person set (Gemini first).
-// Off until the person turns it on for the project (ADR 0008). Only facts the app already shows
-// are sent, each screened for secrets. Never file contents, check output or secret values.
-// ASK_CONSENT in shared/ask.ts lists the same facts.
+// Google's Gemini API. Off until the person turns it on for the project (ADR 0008).
+// Only facts the app already shows are sent, each screened for secrets. Never file contents,
+// check output or secret values. ASK_CONSENT in shared/ask.ts lists the same facts.
 import * as tm from "@timetm/core";
 import { z } from "zod";
 import type { AskResult, ProjectEntry } from "../shared/api.js";
-import type { AskProvider } from "../shared/ask.js";
 import { pointTitle } from "../shared/format.js";
 
 export const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 /** Fast and low cost. Uses the documented Flash-Lite model for these short history questions. */
 export const GEMINI_MODEL = "gemini-3.5-flash-lite";
-export const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-/** The Claude model, unless TM_ASK_MODEL names another. */
-export const ANTHROPIC_MODEL = "claude-sonnet-4-5";
-const ANTHROPIC_VERSION = "2023-06-01";
 export const ASK_TIMEOUT_MS = 30_000;
 /** Only the newest save points are sent. */
 export const MAX_POINTS = 50;
@@ -55,16 +49,7 @@ const InteractionSchema = z.object({
     .default([]),
 });
 
-const MessageSchema = z.object({
-  stop_reason: z.string().nullable(),
-  content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
-});
-
-const NAME: Record<AskProvider, string> = { gemini: "Gemini", anthropic: "Claude" };
-
-function unreadable(provider: AskProvider): string {
-  return `${NAME[provider]} sent an answer this app could not read, so nothing is shown. Try again.`;
-}
+const UNREADABLE = "Gemini sent an answer this app could not read, so nothing is shown. Try again.";
 
 /** Everything the context is built from. Gathered by gatherFacts, or made up in tests. */
 export interface HistoryFacts {
@@ -157,7 +142,7 @@ export async function gatherFacts(ctx: tm.Ctx, projectName: string): Promise<His
 }
 
 /** The model's reply text checked against the required JSON. Cites keep only ids that were sent, oldest first. Basis counts the ids sent. */
-export function parseAnswer(text: string, ids: string[], provider: AskProvider = "gemini"): AskResult {
+export function parseAnswer(text: string, ids: string[]): AskResult {
   let raw: unknown = null;
   try {
     raw = JSON.parse(text);
@@ -165,102 +150,72 @@ export function parseAnswer(text: string, ids: string[], provider: AskProvider =
     // Not JSON: rejected below.
   }
   const r = AnswerSchema.safeParse(raw);
-  if (!r.success) throw new tm.TmError("internal", unreadable(provider));
+  if (!r.success) throw new tm.TmError("internal", UNREADABLE);
   return { answer: r.data.answer.replace(/\s*\u2014\s*/g, ", "), cites: ids.filter((id) => r.data.cites.includes(id)), basis: ids.length };
 }
 
-function httpProblem(provider: AskProvider, status: number, model: string): string {
-  if (provider === "anthropic") {
-    if (status === 401 || status === 403) return "Claude did not accept the API key. Check ANTHROPIC_API_KEY.";
-    if (status === 404) return `Claude does not offer the model ${model}. Check TM_ASK_MODEL, or unset it to use ${ANTHROPIC_MODEL}.`;
-    if (status === 429) return "This Anthropic API key has reached its limit for now. Try again later.";
-  } else {
-    if (status === 401 || status === 403) return "Gemini did not accept the API key. Check it in Settings.";
-    if (status === 404) return "Gemini no longer offers the model this app uses. An app update is needed.";
-    if (status === 429) return "This Gemini API key has reached its limit for now. Try again later, or raise the limit in Google AI Studio.";
-  }
-  if (status === 400) return `${NAME[provider]} did not accept the request. Check the API key in Settings, then try again.`;
-  if (status >= 500) return `${NAME[provider]} is having trouble right now. Try again in a minute.`;
-  return `${NAME[provider]} answered with an error (HTTP ${status}). Try again.`;
+function httpProblem(status: number): string {
+  if (status === 401 || status === 403) return "Gemini did not accept the API key. Check it in Settings.";
+  if (status === 400) return "Gemini did not accept the request. Check the API key in Settings, then try again.";
+  if (status === 404) return "Gemini no longer offers the model this app uses. An app update is needed.";
+  if (status === 429) return "This Gemini API key has reached its limit for now. Try again later, or raise the limit in Google AI Studio.";
+  if (status >= 500) return "Gemini is having trouble right now. Try again in a minute.";
+  return `Gemini answered with an error (HTTP ${status}). Try again.`;
 }
 
 export interface AskDeps {
-  /** The Gemini API key, or null when none is set. Used first. */
+  /** The Gemini API key, or null when none is set. */
   key: string | null;
-  /** The Anthropic API key, used when no Gemini key is set. */
-  anthropicKey?: string | null;
-  /** The Claude model: ANTHROPIC_MODEL unless TM_ASK_MODEL names another. */
-  anthropicModel?: string;
   fetch: typeof fetch;
   timeoutMs?: number;
 }
 
-/** Sends one request and returns the parsed JSON body. Every failure becomes one plain sentence. */
-async function post(provider: AskProvider, model: string, deps: AskDeps, url: string, headers: Record<string, string>, body: unknown): Promise<unknown> {
+/** Sends one request and returns the reply text. Every failure becomes one plain sentence. */
+async function callGemini(deps: AskDeps & { key: string }, input: string): Promise<string> {
   const timeoutMs = deps.timeoutMs ?? ASK_TIMEOUT_MS;
   let status: number;
-  let json: unknown;
+  let body: unknown;
   try {
-    const res = await deps.fetch(url, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+    const res = await deps.fetch(GEMINI_URL, {
+      method: "POST",
+      headers: { "x-goog-api-key": deps.key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: GEMINI_MODEL,
+        // Asks Google not to keep the interaction for later retrieval. Each question stands alone.
+        store: false,
+        system_instruction: SYSTEM,
+        input,
+        generation_config: { thinking_level: "low", max_output_tokens: 2048 },
+        response_format: { type: "text", mime_type: "application/json", schema: ANSWER_JSON_SCHEMA },
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     status = res.status;
-    json = res.ok ? await res.json() : null;
+    body = res.ok ? await res.json() : null;
   } catch (e) {
     const timedOut = typeof e === "object" && e !== null && "name" in e && (e.name === "TimeoutError" || e.name === "AbortError");
-    if (timedOut) throw new tm.TmError("internal", `${NAME[provider]} did not answer within ${Math.round(timeoutMs / 1000)} seconds. Try again.`);
-    if (e instanceof SyntaxError) throw new tm.TmError("internal", unreadable(provider));
-    throw new tm.TmError("internal", `Could not reach ${NAME[provider]}. Check the internet connection and try again.`);
+    if (timedOut) throw new tm.TmError("internal", `Gemini did not answer within ${Math.round(timeoutMs / 1000)} seconds. Try again.`);
+    if (e instanceof SyntaxError) throw new tm.TmError("internal", UNREADABLE);
+    throw new tm.TmError("internal", "Could not reach Gemini. Check the internet connection and try again.");
   }
-  if (status < 200 || status >= 300) throw new tm.TmError("internal", httpProblem(provider, status, model));
-  return json;
-}
-
-/** One Gemini Interactions request. Returns the reply text. */
-async function callGemini(deps: AskDeps, key: string, input: string): Promise<string> {
-  const body = await post("gemini", GEMINI_MODEL, deps, GEMINI_URL, { "x-goog-api-key": key }, {
-    model: GEMINI_MODEL,
-    // Asks Google not to keep the interaction for later retrieval. Each question stands alone.
-    store: false,
-    system_instruction: SYSTEM,
-    input,
-    generation_config: { thinking_level: "low", max_output_tokens: 2048 },
-    response_format: { type: "text", mime_type: "application/json", schema: ANSWER_JSON_SCHEMA },
-  });
+  if (status < 200 || status >= 300) throw new tm.TmError("internal", httpProblem(status));
   const r = InteractionSchema.safeParse(body);
-  if (!r.success) throw new tm.TmError("internal", unreadable("gemini"));
+  if (!r.success) throw new tm.TmError("internal", UNREADABLE);
   if (r.data.status === "incomplete") throw new tm.TmError("internal", "Gemini stopped before the answer was finished. Try a shorter question.");
   if (r.data.status !== "completed") throw new tm.TmError("internal", "Gemini did not finish the answer. Try again.");
   const output = r.data.steps.filter((s) => s.type === "model_output").at(-1);
   return (output?.content ?? []).flatMap((c) => (c.type === "text" && c.text ? [c.text] : [])).join("");
 }
 
-/** One Anthropic Messages request with the same instructions. Returns the JSON object in the reply text. */
-async function callAnthropic(deps: AskDeps, key: string, input: string): Promise<string> {
-  const model = deps.anthropicModel ?? ANTHROPIC_MODEL;
-  const body = await post("anthropic", model, deps, ANTHROPIC_URL, { "x-api-key": key, "anthropic-version": ANTHROPIC_VERSION }, {
-    model,
-    max_tokens: 2048,
-    system: SYSTEM,
-    messages: [{ role: "user", content: input }],
-  });
-  const r = MessageSchema.safeParse(body);
-  if (!r.success) throw new tm.TmError("internal", unreadable("anthropic"));
-  if (r.data.stop_reason === "max_tokens") throw new tm.TmError("internal", "Claude stopped before the answer was finished. Try a shorter question.");
-  const text = r.data.content.flatMap((c) => (c.type === "text" && c.text ? [c.text] : [])).join("");
-  // Claude has no JSON mode here: the reply may wrap the object in a code fence or a sentence.
-  return text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-}
-
 /** Answers a question about one project. Refuses unless the person turned Ask on for it. */
 export async function askHistory(p: ProjectEntry, ctx: tm.Ctx, question: string, deps: AskDeps): Promise<AskResult> {
   if (!p.features.ask) throw new tm.TmError("usage", `Ask about your history is off for ${p.name}. Turn it on for this project first.`);
-  // Gemini first when both keys are set, so a person who set up Gemini keeps it.
-  const use = deps.key ? { provider: "gemini" as const, key: deps.key } : deps.anthropicKey ? { provider: "anthropic" as const, key: deps.anthropicKey } : null;
-  if (!use) throw new tm.TmError("usage", "Ask needs an API key. Add a Gemini API key in Settings, or set GEMINI_API_KEY or ANTHROPIC_API_KEY before you start Time Machine.");
+  const key = deps.key;
+  if (!key) throw new tm.TmError("usage", "Add a Gemini API key in Settings first.");
   const facts = await gatherFacts(ctx, p.name);
   if (facts.flagged(question)) throw new tm.TmError("usage", "Your question looks like it holds a secret, so it was not sent. Ask it without the secret.");
   if (!facts.checkpoints.length) throw new tm.TmError("usage", "There are no save points yet, so there is no history to ask about.");
   const { text, ids } = buildContext(facts);
-  const input = `${text}\n\nQuestion: ${question}`;
-  const reply = use.provider === "gemini" ? await callGemini(deps, use.key, input) : await callAnthropic(deps, use.key, input);
-  return parseAnswer(reply, ids, use.provider);
+  const reply = await callGemini({ ...deps, key }, `${text}\n\nQuestion: ${question}`);
+  return parseAnswer(reply, ids);
 }

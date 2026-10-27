@@ -15,18 +15,8 @@ export const SOURCE_PURPOSE: { [K in SourceId]: Purpose | null } = {
   icloud: "documents", dropbox: "documents", gdrive: "documents", onedrive: "documents", obsidian: "documents", documents: "documents", desktop: null,
 };
 
-/** A path as Finder names it: iCloud's storage folder as iCloud Drive (writer#31), the home folder as ~. The page wraps it
- *  anywhere when the line is short; the full path is in the title. */
-export const shownPath = (path: string): string =>
-  path.replace(/^.*\/Library\/Mobile Documents\/com~apple~CloudDocs(?=\/|$)/, "iCloud Drive").replace(/^(\/Users|\/home)\/[^/]+(?=\/|$)/, "~");
-
-/** Found folders that hold everything of a kind: protecting one saves all of it, so the app first offers a smaller folder (writer#31). */
-export const WHOLE_FOLDER: { [K in SourceId]: boolean } = { icloud: true, dropbox: true, gdrive: true, onedrive: true, documents: true, desktop: true, obsidian: false };
-
-/** The question before a whole folder is protected. `label` is the found folder's name: "Documents", "iCloud Drive". */
-export function wholeFolderAsk(label: string): { title: string; body: string } {
-  return { title: `Protect all of ${label}?`, body: `This protects everything in ${label}, with saves every minute and files over 5 MB left out. Protect a smaller folder instead?` };
-}
+/** A path with the home folder as ~. The page wraps it anywhere when the line is short; the full path is in the title. */
+export const homePath = (path: string): string => path.replace(/^(\/Users|\/home)\/[^/]+(?=\/|$)/, "~");
 
 /** A planned connector, with the sample its preview card shows. Never connected; the label always says so. */
 export interface PlannedSource {
@@ -93,7 +83,7 @@ function built(input: SourcesInput): string {
   const on = (text: string): string => `<span class="b9-pill so-on">${esc(text)}</span>`;
   const c = input.claude;
   return [
-    row(icon("git"), "Git projects", "Your code at each save point, including work you have not committed yet. Going back makes a new branch and a copy.", on(git ? `${plural(git, "project")}` : "Ready")),
+    row(icon("git"), "Git projects", "Every commit, plus the work you have not committed yet. Recovery makes a new branch and a copy.", on(git ? `${plural(git, "project")}` : "Ready")),
     row(icon("folder"), "Folders", "Any folder of your own, no Git needed. Its history lives in the Time Machine store, so nothing is written in the folder.", on(folders ? `${plural(folders, "folder")}` : "Ready")),
     row(input.agentMark("Claude Code"), "Claude Code", esc(c ? c.line : "Reading connection…"), `<button class="btn quiet" data-act="agents">Open Agents</button>`),
     row(icon("deploy"), "Vercel deploys", esc(`${vercel ? `Linked in ${plural(vercel, "project")}. ` : ""}Read only: shows which deploy matches a save point. It never deploys, promotes or rolls back anything.`), `<button class="btn quiet" data-act="settings">${vercel ? "Manage" : "Link a project"}</button>`),
@@ -109,7 +99,7 @@ function found(input: SourcesInput): string {
   const rows = here.map((x) => {
     const already = protectedIn(x, input.projects);
     const right = `<button class="btn" data-act="source-add" data-path="${esc(x.path)}" data-id="${esc(x.id)}">Protect a folder here</button>`;
-    return row(icon(SOURCE_ICON[x.id]), esc(x.label), `<span class="mono so-path" title="${esc(x.path)}">${esc(shownPath(x.path))}</span>${already.length ? `<span class="so-prot">${esc(`Protected here: ${already.join(", ")}`)}</span>` : ""}`, right);
+    return row(icon(SOURCE_ICON[x.id]), esc(x.label), `<span class="mono so-path" title="${esc(x.path)}">${esc(homePath(x.path))}</span>${already.length ? `<span class="so-prot">${esc(`Protected here: ${already.join(", ")}`)}</span>` : ""}`, right);
   }).join("");
   return `${here.length ? `<div class="b9-list">${rows}</div>` : '<div class="empty-dir"><p>None of the usual folders are on this computer. Choose any folder to protect it.</p><button class="btn" data-act="add">Protect a folder</button></div>'}
     ${missing.length ? `<p class="so-miss">${esc(`Not found here: ${new Intl.ListFormat("en", { type: "conjunction" }).format(missing)}.`)}</p>` : ""}`;

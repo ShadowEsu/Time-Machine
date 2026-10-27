@@ -66,23 +66,23 @@ describe("tm init without a test command", () => {
     expect(again.code).toBe(0);
     expect(again.out).toContain(message);
     expect(JSON.parse((await run(dir, env, ["init", "--json"])).out)).toMatchObject({ verifyCommand: "", approvedCheck: null });
-    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toEqual({ initialized: true, approved: false, check: null, kind: "git", configPath: expect.stringMatching(/timemachine\.yml$/) });
+    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toEqual({ initialized: true, approved: false, check: null });
   });
 });
 
 describe("tm status", () => {
   test("--json reports initialized, approved and check without making a store", async () => {
     const { dir, tmHome, env } = project(withTests);
-    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toEqual({ initialized: false, approved: false, check: null, kind: "git", configPath: expect.stringMatching(/timemachine\.yml$/) });
-    expect((await run(dir, env, ["status"])).out).toMatch(/^Not set up: this project has no timemachine\.yml\. Run tm init\.\n {2}Settings {2}\/.+\/timemachine\.yml\n$/);
+    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toEqual({ initialized: false, approved: false, check: null });
+    expect((await run(dir, env, ["status"])).out).toBe("Not set up: this project has no timemachine.yml. Run tm init.\n");
     expect(existsSync(tmHome)).toBe(false);
     await run(dir, env, ["init", "--no-approve"]);
-    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toMatchObject({ initialized: true, approved: false, check: "npm test", kind: "git" });
+    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toEqual({ initialized: true, approved: false, check: "npm test" });
     expect((await run(dir, env, ["status"])).out).toContain("Set up, but the check is not approved on this computer.");
     await run(dir, env, ["init"]);
     const r = await run(dir, env, ["status", "--json"]);
     expect(r.code).toBe(0);
-    expect(JSON.parse(r.out)).toMatchObject({ initialized: true, approved: true, check: "npm test", kind: "git" });
+    expect(JSON.parse(r.out)).toEqual({ initialized: true, approved: true, check: "npm test" });
     expect((await run(dir, env, ["status", "extra"])).code).toBe(64);
   });
 });

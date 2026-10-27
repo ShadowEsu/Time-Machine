@@ -53,8 +53,7 @@ describe("the setup strip on History", () => {
 
 describe("the check step", () => {
   test("with no test command found it says so plainly; otherwise it says where the check came from", () => {
-    expect(checkLede({ verifyCommand: "", created: true })).toBe("No test command found, so save points can’t be checked yet. Type the command that shows your project works.");
-    expect(checkLede({ verifyCommand: "", created: true }, true)).toBe("No test command found, so save points can’t be checked yet. Type the command that shows your project works, or pick Build it.");
+    expect(checkLede({ verifyCommand: "", created: true })).toBe("No test command found, so save points can’t be checked yet. Type the command that shows your project works, or pick Build it.");
     expect(checkLede({ verifyCommand: "  ", created: false })).toMatch(/^No test command found/);
     expect(checkLede({ verifyCommand: "npm test", created: true })).toBe("We picked one from your project. Change it if it is not right.");
     expect(checkLede({ verifyCommand: "npm test", created: false })).toBe("Your timemachine.yml already has one. Change it if it is not right.");

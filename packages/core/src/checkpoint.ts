@@ -1,13 +1,11 @@
-import { chmodSync, closeSync, constants as fsConstants, existsSync, fstatSync, lstatSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, rmSync, type Stats } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 import { audit } from "./audit.js";
 import { loadConfig, LOCKFILES, VERSION_PINS, type ProjectConfig } from "./config.js";
-import { git, gitBytes, gitTry, safeRemote, short, splitZ, splitZBytes } from "./git.js";
+import { git, gitTry, safeRemote, short, splitZ } from "./git.js";
 import type { Manifest } from "./manifest.js";
 import { runSync } from "./exec.js";
-import { isJunkFile, JUNK_FILE_NAMES } from "./junk.js";
-import { inPinnedDir } from "./paths.js";
 import { configRoot, resolveProject, type Project } from "./project.js";
 import { clipSafe, fingerprint, isSecretFileName, looksSecret, parseDotenv } from "./secrets.js";
 import { ensureStore, listIds, nextNumber, putBlob, readManifest, sha256, storeKey, withLock, writeManifest } from "./store.js";
@@ -57,101 +55,16 @@ function containsSecret(path: string, buf: Buffer): boolean {
   return isSecretFileName(path) || looksSecret(buf.toString("latin1"));
 }
 
-/** Whether the disk finds `path` under its name with every A to Z letter's case flipped too (same device and inode), or null
- *  when the name has no such letter or `path` isn't there, so it can't tell. Other scripts are left alone: how a disk folds
- *  them (a dotless ı, say) isn't how JavaScript flips them, and a wrong flip would read as a firm "case matters" (Security F2). */
-function foundInFlippedCase(path: string): boolean | null {
-  const name = basename(path);
-  const flipped = name.replace(/[A-Za-z]/g, (ch) => (ch === ch.toLowerCase() ? ch.toUpperCase() : ch.toLowerCase()));
-  if (flipped === name) return null;
-  let a: Stats;
-  try {
-    a = lstatSync(path);
-  } catch {
-    return null;
-  }
-  try {
-    const b = lstatSync(join(dirname(path), flipped));
-    return a.dev === b.dev && a.ino === b.ino;
-  } catch {
-    return false;
-  }
-}
-
-/** True when the project's disk ignores letter case. Asked of `.git`, then of an entry inside the project (a folder project
- *  has no .git), then of the project folder itself, whose name sits on the disk above it (Security L2). */
-function caseBlindDisk(root: string): boolean {
-  const dotGit = foundInFlippedCase(join(root, ".git"));
-  if (dotGit !== null) return dotGit;
-  let names: string[] = [];
-  try {
-    names = readdirSync(root);
-  } catch {
-    // Unreadable: the folder's own name below still answers.
-  }
-  for (const name of names) {
-    const inside = foundInFlippedCase(join(root, name));
-    if (inside !== null) return inside;
-  }
-  return foundInFlippedCase(root) ?? false;
-}
-
-/** True when the entry `rel` (bytes, as Git names it) can't be named to Git: a part of the way is a symbolic link, or a folder
- *  on the way is a file. Checked on the bytes, since a name that isn't valid UTF-8 doesn't survive decoding. */
-function blockedOnDisk(root: string, rel: Buffer): boolean {
-  const base = Buffer.from(`${root}/`);
-  for (let end = rel.indexOf(0x2f); ; end = rel.indexOf(0x2f, end + 1)) {
-    const last = end === -1;
-    try {
-      const st = lstatSync(Buffer.concat([base, last ? rel : rel.subarray(0, end)]));
-      if (st.isSymbolicLink() || (!last && !st.isDirectory())) return true;
-    } catch {
-      return false;
-    }
-    if (last) return false;
-  }
-}
-
-/** True when `rel` is a config path or lies under one, so a save never stores its text: compared in one Unicode form, and
- *  in any case (any script, not only A to Z) where the disk or Git ignores case. Both only widen what counts as a config path,
- *  so a file is kept to key names more often, never less (Security L3 and its optional LOWs). */
-function configMatcher(p: Project, cfg: ProjectConfig): (rel: string) => boolean {
-  const icase = caseBlindDisk(p.root) || gitTry(p.root, p.env, ["config", "--bool", "core.ignorecase"]).stdout.trim() === "true";
-  const norm = (s: string): string => (icase ? s.normalize("NFC").toLowerCase() : s.normalize("NFC"));
-  const roots = cfg.config.files.map(norm);
-  return (rel) => {
-    const r = norm(rel);
-    return roots.some((c) => r === c || r.startsWith(`${c}/`));
-  };
-}
-
-function snapshotCommit(p: Project, isConfig: (rel: string) => boolean, id: string, head: string | null): { snapshot: string; tree: string; changedTracked: number; secretTracked: string[] } {
+function snapshotCommit(p: Project, cfg: ProjectConfig, id: string, head: string | null): { snapshot: string; tree: string; changedTracked: number; secretTracked: string[] } {
   const tmp = mkdtempSync(join(tmpdir(), "tm-index-"));
   const index = { GIT_INDEX_FILE: join(tmp, "index") };
   try {
     git(p.root, p.env, head ? ["read-tree", head] : ["read-tree", "--empty"], index);
-    // The tracked entries that are config paths, picked by the same matcher as the copied files and kept as the bytes Git
-    // has, so a name that isn't valid UTF-8 still names its entry (Security L1). No entry lies inside a submodule, and none
-    // needs Git's own case or pattern matching.
-    const tracked = splitZBytes(gitBytes(p.root, p.env, ["ls-files", "-z"], index));
-    const config = tracked.filter((f) => isConfig(f.toString("utf8")));
-    // Git can't take a pathspec past a symbolic link, so such an entry gets no exclude; the reset below puts it back.
-    const excluded = config.filter((f) => !blockedOnDisk(p.root, f));
-    // The names go through stdin, so a config folder with many files never makes the command line too long.
-    const fromStdin = ["--pathspec-from-file=-", "--pathspec-file-nul"];
-    const nul = Buffer.from([0]);
-    const list = (names: Buffer[]): Buffer => Buffer.concat(names.flatMap((n, i) => (i ? [nul, n] : [n])));
-    // With nothing left to update (no first commit, an empty one, or only config files), git add -u fails on the unmatched pathspec.
-    if (tracked.length > excluded.length) {
-      gitBytes(p.root, p.env, ["add", "-u", ...fromStdin], index, list([Buffer.from("."), ...excluded.map((f) => Buffer.concat([Buffer.from(":(exclude,literal)"), f]))]));
-    }
-    // The exclude was picked from the folder as it looked a moment before git add, so a link swapped in or out meanwhile could
-    // still stage a config file's text (or its removal). Every config entry is set back to HEAD's on the temp index, from
-    // HEAD's tree and never from the folder (Security R7-1, L2). The `--` keeps a file named like the commit from making
-    // the commit ambiguous (Security I2).
-    if (head && config.length) gitBytes(p.root, p.env, ["reset", "-q", ...fromStdin, head, "--"], { ...index, GIT_LITERAL_PATHSPECS: "1" }, list(config));
+    const pathspec = ["--", ".", ...cfg.config.files.map((f) => `:(exclude)${f}`)];
+    // With nothing tracked yet (no first commit, or an empty one), git add -u fails on the unmatched pathspec.
+    if (splitZ(git(p.root, p.env, ["ls-files", "-z", ...pathspec], index)).length) git(p.root, p.env, ["add", "-u", ...pathspec], index);
     // Edited tracked files that now hold a secret keep their last committed version.
-    const changedPaths = head ? splitZ(git(p.root, p.env, ["diff-index", "--cached", "-z", "--name-only", head, "--"], index)) : splitZ(git(p.root, p.env, ["ls-files", "-z"], index));
+    const changedPaths = head ? splitZ(git(p.root, p.env, ["diff-index", "--cached", "-z", "--name-only", head], index)) : splitZ(git(p.root, p.env, ["ls-files", "-z"], index));
     const secretTracked = changedPaths.filter((rel) => {
       const full = join(p.root, rel);
       try {
@@ -161,14 +74,13 @@ function snapshotCommit(p: Project, isConfig: (rel: string) => boolean, id: stri
       }
     });
     if (secretTracked.length) {
-      // Named literally: a file called *.md must not take every Markdown file back with it (Security INFO).
-      git(p.root, p.env, head ? ["reset", "-q", head, "--", ...secretTracked] : ["rm", "-q", "--cached", "--", ...secretTracked], { ...index, GIT_LITERAL_PATHSPECS: "1" });
+      git(p.root, p.env, head ? ["reset", "-q", head, "--", ...secretTracked] : ["rm", "-q", "--cached", "--", ...secretTracked], index);
     }
     const tree = git(p.root, p.env, ["write-tree"], index);
     const headTree = head ? git(p.root, p.env, ["rev-parse", `${head}^{tree}`]) : null;
     if (head && tree === headTree) return { snapshot: head, tree, changedTracked: 0, secretTracked };
     const changed = head
-      ? splitZ(git(p.root, p.env, ["diff-tree", "-r", "-z", "--name-only", headTree ?? head, tree, "--"])).length
+      ? splitZ(git(p.root, p.env, ["diff-tree", "-r", "-z", "--name-only", headTree ?? head, tree])).length
       : splitZ(git(p.root, p.env, ["ls-files", "-z"], index)).length;
     const args = ["commit-tree", tree, "--no-gpg-sign", "-m", `Time Machine save point ${id}`];
     if (head) args.push("-p", head);
@@ -178,57 +90,15 @@ function snapshotCommit(p: Project, isConfig: (rel: string) => boolean, id: stri
   }
 }
 
-/** True when a folder on the way to `rel` inside `root` isn't there (and no part before it is a link or unreadable). */
-function folderMissing(root: string, rel: string): boolean {
-  let cur = root;
-  for (const part of rel.split("/").slice(0, -1)) {
-    cur = join(cur, part);
-    try {
-      const st = lstatSync(cur, { throwIfNoEntry: false });
-      if (!st) return true;
-      if (!st.isDirectory()) return false;
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
-
-type Capped = { buf: Buffer; fst: Stats } | "not-a-file" | "too-big" | "unreadable";
-
-/** The plain file `name` in the working folder, read through one descriptor and never past `max` bytes. */
-function readCapped(name: string, max: number): Capped {
-  let fd: number;
+function isLink(path: string): boolean {
   try {
-    fd = openSync(name, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0));
-  } catch (e) {
-    // ELOOP: a symbolic link swapped in after the lstat, which O_NOFOLLOW refuses. It is not a plain file.
-    return e instanceof Error && "code" in e && e.code === "ELOOP" ? "not-a-file" : "unreadable";
-  }
-  try {
-    const fst = fstatSync(fd);
-    if (!fst.isFile()) return "not-a-file";
-    if (fst.size > max) return "too-big";
-    const parts: Buffer[] = [];
-    let total = 0;
-    for (;;) {
-      // One byte past the limit is enough to know the file grew over it.
-      const part = Buffer.allocUnsafe(Math.min(1 << 20, max + 1 - total));
-      const n = readSync(fd, part, 0, part.length, null);
-      if (n <= 0) break;
-      parts.push(part.subarray(0, n));
-      total += n;
-      if (total > max) return "too-big";
-    }
-    return { buf: Buffer.concat(parts, total), fst };
+    return lstatSync(path).isSymbolicLink();
   } catch {
-    return "unreadable";
-  } finally {
-    closeSync(fd);
+    return false;
   }
 }
 
-function untrackedCandidates(p: Project, cfg: ProjectConfig, isConfig: (rel: string) => boolean, head: string | null): string[] {
+function untrackedCandidates(p: Project, cfg: ProjectConfig, head: string | null): string[] {
   const inHead = new Set(head ? splitZ(git(p.root, p.env, ["ls-tree", "-r", "-z", "--name-only", head])) : []);
   const staged = splitZ(git(p.root, p.env, ["ls-files", "-z"])).filter((f) => !inHead.has(f));
   const others = cfg.capture.untracked ? splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--exclude-standard"])) : [];
@@ -242,8 +112,8 @@ function untrackedCandidates(p: Project, cfg: ProjectConfig, isConfig: (rel: str
   // entries are git pathspecs, and a glob there must never pull in other ignored files.
   const pins = cfg.environment.files.filter((f) => VERSION_PINS.includes(f));
   const environment = splitZ(git(p.root, p.env, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...LOCKFILES, ...pins]));
-  // Anything under a config folder, or a config file named in another case or Unicode form, is never copied as text.
-  return [...new Set([...staged, ...others, ...included, ...environment])].filter((f) => !isConfig(f)).sort();
+  const configFiles = new Set(cfg.config.files);
+  return [...new Set([...staged, ...others, ...included, ...environment])].filter((f) => !configFiles.has(f)).sort();
 }
 
 function runtimeVersions(p: Project): Record<string, string> {
@@ -294,24 +164,15 @@ export async function checkpoint(ctx: Ctx, opts: CheckpointOptions = {}): Promis
     const remote = remoteR.code === 0 ? safeRemote(remoteR.stdout.trim()) : null;
 
     const pending = `cp-${String(Number(last?.slice(3) ?? 0) + 1).padStart(4, "0")}`;
-    const isConfig = configMatcher(p, cfg);
-    const { snapshot, tree, changedTracked, secretTracked } = snapshotCommit(p, isConfig, pending, head);
+    const { snapshot, tree, changedTracked, secretTracked } = snapshotCommit(p, cfg, pending, head);
 
     const missing: string[] = [];
     const manual: string[] = secretTracked.map((f) => `${f} has uncommitted changes that look like a secret, so its last committed version was saved instead`);
     const files: Manifest["files"] = [];
-    const candidates = untrackedCandidates(p, cfg, isConfig, head);
+    const candidates = untrackedCandidates(p, cfg, head);
     const maxBytes = cfg.capture.maxFileMB * 1024 * 1024;
     for (const rel of candidates) {
       const name = rel.replace(/\/$/, "");
-      // System and editor files (the list auto save ignores too) are never saved. Folder settings files are no one's work, so
-      // they go unsaid; a lock or swap-file name can be someone's real file, so it is named under manual, like a secrets file
-      // by name: it is left out on purpose, so it never makes the save point incomplete (Security F8, P2). A folder (a nested
-      // repository) with such a name is not one: it is named below like any nested repository.
-      if (!rel.endsWith("/") && isJunkFile(name)) {
-        if (!JUNK_FILE_NAMES.includes(basename(name))) manual.push(`${name} looks like an editor's lock or swap file, so it was not saved`);
-        continue;
-      }
       const full = join(p.root, name);
       let st;
       try {
@@ -339,70 +200,24 @@ export async function checkpoint(ctx: Ctx, opts: CheckpointOptions = {}): Promis
         missing.push(`${rel} is over the ${cfg.capture.maxFileMB} MB limit`);
         continue;
       }
-      // A file that cannot be read is left out and named, instead of failing the whole save every time. It is opened in its
-      // own folder, pinned as the working folder, so a folder on the way swapped for a symbolic link can't make the save read
-      // a file outside the project; without following a link or waiting on a FIFO, so a FIFO swapped in after the lstat
-      // can't block the save under the store lock; and read only up to the limit, so a file that grows can't pass it (F9).
-      const slash = name.lastIndexOf("/");
-      const got = (() => {
-        try {
-          return inPinnedDir(p.root, slash < 0 ? "" : name.slice(0, slash), false, () => readCapped(name.slice(slash + 1), maxBytes));
-        } catch {
-          return null;
-        }
-      })();
-      if (got === null || !got.inside || got.value === "unreadable") {
-        missing.push(`${name}: could not be read`);
-        continue;
-      }
-      if (got.value === "not-a-file") {
-        missing.push(`${name} is not a regular file, so it was not saved`);
-        continue;
-      }
-      if (got.value === "too-big") {
-        missing.push(`${rel} is over the ${cfg.capture.maxFileMB} MB limit`);
-        continue;
-      }
-      const { buf, fst } = got.value;
+      const buf = readFileSync(full);
       if (looksSecret(buf.toString("latin1"))) {
         manual.push(`${name} looks like it contains a secret, so it was not saved`);
         continue;
       }
-      // The saved time is kept so a copy's files keep the dates they had.
-      files.push({ path: name, sha256: putBlob(p, buf), size: buf.length, mode: fst.mode & 0o777, mtimeMs: fst.mtimeMs });
+      files.push({ path: name, sha256: putBlob(p, buf), size: st.size, mode: st.mode & 0o777 });
     }
 
     const key = storeKey(p);
     const config: Manifest["config"] = [];
     for (const file of cfg.config.files) {
-      // Read inside its own pinned folder, like the files above, so a swapped folder can't point it outside the project.
-      const slash = file.lastIndexOf("/");
-      const got = (() => {
-        try {
-          return inPinnedDir(p.root, slash < 0 ? "" : file.slice(0, slash), false, () => {
-            const leaf = file.slice(slash + 1);
-            return lstatSync(leaf, { throwIfNoEntry: false }) ? readCapped(leaf, maxBytes) : "absent";
-          });
-        } catch {
-          return null;
-        }
-      })();
-      if (got === null || !got.inside) {
-        // A folder on the way that isn't there means no config file: unsaid. One that is a link, or can't be entered, is named:
-        // its keys could not be checked (Security N1).
-        if (!folderMissing(p.root, file)) missing.push(`${file}: a folder on the way is a symbolic link or can't be read, so its keys were not recorded`);
-        continue;
-      }
-      if (got.value === "absent") continue;
-      if (got.value === "not-a-file") {
+      const full = join(p.root, file);
+      if (!existsSync(full) && !isLink(full)) continue;
+      if (!lstatSync(full).isFile()) {
         missing.push(`${file} is not a regular file, so its keys were not recorded`);
         continue;
       }
-      if (got.value === "unreadable" || got.value === "too-big") {
-        missing.push(got.value === "too-big" ? `${file} is over the ${cfg.capture.maxFileMB} MB limit, so its keys were not recorded` : `${file} could not be read, so its keys were not recorded`);
-        continue;
-      }
-      const keys = parseDotenv(got.value.buf.toString("utf8")).map(({ name, value }) => {
+      const keys = parseDotenv(readFileSync(full, "utf8")).map(({ name, value }) => {
         const fp = fingerprint(key, name, value);
         return cfg.config.plain.includes(name) && !looksSecret(value)
           ? { name, kind: "plain" as const, value, fingerprint: fp }
@@ -495,8 +310,7 @@ function finishCheckpoint(
   });
   const bundleName = `${id}.bundle`;
   const bundlePath = join(p.store, "bundles", bundleName);
-  // The `--` keeps a file named like a commit from making the commit ambiguous (Security F1).
-  const b = gitTry(p.root, p.env, ["bundle", "create", "-q", bundlePath, `refs/tm/${id}`, ...prior.map((s) => `^${s}`), "--"]);
+  const b = gitTry(p.root, p.env, ["bundle", "create", "-q", bundlePath, `refs/tm/${id}`, ...prior.map((s) => `^${s}`)]);
   let bundle: string | null = null;
   if (b.code === 0) {
     chmodSync(bundlePath, 0o444);

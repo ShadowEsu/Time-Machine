@@ -1,8 +1,8 @@
 // An in-memory stand-in for the engine, used only by the browser preview. It replays the
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
-import type { DiffResult, FindGoodResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
-import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, FeatureChange, Features, LicenseStatus, Method, ProjectCheckConfig, ProjectEntry, ProjectStatus, Res, Results, RunNote, Settings, SourceRow, ThinPreview, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
+import type { DiffResult, FindGoodResult, RecoverResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
+import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, FeatureChange, Features, LicenseStatus, Method, ProjectEntry, ProjectStatus, Res, Results, RunNote, Settings, SourceRow, ThinPreview, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
 import { ASK_EXAMPLES } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "../src/shared/links.js";
@@ -246,7 +246,6 @@ function statusOf(projectId: string, points: Point[]): ProjectStatus {
     newest: newest ? { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt } : null,
     lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
     problem: null,
-    problemKind: null,
   };
 }
 
@@ -269,7 +268,7 @@ export class FakeEngine implements TmBridge {
   private added = true;
   private seed: Point | null = null;
   private stopping = false;
-  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [], reduceMotion: false };
+  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [] };
   /** No key in the preview: the free app, as the real engine reports it (core FREE_PROJECT_LIMIT is 3). */
   private readonly license: LicenseStatus = { active: false, id: null, issued: null, problem: null, freeProjectLimit: 3 };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
@@ -278,9 +277,7 @@ export class FakeEngine implements TmBridge {
   /** Run notes per project, keyed by save point id, as the engine keeps them in a sidecar file. */
   private readonly notes = new Map<string, Record<string, RunNote>>();
   /** Whether each key is set. The preview never holds a real key. */
-  private credentials: Record<CredentialName, boolean> = { gemini: true, anthropic: false, vercel: true };
-  /** The demo's check settings, as Settings shows and changes them. */
-  private checkConfig: ProjectCheckConfig = { command: "npm test", setup: "npm ci --prefer-offline --no-audit --no-fund", timeoutSeconds: 600, network: "allow", maxFileMB: 5 };
+  private credentials: Record<CredentialName, boolean> = { gemini: true, vercel: true };
   /** The email signed in with code 123456, or null. The preview's sign-in is pretend: nothing is sent. */
   private signedIn: string | null = null;
 
@@ -463,7 +460,7 @@ export class FakeEngine implements TmBridge {
         s.copies.add(copyDir);
         const folder = p.kind === "folder";
         const r: RecoverResult = {
-          id: call.id, branch: folder ? "" : `tm/recover/${call.id}`, copyDir, savedBefore: saved.entry.id, reportPath: `/Users/you/.timemachine/projects/${p.name}/reports/recover-${call.id}.md`, missing: [],
+          id: call.id, branch: folder ? "" : `tm/recover/${call.id}`, copyDir, savedBefore: saved.entry.id, reportPath: `/Users/you/.timemachine/projects/${p.name}/reports/recover-${call.id}.md`,
           lastVerdict: target.entry.verdict, restored: target.entry.coverage.restorable, notRestored: target.entry.coverage.manual,
           manualSteps: [
             ...(folder ? ["No branch was made: this folder has no Git repo, so the save point came back as a copy only."] : []),
@@ -473,18 +470,6 @@ export class FakeEngine implements TmBridge {
           pushed: false, ...(folder ? { copyOnly: true as const } : {}),
         };
         s.audit.push({ at: new Date().toISOString(), action: "recover", target: call.id, result: folder ? `copy ${copyDir}` : `branch ${r.branch}` });
-        return r;
-      }
-      case "restorePaths": {
-        await wait(500);
-        const target = find(call.id);
-        const saved = call.dryRun ? null : sidePoint(nextNumber(s.points), `Before putting files back from ${call.id}`, new Date().toISOString(), { ...target.tracked, ...target.untracked }, p.kind === "folder");
-        if (saved) s.points.push(saved);
-        const r: RestoreResult = {
-          id: call.id, dryRun: !!call.dryRun, restored: call.paths, kept: [], skipped: [], savedBefore: saved?.entry.id ?? null,
-          diff: { added: 0, changed: call.paths.length, same: 0 }, ...(p.kind === "folder" ? {} : { note: "Files written; nothing committed." }),
-        };
-        if (saved) s.audit.push({ at: new Date().toISOString(), action: "restore", target: call.id, result: `${call.paths.length} paths` });
         return r;
       }
       case "undoRecover": {
@@ -649,20 +634,10 @@ export class FakeEngine implements TmBridge {
           ? { email: this.signedIn, licenses: [{ key: "TM1.eyJ2IjoxLCJpZCI6ImNzX3ByZXZpZXciLCJwbGFuIjoid2ViIn0.cHJldmlldy1vbmx5", id: "cs_preview0000000000000000", issued: "2026-10-22" }] }
           : null;
       case "addProject":
-      case "previewProject": {
         if (this.scenario !== "new") throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
-        const p = this.project;
-        if (call.method === "previewProject") return { path: p.path, name: p.name, kind: p.kind, existingSavePoints: 0, scripts: ["test", "build"], check: { command: "npm test", setup: "npm ci --prefer-offline --no-audit --no-fund", network: "allow", exists: false } };
         this.added = true;
         if (call.purpose) this.project.purpose = call.purpose;
-        return { ...this.project, existingSavePoints: 0, scripts: ["test", "build"] };
-      }
-      case "storeProjects":
-        return [];
-      case "pickFolder":
-      case "reveal":
-      case "relinkProject":
-        throw new Error("The preview can't open folders on your computer. Download the app to use it on your projects.");
+        return this.project;
       case "removeProject":
         throw new Error("The preview keeps the demo project. Reload the page to start over.");
       case "statuses":
@@ -750,7 +725,7 @@ export class FakeEngine implements TmBridge {
         this.branches.add(branch);
         const copyDir = `/Users/you/code/marigold-tips-recovered-${call.id}`;
         const r: RecoverResult = {
-          id: call.id, branch, copyDir, savedBefore: saved.entry.id, reportPath: `/Users/you/.timemachine/projects/demo/reports/recover-${call.id}.md`, missing: [],
+          id: call.id, branch, copyDir, savedBefore: saved.entry.id, reportPath: `/Users/you/.timemachine/projects/demo/reports/recover-${call.id}.md`,
           lastVerdict: target.entry.verdict,
           restored: [`Code at commit ${target.entry.commit.slice(0, 7)}`, ...target.entry.coverage.restorable.slice(1)],
           notRestored: [SECRETS, NOT_CAPTURED],
@@ -791,28 +766,15 @@ export class FakeEngine implements TmBridge {
         if (!findGood.found) throw new Error("The demo could not find a working save point.");
         const recover = (await this.dispatch({ method: "recover", projectId: PROJECT_ID, id: findGood.found })) as RecoverResult;
         const checkpoints = this.points.slice(0, 6).map((p) => ({ id: p.entry.id, note: p.entry.note ?? "", expect: p.tracked["src/tips.js"] === "ok" ? ("PASS" as const) : ("FAIL" as const) }));
-        return { project: { ...this.project, existingSavePoints: 0, scripts: ["test", "build"] }, result: { dir: ROOT, checkpoints, findGood, recover } };
+        return { project: this.project, result: { dir: ROOT, checkpoints, findGood, recover } };
       }
-      case "storage": {
-        const rows = this.added
+      case "storage":
+        return this.added
           ? [
             { projectId: PROJECT_ID, name: "marigold-tips", bytes: 186_112 + this.points.length * 4096, storeDir: "~/.timemachine/projects/e3179f5ab665d193" },
             ...this.sides.map((s, i) => ({ projectId: s.project.id, name: s.project.name, bytes: 92_160 + i * 311_296 + s.points.length * 6144, storeDir: `~/.timemachine/projects/${hash(s.project.id).slice(0, 16)}` })),
           ]
           : [];
-        const git = this.added ? [this.project, ...this.sides.map((s) => s.project)].filter((p) => p.kind === "git").map((p) => p.name) : [];
-        return {
-          rows,
-          storeBytes: rows.reduce((n, r) => n + r.bytes, 0) + 4096,
-          storeDir: "~/.timemachine",
-          note: git.length ? `Code projects (${git.join(", ")}) also keep their save points inside the project's own .git folder. That space is not counted here.` : null,
-        };
-      }
-      case "projectConfig":
-        return { ...this.checkConfig };
-      case "setProjectConfig":
-        this.checkConfig = { ...this.checkConfig, ...call.patch };
-        return { ...this.checkConfig };
       case "cleanStore":
         await wait(200);
         return { files: [], bytes: 0, applied: call.apply };
@@ -843,13 +805,13 @@ export class FakeEngine implements TmBridge {
         return this.project;
       }
       case "credentials":
-        return { ...this.credentials, provider: this.credentials.gemini ? "gemini" : this.credentials.anthropic ? "anthropic" : null };
+        return this.credentials;
       case "setCredential":
         this.credentials = { ...this.credentials, [call.name]: call.value !== null };
         return { configured: this.credentials[call.name] };
       case "ask":
         if (!this.project.features.ask) throw new Error(`Ask about your history is off for ${this.project.name}. Turn it on for this project first.`);
-        if (!this.credentials.gemini && !this.credentials.anthropic) throw new Error("Ask needs an API key. Add a Gemini API key in Settings, or set GEMINI_API_KEY or ANTHROPIC_API_KEY before you start Time Machine.");
+        if (!this.credentials.gemini) throw new Error("Add a Gemini API key in Settings first.");
         await wait(900);
         if (this.features === "ask-error") throw new Error("Could not reach Gemini. Check the internet connection and try again.");
         return this.askAnswer(call.question);

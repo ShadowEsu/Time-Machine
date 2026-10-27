@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { request } from "node:http";
 import { connect } from "node:net";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
@@ -102,19 +102,6 @@ describe("local browser boundary", () => {
     expect((await raw(s, "/api/call", auth(s), "{")).status).toBe(400);
     expect((await raw(s, "/api/call", { ...auth(s), "Content-Type": "text/plain" }, '{}')).status).toBe(415);
     expect((await raw(s, "/api/call", auth(s), JSON.stringify({ method: "copy", text: "x".repeat(300_000) }))).status).toBe(413);
-  });
-  test.skipIf(process.platform === "win32")("a settings folder it can't write is named as the app's own folder, not the store (Security F10)", async () => {
-    const s = await start();
-    const state = join(roots[roots.length - 1] ?? "", "state");
-    chmodSync(state, 0o500);
-    try {
-      expect(JSON.parse((await call(s, { method: "setSettings", patch: { theme: "light" } })).body)).toEqual({
-        ok: false,
-        error: { kind: "permission", message: `Time Machine can't save its settings in ${state}. Check that folder's permissions.` },
-      });
-    } finally {
-      chmodSync(state, 0o700);
-    }
   });
   test("persists browser settings, streams real settings events, and refuses credential storage", async () => {
     const s = await start();

@@ -29,12 +29,11 @@ const MAX_OUTPUT = 1024 * 1024;
  * Runs a command in its own process group. Resolves when the command exits, then kills
  * anything it left running in the background, so a stray child cannot hold the check open.
  * Aborting `signal` kills the whole group, the same way a timeout does.
- * `onOutput` sees the output collected so far after each chunk, so a caller can show a check while it runs.
  */
 export function runWithTimeout(
   file: string,
   args: string[],
-  opts: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal; onOutput?: (output: string) => void },
+  opts: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal },
 ): Promise<TimedResult> {
   return new Promise((resolve) => {
     let output = "";
@@ -51,9 +50,7 @@ export function runWithTimeout(
     };
     const dispose = onInterrupt(killGroup);
     const collect = (chunk: Buffer): void => {
-      if (output.length >= MAX_OUTPUT) return;
-      output += chunk.toString("utf8");
-      opts.onOutput?.(output);
+      if (output.length < MAX_OUTPUT) output += chunk.toString("utf8");
     };
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);

@@ -9,7 +9,7 @@ const VerdictRecordSchema = z.object({
   at: z.string(),
   checkpoint: z.string(),
   verdict: z.enum(VERDICTS),
-  isolation: z.enum(["host", "confined"]),
+  isolation: z.literal("host"),
   network: z.object({ policy: z.enum(["allow", "deny"]), enforcedBy: z.string().nullable() }),
   command: z.string(),
   durationMs: z.number(),

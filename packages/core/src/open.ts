@@ -9,7 +9,6 @@ import { resolveProject } from "./project.js";
 import { ensureStore, readManifest } from "./store.js";
 import type { Ctx, OpenResult } from "./types.js";
 
-/** Rebuilds a save point in a separate folder. Works for a plain folder that was moved or deleted too: its history is in the store. */
 export async function open(ctx: Ctx, id: string, opts: { dir?: string } = {}): Promise<OpenResult> {
   const p = resolveProject(ctx);
   ensureStore(p);
@@ -18,6 +17,6 @@ export async function open(ctx: Ctx, id: string, opts: { dir?: string } = {}): P
   if (isInside(p.root, dir)) throw new TmError("usage", `${dir} is inside the project. Pick a folder outside it, so your working copy stays untouched.`);
   // A plain folder's safe copy is plain files, with no .git linking it to the store.
   const r = materialize(p, m, dir, { plain: p.kind === "folder" });
-  audit(p, "open", id, r.missing.length ? "opened, incomplete" : "opened");
+  audit(p, "open", id, "opened");
   return { id, dir, isolation: "host", restored: r.restored, missing: r.missing, manual: r.manual };
 }

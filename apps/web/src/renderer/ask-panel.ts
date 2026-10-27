@@ -88,11 +88,11 @@ function turnHtml(t: AskTurn, k: number, points: ReadonlyMap<string, CitedPoint>
   return t.result ? `${q}${answerHtml(t.result, points)}` : q;
 }
 
-/** No Gemini key yet: the exact variable to set with a Copy button, and this project's Ask row in Settings as the other way in. Never a dead panel. */
+/** No Gemini key yet: the exact variable to set with a Copy button, and Settings as the other way in. Never a dead panel. */
 function keyNeeded(v: AskView): string {
-  const settings = v.canOpenSettings ? '<button type="button" class="ft-link" data-fa="settings">see Ask in this project’s Settings</button>' : "see Ask in this project’s Settings";
+  const settings = v.canOpenSettings ? '<button type="button" class="ft-link" data-fa="settings">add it in Settings &gt; Features</button>' : "add it in Settings &gt; Features";
   return `<div class="ft-key" role="note"><p><b>Ask needs your own Gemini API key.</b> Set GEMINI_API_KEY and restart tm ui.</p>
-    <div class="ft-env"><code class="mono nowrap">GEMINI_API_KEY</code><button type="button" class="btn ghost small" data-fa="copy-env" aria-label="Copy GEMINI_API_KEY">Copy</button></div>
+    <div class="ft-env"><code class="mono">GEMINI_API_KEY</code><button type="button" class="btn ghost small" data-fa="copy-env" aria-label="Copy GEMINI_API_KEY">Copy</button></div>
     <p class="ft-note">Or ${settings}.</p></div>`;
 }
 

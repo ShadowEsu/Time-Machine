@@ -118,39 +118,29 @@ export function twinOrdinal(c: Stamped, peers: readonly Stamped[]): string {
 }
 
 /**
- * A twin said in a sentence, its order before its time, so "second" can only mean the later of two beads with one time:
- * "the second save at 8:16:05 PM", "the second save on Mon 14 Oct at 8:16:05 PM" (Design 24 Oct P2-1). "" for a save point
- * that shares its second with none. Never "#N" in a sentence.
+ * When a save point was made, said inside a sentence: "8:16 PM" (the day in front when not today), or for a twin, the time
+ * and which one it is after it: "8:16:05 PM (second save)", "Mon 14 Oct 8:16:05 PM (second save)". Never "#N" in a sentence.
  */
-function twinPhrase(c: Stamped, peers: readonly Stamped[], now: Date): string {
-  const nth = twinOrdinal(c, peers);
-  if (!nth) return "";
-  const d = new Date(c.createdAt);
-  const time = pointTime(c, peers);
-  return d.toDateString() === now.toDateString() ? `the ${nth} save at ${time}` : `the ${nth} save on ${shortDay(d)} at ${time}`;
-}
-
-/** When a save point was made, said inside a sentence: "8:16 PM" (the day in front when not today), or a twin's `twinPhrase`. */
 export function pointAt(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || pointWhen(c, peers, now);
-}
-
-/** A version named in a sentence: "the 8:16 PM version", or a twin's "the second save at 8:16:05 PM". */
-export function versionPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || `the ${pointWhen(c, peers, now)} version`;
-}
-
-/** A version named by its time alone, for a heading whose title and meta line tell twins apart: "the 8:16:05 PM version". */
-export function versionTimePhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
+  const nth = twinOrdinal(c, peers);
+  if (!nth) return pointWhen(c, peers, now);
   const d = new Date(c.createdAt);
-  if (Number.isNaN(d.getTime())) return `the ${pointWhen(c, peers, now)} version`;
   const time = pointTime(c, peers);
-  return `the ${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} version`;
+  return `${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} (${nth} save)`;
 }
 
-/** A save point named in a sentence: "the save point from 8:16 PM", or a twin's "the second save at 8:16:05 PM". */
+/** A version named in a sentence: "the 8:16 PM version", or for a twin "the 8:16:05 PM version (second save)". */
+export function versionPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
+  const nth = twinOrdinal(c, peers);
+  if (!nth) return `the ${pointWhen(c, peers, now)} version`;
+  const d = new Date(c.createdAt);
+  const time = pointTime(c, peers);
+  return `the ${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} version (${nth} save)`;
+}
+
+/** A save point named in a sentence: "the save point from 8:16 PM", or for a twin "the save point from 8:16:05 PM (second save)". */
 export function savePointPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || `the save point from ${pointWhen(c, peers, now)}`;
+  return `the save point from ${pointAt(c, peers, now)}`;
 }
 
 /** A phrase made to start a sentence: "the 8:16 PM version" becomes "The 8:16 PM version". */
@@ -158,9 +148,11 @@ export function sentenceStart(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** A heading's time for a save point, without "#N", and for a twin the line under it that says which one: "The second save at 8:16:05 PM". */
-export function sameSecondLine(c: Stamped, peers: readonly Stamped[], now = new Date()): { time: string; line: string } {
-  return { time: pointTime(c, peers), line: sentenceStart(twinPhrase(c, peers, now)) };
+/** A heading's time for a save point, without "#N", and for a twin the line under it that says which one: "Second save in that second". */
+export function sameSecondLine(c: Stamped, peers: readonly Stamped[]): { time: string; line: string } {
+  const time = pointTime(c, peers);
+  const nth = twinOrdinal(c, peers);
+  return { time, line: nth ? `${sentenceStart(nth)} save in that second` : "" };
 }
 
 /** Where a picked check came from, in plain words. `created` is false when timemachine.yml already existed. */
@@ -195,7 +187,6 @@ export function triggerLabel(trigger: string): string {
   if (trigger.startsWith("claude-code:pre-bash")) return "Safety save";
   if (trigger.startsWith("claude-code")) return "Claude Code";
   if (trigger === "recover") return "Before rewind";
-  if (trigger === "before-restore") return "Before putting back";
   if (trigger === "demo") return "Demo";
   if (trigger === "mcp") return "Agent";
   return "You";

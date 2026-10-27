@@ -73,35 +73,21 @@ export interface NoteDraft {
   note: string;
 }
 
-/** "26/80": how much of the name's room is used, as the store trims it. */
-export function nameCount(title: string): string {
-  return `${title.trim().length}/${TITLE_MAX}`;
-}
-
-/** What Save says it saves, and the toast after: the name, the note, or both, by what changed. Nothing changed says name. */
-export function noteSaveWords(draft: NoteDraft, note: RunNote | undefined): { button: string; toast: string } {
-  const name = draft.title.trim() !== (note?.title ?? "");
-  const text = draft.note !== (note?.note ?? "");
-  if (name && text) return { button: "Save name and note", toast: "Name and note saved on this computer." };
-  if (text) return { button: "Save note", toast: "Note saved on this computer." };
-  return { button: "Save name", toast: "Name saved on this computer." };
-}
-
 /** The detail's name, note and pin. `saving` disables the form while setNote runs. */
 export function noteBlock(id: string, note: RunNote | undefined, draft: NoteDraft, purpose: Purpose, saving: boolean): string {
   const u = unitWords(purpose);
   const pinned = !!note?.pinned;
   const busy = saving ? "disabled" : "";
   const changed = draft.title.trim() !== (note?.title ?? "") || draft.note !== (note?.note ?? "");
-  const example = purpose === "research" ? "for example: Baseline run, seed 42" : purpose === "code" ? "for example: Before the big refactor" : "for example: Draft before advisor notes";
+  const example = purpose === "research" ? "for example: Baseline run, seed 42" : "for example: Before the big refactor";
   return `<section class="rn" aria-labelledby="rn-h">
     <div class="rn-top"><h3 id="rn-h">${esc(`Name this ${u.one}`)}</h3><button type="button" class="rn-pin${pinned ? " on" : ""}" data-act="pin" data-id="${esc(id)}" aria-pressed="${pinned}" ${busy}>${pinIcon(pinned)}${pinned ? "Pinned" : "Pin"}</button></div>
     <form class="rn-form" data-form="note" data-id="${esc(id)}" novalidate>
-      <div class="rn-l"><label for="rn-title">Name</label><span class="rn-count" id="rn-count">${nameCount(draft.title)}</span></div>
-      <input id="rn-title" class="field" data-model="note-title" type="text" maxlength="${TITLE_MAX}" value="${esc(draft.title)}" placeholder="${esc(example)}" autocomplete="off" aria-describedby="rn-count" ${busy}>
+      <label for="rn-title">Name</label>
+      <input id="rn-title" class="field" data-model="note-title" type="text" maxlength="${TITLE_MAX}" value="${esc(draft.title)}" placeholder="${esc(example)}" autocomplete="off" ${busy}>
       <label for="rn-note">Note</label>
       <textarea id="rn-note" class="field" data-model="note-text" rows="3" maxlength="${NOTE_MAX}" placeholder="What you tried, what you saw" ${busy}>${esc(draft.note)}</textarea>
-      <div class="rn-acts"><button type="submit" class="btn" ${busy}>${saving ? "Saving…" : noteSaveWords(draft, note).button}</button>${note?.updated && !changed ? '<span class="rn-saved">Saved on this computer, next to its history</span>' : ""}</div>
+      <div class="rn-acts"><button type="submit" class="btn" ${busy}>${saving ? "Saving…" : "Save note"}</button>${note?.updated && !changed ? '<span class="rn-saved">Saved on this computer, next to its history</span>' : ""}</div>
     </form>
   </section>`;
 }

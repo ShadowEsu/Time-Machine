@@ -150,7 +150,7 @@ describe("plain folder projects", () => {
     writeFileSync(join(dir, "keys.txt"), `token: ${SECRET}\n`);
     tm.protect(ctx);
     const { checkpoint } = await tm.checkpoint(ctx);
-    expect(checkpoint.coverage.missing.join("\n")).toMatch(/scan\.tif: over the 5 MB limit \(capture\.maxFileMB in .+timemachine\.yml\)/);
+    expect(checkpoint.coverage.missing.join("\n")).toMatch(/scan\.tif is over the 5 MB limit/);
     expect(checkpoint.coverage.manual.join("\n")).toMatch(/keys\.txt looks like it contains a secret/);
     expect(checkpoint.files).toBe(2);
   });

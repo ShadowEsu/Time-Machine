@@ -39,7 +39,7 @@ Real output, shortened. `tm demo` builds a small synthetic app, breaks it the wa
 
 ## Install
 
-Needs Node 22 or newer and Git 2.36 or newer. Every `tm` command that works on a project stops with a message that names your Git version when it is older.
+Needs Node 22 or newer and Git.
 
 Not on npm yet, so install from source:
 
@@ -63,13 +63,11 @@ With `tm` installed (see above), add Time Machine to Claude Code from this repo,
 
 The plugin brings the Claude Code hooks, the MCP server and a `/time-machine:setup` skill that runs `tm init` with you. Its hooks run in every Claude Code session, but they act only in projects where you ran `tm init` on this computer. A `timemachine.yml` that came with a cloned repo is not enough: `tm init` approves the project's check (`verify.setup`, `verify.command` and `verify.network`) and records that approval in your Time Machine store, outside the project. `tm init --no-approve` writes or keeps the file without approving it, so you can read the guessed check first. Everywhere else, and when `tm` is not on your PATH, the hooks do nothing.
 
-What you see in Claude Code: before a risky shell command such as `git reset --hard`, when Time Machine saved first, Claude Code shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." It shows nothing when nothing changed since the last save point, and nothing at the end of a turn. On a prompt it speaks only once per change it needs from you: a check that changed, or a Git that is too old (both below). Hooks from `tm hook install` show the same line.
+What you see in Claude Code: before a risky shell command such as `git reset --hard`, when Time Machine saved first, Claude Code shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." It shows nothing when nothing changed since the last save point, and nothing on prompts or at the end of a turn. Hooks from `tm hook install` show the same line.
 
 Not sure what is missing? `tm status` says whether the project has a `timemachine.yml` and whether this computer approved its check. `/time-machine:setup` runs it for you. If `tm init` finds no test command, it says so, and approves nothing until you set `verify.command`.
 
 If the check changes after you approved it, for example after a `git pull` that edits the command or turns the network from `deny` to `allow`, the hooks stop. On your next prompt Claude Code shows you, once: "Time Machine: the check in timemachine.yml changed; run tm init to approve it." Running `tm init` again keeps your file as it is and approves the new check. The MCP tools `verify` and `find_good` need the same approval. Until then their descriptions name no command; after it, they show the command as quoted data (at most 200 characters), marked as data and not instructions.
-
-On a Git older than 2.36 the hooks save nothing. In a project already set up on this computer, your next prompt shows you, once: "Time Machine needs Git 2.36 or later. This computer has Git 2.35.9." (with your version). Update Git and the hooks start saving again.
 
 The hooks and the MCP server go through `scripts/tm-hook` in the plugin. It runs `tm` only after checking that the `tm` on your PATH is Time Machine: the first line of `tm --help` must read "tm: save points for your project, checked with your own tests." Another program named `tm` never sees your prompts.
 
@@ -83,7 +81,7 @@ Without `tm` on your PATH, Claude Code lists the `timemachine` MCP server as fai
 tm ui
 ```
 
-This opens Time Machine in your browser. The server binds to `127.0.0.1` on your computer, not a cloud service. Add a Git project or a plain folder (notes, a thesis, research data; no Git needed) by its full local path, or on a Mac with **Choose a folder…**. Or choose **Try the demo** to exercise the real engine on synthetic data. Save, check, compare and recover use the same engine and store as the CLI. No project upload is needed.
+This opens Time Machine in your browser. The server binds to `127.0.0.1` on your computer, not a cloud service. Add a Git project by its full local folder path, or choose **Try the demo** to exercise the real engine on synthetic data. Save, check, compare and recover use the same engine and store as the CLI. No project upload is needed.
 
 Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the address without opening a browser, and `tm ui --port 4388` chooses a port. Open the complete address printed for this run; it includes a private session key. Do not share it or expose the port through a tunnel. To open the browser, `tm ui` passes that address to your system's launcher (`open` or `xdg-open`), so other accounts on the same computer could see it in a process list for the moment the launcher runs. On a shared computer, use `tm ui --no-open` and paste the address yourself.
 
@@ -115,12 +113,12 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 
 | | What | Status |
 |---|---|---|
-| `tm` command | `init`, `status`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `restore`, `relink`, `list`, `thin`, `doctor`, `demo`, `hook install`, `mcp`, `ui`, `license` | Built, tested |
-| Web app | `tm ui`: onboarding, history, checks with live output, the failing test names for Jest, Vitest, Mocha, `node --test` and TAP output, comparison, **Put it back** for one file or all, rewind with undo, plain folders, auto save, run notes and pins, moved or deleted folders kept read only with **It moved…** and **Bring back a copy…**, agents, storage, settings (including each project's check), opt-in Ask (Gemini or Anthropic key) and read-only Vercel deploy links, live CLI and hook updates | Built from source |
+| `tm` command | `init`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `demo`, `hook install`, `mcp` | Built, tested |
+| Web app | `tm ui`: onboarding, history, checks, comparison, rewind with undo, agents, storage, settings, opt-in Ask and read-only Vercel deploy links, live CLI and hook updates | Built from source |
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
-| Tests | 774 automated tests in 73 files, passing locally on macOS at `7ef1bff` (3 skipped there), plus 99 for the site's functions. CI runs them on macOS and Linux with Node 22 and 24. Also run on a real project, `sindresorhus/slugify` | Built |
+| Tests | 404 automated tests, passing in CI on macOS and Linux with Node 22 and 24 (2 run only on Linux). Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
 | Website | Static site in `site/`: a waitlist (pending signups, no email yet) and anonymous visit counts. Public at https://time-machine-site.vercel.app | Live |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
@@ -141,11 +139,6 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | `tm verify cp-0003` | Runs your check there and records a verdict |
 | `tm find-good` | Walks back until a save point passes |
 | `tm recover cp-0003` | Saves your current state first, then makes branch `tm/recover/cp-0003` and a recovery copy |
-| `tm restore cp-0003 -- src/app.js` | Puts files or folders back into your folder from a save point. Saves your folder first, deletes nothing, commits nothing. `--dry-run` writes nothing |
-| `tm relink <old> <new>` | The project's folder moved: keeps its save points, settings, notes and checks at the new path |
-| `tm list` | Lists every project in the store, with its save points and size, and says when a folder is gone |
-| `tm thin [--apply]` | Shows which old auto saves can go and why. `--apply` removes them; if any kept save point's store copy can't be rebuilt, nothing is removed |
-| `tm doctor` | Checks every save point in the store for damage; exits 2 when it finds any |
 | `tm log` | Shows the append-only audit log |
 | `tm demo` | Builds a small broken project and rescues it |
 | `tm hook install` | Adds the Claude Code hooks to `.claude/settings.json` |

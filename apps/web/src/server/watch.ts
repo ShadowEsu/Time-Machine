@@ -8,8 +8,7 @@ import type { AppState } from "./state.js";
 const WATCHED = new Set(["verdicts.jsonl", "audit.jsonl"]);
 
 export class StoreWatcher {
-  /** One watch per project, with the folder it was made for: a project moved to a new folder has a new store. */
-  private readonly watchers = new Map<string, { w: FSWatcher; path: string }>();
+  private readonly watchers = new Map<string, FSWatcher>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
   private readonly poll: NodeJS.Timeout;
 
@@ -23,10 +22,10 @@ export class StoreWatcher {
   }
 
   sync(): void {
-    const paths = new Map(this.state.projects.map((p) => [p.id, p.path]));
-    for (const [id, x] of this.watchers) {
-      if (paths.get(id) !== x.path) {
-        x.w.close();
+    const ids = new Set(this.state.projects.map((p) => p.id));
+    for (const [id, w] of this.watchers) {
+      if (!ids.has(id)) {
+        w.close();
         this.watchers.delete(id);
       }
     }
@@ -48,7 +47,7 @@ export class StoreWatcher {
           w.close();
           this.watchers.delete(p.id);
         });
-        this.watchers.set(p.id, { w, path: p.path });
+        this.watchers.set(p.id, w);
       } catch {
         // Try again on the next poll.
       }
@@ -68,7 +67,7 @@ export class StoreWatcher {
 
   close(): void {
     clearInterval(this.poll);
-    for (const x of this.watchers.values()) x.w.close();
+    for (const w of this.watchers.values()) w.close();
     for (const t of this.timers.values()) clearTimeout(t);
   }
 }

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { ProjectEntry, ProjectStatus } from "../src/shared/api.ts";
 import { esc, verdictWord, when } from "../src/shared/format.ts";
 import { activityStrip, digest, digestLine, overviewPage, reportLine, saveState, spread, type DigestPoint, type OverviewInput } from "../src/renderer/overview.ts";
-import { checkRecommended, hasCheck, kindLabel, projectMeta, unitCount } from "../src/renderer/purpose.ts";
+import { checkRequired, hasCheck, kindLabel, projectMeta, unitCount } from "../src/renderer/purpose.ts";
 
 const now = new Date(2026, 9, 25, 7, 0).getTime();
 const hoursAgo = (h: number): string => new Date(now - h * 3_600_000).toISOString();
@@ -49,20 +49,6 @@ describe("since you last looked", () => {
     expect(digestLine(d, "research")).toBe("2 runs, 2 checked, 1 broke. Claude Code made all of them.");
     expect(digestLine(d, "documents")).toBe("2 save points, 2 checked, 1 broke. Claude Code made all of them.");
   });
-
-  test("a project that can't be read is said by name, never counted as a quiet day (writer#3)", () => {
-    expect(reportLine([], 24, (n) => n, ["Thesis"])).toBe("Can’t read Thesis right now.");
-    expect(reportLine([{ name: "shop", d: digest([pt(1, 1, null)], now), checks: false }], 24, (n) => n, ["Thesis", "big"])).toBe("1 save in the last 24 hours. Can’t read 2 projects right now.");
-    const html = page({ projects: [entry("a", "Thesis", "folder", "documents")], timelines: new Map([["a", "error"]]) });
-    expect(html).toContain("Can’t read");
-    expect(html).not.toContain("Quiet.");
-  });
-
-  test("Needs something counts as not checked (cli#10)", () => {
-    const d = digest([pt(1, 1, "BLOCKED"), pt(2, 1, "BLOCKED"), pt(3, 1, "PASS")], now);
-    expect(d.checked).toBe(1);
-    expect(digest([pt(1, 1, "BLOCKED")], now).everChecked).toBe(false);
-  });
 });
 
 describe("purpose words", () => {
@@ -71,15 +57,15 @@ describe("purpose words", () => {
     expect(unitCount("code", 3)).toBe("3 save points");
     expect(kindLabel("folder")).toBe("Folder");
     expect(kindLabel("git")).toBe("Git project");
-    expect(checkRecommended("code")).toBe(true);
-    for (const p of ["documents", "research", "agents", "other"] as const) expect(checkRecommended(p)).toBe(false);
+    expect(checkRequired("code")).toBe(true);
+    for (const p of ["documents", "research", "agents", "other"] as const) expect(checkRequired(p)).toBe(false);
   });
 });
 
 const entry = (id: string, name: string, kind: ProjectEntry["kind"], purpose: ProjectEntry["purpose"]): ProjectEntry => ({
   id, path: `/Users/you/${name}`, name, addedAt: "2026-10-24T00:00:00Z", demo: false, features: { ask: false, vercel: null, autoSave: "off" }, kind, purpose,
 });
-const status = (id: string, newest: DigestPoint | null): ProjectStatus => ({ projectId: id, newest: newest && { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt }, lastWorking: null, problem: null, problemKind: null });
+const status = (id: string, newest: DigestPoint | null): ProjectStatus => ({ projectId: id, newest: newest && { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt }, lastWorking: null, problem: null });
 const page = (over: Partial<OverviewInput>): string => overviewPage({
   projects: [], statuses: new Map(), timelines: new Map(), checks: new Set(), now, badge: (v) => `<span class="vb">${verdictWord(v)}</span>`, freeLimit: 3, enter: "", ...over,
 });
@@ -92,11 +78,11 @@ describe("project cards", () => {
     expect(projectMeta({ kind: "folder", purpose: "agents" })).toBe("Folder · AI agent workspace");
   });
 
-  test("a project has a check when a command is set now; until that is read, when it has ever been checked", () => {
-    expect(hasCheck(false, true)).toBe(false);
-    expect(hasCheck(true, false)).toBe(true);
-    expect(hasCheck(null, true)).toBe(true);
-    expect(hasCheck(null, false)).toBe(false);
+  test("a project has a check when it is code, has ever been checked, or has one stored", () => {
+    expect(hasCheck("code", false, false)).toBe(true);
+    expect(hasCheck("documents", false, false)).toBe(false);
+    expect(hasCheck("documents", true, false)).toBe(true);
+    expect(hasCheck("research", false, true)).toBe(true);
   });
 
   test("a project with no check shows when it was saved, never Not checked yet, and says not checked nowhere", () => {

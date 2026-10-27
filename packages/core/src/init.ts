@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { audit } from "./audit.js";
 import { CONFIG_FILE, loadConfig, type ProjectConfig } from "./config.js";
 import { checkCommand, consentState, recordConsent } from "./consent.js";
-import { configRoot, resolveProject, type Project } from "./project.js";
+import { configRoot, resolveProject } from "./project.js";
 import { detectSandbox } from "./sandbox.js";
 import type { Ctx, InitResult } from "./types.js";
 
@@ -49,27 +49,6 @@ export function guessSetup(root: string): string {
   return `npm install ${NPM_FLAGS}`;
 }
 
-/** What tm init sets up: the check, its install step, the network rule, and whether the settings file exists already. */
-export interface InitPlan {
-  command: string;
-  setup: string;
-  network: "allow" | "deny";
-  exists: boolean;
-}
-
-/** The check init would set up for a project: from its timemachine.yml when there is one, else what init would write. */
-function planFor(p: Project): InitPlan {
-  const { config, exists } = loadConfig(configRoot(p));
-  if (exists) return { command: config.verify.command, setup: config.verify.setup, network: config.verify.network, exists };
-  const folder = p.kind === "folder";
-  return { command: folder ? "" : guessCommand(p.root), setup: folder ? "" : guessSetup(p.root), network: detectSandbox(p.env) ? "deny" : "allow", exists };
-}
-
-/** What tm init would set up at ctx.cwd, without writing anything: the check, install step and network rule, and whether a settings file exists. */
-export function planInit(ctx: Ctx): InitPlan {
-  return planFor(resolveProject(ctx, { create: "plan" }));
-}
-
 /**
  * Writes timemachine.yml, or keeps an existing one untouched, and approves its current check on
  * this computer. Running it again after the check changed is how the user approves the new one.
@@ -94,9 +73,12 @@ export async function init(ctx: Ctx, opts: { approve?: boolean } = {}): Promise<
     const { config } = loadConfig(dir);
     const approvedCheck = approve(config);
     audit(p, "init", null, `kept existing settings, ${approval(config)}`);
-    return { configPath: path, created: false, verifyCommand: config.verify.command, verifySetup: config.verify.setup, network: config.verify.network, sandbox: sandbox?.name ?? null, approvedCheck, kind: p.kind };
+    return { configPath: path, created: false, verifyCommand: config.verify.command, verifySetup: config.verify.setup, network: config.verify.network, sandbox: sandbox?.name ?? null, approvedCheck };
   }
-  const { command, setup, network } = planFor(p);
+  const folder = p.kind === "folder";
+  const command = folder ? "" : guessCommand(p.root);
+  const setup = folder ? "" : guessSetup(p.root);
+  const network = sandbox ? "deny" : "allow";
   const yaml = `# Time Machine settings for this project.
 version: 1
 
@@ -125,5 +107,5 @@ config:
   const { config } = loadConfig(dir);
   const approvedCheck = approve(config);
   audit(p, "init", null, `created settings, ${approval(config)}`);
-  return { configPath: path, created: true, verifyCommand: command, verifySetup: setup, network, sandbox: sandbox?.name ?? null, approvedCheck, kind: p.kind };
+  return { configPath: path, created: true, verifyCommand: command, verifySetup: setup, network, sandbox: sandbox?.name ?? null, approvedCheck };
 }

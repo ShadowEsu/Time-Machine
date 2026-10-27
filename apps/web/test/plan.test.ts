@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { LicenseStatus } from "../src/shared/api.ts";
-import { licenseAfterSave, licensePanel, planLines, planPage, RESEND_WAIT_MS, resendLabel, resendWait, SIGNED_OUT, signInPanel, usage, type AccountView, type LicenseView } from "../src/renderer/plan.ts";
+import { licensePanel, planLines, planPage, RESEND_WAIT_MS, resendLabel, resendWait, SIGNED_OUT, signInPanel, usage, type AccountView, type LicenseView } from "../src/renderer/plan.ts";
 
 const free: LicenseStatus = { active: false, id: null, issued: null, problem: null, freeProjectLimit: 3 };
 const view = (status: LicenseStatus): LicenseView => ({ status, draft: "", working: false, error: null });
@@ -32,18 +32,6 @@ describe("Plan", () => {
     expect(licensePanel(view(free), 3)).toContain("The free app is full.");
     expect(usage(5, 3)).toBe(100);
     expect(usage(1, 3)).toBe(33);
-  });
-
-  test("a refused key shows the engine's sentence under the field, and a saved one clears the draft", () => {
-    const saving: LicenseView = { status: free, draft: "hello-world", working: true, error: null };
-    const refused = licenseAfterSave(saving, { error: "That is not a Time Machine license key." });
-    expect(refused).toEqual({ status: free, draft: "hello-world", working: false, error: "That is not a Time Machine license key." });
-    const html = licensePanel(refused, 1);
-    expect(html).toContain('<div class="note bad" role="alert" id="license-error">That is not a Time Machine license key.</div>');
-    expect(html).toContain('aria-invalid="true" aria-describedby="license-key-d license-error"');
-    expect(html).toContain('value="hello-world"');
-    const on: LicenseStatus = { ...free, active: true, id: "p_1", issued: "2026-10-20" };
-    expect(licenseAfterSave(saving, { status: on })).toEqual({ status: on, draft: "", working: false, error: null });
   });
 
   describe("sign in to get your key", () => {

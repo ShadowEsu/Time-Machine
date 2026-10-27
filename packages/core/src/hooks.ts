@@ -6,11 +6,11 @@ import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { audit } from "./audit.js";
-import { checkpoint } from "./folder.js";
+import { checkpoint } from "./checkpoint.js";
 import { TmError } from "./errors.js";
 import { CONFIG_FILE, loadConfig } from "./config.js";
 import { changedWarningDue, consentState } from "./consent.js";
-import { configRoot, gitRoot, resolveProject, storeFor, tmHome, type Project } from "./project.js";
+import { gitRoot, resolveProject, type Project } from "./project.js";
 import { clipSafe, holdsSecretValue } from "./secrets.js";
 import type { Ctx, HookEvent, HookInstallResult, HookResult } from "./types.js";
 import { secretValues, verify } from "./verify.js";
@@ -76,7 +76,7 @@ const none = (event: HookEvent, message = ""): HookResult => ({ event, exitCode:
 
 /** Hides free text that holds a current secret value from the project's config files. */
 function screened(p: Project, text: string): string {
-  return holdsSecretValue(text, secretValues([p.root], loadConfig(configRoot(p)).config)) ? "(text hidden: it contained a secret value from this project)" : text;
+  return holdsSecretValue(text, secretValues([p.root], loadConfig(p.root).config)) ? "(text hidden: it contained a secret value from this project)" : text;
 }
 
 const CLAUDE_EVENT: Record<HookEvent, string> = { prompt: "UserPromptSubmit", "pre-bash": "PreToolUse", stop: "Stop" };
@@ -95,44 +95,26 @@ function hasOwnHook(root: string, event: HookEvent): boolean {
 }
 
 const CHECK_CHANGED = "Time Machine: the check in timemachine.yml changed; run tm init to approve it.";
-/** In a project's store: the last Git version notice the plugin showed, so it shows once. */
-const GIT_NOTICE_FILE = "git-version-notice";
 
 /**
  * Why a plugin hook (requireConfig) stays out, or null when it should act. It acts only when ctx.cwd
  * is in a Git repository whose root has timemachine.yml, this computer approved that exact check
  * with tm init, and the project has no hook of its own for this event. Returns "" to stay silent, or,
- * for a prompt only, a one-time notice for the user when the check changed after it was approved, or
- * when this computer's Git is too old for Time Machine. Never throws.
+ * for a prompt only, a one-time notice for the user when the check changed after it was approved.
+ * Never throws.
  */
 function pluginSkip(ctx: Ctx, event: HookEvent): string | null {
-  let root: string | null = null;
   try {
-    root = gitRoot(ctx);
+    const root = gitRoot(ctx);
     if (root === null || !existsSync(join(root, CONFIG_FILE)) || hasOwnHook(root, event)) return "";
     const p = resolveProject(ctx);
-    const { config } = loadConfig(configRoot(p));
+    const { config } = loadConfig(p.root);
     const state = consentState(p, config);
     if (state === "approved") return null;
     // The changed-check notice goes out once, on a prompt, as a systemMessage Claude Code shows the user. Stop runs in the
     // background (asyncRewake), where Claude Code hands a systemMessage to Claude instead, so it stays silent. Pre-bash
     // speaks only to name a save point it just made (see runHook).
     return state === "changed" && event === "prompt" && changedWarningDue(p, config) ? CHECK_CHANGED : "";
-  } catch (e) {
-    // An older Git stops every save. Rather than go quiet, the plugin says so once, on a prompt (Security INFO).
-    return event === "prompt" && root !== null && e instanceof TmError && e.message.startsWith("Time Machine needs Git") ? gitNotice(ctx, root, e.message) : "";
-  }
-}
-
-/** `message` the first time it comes up for a project this computer protects (one with a store), else "". Never makes a store. */
-function gitNotice(ctx: Ctx, root: string, message: string): string {
-  try {
-    const store = storeFor(tmHome(ctx), root);
-    if (!existsSync(store)) return "";
-    const marker = join(store, GIT_NOTICE_FILE);
-    if (existsSync(marker) && readFileSync(marker, "utf8") === message) return "";
-    writeFileSync(marker, message);
-    return message;
   } catch {
     return "";
   }

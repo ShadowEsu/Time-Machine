@@ -8,9 +8,6 @@ export interface Ctx {
   env?: NodeJS.ProcessEnv;
 }
 
-/** "host": a check runs in a copy with this user's rights. "confined": writes outside the copy and system temp folders are denied too. */
-export type Isolation = "host" | "confined";
-
 export interface Coverage {
   captured: string[];
   restorable: string[];
@@ -45,11 +42,7 @@ export interface VerdictRecord {
   at: string;
   checkpoint: string;
   verdict: Verdict;
-  /**
-   * Where the check ran. "host": in a separate copy with this user's rights, so it could write anywhere this user can.
-   * "confined": in a separate copy, with writes outside the copy and the system temp folders denied (macOS sandbox-exec).
-   */
-  isolation: Isolation;
+  isolation: "host";
   network: { policy: "allow" | "deny"; enforcedBy: string | null };
   command: string;
   durationMs: number;
@@ -68,8 +61,6 @@ export interface InitResult {
   sandbox: string | null;
   /** The command this computer trusts the Claude Code plugin and MCP tools to run (setup, then the check), or null when it is not approved (tm init --no-approve, or no verify.command yet). */
   approvedCheck: string | null;
-  /** "folder" for a plain folder: a check is optional there. */
-  kind?: "git" | "folder";
 }
 
 /** tm status: what the Claude Code plugin needs before its hooks act here. */
@@ -80,42 +71,26 @@ export interface StatusResult {
   approved: boolean;
   /** The command a check runs (setup, then verify.command), or null when there is no verify.command. */
   check: string | null;
-  kind: "git" | "folder";
-  /** Where the settings file is (or would be): the repository root, or the store for a plain folder. */
-  configPath: string;
 }
 
 export interface SetCheckResult {
   configPath: string;
   verifyCommand: string;
-  /** sha256 of the timemachine.yml bytes this call read, and of the text it wrote, so a caller can tell its own write
-   *  from an edit made just before or after it. */
-  read: string;
-  written: string;
 }
 
 export interface CheckpointResult {
   checkpoint: CheckpointSummary;
   /** True when nothing changed and the newest checkpoint was returned instead. */
   skipped: boolean;
-  /** "folder" for a plain folder project. Set by the public checkpoint. */
-  kind?: "git" | "folder";
 }
 
 export interface TimelineEntry extends CheckpointSummary {
   verdict: Verdict | null;
-  isolation: Isolation | null;
-  /** Set when the save point is damaged: why, in one sentence (its manifest can't be read, its Git ref was moved, saved copies are gone). */
-  damaged?: string;
-  /** Git projects: the subject of the HEAD commit at save time, null when Git no longer has it. */
-  subject?: string | null;
+  isolation: "host" | null;
 }
 
 export interface TimelineResult {
   project: string;
-  kind: "git" | "folder";
-  /** True when the folder is not on disk: its save points can still be opened and brought back as copies. */
-  missing: boolean;
   checkpoints: TimelineEntry[];
 }
 
@@ -134,7 +109,6 @@ export interface OpenResult {
   dir: string;
   isolation: "host";
   restored: string[];
-  /** What the copy lacks from the save point, one sentence each. When any, the copy is incomplete (exit 2). */
   missing: string[];
   manual: string[];
 }
@@ -154,15 +128,12 @@ export interface RecoverResult {
   id: string;
   branch: string;
   copyDir: string;
-  /** The save point made of the current state first. Null when the folder was gone, so there was nothing to save. */
-  savedBefore: string | null;
+  savedBefore: string;
   reportPath: string;
   lastVerdict: Verdict | null;
   restored: string[];
   notRestored: string[];
   manualSteps: string[];
-  /** What the copy lacks from the save point, one sentence each. When any, the recovery is incomplete (exit 2). */
-  missing: string[];
   pushed: false;
   /** Set for a plain folder project: it has no repo, so no branch was made, `branch` is "" and only the copy exists. */
   copyOnly?: true;
@@ -209,26 +180,6 @@ export interface UndoRecoverResult {
   removedCopy: string | null;
 }
 
-/**
- * What putting files back from a save point into the live folder did (or, with dryRun, would do).
- * Paths are relative to the project's folder. Nothing is ever deleted: files the save point lacks stay, as `kept`.
- */
-export interface RestoreResult {
-  id: string;
-  dryRun: boolean;
-  /** Files written back (dry run: that would be), sorted. Files already the same are not written and not listed. */
-  restored: string[];
-  /** Files under a folder asked for that are there now but not in the save point. They were left in place. */
-  kept: string[];
-  /** "<path>: <reason>" for each path asked for or file under it that was not written. When any, the CLI exits 2. */
-  skipped: string[];
-  /** The save point made of the folder just before writing ("before-restore"). Null on a dry run or when nothing needed writing. */
-  savedBefore: string | null;
-  diff: { added: number; changed: number; same: number };
-  /** Set for a Git project: files are written only; the index and commits are the person's own. */
-  note?: string;
-}
-
 export interface AuditEntry {
   at: string;
   action: string;
@@ -263,45 +214,4 @@ export interface DemoResult {
   checkpoints: { id: string; note: string; expect: "PASS" | "FAIL" }[];
   findGood: FindGoodResult;
   recover: RecoverResult;
-}
-
-/** A project in the store, whether or not the app lists it. Its folder may be gone (`missing`). */
-export interface StoreProject {
-  root: string;
-  name: string;
-  kind: "git" | "folder";
-  store: string;
-  savePoints: number;
-  /** When the newest save point was made, as an ISO time; null when there is none. */
-  lastSaved: string | null;
-  /** Bytes the project's store folder takes on disk. */
-  sizeBytes: number;
-  missing: boolean;
-}
-
-/** One project's damage, from tm doctor. */
-export interface IntegrityReport {
-  root: string;
-  kind: "git" | "folder";
-  missing: boolean;
-  checked: number;
-  /** Save points that can't be used, and why in one sentence: a manifest that fails its seal, a moved or missing Git ref. */
-  damaged: { id: string; reason: string }[];
-  /** Saved files whose copy in the store is gone or changed, per save point. */
-  missingBlobs: { id: string; path: string; reason: string }[];
-  /** Things that could not be checked, like the refs of a Git project whose folder is gone. */
-  notes: string[];
-}
-
-/** A project's check and capture settings, from its timemachine.yml (defaults when there is none). */
-export interface ProjectSettings {
-  command: string;
-  setup: string;
-  timeoutSeconds: number;
-  network: "allow" | "deny";
-  maxFileMB: number;
-  configPath: string;
-  /** sha256 of the bytes read and the text written, when this came from a write (setProjectConfig). */
-  read?: string;
-  written?: string;
 }
