@@ -1,6 +1,6 @@
 # Talking to the first 5 builders
 
-Status: plan and drafts, 15 October 2026. No one has been contacted yet. The founder sends every message himself. No agent or tool sends them.
+Status: plan and drafts, 15 October 2026. No one has been contacted yet. A person sends every message by hand. No agent or tool sends them.
 
 Goal by 31 October: five 30 minute think aloud sessions with people who use coding agents. We want to learn two things. Do they hit this problem? And can a stranger get from a broken project to a working one with `tm`, without help?
 
@@ -21,7 +21,7 @@ Start with people you already know. Then go to places where people have already 
 1. **People you know.** Friends from SF Hacks, Mega Hackathon and Code The Change. Ask them to point you to one friend who uses agents.
 2. **People who wrote about a break.** Cursor forum threads about agents deleting files. Claude Code GitHub issues about `git reset --hard` or lost work. Posts on X or Bluesky about an agent wiping a project. Reply to their public post, or message them if their profile invites it.
 3. **Communities, with permission.** r/ClaudeCode and r/vibecoding: read the rules, and ask a moderator before posting. Lovable and Cursor Discord servers: only in channels meant for feedback or show and tell.
-4. **Unvibe users.** Only people who agreed to hear from you. **[FOUNDER]** confirm whether any did.
+4. **Unvibe users.** Only people who agreed to hear from you. **[CONFIRM]** whether any did.
 
 ## Rules
 
@@ -35,17 +35,17 @@ Start with people you already know. Then go to places where people have already 
 
 ## Message drafts
 
-Three drafts. All are drafts only. The founder edits and sends each one by hand. Change the first line for each person and keep it short.
+Three drafts. All are drafts only. Whoever sends them edits and sends each one by hand. Change the first line for each person and keep it short.
 
 ### 1. Think aloud invite (to a builder you know, or who posted about losing work)
 
 > Hi [name], I saw your post about [the agent deleting your folder / losing a working version]. That sounds rough.
 >
-> I'm Preston, a student building Time Machine. Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it. It's a free command line tool, early, and not on npm yet.
+> I'm [your name], and I'm building Time Machine. Your agent can break things. Time Machine proves which version still passes your tests and gets you back to it. It's a free command line tool, early, and not on npm yet.
 >
 > Would you try it for 30 minutes on a call and think out loud? I want to find what's confusing, not hear compliments. You can use our demo project. I never need access to your code. If it's not for you, no worries.
 >
-> Preston, preston@unvibe.site
+> [your name], [your email]
 
 **Follow up (once, 5 to 7 days later):**
 
@@ -77,7 +77,7 @@ Only if their profile invites messages. Mention something specific they posted.
 >
 > I'm building a small tool for exactly that. It tests each save point in a separate copy and makes a recovery branch without touching your folder. Happy to send the 60 second demo if useful. No pitch beyond that.
 >
-> Preston
+> [your name]
 
 ## Think aloud session (30 minutes)
 

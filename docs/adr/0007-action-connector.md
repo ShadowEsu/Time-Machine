@@ -34,7 +34,7 @@ The brief's "Never" list says we never unsend emails or payments. This ADR chang
 - **Emails** move from "Never" to **"hold and recall only"**. We can hold an email before it is sent and cancel it inside the window. After delivery we still never claim to unsend it.
 - **Payments** stay in "Never" as an undo. A refund is offered and is always called a refund.
 
-The founder must approve this change before the brief is edited.
+The team must approve this change before the brief is edited.
 
 ## Risks
 
@@ -57,7 +57,7 @@ The founder must approve this change before the brief is edited.
 - A hosted server, which the MVP does not have: accounts, OAuth, a database for the timeline, and uptime.
 - Composio fees per connected account at scale.
 - A security review before any public launch, and likely a Google verification for Gmail scopes.
-- Founder time taken from the code product.
+- Team time taken from the code product.
 
 ## Migration path
 
@@ -68,7 +68,7 @@ Start with Gmail hold and recall and Slack delete only. If one provider's terms 
 All of these first:
 
 1. The code MVP has shipped: `timetm` is on npm and a stranger can run `npx timetm init` to a verified recovery branch.
-2. The founder signs off on this ADR and on the brief change above, in writing in this file.
+2. The team signs off on this ADR and on the brief change above, in writing in this file.
 3. Who signs for money and data is settled (`docs/legal/README.md`), because this product holds other people's private messages.
 
 Until then the connector is labeled **Planned** everywhere it is mentioned.

@@ -8,7 +8,7 @@ When an AI agent or a late night change breaks your project, Time Machine finds 
 
 ## Install
 
-Not on npm yet. Build from source (below). Needs Node 22 or newer and Git. The npm commands will be listed here once the package is published.
+Not on npm yet. Build from source (below). Needs Node 22 or newer and Git 2.36 or newer. The npm commands will be listed here once the package is published.
 
 
 ## Local browser app
@@ -79,7 +79,7 @@ Usage errors exit 64.
 
 ## Build from source
 
-Needs Node 22 or newer, pnpm and Git.
+Needs Node 22 or newer, pnpm and Git 2.36 or newer.
 
 ```sh
 pnpm install

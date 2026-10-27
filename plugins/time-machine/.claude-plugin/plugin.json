@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Save points for your project, checked with your own tests. Saves before each prompt and risky shell command, and checks your tests when Claude stops. Acts only in projects where you approved the check with tm init on this computer. Needs the tm CLI on PATH.",
   "author": {
-    "name": "Preston Susanto",
+    "name": "The Time Machine team",
     "email": "preston@unvibe.site"
   },
   "homepage": "https://time-machine-site.vercel.app",

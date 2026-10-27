@@ -9,9 +9,9 @@ import { Credentials } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
 import { CallSchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
-import { clock, dayLabel, pointClock, pointTitle, sameSecondLine, versionPhrase, when } from "../src/shared/format.ts";
+import { clock, dayLabel, pointClock, pointTitle, sameSecondLine, versionPhrase, versionTimePhrase, when } from "../src/shared/format.ts";
 import { clockParts, goBackLabel, passStreaks, projectStatus, railAge } from "../src/renderer/status.ts";
-import { filterPalette, type PaletteItem } from "../src/renderer/palette.ts";
+import { filterPalette, reduceMotionItem, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
 
@@ -24,12 +24,13 @@ describe("settings", () => {
       simpleRewind: false,
       verdictTipSeen: false,
       setupHidden: [],
+      reduceMotion: false,
     });
   });
 
   test("settings saved by the Mac app keep their values and drop the desktop-only keys", () => {
     const old = { showGitDetails: true, theme: "system", onboarded: true, simpleRewind: false };
-    expect(SettingsSchema.parse({ ...old, overlayCards: false, hotkey: "Control+Alt+T", agentPill: true })).toEqual({ ...old, verdictTipSeen: false, setupHidden: [] });
+    expect(SettingsSchema.parse({ ...old, overlayCards: false, hotkey: "Control+Alt+T", agentPill: true })).toEqual({ ...old, verdictTipSeen: false, setupHidden: [], reduceMotion: false });
   });
 
   test("a patch never resets what it leaves out, and unknown keys are refused", () => {
@@ -173,31 +174,41 @@ describe("project status", () => {
     expect(s.primary.label).not.toContain(timeOnly(sec(18, 4, 40)));
   });
 
-  test("two save points in one second are said by their order, oldest first, never by #N", () => {
+  test("two save points in one second are said by their order before the time, oldest first, never by #N (Design 24 Oct P2-1)", () => {
     const sec = (d: Date, s: number): string => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 18, 4, s).toISOString();
     const sameSecond = (d: Date): P[] => [pt(1, "PASS", sec(d, 5), "Works"), pt(2, "FAIL", sec(d, 5), "Broke it"), pt(3, null, sec(d, 30), "Later")];
     const time = (iso: string): string => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
-    // Today: "6:04:05 PM (first save)" in the button and the sentence; the ruler's label keeps "#1".
+    // Today: "the first save at 6:04:05 PM" in the button and the sentence, so "second" can only mean the later one;
+    // the ruler's label keeps "#1".
     const today = sameSecond(new Date());
+    const t5 = time(sec(new Date(), 5));
     const s = projectStatus(today);
-    expect(s.secondary?.label).toBe(`Bring back ${time(sec(new Date(), 5))} (first save)`);
-    expect(s.secondary?.title).toBe(`Bring back the ${time(sec(new Date(), 5))} version (first save)`);
-    expect(goBackLabel(today[1]!, today)).toBe(`Bring back the ${time(sec(new Date(), 5))} version (second save)`);
+    expect(s.secondary?.label).toBe(`Bring back the first save at ${t5}`);
+    expect(s.secondary?.title).toBe(`Bring back the first save at ${t5}`);
+    expect(goBackLabel(today[1]!, today)).toBe(`Bring back the second save at ${t5}`);
     expect(s.voice).toBe(`Saved ${time(sec(new Date(), 30))}.`);
-    expect(projectStatus(today.slice(0, 2)).voice).toBe(`Since ${time(sec(new Date(), 5))} (second save).`);
-    expect(pointClock(today[0]!, today)).toBe(`${time(sec(new Date(), 5))} #1`);
-    expect(sameSecondLine(today[1]!, today)).toEqual({ time: time(sec(new Date(), 5)), line: "Second save in that second" });
-    // Another day: the day comes in front, "Wed 14 Oct 6:04:05 PM (first save)", and the sentences never say "#N" or "the second save at".
+    const brokenToday = projectStatus(today.slice(0, 2));
+    expect(brokenToday.voice).toBe(`Since the second save at ${t5}.`);
+    expect(brokenToday.body).toContain(`The first save at ${t5} still works.`);
+    // The newest save point is a twin with no verdict: "Saved as the second save at …", never "Saved the second save at …".
+    expect(projectStatus([today[0]!, { ...today[1]!, verdict: null }]).voice).toBe(`Saved as the second save at ${t5}.`);
+    expect(pointClock(today[0]!, today)).toBe(`${t5} #1`);
+    // A heading shows the time alone; the line under it says which one.
+    expect(sameSecondLine(today[1]!, today)).toEqual({ time: t5, line: `The second save at ${t5}` });
+    expect(versionTimePhrase(today[1]!, today)).toBe(`the ${t5} version`);
+    // Another day: "the first save on Wed 14 Oct at 6:04:05 PM".
     const day = new Date(2026, 9, 14);
     const old = sameSecond(day);
     const dayName = day.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-    expect(versionPhrase(old[0]!, old)).toBe(`the ${dayName} ${time(sec(day, 5))} version (first save)`);
+    const d5 = time(sec(day, 5));
+    expect(versionPhrase(old[0]!, old)).toBe(`the first save on ${dayName} at ${d5}`);
+    expect(versionTimePhrase(old[0]!, old)).toBe(`the ${dayName} ${d5} version`);
     const broken = projectStatus([...old, pt(4, "FAIL", sec(day, 50), "Broke again")]);
     // The first failure after the pass is the second save in that second.
-    expect(broken.voice).toBe(`Since ${dayName} ${time(sec(day, 5))} (second save).`);
-    expect(broken.body).toContain(`The ${dayName} ${time(sec(day, 5))} version (first save) still works.`);
-    for (const words of [broken.head, broken.voice, broken.body, broken.primary.label, broken.primary.title ?? ""]) expect(words).not.toMatch(/#\d|the \w+ save (at|on)/);
-    expect(broken.primary.label).toBe(`Bring back ${time(sec(day, 5))} (first save)`);
+    expect(broken.voice).toBe(`Since the second save on ${dayName} at ${d5}.`);
+    expect(broken.body).toContain(`The first save on ${dayName} at ${d5} still works.`);
+    for (const words of [broken.head, broken.voice, broken.body, broken.primary.label, broken.primary.title ?? ""]) expect(words).not.toMatch(/#\d|\(\w+ save\)/);
+    expect(broken.primary.label).toBe(`Bring back the first save at ${d5}`);
   });
 
   test("a save point names its agent once: dropped beside an author line, kept without one", () => {
@@ -248,6 +259,14 @@ describe("jump to", () => {
 
   test("an empty query keeps every item in order", () => {
     expect(filterPalette(items, "  ")).toEqual(items);
+  });
+
+  test("Reduce motion is one item away, and says whether it is on", () => {
+    const off = reduceMotionItem(false);
+    expect(filterPalette([...items, off], "motion")).toEqual([off]);
+    expect(filterPalette([...items, off], "reduce")).toEqual([off]);
+    expect(off).toMatchObject({ group: "Actions", label: "Reduce motion", hint: "Off", act: "reduce-motion" });
+    expect(reduceMotionItem(true).hint).toBe("On");
   });
 });
 

@@ -8,7 +8,7 @@ import { esc, when } from "../src/shared/format.ts";
 import { isAllowedExternal } from "../src/shared/links.ts";
 import { answerHtml, askPanelHtml, citeChip, type AskView, type CitedPoint } from "../src/renderer/ask-panel.ts";
 import { chipsByCheckpoint, deployChip, deployLink, renderDeployChips, unlinkedHtml } from "../src/renderer/deploys.ts";
-import { featureSettingsHtml, type FeatureSettingsView } from "../src/renderer/feature-settings.ts";
+import { checkPatch, featureSettingsHtml, type FeatureSettingsView } from "../src/renderer/feature-settings.ts";
 import { FakeEngine, previewStory } from "../preview/fake.ts";
 
 const PROJECT = "6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b";
@@ -110,11 +110,13 @@ describe("the Ask panel", () => {
     expect(html).not.toContain("<textarea");
   });
 
-  test("off without a key names the exact variable with Copy, and points to Settings > Features", () => {
+  test("off without a key names the exact variable with Copy, kept whole, and points to this project's Ask settings", () => {
     const html = askPanelHtml(view({ phase: "off", hasKey: false }));
     expect(html).toContain("Set GEMINI_API_KEY and restart tm ui.");
+    expect(html).toContain('<code class="mono nowrap">GEMINI_API_KEY</code>');
     expect(html).toContain('data-fa="copy-env"');
     expect(html).toContain('data-fa="settings"');
+    expect(html).toContain("Ask in this project’s Settings");
     expect(askPanelHtml(view({ phase: "off", hasKey: false, canOpenSettings: false }))).not.toContain('data-fa="settings"');
     expect(askPanelHtml(view({ phase: "off" }))).not.toContain('data-fa="copy-env"');
   });
@@ -131,7 +133,7 @@ describe("the Ask panel", () => {
     expect(html).toMatch(/<textarea[^>]*disabled/);
     expect(html).toContain("GEMINI_API_KEY");
     expect(html).toContain('data-fa="copy-env"');
-    expect(html).toContain("Settings &gt; Features");
+    expect(html).toContain("Ask in this project’s Settings");
     expect(html).not.toContain('data-fa="suggest"');
   });
 
@@ -211,14 +213,66 @@ describe("Vercel deploy chips", () => {
       expect(chips.get("cp-0003")).toContain("Vercel Production · Ready");
       expect(chips.get("cp-0002")).toContain("Vercel Preview · Ready");
       expect((await renderDeployChips(PROJECT, entries, new FakeEngine("broken", "no-vercel"))).size).toBe(0);
-      const failing = { call: async () => ({ ok: false as const, error: { kind: "usage", message: "Add a Vercel token in Settings to see deploys." } }) };
+      const failing = { call: async () => ({ ok: false as const, error: { kind: "usage" as const, message: "Add a Vercel token in Settings to see deploys." } }) };
       expect((await renderDeployChips(PROJECT, entries, failing)).size).toBe(0);
     });
   });
 });
 
 describe("Settings > Features", () => {
-  const base: FeatureSettingsView = { phase: "ready", ask: false, autoSave: "off", link: null, keys: { gemini: false, vercel: false }, options: null, busy: false, status: null, problem: null };
+  const base: FeatureSettingsView = { phase: "ready", ask: false, autoSave: "off", link: null, keys: { gemini: false, anthropic: false, vercel: false }, options: null, busy: false, status: null, problem: null, check: null, purpose: "code", projectId: "p1" };
+  const check = { command: "npm test", setup: "npm ci", timeoutSeconds: 600, network: "deny" as const, maxFileMB: 5 };
+
+  test("Check shows the project's command, setup, time limit and network, and saves them in one form", () => {
+    const html = featureSettingsHtml({ ...base, check });
+    expect(html).toContain('<h3 class="ft-sec" id="ft-check-p1">Check</h3>');
+    expect(html).toMatch(/<form class="ft-check" data-check-form/);
+    expect(html).toMatch(/id="ck-command-p1"[^>]*value="npm test"/);
+    expect(html).toMatch(/id="ck-setup-p1"[^>]*value="npm ci"/);
+    expect(html).toMatch(/id="ck-timeout-p1"[^>]*type="number"[^>]*min="1" max="86400"[^>]*value="600"/);
+    expect(html).toMatch(/role="switch" aria-checked="false" aria-label="Internet during checks" data-fa="check-network"/);
+    expect(html).toContain(">Save check settings</button>");
+    // Read while the settings load; nothing to edit until they arrive.
+    expect(featureSettingsHtml(base)).toContain("Reading the check settings…");
+  });
+
+  test("two projects' rows in one page share no id, and every label and description points inside its own rows", () => {
+    const ids = (html: string): string[] => [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1] ?? "");
+    const one = featureSettingsHtml({ ...base, check });
+    const two = featureSettingsHtml({ ...base, check, projectId: "p2" });
+    expect(ids(one).filter((x) => ids(two).includes(x))).toEqual([]);
+    for (const html of [one, two]) {
+      const own = new Set(ids(html));
+      const refs = [...html.matchAll(/ (?:for|aria-describedby)="([^"]+)"/g)].flatMap((m) => (m[1] ?? "").split(" "));
+      expect(refs.length).toBeGreaterThan(5);
+      expect(refs.filter((r) => !own.has(r))).toEqual([]);
+    }
+  });
+
+  test("a refused time limit is said under Save check settings and marks the field", () => {
+    const html = featureSettingsHtml({ ...base, check, checkMessage: { kind: "error", text: "Enter a time limit from 1 to 86400 seconds.", field: "timeout" } });
+    expect(html).toMatch(/id="ck-timeout-p1"[^>]*aria-describedby="ck-timeout-d-p1 ck-msg-p1" aria-invalid="true"/);
+    const form = html.slice(html.indexOf("<form"), html.indexOf("</form>"));
+    expect(form.indexOf("Save check settings")).toBeLessThan(form.indexOf('role="alert">Enter a time limit from 1 to 86400 seconds.'));
+    expect(featureSettingsHtml({ ...base, check, checkMessage: { kind: "ok", text: "Nothing changed." } })).not.toContain("aria-invalid");
+  });
+
+  test("a folder's check is optional and said without code words", () => {
+    const html = featureSettingsHtml({ ...base, purpose: "documents", check: { ...check, command: "", setup: "" } });
+    expect(html).toContain("Optional here.");
+    expect(html).not.toMatch(/npm|pytest|tests?\b/);
+    // Vercel deploys come from Git commits: not offered on a folder of documents. Ask is one plain sentence.
+    expect(html).not.toContain("Vercel");
+    expect(html).toContain("never what is in your files");
+    expect(html).toContain('id="ft-ask-p1"');
+  });
+
+  test("the check form sends only what changed and refuses a time limit out of range", () => {
+    expect(checkPatch(check, { command: " npm test ", setup: "npm ci", timeout: "600" })).toEqual({});
+    expect(checkPatch(check, { command: "pnpm test", setup: "", timeout: "90" })).toEqual({ command: "pnpm test", setup: "", timeoutSeconds: 90 });
+    expect(checkPatch(check, { command: "npm test", setup: "npm ci", timeout: "0" })).toEqual({ error: "Enter a time limit from 1 to 86400 seconds." });
+    expect(checkPatch(check, { command: "npm test", setup: "npm ci", timeout: "1.5" })).toHaveProperty("error");
+  });
 
   test("Saving has one switch, worded as the Add flow words it, that shows its state", () => {
     const off = featureSettingsHtml(base);
@@ -228,7 +282,7 @@ describe("Settings > Features", () => {
   });
 
   test("key fields are password inputs that never carry a value", () => {
-    const html = featureSettingsHtml({ ...base, keys: { gemini: true, vercel: true } });
+    const html = featureSettingsHtml({ ...base, keys: { gemini: true, anthropic: false, vercel: true } });
     const inputs = html.match(/<input[^>]*>/g) ?? [];
     expect(inputs).toHaveLength(2);
     for (const i of inputs) {
@@ -240,7 +294,7 @@ describe("Settings > Features", () => {
   });
 
   test.each([false, true])("browser credential configuration %s never exposes credential mutation controls", (configured) => {
-    const html = featureSettingsHtml({ ...base, runtime: "browser", keys: { gemini: configured, vercel: configured } });
+    const html = featureSettingsHtml({ ...base, runtime: "browser", keys: { gemini: configured, anthropic: false, vercel: configured } });
     expect(html.match(/<input\b[^>]*type="password"/g) ?? []).toHaveLength(0);
     expect(html.match(/<form\b[^>]*data-key-form/g) ?? []).toHaveLength(0);
     expect(html.match(/<button\b[^>]*data-fa="remove-key"/g) ?? []).toHaveLength(0);
@@ -250,7 +304,7 @@ describe("Settings > Features", () => {
   });
 
   test("explicit desktop runtime retains credential controls", () => {
-    const html = featureSettingsHtml({ ...base, runtime: "desktop", keys: { gemini: true, vercel: true } });
+    const html = featureSettingsHtml({ ...base, runtime: "desktop", keys: { gemini: true, anthropic: false, vercel: true } });
     expect(html.match(/<input\b[^>]*type="password"/g) ?? []).toHaveLength(2);
     expect(html.match(/<button\b[^>]*data-fa="remove-key"/g) ?? []).toHaveLength(2);
   });
@@ -264,7 +318,7 @@ describe("Settings > Features", () => {
   test("not linked explains how to link; linked offers Unlink; project names are escaped", () => {
     expect(featureSettingsHtml(base)).toContain("Not linked, so no deploys show on the timeline.");
     expect(featureSettingsHtml(base)).toContain("Add a Vercel token above first.");
-    const picking = featureSettingsHtml({ ...base, keys: { gemini: false, vercel: true }, options: [{ teamId: null, teamName: null, projectId: "prj_1", name: "<i>x</i>", repo: "acme/x" }] });
+    const picking = featureSettingsHtml({ ...base, keys: { gemini: false, anthropic: false, vercel: true }, options: [{ teamId: null, teamName: null, projectId: "prj_1", name: "<i>x</i>", repo: "acme/x" }] });
     expect(picking).toContain("&lt;i&gt;x&lt;/i&gt; · Personal · acme/x");
     expect(picking).toContain('data-fa="link"');
     const linked = featureSettingsHtml({ ...base, link: { teamId: null, projectId: "prj_1", name: "marigold" } });

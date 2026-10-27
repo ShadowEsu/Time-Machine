@@ -262,7 +262,7 @@ function typeLine(i) {
 // Beats (p): hold .00-.06 · open .06-.26 · checks .28-.53 (top down, .07 apart) · cp-0003 out .60-.80 · close .68-.86
 const CHECK = (j) => [0.28 + 0.07 * j, 0.28 + 0.07 * j + 0.04];
 
-// Idle (Preston via TM, 10-24: the start must not be static). At the top of the pin, with no scroll and no input, the
+// Idle (team feedback, 10-24: the start must not be static). At the top of the pin, with no scroll and no input, the
 // machine lives on its own, on a CYCLE-second loop: it holds "ready" while a ring of sky light around the restore key
 // breathes; then the readout browses the save points newest to oldest, each one's seam lighting as it's named while
 // the others dim (the order the story checks them in), so a light runs down the stack. Meanwhile the camera drifts a

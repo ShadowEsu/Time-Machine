@@ -36,6 +36,29 @@ const SessionsPage = z.object({
   has_more: z.boolean(),
 });
 
+// How the session signed in, from the token's own payload (Supabase's `amr`). A refreshed token keeps it.
+const SessionClaims = z.object({ amr: z.array(z.object({ method: z.string() })).min(1) });
+
+/**
+ * True only when every way this session signed in was an emailed code. Read after Supabase accepted the same token,
+ * so the payload is Supabase's. With Confirm email on, someone who signs up first with a buyer's email and a password
+ * keeps that password after the buyer's code confirms the email; that session says "password" and is refused, as is
+ * any other method (OAuth, SSO). Anything missing or malformed is refused too.
+ * @param {string} token
+ */
+function signedInByCodeOnly(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  } catch {
+    return false;
+  }
+  const claims = SessionClaims.safeParse(payload);
+  return claims.success && claims.data.amr.every((a) => a.method === "otp");
+}
+
 function authHeaders(env, token) {
   const headers = { apikey: env.SUPABASE_ANON_KEY, "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -125,6 +148,7 @@ export async function handleAccount(req, deps) {
     return reply(502, { ok: false, error: "auth_error" });
   }
   if (!user.data.email_confirmed_at) return reply(401, { ok: false, error: "unauthorized" });
+  if (!signedInByCodeOnly(match[1])) return reply(401, { ok: false, error: "unauthorized" });
   const email = user.data.email;
 
   const releaseKey = signsReleaseKeys(deps.env, deps.sellerPublicKey);

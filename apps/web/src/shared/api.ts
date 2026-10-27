@@ -1,6 +1,7 @@
 // The narrow bridge between the browser page and the engine. The tm ui server validates every
 // call with these schemas before it touches the engine. The preview build fakes this API.
 import { z } from "zod";
+import type { AskProvider } from "./ask.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "./links.js";
 import type {
   CheckpointResult,
@@ -16,12 +17,14 @@ import type {
   LogTail,
   OpenResult,
   RecoverResult,
+  RestoreResult,
   RunNote,
   SetCheckResult,
   SourceId,
   SourceRow,
   ThinPreview,
   TimelineResult,
+  TmErrorKind,
   UndoRecoverResult,
   Verdict,
   VerdictRecord,
@@ -34,7 +37,32 @@ export const ProjectId = z.string().uuid();
 export const CheckpointId = z.string().regex(/^cp-\d{4,}$/);
 const Note = z.string().max(200);
 const CheckCommand = z.string().trim().min(1).max(500).refine((s) => !/[\r\n\0]/.test(s), "one line only");
+/**
+ * A folder path as the person typed it: absolute, starting with ~, or empty. A relative path is refused here, since the
+ * server has no folder it could be relative to. The engine expands ~ and says what is wrong with the rest in plain words.
+ */
+const TypedPath = z
+  .string()
+  .max(4096)
+  .refine((s) => {
+    const t = s.trim();
+    return t === "" || t === "~" || t.startsWith("~/") || t.startsWith("/") || /^[A-Za-z]:\\/.test(t);
+  }, "Enter the whole path to the folder, starting with / or ~/.");
 const AbsPath = z.string().min(1).max(4096).refine((s) => s.startsWith("/") || /^[A-Za-z]:\\/.test(s), "must be an absolute path");
+
+/** A project's check and save settings, as the app edits them. Saved in timemachine.yml (in the store for a plain folder). */
+export const ProjectCheckConfigSchema = z.strictObject({
+  /** "" when the project has no check. */
+  command: z.string().trim().max(500).refine((s) => !/[\r\n\0]/.test(s), "one line only"),
+  /** Installs first in the fresh copy, such as npm ci. "" for none. */
+  setup: z.string().trim().max(500).refine((s) => !/[\r\n\0]/.test(s), "one line only"),
+  timeoutSeconds: z.number().int().min(1).max(86_400),
+  network: z.enum(["allow", "deny"]),
+  /** Files bigger than this are left out of save points. */
+  maxFileMB: z.number().positive().max(1024),
+});
+export type ProjectCheckConfig = z.infer<typeof ProjectCheckConfigSchema>;
+const ProjectCheckConfigPatch = ProjectCheckConfigSchema.partial().refine((p) => Object.keys(p).length > 0, "Change at least one setting.");
 
 export const ThemeSchema = z.enum(["system", "light", "dark"]);
 
@@ -53,6 +81,8 @@ export const SettingsSchema = z.object({
   verdictTipSeen: z.boolean().default(false),
   /** Projects whose setup strip on History was hidden with Hide, after their first verdict. */
   setupHidden: z.array(ProjectId).max(1000).default([]),
+  /** Calmer screens: no moving dial or stamps. Also turns on the plain rewind sheet. */
+  reduceMotion: z.boolean().default(false),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -64,6 +94,7 @@ export const SettingsPatchSchema = z.strictObject({
   simpleRewind: z.boolean().optional(),
   verdictTipSeen: z.boolean().optional(),
   setupHidden: z.array(ProjectId).max(1000).optional(),
+  reduceMotion: z.boolean().optional(),
 });
 
 /** A Vercel project linked to a Time Machine project. The ids go into API URLs, so only safe characters. */
@@ -114,8 +145,10 @@ export const ProjectEntrySchema = z.strictObject({
 export type ProjectEntry = z.infer<typeof ProjectEntrySchema>;
 
 /** Keys the opt-in features use. The window only ever learns whether each one is set. */
-export const CredentialNameSchema = z.enum(["gemini", "vercel"]);
+export const CredentialNameSchema = z.enum(["gemini", "anthropic", "vercel"]);
 export type CredentialName = z.infer<typeof CredentialNameSchema>;
+/** Whether each key is set, and the service Ask uses: Gemini when its key is set, otherwise Claude, or null with neither. */
+export type CredentialStatus = Record<CredentialName, boolean> & { provider: AskProvider | null };
 /** An API key or token: printable characters, no spaces. */
 export const CredentialValueSchema = z.string().trim().min(1).max(4096).regex(/^[\x21-\x7E]+$/, "A key has no spaces or line breaks.");
 
@@ -134,7 +167,20 @@ const SignInEmail = z.string().trim().toLowerCase().max(254).regex(/^[^\s@]{1,64
 /** Every call the window can make. One schema per method. */
 export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("bootstrap") }),
-  z.strictObject({ method: z.literal("addProject"), path: AbsPath, purpose: PurposeSchema.optional() }),
+  z.strictObject({ method: z.literal("addProject"), path: TypedPath, purpose: PurposeSchema.optional() }),
+  /** Projects with history in the store that the app does not list, such as ones set up with tm init. */
+  z.strictObject({ method: z.literal("storeProjects") }),
+  /** The Mac's own folder chooser. Answers null when the person cancels. */
+  z.strictObject({ method: z.literal("pickFolder") }),
+  /** What adding this folder would give, without adding it. */
+  z.strictObject({ method: z.literal("previewProject"), path: TypedPath, purpose: PurposeSchema.optional() }),
+  /** Shows the path in Finder. Only paths in the home folder or the system temp folder. */
+  z.strictObject({ method: z.literal("reveal"), path: AbsPath }),
+  /** Points a moved project at its new folder, keeping its history. */
+  z.strictObject({ method: z.literal("relinkProject"), projectId: ProjectId, path: TypedPath }),
+  z.strictObject({ method: z.literal("projectConfig"), projectId: ProjectId }),
+  /** ifCommand: change only while the check command is still exactly this (compare and set; the Add flow's Back uses it). */
+  z.strictObject({ method: z.literal("setProjectConfig"), projectId: ProjectId, patch: ProjectCheckConfigPatch, ifCommand: z.string().max(4096).optional() }),
   z.strictObject({ method: z.literal("setPurpose"), projectId: ProjectId, purpose: PurposeSchema }),
   z.strictObject({ method: z.literal("notes"), projectId: ProjectId }),
   z.strictObject({
@@ -149,7 +195,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("thinPreview"), projectId: ProjectId }),
   /** Exactly the ids a preview showed. The engine re-runs the preview and refuses any other. */
   z.strictObject({ method: z.literal("thinApply"), projectId: ProjectId, ids: z.array(CheckpointId).max(100_000) }),
-  z.strictObject({ method: z.literal("removeProject"), projectId: ProjectId }),
+  /** dropSettings: also take out the timemachine.yml this app's init created for it in this session (Add flow Back), never another. */
+  z.strictObject({ method: z.literal("removeProject"), projectId: ProjectId, dropSettings: z.literal(true).optional() }),
   z.strictObject({ method: z.literal("statuses") }),
   z.strictObject({ method: z.literal("init"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("setCheck"), projectId: ProjectId, command: CheckCommand }),
@@ -164,7 +211,10 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("checkRecord"), projectId: ProjectId, id: CheckpointId }),
   z.strictObject({ method: z.literal("findGood"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("stopCheck"), projectId: ProjectId }),
-  z.strictObject({ method: z.literal("recover"), projectId: ProjectId, id: CheckpointId }),
+  /** `dest`: a folder the person picked to hold the recovery copy, as for a project whose folder is missing. */
+  z.strictObject({ method: z.literal("recover"), projectId: ProjectId, id: CheckpointId, dest: AbsPath.optional() }),
+  /** Puts the named files or folders of a save point back into the live folder, after a save of what is there now. */
+  z.strictObject({ method: z.literal("restorePaths"), projectId: ProjectId, id: CheckpointId, paths: z.array(z.string().min(1).max(4096)).min(1).max(500), dryRun: z.boolean().optional() }),
   /** `branch` is "" for a plain folder project: its recovery made a copy only. */
   z.strictObject({ method: z.literal("undoRecover"), projectId: ProjectId, id: CheckpointId, branch: z.string().regex(/^(tm\/recover\/cp-\d{4,}(-\d+)?)?$/), copyDir: AbsPath }),
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
@@ -218,6 +268,49 @@ export interface ProjectStatus {
   lastWorking: { id: string; createdAt: string; note: string } | null;
   /** Set when the engine could not read the project (moved, not Git, and so on). */
   problem: string | null;
+  /**
+   * "missing": the folder is not there (the app says "Can't find it"). "permission": the store can't be written,
+   * and `problem` names it. "other": anything else, such as an auto save that failed. Null with no problem.
+   */
+  problemKind: "missing" | "permission" | "other" | null;
+}
+
+/** What adding a folder would give: the project around it, with its history so far. Nothing is written. */
+export interface ProjectPreview {
+  path: string;
+  name: string;
+  kind: ProjectKind;
+  /** Save points the project already has, for example from tm init or an earlier add. */
+  existingSavePoints: number;
+  /** Script names in the project's package.json, so the app offers only checks that exist. Empty without one. */
+  scripts: string[];
+  /**
+   * The check setup would give, written nowhere yet: the project's own timemachine.yml when it has one
+   * (`exists`), else what setup would pick (a guessed command and install step for code, none for a plain folder).
+   */
+  check: { command: string; setup: string; network: "allow" | "deny"; exists: boolean };
+}
+
+/** A project just added. Re-adding a folder that already has history keeps it. */
+export type AddedProject = ProjectEntry & {
+  /** Save points the project already had before this add, for example from tm init or an earlier add. */
+  existingSavePoints: number;
+  /** Script names in the project's package.json, so the app offers only checks that exist. Empty without one. */
+  scripts: string[];
+};
+
+/** A project with history in the store that the app does not list. */
+export interface StoreProject {
+  path: string;
+  name: string;
+  kind: ProjectKind;
+  savePoints: number;
+  /** When the newest save point was made. Null with none. */
+  lastSaved: string | null;
+  /** Size of its history in the store. */
+  bytes: number;
+  /** False when the folder is no longer at `path`. */
+  exists: boolean;
 }
 
 export interface Bootstrap {
@@ -247,6 +340,15 @@ export interface StorageRow {
   name: string;
   bytes: number;
   storeDir: string;
+}
+
+export interface StorageResult {
+  rows: StorageRow[];
+  /** The whole store on disk: every project, removed ones included, and the app's own files. */
+  storeBytes: number;
+  storeDir: string;
+  /** What is not counted, in plain words: code projects keep save points in their own .git folder. Null when nothing. */
+  note: string | null;
 }
 
 /** How Claude Code reaches Time Machine in one project: our lines in its .claude/settings.json, or the Claude Code plugin. */
@@ -350,7 +452,15 @@ export interface AccountLicenses {
 /** What each method returns. */
 export interface Results {
   bootstrap: Bootstrap;
-  addProject: ProjectEntry;
+  addProject: AddedProject;
+  previewProject: ProjectPreview;
+  storeProjects: StoreProject[];
+  /** Null when the person cancelled the chooser. */
+  pickFolder: { path: string | null };
+  reveal: true;
+  relinkProject: ProjectEntry;
+  projectConfig: ProjectCheckConfig;
+  setProjectConfig: ProjectCheckConfig;
   setPurpose: ProjectEntry;
   /** Keyed by save point id. Save points with no note are left out. */
   notes: Record<string, RunNote>;
@@ -375,12 +485,13 @@ export interface Results {
   /** True when a running check or search was stopped. */
   stopCheck: boolean;
   recover: RecoverResult;
+  restorePaths: RestoreResult;
   undoRecover: UndoRecoverResult;
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;
-  demo: { project: ProjectEntry; result: DemoResult };
-  storage: StorageRow[];
+  demo: { project: AddedProject; result: DemoResult };
+  storage: StorageResult;
   cleanStore: CleanStoreResult;
   agents: AgentRow[];
   isolation: IsolationInfo;
@@ -390,7 +501,7 @@ export interface Results {
   setActive: true;
   openExternal: true;
   setFeature: ProjectEntry;
-  credentials: Record<CredentialName, boolean>;
+  credentials: CredentialStatus;
   setCredential: { configured: boolean };
   ask: AskResult;
   vercelProjects: VercelProjectOption[];
@@ -407,8 +518,13 @@ export interface Results {
   signOut: { ok: true };
 }
 
+/**
+ * "permission": the store can't be written; the message names the folder. "usage": something to fix in what
+ * was asked. "not_found": the project or folder is not there. "integrity": saved data failed its check.
+ * "disconnected": the page lost the local app (set by the browser bridge, never by the server).
+ */
 export interface ApiError {
-  kind: string;
+  kind: TmErrorKind | "permission" | "disconnected";
   message: string;
 }
 
@@ -421,6 +537,12 @@ export type AppEvent =
   | { type: "navigate"; projectId: string; screen: "rewind" | "compare" | "history"; target?: string; a?: string; b?: string }
   | { type: "progress"; projectId: string; checkpoint: string; verdict: string }
   | { type: "changed"; projectId: string }
+  /**
+   * A save point auto save made (trigger "auto"), or the catch-up save when the app starts (trigger "app").
+   * `skipped` holds the reasons files were left out that were not told before in this session, in plain
+   * words such as "interview.wav is over the 5 MB limit". Empty when nothing new was left out.
+   */
+  | { type: "saved"; projectId: string; checkpoint: string; trigger: string; skipped: string[] }
   | { type: "settings"; settings: Settings }
   | { type: "license"; license: LicenseStatus };
 

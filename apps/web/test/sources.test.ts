@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { ProjectEntry, SourceRow } from "../src/shared/api.ts";
-import { homePath, PLANNED_SOURCES, protectedIn, SOURCE_PURPOSE, sourcesPage, type SourcesInput } from "../src/renderer/sources.ts";
+import { PLANNED_SOURCES, protectedIn, shownPath, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk, type SourcesInput } from "../src/renderer/sources.ts";
 
 const rows: SourceRow[] = [
   { id: "icloud", label: "iCloud Drive", path: "/Users/you/Library/Mobile Documents/com~apple~CloudDocs", found: true },
@@ -44,12 +44,13 @@ describe("Sources", () => {
     expect(protectedIn(docs, [project("a", "/Users/you/Documents"), project("b", "/Users/you/Documents/b"), project("c", "/Users/you/DocumentsOld/c")])).toEqual(["a", "b"]);
   });
 
-  test("a path shows ~ for home, whole, in one element that wraps, with the full path in its title", () => {
-    expect(homePath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs")).toBe("~/Library/Mobile Documents/com~apple~CloudDocs");
-    expect(homePath("/home/you/Dropbox")).toBe("~/Dropbox");
-    expect(homePath("/Volumes/Work/notes")).toBe("/Volumes/Work/notes");
+  test("a path shows ~ for home and iCloud Drive for iCloud's folder, whole, in one element that wraps, with the full path in its title", () => {
+    expect(shownPath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs")).toBe("iCloud Drive");
+    expect(shownPath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs/Thesis")).toBe("iCloud Drive/Thesis");
+    expect(shownPath("/home/you/Dropbox")).toBe("~/Dropbox");
+    expect(shownPath("/Volumes/Work/notes")).toBe("/Volumes/Work/notes");
     const html = sourcesPage(input());
-    expect(html).toContain('<span class="mono so-path" title="/Users/you/Library/Mobile Documents/com~apple~CloudDocs">~/Library/Mobile Documents/com~apple~CloudDocs</span>');
+    expect(html).toContain('<span class="mono so-path" title="/Users/you/Library/Mobile Documents/com~apple~CloudDocs">iCloud Drive</span>');
   });
 
   test("Protect a folder here starts on the purpose that fits: notes and cloud folders are documents, the Desktop asks", () => {
@@ -57,6 +58,21 @@ describe("Sources", () => {
     expect(SOURCE_PURPOSE.documents).toBe("documents");
     expect(SOURCE_PURPOSE.icloud).toBe("documents");
     expect(SOURCE_PURPOSE.desktop).toBeNull();
+  });
+
+  test("a whole Documents, Desktop or cloud folder first offers a smaller folder (writer#31); a vault does not", () => {
+    expect(WHOLE_FOLDER.documents && WHOLE_FOLDER.desktop && WHOLE_FOLDER.icloud).toBe(true);
+    expect(WHOLE_FOLDER.obsidian).toBe(false);
+    expect(wholeFolderAsk("Documents")).toEqual({
+      title: "Protect all of Documents?",
+      body: "This protects everything in Documents, with saves every minute and files over 5 MB left out. Protect a smaller folder instead?",
+    });
+  });
+
+  test("Git projects are said without commits: code at each save point (dev#37)", () => {
+    const html = sourcesPage(input());
+    expect(html).toContain("Your code at each save point, including work you have not committed yet.");
+    expect(html).not.toContain("Every commit");
   });
 
   test("a failed look says so instead of an empty list", () => {

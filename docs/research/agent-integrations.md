@@ -208,7 +208,7 @@ This is a recommendation, not an implementation commitment.
 
 | Order | Target | Why |
 |---|---|---|
-| **1** | **Cursor native hooks** | Covers the founder’s named audience with all three lifecycle boundaries. Existing Claude import support provides a useful compatibility reference. Native output fixes attribution and continuation ambiguity. |
+| **1** | **Cursor native hooks** | Covers our named audience with all three lifecycle boundaries. Existing Claude import support provides a useful compatibility reference. Native output fixes attribution and continuation ambiguity. |
 | **2** | **Codex CLI hooks** | Closest documented payload and stop semantics to the current implementation. Smallest translation layer after shared agent attribution is corrected. |
 | **3** | **Gemini CLI hooks** | Complete lifecycle support and close input shape. Main differences are event names and millisecond timeouts. Keep the Gemini versus Antigravity distinction visible. |
 | **4** | **GitHub Copilot in one named VS Code harness** | Complete lifecycle support. Requires explicit stop JSON and harness-specific tool handling. Do not silently bundle Local, Copilot, CLI, and cloud as one tested integration. |

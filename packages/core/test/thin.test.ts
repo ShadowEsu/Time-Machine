@@ -1,6 +1,7 @@
 // Thinning old auto saves: only save points with trigger "auto" can go. Working (PASS), pinned, named,
 // noted, recovery-linked, newest 20 and last-24-hour save points always stay.
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -87,6 +88,63 @@ describe("thinning auto saves", () => {
     expect(readFileSync(join(r.copyDir, "draft.md"), "utf8")).toBe("version 5\n");
     expect(tm.notes(h.ctx)["cp-0004"]?.pinned).toBe(true);
     expect((await tm.log(h.ctx)).entries.some((e) => e.action === "thin")).toBe(true);
+  });
+});
+
+describe("thinning rebuilds the kept save points' store copies (Security F1)", () => {
+  test("a file named like a kept save point's commit doesn't stop the rebuild", async () => {
+    const h = await sharedHistory();
+    const now = Date.now() + 10 * DAY;
+    const ids = tm.thinPreview(h.ctx, { now }).remove.map((r) => r.id);
+    const kept = (await tm.timeline(h.ctx)).checkpoints.filter((c) => !ids.includes(c.id));
+    // The rebuild of the second kept save point names the first one's commit, which a file in the folder now shares.
+    writeFileSync(join(h.ctx.cwd, kept[0]?.commit ?? ""), "a note\n");
+    const second = join(h.store, "bundles", `${kept[1]?.id ?? ""}.bundle`);
+    const before = statSync(second).ino;
+    expect(await tm.thinApply(h.ctx, ids, { now })).toEqual({ removed: ids.length });
+    // A rebuilt store copy is a new file put in place by a rename.
+    expect(statSync(second).ino).not.toBe(before);
+  });
+
+  test("store copies that can't be rebuilt stop the thinning before anything is removed, each one named (Security L1)", async () => {
+    const h = await sharedHistory();
+    const now = Date.now() + 10 * DAY;
+    const ids = tm.thinPreview(h.ctx, { now }).remove.map((r) => r.id);
+    const kept = (await tm.timeline(h.ctx)).checkpoints.filter((c) => !ids.includes(c.id)).map((c) => c.id);
+    const middle = kept[Math.floor(kept.length / 2)] ?? "";
+    const later = kept[Math.floor(kept.length / 2) + 2] ?? "";
+    const bundles = join(h.store, "bundles");
+    const before = new Map(readdirSync(bundles).map((f) => [f, statSync(join(bundles, f)).ino]));
+    // Git writes a bundle through a lock file next to it; one left in the way makes that rebuild fail.
+    for (const id of [middle, later]) writeFileSync(join(bundles, `${id}.bundle.${process.pid}.tmp.lock`), "");
+    await expect(tm.thinApply(h.ctx, ids, { now })).rejects.toThrow(`Nothing was removed: the store copies of ${middle} and ${later} could not be rebuilt without the old auto saves. `);
+    expect(tm.thinPreview(h.ctx, { now }).remove.map((r) => r.id)).toEqual(ids);
+    // Every bundle is the one from before, and no half-built copy is left.
+    const after = readdirSync(bundles).filter((f) => !f.endsWith(".lock"));
+    expect(new Map(after.map((f) => [f, statSync(join(bundles, f)).ino]))).toEqual(before);
+    expect((await tm.timeline(h.ctx)).checkpoints.every((c) => c.verdict !== "ERROR")).toBe(true);
+  });
+
+  test("a new store copy that can't be put in place stops the thinning before anything is removed (Security next-pass LOW)", async () => {
+    const h = await sharedHistory();
+    const now = Date.now() + 10 * DAY;
+    const ids = tm.thinPreview(h.ctx, { now }).remove.map((r) => r.id);
+    const kept = (await tm.timeline(h.ctx)).checkpoints.filter((c) => !ids.includes(c.id)).map((c) => c.id);
+    const bundles = join(h.store, "bundles");
+    // A folder with something in it where a later kept bundle goes: the rename onto it fails after earlier ones went in.
+    const late = kept.length - 3;
+    const blocked = join(bundles, `${kept[late] ?? ""}.bundle`);
+    rmSync(blocked, { force: true });
+    mkdirSync(blocked);
+    writeFileSync(join(blocked, "x"), "");
+    await expect(tm.thinApply(h.ctx, ids, { now })).rejects.toThrow(/^Nothing was removed: a rebuilt store copy could not be put in place\. /);
+    expect(tm.thinPreview(h.ctx, { now }).remove.map((r) => r.id)).toEqual(ids);
+    expect(readdirSync(bundles).filter((f) => f.endsWith(".tmp"))).toEqual([]);
+    // The ones already put in place are whole bundles Git accepts.
+    for (const id of kept.slice(1, late)) {
+      const r = spawnSync("git", ["--git-dir", join(h.store, "shadow.git"), "bundle", "verify", "-q", join(bundles, `${id}.bundle`)], { encoding: "utf8" });
+      expect(r.status, `${id}: ${r.stderr}`).toBe(0);
+    }
   });
 });
 

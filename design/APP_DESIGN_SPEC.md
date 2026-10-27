@@ -7,7 +7,7 @@ Builds on: `docs/BUILD_BRIEF.md` (sections 3 and 4 Phase B), `.private/research/
 
 "Time Machine" is a working name only (Apple holds the mark for this exact kind of software, see brief section 9). Every visual idea below is designed so it survives a rename: no clock, no clock with arrow, no star field, no Apple tokens. Where the product name appears in copy, read it as `{App}`.
 
-Scope note: the desktop app is Phase B (D01 to D08). Everything marked v1.5 or v2 is beyond the current scope and needs the founder to change scope first.
+Scope note: the desktop app is Phase B (D01 to D08). Everything marked v1.5 or v2 is beyond the current scope and needs a team decision to change scope first.
 
 Status of this file: complete. Sections 0 to 12 plus sources.
 
@@ -1382,7 +1382,7 @@ How the app makes these visible (so people feel the difference in the first five
 
 ## 11. Phased design roadmap
 
-Scope reminder: the brief's current scope is Phase A (CLI) then Phase B (desktop, D01 to D08). Items in v1.5 and v2 need the founder to widen scope first, and several (ML experiments, test environments with data) touch areas the brief lists as out of scope today (Python, database snapshots, cloud). They are design direction, not commitments.
+Scope reminder: the brief's current scope is Phase A (CLI) then Phase B (desktop, D01 to D08). Items in v1.5 and v2 need a team decision to widen scope first, and several (ML experiments, test environments with data) touch areas the brief lists as out of scope today (Python, database snapshots, cloud). They are design direction, not commitments.
 
 ### v1: ships with Phase B (about 8 to 10 weeks after the CLI demo works)
 
@@ -1419,13 +1419,13 @@ All three views reuse the same ruler, playhead, verdict system and Time View. On
 
 **ML experiments view.** A save point records code, config and hyperparameters, data snapshot digests, seed, environment, and metrics. "Works" becomes a user defined check over metrics ("val accuracy at least 0.91 and loss decreasing"). The activity band becomes a metric sparkline per save point, and verdict ticks still decide color. Rewind gives back the exact run setup on a new branch with "Not brought back: the trained weights (over size limit)" style honesty. RL runs show episodes as a lane under the ruler. Requires Python support and large file handling, both out of scope today.
 
-**Test environments view.** A save point records the full test environment definition (compose file, service versions, seed data recipe, fixtures), and "works" is the test suite against it. The Time View stage shows service health tiles instead of a screenshot. This is where database snapshots would live if the founder later approves them; until then the view only records definitions and says "Database contents not saved".
+**Test environments view.** A save point records the full test environment definition (compose file, service versions, seed data recipe, fixtures), and "works" is the test suite against it. The Time View stage shows service health tiles instead of a screenshot. This is where database snapshots would live if the team later approves them; until then the view only records definitions and says "Database contents not saved".
 
 **Cross tool timeline.** One ruler, many lanes, like a multitrack editor: Claude Code, Cursor, Codex, manual edits, Git commits, CI results (read only), deploys (read only markers from the deploy log, never actions). The playhead cuts across all lanes, so a user can see "Cursor changed the checkout at 11:05, Claude fixed lint at 11:20, the deploy at 12:15 shipped the broken one". Rewind still only ever creates a local branch. Team sharing of this timeline needs accounts and sync, which are out of scope today.
 
 ---
 
-## 12. Open design questions for the founder
+## 12. Open design questions for the team
 
 1. **Name.** The icon, wordmark and copy are built to survive a rename. The Time View should get its own name only after the product name is settled (candidates: "Time View", "Rewind view", "the Reel").
 2. **Default Rewind style.** Time View for everyone, or Simple rewind for non technical users with the Time View one click away? Recommendation: Time View by default, because it is the product's signature, with Simple rewind auto offered for VoiceOver and reduced motion.

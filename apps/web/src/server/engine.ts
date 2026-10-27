@@ -1,15 +1,17 @@
 // Runs validated calls against the one engine, @timetm/core. The CLI calls the same
 // functions, so the app and the CLI can never disagree.
-import { randomUUID } from "node:crypto";
-import { existsSync, opendirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { accessSync, closeSync, constants, existsSync, fstatSync, lstatSync, openSync, opendirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import * as tm from "@timetm/core";
-import type { AgentRow, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectEntry, ProjectStatus, Purpose, Res, Results, StorageRow } from "../shared/api.js";
+import { z } from "zod";
+import type { AddedProject, AgentRow, AppEvent, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectCheckConfig, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Res, Results, StorageResult, StoreProject } from "../shared/api.js";
 import { PRICING_URL } from "../shared/links.js";
 import { Account, siteFromEnv } from "./account.js";
 import { askHistory } from "./ask.js";
-import { AutoSaver, type AutoSaveDeps } from "./autosave.js";
+import { AutoSaver, type AutoSaveDeps, type AutoSaveReason } from "./autosave.js";
 import type { Credentials } from "./credentials.js";
 import { agentTurnStart, firstRunning } from "./rules.js";
 import type { AppState } from "./state.js";
@@ -23,6 +25,18 @@ export interface HookSetup {
   version: string;
 }
 
+/** Runs a program with arguments, never through a shell. Answers its exit code (null when it timed out or failed to start) and output. */
+export type ExecFn = (file: string, args: string[], timeoutMs: number) => Promise<{ code: number | null; stdout: string }>;
+
+// The package's TS lib predates Promise.withResolvers, so this uses the executor form.
+const nodeExec: ExecFn = (file, args, timeoutMs) =>
+  new Promise((done) => {
+    execFile(file, args, { timeout: timeoutMs, shell: false, maxBuffer: 64 * 1024 }, (err, stdout) => {
+      const code = err ? (typeof err.code === "number" && !err.killed ? err.code : null) : 0;
+      done({ code, stdout: String(stdout) });
+    });
+  });
+
 /** What the opt-in features reach outside this computer with. Tests pass a fake fetch and their own license key pair. */
 export interface Services {
   credentials: Credentials;
@@ -31,7 +45,13 @@ export interface Services {
   licensePublicKey?: string;
   /** Auto save timing and watching. Tests pass short times and a fake watcher. */
   autoSave?: Omit<AutoSaveDeps, "save" | "busy">;
+  /** Runs the Mac's folder chooser and Finder. Tests pass a fake. */
+  exec?: ExecFn;
+  /** process.platform unless a test says otherwise. */
+  platform?: NodeJS.Platform;
 }
+
+const PackageScripts = z.object({ scripts: z.record(z.string(), z.unknown()).optional() });
 
 export class Engine {
   /** Paths the engine handed back in this session. Only these can be revealed or read. */
@@ -49,6 +69,12 @@ export class Engine {
   readonly autoSaver: AutoSaver;
   /** The last auto save error per project, shown as its problem until an auto save works again. */
   private readonly autoSaveErrors = new Map<string, string>();
+  /** Skip reasons already announced per project in this session, so each one is told once, not after every save. */
+  private readonly announcedSkips = new Map<string, Set<string>>();
+  private readonly listeners = new Set<(e: AppEvent) => void>();
+  /** The timemachine.yml this app's init created in this session, by project, with its mark (device, inode, bytes) after the
+   *  app's own last write. Backing out of the Add flow takes it out again, only while nobody else changed it. */
+  private readonly madeSettings = new Map<string, { path: string; mark: string }>();
 
   constructor(
     private readonly state: AppState,
@@ -56,14 +82,52 @@ export class Engine {
     private readonly services: Services,
   ) {
     for (const p of state.projects) this.allowedPaths.add(p.path);
-    const store = resolve(process.env.TM_HOME ?? join(homedir(), ".timemachine"));
     this.autoSaver = new AutoSaver({
-      ignoreDirs: [store],
+      ignoreDirs: [storeHome()],
       ...services.autoSave,
       busy: (id) => this.busy.has(id),
-      save: (id) => this.autoSave(id),
+      save: (id, reason) => this.autoSave(id, reason),
     });
     this.syncAutoSave();
+    // Edits made while the app was closed get one save soon after it starts.
+    this.autoSaver.catchUp();
+  }
+
+  /** Events the engine pushes on its own, such as a save made by auto save. Returns the unsubscribe. */
+  onEvent(cb: (e: AppEvent) => void): () => void {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  }
+
+  /**
+   * Runs one of the app's own writes to a project's settings. If the file it created was changed by someone else before
+   * this write, it is theirs now and Back forgets it (Security N1). After the write it carries the new mark only if its
+   * bytes are exactly what this write put there (`written`, a sha256). A call that wrote nothing (or failed) leaves it the
+   * app's only while the file is unchanged; any other change makes it the user's (Security R1 at 7edd14f, F2 at add3429).
+   */
+  private async ownWrite<T extends { read?: string; written?: string }>(projectId: string, write: () => T | Promise<T>): Promise<T> {
+    const made = this.madeSettings.get(projectId);
+    if (made && fileMark(made.path) !== made.mark) this.madeSettings.delete(projectId);
+    let read: string | undefined;
+    let written: string | undefined;
+    try {
+      const r = await write();
+      read = r.read;
+      written = r.written;
+      return r;
+    } finally {
+      const still = this.madeSettings.get(projectId);
+      if (still) {
+        const mark = fileMark(still.path);
+        // A call that wrote nothing (a patch with no changes) keeps the file the app's own, as long as it is unchanged.
+        const unchanged = written === undefined && mark === still.mark;
+        // Its own write: it read exactly the bytes the app last left (an edit just before the read was merged in otherwise,
+        // Security F1) and the file now holds exactly what it wrote.
+        const own = mark !== null && read !== undefined && written !== undefined && still.mark.endsWith(`:${read}`) && mark.endsWith(`:${written}`);
+        if (own) still.mark = mark;
+        else if (!unchanged) this.madeSettings.delete(projectId);
+      }
+    }
   }
 
   /** Watches exactly the listed projects that have auto save on. A project no longer watched drops its auto save error. */
@@ -82,15 +146,18 @@ export class Engine {
   }
 
   /**
-   * One auto save: queued like any other action, and skipped when nothing changed. A failure becomes the
-   * project's problem in statuses, and each new error message gets one autosave-failed audit entry.
+   * One auto save: queued like any other action, and skipped when nothing changed. The catch-up save when the
+   * app starts counts as the app's own save. A failure becomes the project's problem in statuses, and each new
+   * error message gets one autosave-failed audit entry. A save that left files out tells listeners why.
    */
-  private autoSave(projectId: string): Promise<unknown> {
+  private autoSave(projectId: string, reason: AutoSaveReason): Promise<unknown> {
     const p = this.state.find(projectId);
     if (!p || !existsSync(p.path)) return Promise.resolve(null);
-    return this.serial(p.id, "Auto saving", () => tm.checkpoint(this.ctx(p), { note: "Auto save", trigger: "auto", skipIfUnchanged: true })).then(
+    const opts = reason === "start" ? { note: "Saved when the app started", trigger: "app" } : { note: "Auto save", trigger: "auto" };
+    return this.serial(p.id, "Auto saving", () => tm.checkpoint(this.ctx(p), { ...opts, skipIfUnchanged: true })).then(
       (r) => {
         this.autoSaveErrors.delete(p.id);
+        if (!r.skipped) this.announceSave(p.id, r.checkpoint);
         return r;
       },
       (e: unknown) => {
@@ -108,6 +175,16 @@ export class Engine {
     );
   }
 
+  /** Tells listeners about a new save point, with the skip reasons not told before in this session. */
+  private announceSave(projectId: string, cp: tm.CheckpointSummary): void {
+    const told = this.announcedSkips.get(projectId) ?? new Set<string>();
+    this.announcedSkips.set(projectId, told);
+    const skipped = cp.coverage.missing.filter((m) => !told.has(m));
+    for (const m of skipped) told.add(m);
+    const event: AppEvent = { type: "saved", projectId, checkpoint: cp.id, trigger: cp.trigger, skipped };
+    for (const cb of this.listeners) cb(event);
+  }
+
   ctx(p: ProjectEntry): tm.Ctx {
     return { cwd: p.path, env: process.env };
   }
@@ -121,10 +198,11 @@ export class Engine {
     return tm.licenseStatus(this.licenseCtx(), this.services.licensePublicKey);
   }
 
-  private project(id: string): ProjectEntry {
+  /** The listed project. A missing folder is refused unless `missingOk`: its history in the store can still be read. */
+  private project(id: string, missingOk = false): ProjectEntry {
     const p = this.state.find(id);
     if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
-    if (!existsSync(p.path)) throw new tm.TmError("not_found", `We can't find ${p.name} at ${p.path}. Its history is safe in the store.`);
+    if (!missingOk && !existsSync(p.path)) throw new tm.TmError("not_found", missingSentence(p));
     return p;
   }
 
@@ -152,36 +230,62 @@ export class Engine {
     });
   }
 
+  /**
+   * The newest save point and last working one. `problemKind` tells a missing folder ("Can't find it") from a
+   * store this user can't write and from any other problem. A missing folder still shows its history when
+   * the store can read it; a read-only store shows its history too, with the reason saving can't work.
+   */
   async status(p: ProjectEntry): Promise<ProjectStatus> {
+    const missing = !existsSync(p.path);
     try {
       const t = await tm.timeline(this.ctx(p));
       const last = t.checkpoints.at(-1);
       const working = [...t.checkpoints].reverse().find((c) => c.verdict === "PASS" && c.id !== last?.id) ?? null;
+      const autoSave = this.autoSaveErrors.get(p.id);
+      const [problem, problemKind]: [string | null, ProjectStatus["problemKind"]] = missing
+        ? [missingSentence(p), "missing"]
+        : !storeWritable() ? [storeDeniedSentence(), "permission"]
+        : autoSave !== undefined ? [`Auto save failed: ${autoSave}`, "other"]
+        : [null, null];
       return {
         projectId: p.id,
         newest: last ? { id: last.id, verdict: last.verdict, createdAt: last.createdAt } : null,
         lastWorking: working ? { id: working.id, createdAt: working.createdAt, note: working.note } : null,
-        problem: this.autoSaveErrors.has(p.id) ? `Auto save failed: ${this.autoSaveErrors.get(p.id)}` : null,
+        problem,
+        problemKind,
       };
     } catch (e) {
-      return { projectId: p.id, newest: null, lastWorking: null, problem: e instanceof Error ? e.message : String(e) };
+      if (missing) return { projectId: p.id, newest: null, lastWorking: null, problem: missingSentence(p), problemKind: "missing" };
+      const denied = storeDenied(e);
+      if (denied) return { projectId: p.id, newest: null, lastWorking: null, problem: denied, problemKind: "permission" };
+      return { projectId: p.id, newest: null, lastWorking: null, problem: e instanceof Error ? e.message : String(e), problemKind: "other" };
     }
   }
 
-  async addProject(path: string, demo = false, purpose?: Purpose): Promise<ProjectEntry> {
-    if (!existsSync(path) || !statSync(path).isDirectory()) throw new tm.TmError("usage", "That folder does not exist.");
-    // Without this, a folder with no read permission would be reported as "not inside a Git repository".
-    try {
-      opendirSync(path).closeSync();
-    } catch {
-      throw new tm.TmError("usage", `Time Machine can't read ${path}. Check the folder's permissions, then try again.`);
-    }
+  /** What adding the folder at `input` would give, writing nothing: the project around it and its history so far. */
+  async previewProject(input: string): Promise<ProjectPreview> {
+    const path = folderAt(input);
+    const ctx = { cwd: path, env: process.env };
+    const { root, kind } = tm.protect(ctx, { dryRun: true });
+    return { path: root, name: basename(root), kind, existingSavePoints: await this.savePointCount(root), scripts: packageScripts(root), check: tm.planInit(ctx) };
+  }
+
+  /**
+   * Adds the project at `input`: an absolute path or one starting with ~. A folder the CLI or an earlier add
+   * already protects keeps its history; `existingSavePoints` says how many save points it already has.
+   */
+  async addProject(input: string, demo = false, purpose?: Purpose): Promise<AddedProject> {
     // The engine resolves the project, so the app and the CLI agree on which one this is: the Git
     // repository around the folder, or else the folder itself as a plain folder project.
-    const ctx = { cwd: path, env: process.env };
+    const ctx = { cwd: folderAt(input), env: process.env };
     const planned = tm.protect(ctx, { dryRun: true });
-    const existing = this.state.projects.find((p) => p.path === planned.root);
-    if (existing) return existing;
+    // Another window or the CLI may have changed the list since this one read it.
+    const existing = this.state.reload().find((p) => p.path === planned.root);
+    if (existing) {
+      // Added again (another tab): the settings file is that project's now, so Back in the first tab must not take it out.
+      this.madeSettings.delete(existing.id);
+      return { ...existing, existingSavePoints: await this.savePointCount(existing.path), scripts: packageScripts(existing.path) };
+    }
     // The free app lists a few projects. The demo is never refused; it counts like any other project after.
     const license = this.license();
     if (!demo && !license.active && this.state.projects.length >= license.freeProjectLimit) {
@@ -196,11 +300,69 @@ export class Engine {
       id: randomUUID(), path: root, name: basename(root), addedAt: new Date().toISOString(), demo, features: { ask: false, vercel: null, autoSave },
       kind, purpose: p,
     };
-    this.state.projects.push(entry);
-    this.state.saveProjects();
+    this.state.updateProjects((list) => [...list.filter((x) => x.path !== root), entry]);
     this.allowedPaths.add(root);
     this.syncAutoSave();
-    return entry;
+    return { ...entry, existingSavePoints: await this.savePointCount(root), scripts: packageScripts(root) };
+  }
+
+  /** How many save points the project at `root` has. 0 for one with no history yet. */
+  private async savePointCount(root: string): Promise<number> {
+    try {
+      return (await tm.timeline({ cwd: root, env: process.env })).checkpoints.length;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Points a moved project at its new folder. Its history moves with it in the store. */
+  private relinkProject(projectId: string, input: string): Promise<ProjectEntry> {
+    const p = this.state.find(projectId);
+    if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
+    const path = folderAt(input);
+    const other = this.state.reload().find((x) => x.id !== p.id && x.path === path);
+    if (other) throw new tm.TmError("usage", `That folder is already in the list as ${other.name}.`);
+    return this.serial(p.id, "Moving the history", async () => {
+      const moved = await tm.relinkProject(this.ctx(p), path);
+      const entry = this.state.updateProject(p.id, (x) => ({ ...x, path: moved.root, name: basename(moved.root), kind: moved.kind }));
+      if (!entry) throw new tm.TmError("not_found", "That project is no longer in the list.");
+      this.allowedPaths.add(moved.root);
+      this.autoSaveErrors.delete(p.id);
+      this.syncAutoSave();
+      return entry;
+    });
+  }
+
+  private get platform(): NodeJS.Platform {
+    return this.services.platform ?? process.platform;
+  }
+
+  /** The Mac's folder chooser. Null when the person cancels (osascript exits 1). */
+  private async pickFolder(): Promise<string | null> {
+    if (this.platform !== "darwin") throw new tm.TmError("usage", "The folder chooser needs a Mac. Type the folder's path instead.");
+    const r = await (this.services.exec ?? nodeExec)("osascript", ["-e", 'POSIX path of (choose folder with prompt "Choose a folder to protect")'], 120_000);
+    if (r.code === 1) return null;
+    if (r.code === null) throw new tm.TmError("usage", "The folder chooser closed after 2 minutes. Try again, or type the folder's path.");
+    const path = r.stdout.trim();
+    if (r.code !== 0 || !path.startsWith("/")) throw new tm.TmError("usage", "The folder chooser did not open. Type the folder's path instead.");
+    // osascript ends a folder with a slash.
+    return path.length > 1 ? path.replace(/\/+$/, "") : path;
+  }
+
+  /** Shows `path` in Finder. Only paths inside the home folder or the system temp folder, links followed first. */
+  private async reveal(path: string): Promise<true> {
+    if (this.platform !== "darwin") throw new tm.TmError("usage", "Showing a file in Finder needs a Mac.");
+    let real: string;
+    try {
+      real = realpathSync(path);
+    } catch {
+      throw new tm.TmError("not_found", `${path} is not there anymore.`);
+    }
+    const roots = [homedir(), tmpdir()].flatMap((r) => (existsSync(r) ? [realpathSync(r)] : []));
+    if (!roots.some((r) => isInside(real, r))) throw new tm.TmError("usage", "Only files in your home folder or the temp folder can be shown in Finder.");
+    const r = await (this.services.exec ?? nodeExec)("open", ["-R", real], 10_000);
+    if (r.code !== 0) throw new tm.TmError("usage", `Finder did not open. The path is ${real}.`);
+    return true;
   }
 
   /** The hook lines for this project, with the first command that answers `--version` with this version. */
@@ -219,8 +381,13 @@ export class Engine {
     };
   }
 
-  storage(): StorageRow[] {
-    return this.state.projects.map((p) => {
+  /**
+   * Size on disk per project store, and the whole store (every project, removed ones too, and the
+   * app's own files). A Git project also keeps its save points in its own .git folder: that is
+   * described in `note`, not counted.
+   */
+  storage(): StorageResult {
+    const rows = this.state.projects.map((p) => {
       let storeDir = "";
       let bytes = 0;
       try {
@@ -231,6 +398,21 @@ export class Engine {
       }
       return { projectId: p.id, name: p.name, bytes, storeDir };
     });
+    const home = storeHome();
+    const git = this.state.projects.filter((p) => p.kind === "git").map((p) => p.name);
+    const note = git.length
+      ? `Code projects (${git.join(", ")}) also keep their save points inside the project's own .git folder. That space is not counted here.`
+      : null;
+    return { rows, storeBytes: existsSync(home) ? dirSize(home) : 0, storeDir: home, note };
+  }
+
+  /** Projects with history in the store that this app does not list, such as ones set up with tm init. */
+  storeProjects(): StoreProject[] {
+    const listed = new Set(this.state.reload().map((p) => p.path));
+    return tm
+      .storeProjects({ cwd: process.cwd(), env: process.env })
+      .filter((s) => !listed.has(s.root))
+      .map((s) => ({ path: s.root, name: s.name, kind: s.kind, savePoints: s.savePoints, lastSaved: s.lastSaved, bytes: s.sizeBytes, exists: !s.missing }));
   }
 
   /**
@@ -278,6 +460,8 @@ export class Engine {
     try {
       return { ok: true, data: await this.dispatch(call) };
     } catch (e) {
+      const denied = storeDenied(e);
+      if (denied) return { ok: false, error: { kind: "permission", message: denied } };
       if (e instanceof tm.TmError) return { ok: false, error: { kind: e.kind, message: e.message } };
       return { ok: false, error: { kind: "internal", message: e instanceof Error ? e.message : String(e) } };
     }
@@ -289,24 +473,36 @@ export class Engine {
         return Promise.all(this.state.projects.map((p) => this.status(p)));
       case "addProject":
         return this.addProject(call.path, false, call.purpose);
+      case "previewProject":
+        return this.previewProject(call.path);
       case "setPurpose": {
         // Works for a moved project too: it only changes the app's words.
-        const p = this.state.find(call.projectId);
+        const p = this.state.updateProject(call.projectId, (x) => ({ ...x, purpose: call.purpose }));
         if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
-        p.purpose = call.purpose;
-        this.state.saveProjects();
         return p;
       }
       case "sources":
         // Checks whether well-known folders under the home folder exist. Reads no file.
         return tm.sources();
       case "removeProject": {
-        // Only forgets the project in the app. Its save points stay in the store.
-        this.state.projects = this.state.projects.filter((p) => p.id !== call.projectId);
-        this.state.saveProjects();
+        // Only forgets the project in the app. Its save points stay in the store. With dropSettings (Back in the Add flow),
+        // the settings file this app's own init wrote into the folder in this session goes too, if it is still exactly as
+        // the app last wrote it; a file that was there, or one someone edited since, stays.
+        const made = this.madeSettings.get(call.projectId);
+        this.madeSettings.delete(call.projectId);
+        const left = this.state.updateProjects((list) => list.filter((p) => p.id !== call.projectId));
         this.syncAutoSave();
-        return this.state.projects;
+        if (call.dropSettings && made && fileMark(made.path) === made.mark) {
+          try {
+            rmSync(made.path);
+          } catch {
+            // Already gone or not ours to remove: the project is out of the list either way.
+          }
+        }
+        return left;
       }
+      case "storeProjects":
+        return this.storeProjects();
       case "demo": {
         const result = await tm.demo({ cwd: tmpdir(), env: process.env });
         const project = await this.addProject(result.dir, true);
@@ -325,15 +521,13 @@ export class Engine {
       }
       case "setFeature": {
         // Works for a moved project too, so a feature can always be turned off.
-        const p = this.state.find(call.projectId);
-        if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
         const c = call.change;
-        if (c.feature === "ask") p.features = { ...p.features, ask: c.enabled };
-        else if (c.feature === "vercel") {
-          p.features = { ...p.features, vercel: c.link };
-          this.vercel.forget();
-        } else p.features = { ...p.features, autoSave: c.autoSave };
-        this.state.saveProjects();
+        const p = this.state.updateProject(call.projectId, (x) => ({
+          ...x,
+          features: c.feature === "ask" ? { ...x.features, ask: c.enabled } : c.feature === "vercel" ? { ...x.features, vercel: c.link } : { ...x.features, autoSave: c.autoSave },
+        }));
+        if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
+        if (c.feature === "vercel") this.vercel.forget();
         this.syncAutoSave();
         return p;
       }
@@ -367,12 +561,27 @@ export class Engine {
         c?.abort();
         return !!c;
       }
+      case "pickFolder":
+        return { path: await this.pickFolder() };
+      case "reveal":
+        return this.reveal(call.path);
+      case "relinkProject":
+        return this.relinkProject(call.projectId, call.path);
       default:
         break;
     }
-    const p = this.project(call.projectId);
+    // A moved folder's history can still be read, copied out and brought back from the store.
+    const p = this.project(call.projectId, MISSING_OK[call.method] === true);
     const ctx = this.ctx(p);
     switch (call.method) {
+      case "projectConfig":
+        return pickCheckConfig(tm.projectConfig(ctx));
+      case "setProjectConfig":
+        // Compare and set: with ifCommand, core makes the change only while the file exists and its command is still
+        // that one, checked on the text it is about to edit (Security N2, R3).
+        return this.serial(p.id, "Saving the check settings", async () =>
+          pickCheckConfig(await this.ownWrite(p.id, () => tm.setProjectConfig(ctx, call.patch, call.ifCommand !== undefined ? { ifCommand: call.ifCommand } : {}))),
+        );
       case "timeline":
         return tm.timeline(ctx);
       case "notes":
@@ -391,8 +600,11 @@ export class Engine {
         const [read, t] = await Promise.all([this.vercel.deployments(link), tm.timeline(ctx)]);
         return matchDeployments(link, t.checkpoints, read.value, new Date(read.at).toISOString());
       }
-      case "ask":
-        return askHistory(p, ctx, call.question, { key: this.services.credentials.get("gemini"), fetch: this.services.fetch });
+      case "ask": {
+        const { credentials } = this.services;
+        const model = process.env.TM_ASK_MODEL?.trim();
+        return askHistory(p, ctx, call.question, { key: credentials.get("gemini"), anthropicKey: credentials.get("anthropic"), ...(model ? { anthropicModel: model } : {}), fetch: this.services.fetch });
+      }
       case "diff":
         return tm.diff(ctx, call.a, call.b);
       case "log":
@@ -400,9 +612,14 @@ export class Engine {
       case "hookPreview":
         return this.hookPreview(p);
       case "init":
-        return this.serial(p.id, "Setting up", () => tm.init(ctx));
+        return this.serial(p.id, "Setting up", async () => {
+          const r = await tm.init(ctx);
+          const mark = r.created && r.kind === "git" ? fileMark(r.configPath) : null;
+          if (mark) this.madeSettings.set(p.id, { path: r.configPath, mark });
+          return r;
+        });
       case "setCheck":
-        return this.serial(p.id, "Saving the check", () => tm.setCheck(ctx, call.command));
+        return this.serial(p.id, "Saving the check", () => this.ownWrite(p.id, () => tm.setCheck(ctx, call.command)));
       case "checkpoint":
         return this.serial(p.id, "Saving", () =>
           tm.checkpoint(ctx, { note: call.note?.trim() || "Saved from the app", trigger: "app", skipIfUnchanged: call.ifChanged ?? false }),
@@ -429,11 +646,13 @@ export class Engine {
         return this.serial(p.id, "Finding the last working version", () => this.stoppable(p.id, (signal) => tm.findGood(ctx, { signal })));
       case "recover":
         return this.serial(p.id, p.kind === "folder" ? "Making a recovery copy" : "Preparing the recovery branch", async () => {
-          const r = await tm.recover(ctx, call.id);
+          const r = await tm.recover(ctx, call.id, call.dest === undefined ? undefined : { dest: call.dest });
           this.allowedPaths.add(r.copyDir);
           this.allowedPaths.add(r.reportPath);
           return r;
         });
+      case "restorePaths":
+        return this.serial(p.id, "Putting files back", () => tm.restorePaths(ctx, call.id, call.paths, call.dryRun ? { dryRun: true } : {}));
       case "undoRecover": {
         // Core refuses anything that is not this exact recovery copy. The app also only passes on
         // a copy it made in this session.
@@ -460,6 +679,15 @@ export class Engine {
   }
 }
 
+/** Per-project methods that work while the folder is missing: they read or copy out of the store only. */
+const MISSING_OK: Partial<Record<EngineCall["method"], true>> = {
+  timeline: true, notes: true, log: true, diff: true, open: true, recover: true, checkLogTail: true, checkRecord: true, projectConfig: true,
+};
+
+function pickCheckConfig(c: ProjectCheckConfig): ProjectCheckConfig {
+  return { command: c.command, setup: c.setup, timeoutSeconds: c.timeoutSeconds, network: c.network, maxFileMB: c.maxFileMB };
+}
+
 function dirSize(dir: string): number {
   let total = 0;
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -468,4 +696,99 @@ function dirSize(dir: string): number {
     else if (e.isFile()) total += statSync(full).size;
   }
   return total;
+}
+
+/** The Time Machine store: $TM_HOME, or ~/.timemachine. */
+function storeHome(): string {
+  return resolve(process.env.TM_HOME ?? join(homedir(), ".timemachine"));
+}
+
+/** A typed folder path: trimmed, with a leading ~ meaning the home folder. Refuses empty and relative paths. */
+export function expandPath(input: string): string {
+  const s = input.trim();
+  if (!s) throw new tm.TmError("usage", "Enter a folder path.");
+  const path = s === "~" ? homedir() : s.startsWith("~/") ? join(homedir(), s.slice(2)) : s;
+  if (!isAbsolute(path)) throw new tm.TmError("usage", "Enter the whole path to the folder, starting with / or ~/.");
+  return resolve(path);
+}
+
+function missingSentence(p: ProjectEntry): string {
+  return `We can't find ${p.name} at ${p.path}. Its history is safe in the store.`;
+}
+
+function storeDeniedSentence(): string {
+  return `Time Machine can't write to its store at ${storeHome()}. Check the folder's permissions.`;
+}
+
+/** True when this user can write the store, or it does not exist yet (it is made on first save). */
+function storeWritable(): boolean {
+  const home = storeHome();
+  try {
+    accessSync(existsSync(home) ? home : dirname(home), constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The sentence for a failure caused by a store this user can't write, or null. A refused write in the store
+ * says so directly; Git and other tools say it in their own words, so any failure while the store can't be
+ * written counts too, except a plain usage or not-found answer, which stands.
+ */
+function storeDenied(e: unknown): string | null {
+  const err = e as NodeJS.ErrnoException | null;
+  const code = err?.code;
+  if ((code === "EACCES" || code === "EPERM" || code === "EROFS") && typeof err?.path === "string" && isInside(err.path, storeHome())) return storeDeniedSentence();
+  if (e instanceof tm.TmError && (e.kind === "usage" || e.kind === "not_found")) return null;
+  return storeWritable() ? null : storeDeniedSentence();
+}
+
+function isInside(path: string, dir: string): boolean {
+  const d = relative(dir, resolve(path));
+  return d === "" || (!d.startsWith("..") && !isAbsolute(d));
+}
+
+/** The folder a typed path names, checked: it exists, is a folder, and this user can list it. */
+function folderAt(input: string): string {
+  const path = expandPath(input);
+  if (!existsSync(path)) throw new tm.TmError("usage", "That folder does not exist.");
+  if (!statSync(path).isDirectory()) throw new tm.TmError("usage", "That is a file, not a folder.");
+  // Without this, a folder with no read permission would be reported as "not inside a Git repository".
+  try {
+    opendirSync(path).closeSync();
+  } catch {
+    throw new tm.TmError("usage", `Time Machine can't read ${path}. Check the folder's permissions, then try again.`);
+  }
+  return path;
+}
+
+/** A file's identity and content: device, inode and the hash of its bytes, read through one descriptor that never follows a
+ *  link or waits on a pipe (Security N3). Null when it is not a plain file or can't be read. */
+function fileMark(path: string): string | null {
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  } catch {
+    return null;
+  }
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile()) return null;
+    return `${st.dev}:${st.ino}:${createHash("sha256").update(readFileSync(fd)).digest("hex")}`;
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Script names in the folder's package.json. Empty when there is none or it can't be read. */
+function packageScripts(root: string): string[] {
+  try {
+    const r = PackageScripts.safeParse(JSON.parse(readFileSync(join(root, "package.json"), "utf8")));
+    return r.success ? Object.keys(r.data.scripts ?? {}) : [];
+  } catch {
+    return [];
+  }
 }

@@ -1,6 +1,6 @@
 # ADR 0006: Waitlist backend
 
-Date: 15 October 2026. Status: accepted, pending founder setup. The code is built. It does not save anything until the founder does the three steps below.
+Date: 15 October 2026. Status: accepted, pending owner setup. The code is built. It does not save anything until the owner does the three steps below.
 
 ## Decision
 
@@ -14,7 +14,7 @@ Date: 15 October 2026. Status: accepted, pending founder setup. The code is buil
 - **No fake success:** without both settings, the function answers 503 and the form asks people to email preston@unvibe.site. It never says "You're on the list" unless Supabase accepted the row.
 - **Other guards:** same origin requests only, a 2 KB body limit, an 8 second upstream timeout, and a hidden honeypot field for bots.
 
-## What the founder must do
+## What the owner must do
 
 1. **Create a Supabase project** for Time Machine (for example `time-machine`). Keep it separate from Unvibe's.
 2. **Create the table.** In the SQL editor, paste all of `supabase/migrations/0001_waitlist.sql` and run it. Or run `supabase db push` after `supabase link`. The file is safe to run twice.
@@ -26,7 +26,7 @@ Check it: `/api/health` should return `{"ok":true,"waitlist":true,"database":"re
 
 - **One person:** run `delete from tm_waitlist.waitlist where email_normalized = lower(trim('person@example.com'));` in the SQL editor.
 - **Everyone:** run `truncate tm_waitlist.waitlist;`. Do not delete the Supabase project: it is the shared `jaymini-prod` project (see the 18 October addendum).
-- **Stop collecting:** remove the two Vercel settings and redeploy. The form goes back to asking people to email the founder.
+- **Stop collecting:** remove the two Vercel settings and redeploy. The form goes back to asking people to email the team.
 
 The Privacy draft (`docs/legal/PRIVACY.md`) keeps waitlist emails until the person unsubscribes, or until 6 months after launch if they do not sign up.
 
@@ -50,10 +50,10 @@ Export the table to CSV from Table Editor, or run `select email, source, created
 ## Addendum, 18 October 2026
 
 - Signups are saved as **pending and unconfirmed** (`waitlist_join_pending`). The answer is the same for new and existing emails. Unsubscribed rows are never reactivated by a new signup.
-- **The site sends no email.** Founder decision: his existing email agents handle outreach. A confirmation or welcome flow needs his explicit approval of that exact flow first.
+- **The site sends no email.** Team decision: our existing email agents handle outreach. A confirmation or welcome flow needs the team's explicit approval of that exact flow first.
 - Places in line, totals and referral credit count only rows with `confirmed_at` set and `unsubscribed_at` empty. Nothing on the site confirms a row today, so nobody sees a place yet.
 - Also stored: a referral code per row, the code that brought the person (if any), and anonymous daily visit counts in `funnel_events`. Migrations 0002 and 0003; combined SQL in `docs/launch/SUPABASE_SETUP.md`.
-- **Shared project, separate schema (founder decision, 18 Oct).** The free Supabase organization was at its 2-project limit, so the waitlist lives in `jaymini-prod`, schema `tm_waitlist`. The site holds the anon key (`SUPABASE_KEY`), which can call only `waitlist_join_pending`, `waitlist_status` and `funnel_event_add` (security definer, empty search path) and cannot read any table. Cost: Time Machine depends on Jaymini's project staying active, and both share its limits. Migration path: run the same four migrations in a dedicated project, export `tm_waitlist.waitlist`, change two Vercel settings.
+- **Shared project, separate schema (team decision, 18 Oct).** The free Supabase organization was at its 2-project limit, so the waitlist lives in `jaymini-prod`, schema `tm_waitlist`. The site holds the anon key (`SUPABASE_KEY`), which can call only `waitlist_join_pending`, `waitlist_status` and `funnel_event_add` (security definer, empty search path) and cannot read any table. Cost: Time Machine depends on Jaymini's project staying active, and both share its limits. Migration path: run the same four migrations in a dedicated project, export `tm_waitlist.waitlist`, change two Vercel settings.
 
 ## Addendum, 19 October 2026
 

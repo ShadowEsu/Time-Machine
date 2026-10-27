@@ -10,7 +10,7 @@ import { AutoSaver, ignoredPath, type AutoSaveProject, type WatchFn } from "../s
 import { Credentials, type Cipher } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
-import type { ProjectStatus } from "../src/shared/api.ts";
+import type { AppEvent, ProjectStatus } from "../src/shared/api.ts";
 
 const noCipher: Cipher = { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => "" };
 
@@ -40,9 +40,42 @@ describe("AutoSaver", () => {
   function saver(over: { busy?: () => boolean } = {}) {
     const w = fakeWatch();
     const saves: string[] = [];
-    const s = new AutoSaver({ watch: w.watch, busy: over.busy ?? (() => false), save: async (id) => saves.push(id), ignoreDirs: ["/Users/you/.timemachine"] });
-    return { s, w, saves };
+    const reasons: string[] = [];
+    const s = new AutoSaver({ watch: w.watch, busy: over.busy ?? (() => false), save: async (id, reason) => { saves.push(id); reasons.push(reason); }, ignoreDirs: ["/Users/you/.timemachine"] });
+    return { s, w, saves, reasons };
   }
+
+  test("while changes keep coming, a save still happens at least every 2 minutes", async () => {
+    const { s, w, saves } = saver();
+    s.sync([project()]);
+    // A change every 10 s for 5 minutes: never 20 s of quiet.
+    const at: number[] = [];
+    for (let t = 0; t < 300_000; t += 10_000) {
+      w.emit("/Users/you/Documents/thesis", "chapter-4.md");
+      const before = saves.length;
+      await vi.advanceTimersByTimeAsync(10_000);
+      if (saves.length > before) at.push(t + 10_000);
+    }
+    expect(at).toEqual([120_000, 240_000]);
+    // Once the writing stops, the last changes save after the usual quiet.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(saves).toHaveLength(3);
+  });
+
+  test("catchUp makes one start save of each watched project within 10 s, then changes save as usual", async () => {
+    const { s, w, saves, reasons } = saver();
+    s.sync([project(), { id: "p2", path: "/Users/you/Documents/notes", autoSave: "off" }]);
+    s.catchUp();
+    w.emit("/Users/you/Documents/thesis", "a.md");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(saves).toEqual(["p1"]);
+    expect(reasons).toEqual(["start"]);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(saves).toEqual(["p1"]);
+    w.emit("/Users/you/Documents/thesis", "b.md");
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(reasons).toEqual(["start", "change"]);
+  });
 
   test("a change saves exactly once, after 20 s of quiet", async () => {
     const { s, w, saves } = saver();
@@ -89,7 +122,7 @@ describe("AutoSaver", () => {
   test("Git, installed dependencies, the store and editor temp files never trigger a save", async () => {
     const { s, w, saves } = saver();
     s.sync([project()]);
-    for (const rel of [".git/index", "node_modules/x/index.js", ".DS_Store", "docs/.DS_Store", "~$thesis.docx", "notes.md.swp", ".#notes.md", "/Users/you/.timemachine/projects/x/audit.jsonl"]) {
+    for (const rel of [".git/index", "node_modules/x/index.js", ".DS_Store", "docs/.DS_Store", "Thumbs.db", "docs/desktop.ini", "~$thesis.docx", "notes.md.swp", ".#notes.md", "/Users/you/.timemachine/projects/x/audit.jsonl"]) {
       w.emit("/Users/you/Documents/thesis", rel);
     }
     await vi.advanceTimersByTimeAsync(120_000);
@@ -220,6 +253,52 @@ describe("Engine auto save", () => {
     } finally {
       engine.close();
       vi.useRealTimers();
+      if (before === undefined) delete process.env.TM_HOME;
+      else process.env.TM_HOME = before;
+    }
+  });
+
+  test("on start, a folder edited while the app was closed gets one catch-up save, and the saved event names what was left out", async () => {
+    const dir = tempDir("autosave-catchup");
+    const folder = join(dir, "thesis");
+    write(folder, "intro.md", "First draft.\n");
+    const before = process.env.TM_HOME;
+    process.env.TM_HOME = join(dir, "store");
+    const make = (): Engine => new Engine(new AppState(join(dir, "data")), { candidates: ["false"], version: "9.9.9" }, {
+      credentials: new Credentials(join(dir, "credentials.json"), noCipher, {}), fetch,
+      autoSave: { watch: fakeWatch().watch, catchUpMs: 50 },
+    });
+    const first = make();
+    let second: Engine | undefined;
+    try {
+      const added = await first.addProject(folder);
+      await first.run({ method: "checkpoint", projectId: added.id, note: "First" });
+      first.close();
+
+      // While the app is closed: an edit, and a recording over the size limit.
+      writeFileSync(join(folder, "intro.md"), "Second draft.\n");
+      writeFileSync(join(folder, "interview.wav"), Buffer.alloc(6 * 1024 * 1024));
+      second = make();
+      const events: AppEvent[] = [];
+      second.onEvent((e) => events.push(e));
+      await vi.waitFor(() => expect(events).toHaveLength(1), { timeout: 10_000 });
+      expect(events[0]).toMatchObject({ type: "saved", projectId: added.id, trigger: "app", checkpoint: "cp-0002" });
+      expect(events[0]?.type === "saved" && events[0].skipped).toEqual([expect.stringMatching(/^interview\.wav: over the 5 MB limit/)]);
+      const t = await tm.timeline({ cwd: folder, env: process.env });
+      expect(t.checkpoints.map((c) => [c.note, c.trigger])).toEqual([["First", "app"], ["Saved when the app started", "app"]]);
+
+      // Nothing changed since: the next start makes no save point. A Save now queues behind the catch-up save
+      // and is skipped as well, so after it nothing can still be running.
+      second.close();
+      vi.useFakeTimers();
+      second = make();
+      await vi.advanceTimersByTimeAsync(50);
+      vi.useRealTimers();
+      expect(await second.run({ method: "checkpoint", projectId: added.id, ifChanged: true })).toMatchObject({ ok: true, data: { skipped: true } });
+      expect((await tm.timeline({ cwd: folder, env: process.env })).checkpoints).toHaveLength(2);
+    } finally {
+      first.close();
+      second?.close();
       if (before === undefined) delete process.env.TM_HOME;
       else process.env.TM_HOME = before;
     }

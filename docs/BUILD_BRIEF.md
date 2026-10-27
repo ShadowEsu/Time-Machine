@@ -2,7 +2,7 @@
 
 Status (22 October 2026): **Implemented and tested:** C01 to C15 in host mode (C15 for Claude Code), `tm demo`, `tm mcp`, `tm ui` (the web app, Phase B W01 to W07), `tm license` and acceptance tests V01 to V14. **Still planned:** Git hooks, the container isolation adapter, the dependency cache, store thinning, npm publishing, and opening checkout. **Retired:** the Electron Mac app (ADR 0012). Everything else in this file is planned unless marked implemented here.
 
-Name: **Time Machine** (founder decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
+Name: **Time Machine** (team decision, see `docs/adr/0001-name.md`). npm package `timetm`, command `tm`.
 
 ## 1. What it is
 
@@ -138,7 +138,7 @@ Later: plain English summaries (templates first, then on-device model, then opt-
 | V13 | Deleting the project folder does not delete its checkpoints |
 | V14 | A host mode PASS is always labeled as host mode |
 
-### Out of scope until the founder changes it
+### Out of scope until the team changes it
 
 Hosted dashboard, accounts, subscriptions, cloud storage, team sharing, database snapshots, deployment rollback, Mac App Store, and business-automation replay. The one-time web app purchase (ADR 0013) is the only billing. Business-automation replay is a later specialized capability; its earlier spec is in `.private/research/00-business-plan.md`.
 
@@ -190,7 +190,7 @@ CLI MVP is about 7 to 9 weeks. The desktop app is about 8 to 10 more.
 - **Verdict from research:** go, narrowly. Scored about 5 out of 10, strong on pain and feasibility and weak on willingness to pay and competition. Base case about $350K ARR at month 36.
 - **Who:** agencies managing many client repos pay first. Indie developers who run agents on auto-approve are the first users. Vibe coders have the most pain, but their code often lives inside hosted builders, so the app starts with local or GitHub-synced projects.
 
-**Pricing (ADR 0013, founder decision 22 October 2026):**
+**Pricing (ADR 0013, team decision 22 October 2026):**
 
 | Plan | Price |
 |---|---|
@@ -224,7 +224,7 @@ Full scripts and targets are in `.private/research/13-pricing-launch-naming.md`.
 
 ## 9. Open decisions
 
-1. **The name.** Decided: Time Machine, with npm package `timetm` and command `tm` (ADR 0001). The Apple trademark risk is accepted by the founder and recorded there.
+1. **The name.** Decided: Time Machine, with npm package `timetm` and command `tm` (ADR 0001). The Apple trademark risk is accepted by the team and recorded there.
 2. **Apple Developer Program.** No longer needed: the Mac app is retired (ADR 0012).
 3. **Open source license** for the engine and CLI.
 4. **Pricing.** Decided: $50 one time for the web app (ADR 0013). The Ladder (ADR 0002) is superseded.

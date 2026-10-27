@@ -6,7 +6,7 @@ Sources: `docs/BUILD_BRIEF.md` (sections 1 to 7), `.private/research/03-website-
 
 Ground rules this spec follows:
 
-- The name stays "Time Machine" (founder decision). The site never uses Apple's clock with a counterclockwise arrow, star fields, a "history" galaxy, SF Pro, Apple's exact tokens (#f5f5f7 plus #0071e3), or a "9:41" timestamp.
+- The name stays "Time Machine" (team decision). The site never uses Apple's clock with a counterclockwise arrow, star fields, a "history" galaxy, SF Pro, Apple's exact tokens (#f5f5f7 plus #0071e3), or a "9:41" timestamp.
 - Monolith brand: black on white. Color appears only when something has been checked. Nothing gets color before a verdict.
 - Fonts: Inter Display (wordmark and headlines), Inter (body and UI), Geist Mono (code, timestamps, labels).
 - Honesty: never "guaranteed", "replays any app", "undo anything", "zero setup", "enterprise ready", or "universal undo". Every capability carries a real status label. Every number on the site is measured or clearly marked as illustrative.
@@ -16,7 +16,7 @@ Ground rules this spec follows:
 
 ## 1. Narrative arc
 
-The homepage is a short film in three acts. Act one, **The break**: a small app works at 10:42, an agent takes 47 steps to "clean things up", the app stops running, and every familiar escape hatch (undo, Git, asking the agent) fails at once. Act two, **The rewind**: the visitor scrolls and time literally runs backwards, the 47 steps unwind, and we reveal that every step quietly left a save point holding far more than code (files, config without secrets, dependencies, environments, test setups), each of which can be rebuilt in a safe copy that never touches your real project. Act three, **The proof**: three save points are rebuilt and checked, and the first color on the entire page appears as verdicts (Broken, Broken, Works); the visitor chooses "Use this version", gets a new branch they can undo, reads an honest report of what could not come back, and sees the same check now watching every future agent turn, so the next break gets caught at step one. Then the page drops the film and becomes a calm, honest product page: what we can rewind now and later, the Mac app, the CLI and agent setup, what we can never undo, how we compare, security, pricing, the founder, FAQ, and one last call to action.
+The homepage is a short film in three acts. Act one, **The break**: a small app works at 10:42, an agent takes 47 steps to "clean things up", the app stops running, and every familiar escape hatch (undo, Git, asking the agent) fails at once. Act two, **The rewind**: the visitor scrolls and time literally runs backwards, the 47 steps unwind, and we reveal that every step quietly left a save point holding far more than code (files, config without secrets, dependencies, environments, test setups), each of which can be rebuilt in a safe copy that never touches your real project. Act three, **The proof**: three save points are rebuilt and checked, and the first color on the entire page appears as verdicts (Broken, Broken, Works); the visitor chooses "Use this version", gets a new branch they can undo, reads an honest report of what could not come back, and sees the same check now watching every future agent turn, so the next break gets caught at step one. Then the page drops the film and becomes a calm, honest product page: what we can rewind now and later, the Mac app, the CLI and agent setup, what we can never undo, how we compare, security, pricing, the team, FAQ, and one last call to action.
 
 The emotional line: calm, then dread, then helplessness, then relief, then trust. The trust beat (the honest report) is deliberately placed after the relief beat, not before. Relief makes people listen; honesty makes them believe.
 
@@ -450,7 +450,7 @@ Feature rows:
   1. **One history per client.** Every project, every agent change, every check, in one place.
   2. **Handoff save points.** Mark the version you delivered. If the client's next agent breaks it, you know exactly what worked when it left your hands.
   3. **Reports you can forward.** The recovery report is written for humans: what came back, what didn't, what to do next.
-- **CTA:** "Talk to the founder" (opens a short form or a calendar embed) and "Team pricing ›".
+- **CTA:** "Talk to the team" (opens a short form or a calendar embed) and "Team pricing ›".
 - Status: labeled Coming soon until Team ships. No logos, quotes or counts until they are real and permitted.
 
 ### 4.5 What we can't undo
@@ -533,11 +533,11 @@ The honesty section. Mist background, generous whitespace, no illustration excep
 - Footer line under the cards: "Prices we plan to launch with. They may change before paid plans exist, and we'll say so in the changelog." Link "See pricing ›".
 - No "Popular" tag until there is data behind it.
 
-### 4.9 Founder story
+### 4.9 Team story
 
 - **Eyebrow:** WHY THIS EXISTS
-- **Layout:** a narrow text column (620 px), a small square photo of the founder at their desk (real, optional), a handwritten-free signature line in Inter.
-- **Draft copy** (bracketed parts must be filled with true details by the founder; nothing invented):
+- **Layout:** a narrow text column (620 px), a small square photo of the team at work (real, optional), a handwritten-free signature line in Inter.
+- **Draft copy** (bracketed parts must be filled with true details by the team; nothing invented):
   >
   > [One true sentence about the moment it went wrong: what the agent did, what it cost.]
   >
@@ -546,8 +546,8 @@ The honesty section. Mist background, generous whitespace, no illustration excep
   > So that's what I'm building. It's early. The CLI comes first and the Mac app after. Everything on this page says whether it's ready yet, and I'll keep it that way.
   >
   > I read every email. [first name]
-- **Links:** "Read the full story ›" (`/story`) and "Email the founder".
-- Rules: publish the age only with the founder's and a parent's consent. No location unless the founder wants it. No invented incident, users or numbers.
+- **Links:** "Read the full story ›" (`/story`) and "Email the team".
+- Rules: no age or location. No invented incident, users or numbers.
 
 ### 4.10 FAQ
 
@@ -574,14 +574,14 @@ Ten questions as an accessible accordion (component A20: `button` plus `aria-exp
 10. **Is this related to Apple's Time Machine?**
     No. This is an independent project, not affiliated with or endorsed by Apple. Apple's Time Machine backs up your Mac. This checks and rewinds your projects. You can use both.
 
-Note for the founder: question 10 exists because people will ask. It does not resolve the trademark risk recorded in the brief.
+Note for the team: question 10 exists because people will ask. It does not resolve the trademark risk recorded in the brief.
 
 ### 4.11 Final CTA
 
 - Full viewport, paper, centered, the hairline reappears above the headline with a single green dot at its right end (the only color in the section, and a true one: it is the 10:42 save point from the film).
 - **Headline (Inter Display, hero H1 size):** Back to what worked.
 - **Sub:** "Free CLI today. The Mac app is coming soon."
-- **CTAs:** the same three as the hero (Download for Mac or Get the Mac app early, Install the CLI, Copy agent setup prompt), plus a fourth text link "Talk to the founder ›".
+- **CTAs:** the same three as the hero (Download for Mac or Get the Mac app early, Install the CLI, Copy agent setup prompt), plus a fourth text link "Talk to the team ›".
 - Under it, small: "◀ Replay the story".
 
 ### 4.12 Footer
@@ -639,7 +639,7 @@ Plain, four columns, no tricks. **Sections:** (1) Hero: "Free to rescue. Always.
 
 ### /story
 
-The founder's page, longer and more personal than the homepage section, in the same honest voice. **Sections:** (1) Hero: a large quote from the founder, in their words. (2) The night it broke (true account, synthetic or redacted details). (3) Why verification matters more than undo. (4) Principles, as five short lines: Check, don't guess. Say what you can't do. Never touch the user's work. Free to rescue. Ship weekly. (5) What's built and what isn't, linked to the changelog. (6) How to reach the founder. (7) Optional: a short "built in public" log with dated posts.
+The team's page, longer than the homepage section, in the same honest voice. **Sections:** (1) Hero: a large quote from the team, in our words. (2) The night it broke (true account, synthetic or redacted details). (3) Why verification matters more than undo. (4) Principles, as five short lines: Check, don't guess. Say what you can't do. Never touch the user's work. Free to rescue. Ship weekly. (5) What's built and what isn't, linked to the changelog. (6) How to reach the team. (7) Optional: a short "built in public" log with dated posts.
 
 ### /404
 
@@ -806,7 +806,7 @@ Each item has a "done when" test. The site does not launch until every item in g
 - [ ] Open Graph image per page generated from one template (component A29).
 - [ ] Technical-paper framing in reduced motion and on `/how-it-works` (Fig 1.1, Fig 2.3).
 - [ ] One typeface system, one accent rule (verdict colors plus one ink blue, see 9.0), no stock imagery, no illustrations of people, no gradients.
-- [ ] Founder-written story with a real way to reach them.
+- [ ] Team-written story with a real way to reach us.
 - [ ] Legal: privacy, terms, open source licenses (including scroll-beat-kit's MIT notice and font licenses).
 - [ ] No dark patterns: no countdowns, no fake scarcity, no pre-checked boxes, waitlist asks one question only.
 
@@ -842,7 +842,7 @@ Every visual is built as live HTML, CSS and inline SVG (no screenshots, videos o
 
 Rules: color never appears without a glyph and a word. Verdict text is dark on tint, never colored text on white.
 
-**Decision, 16 October 2026 (site v3, founder's choice of concept A "Editorial"):** the site may use **one ink-blue accent** beyond the verdict colors. Tokens in `site/assets/site.css`: `--accent: #1D3BB8` on warm paper `#F3EFE5` (`--accent-ink: #142A86`, `--accent-tint: #E3E7F6`; dark theme `--accent: #9FB0FF`, button `#3651D6`). Blue is used rarely: the primary button, the italic half of a headline, section numbers, the Time Machine bar in the comparison, the Built tag and the focus ring (2 px). Blue never sits next to green or red in a way that reads as a verdict, and green still appears only after a real PASS. Display type is Newsreader (self hosted, SIL OFL 1.1) instead of Inter Display. See `design/SITE_V3_DIRECTION.md`. This replaces the earlier rule that links, focus rings and buttons are ink only.
+**Decision, 16 October 2026 (site v3, team choice of concept A "Editorial"):** the site may use **one ink-blue accent** beyond the verdict colors. Tokens in `site/assets/site.css`: `--accent: #1D3BB8` on warm paper `#F3EFE5` (`--accent-ink: #142A86`, `--accent-tint: #E3E7F6`; dark theme `--accent: #9FB0FF`, button `#3651D6`). Blue is used rarely: the primary button, the italic half of a headline, section numbers, the Time Machine bar in the comparison, the Built tag and the focus ring (2 px). Blue never sits next to green or red in a way that reads as a verdict, and green still appears only after a real PASS. Display type is Newsreader (self hosted, SIL OFL 1.1) instead of Inter Display. See `design/SITE_V3_DIRECTION.md`. This replaces the earlier rule that links, focus rings and buttons are ink only.
 
 **Decision, 17 October 2026 (Editorial + cinematic + orange, built in `site/`):**
 

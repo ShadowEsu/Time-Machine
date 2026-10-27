@@ -1,8 +1,8 @@
-# Publish `timetm` to npm (for Preston)
+# Publish `timetm` to npm (for the owner)
 
 The package is ready. Publishing is one command once your npm account has two factor turned on. Agents never publish. Only you do.
 
-**Status on 19 October 2026: not published.** `timetm` is not on npm. The account exists (`npm login` as prestonsusanto worked), but `npm publish` returned E403 because two factor is not turned on for publishing. Turning it on (section 1, item 3) is the only blocker.
+**Status on 19 October 2026: not published.** `timetm` is not on npm. The account exists (`npm login` with the owner's npm account worked), but `npm publish` returned E403 because two factor is not turned on for publishing. Turning it on (section 1, item 3) is the only blocker.
 
 Checked on 17 October 2026 on this Mac: `npm pack` makes 4 files (`LICENSE`, `README.md`, `dist/tm.js`, `package.json`), 151.9 kB. Installed from that tarball in an empty folder with a fresh home folder, `tm --version` printed `0.1.0`, `tm --help` worked, and `npx timetm demo` ran the full rescue (cp-0003 PASS, recovery branch made). Since 19 October, CI also runs the package check from step 3 on every push and pull request.
 

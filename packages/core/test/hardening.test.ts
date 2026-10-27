@@ -1,5 +1,6 @@
 // Fixes from the security review. Each test reproduces a confirmed issue.
-import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { setTimeout as sleep } from "node:timers/promises";
 import { dirname } from "node:path";
 import { join } from "node:path";
@@ -7,6 +8,7 @@ import { gunzipSync } from "node:zlib";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
 import { runWithTimeout } from "../src/exec.ts";
+import { inPinnedDir } from "../src/paths.ts";
 import { FAKE_SECRET, git, write } from "../../../fixtures/demo/build.ts";
 import { setupDemo, tempDir, writeConfig } from "../../../fixtures/demo/setup.ts";
 
@@ -45,6 +47,20 @@ describe("security review fixes", () => {
     const r = await tm.checkpoint(ctx, { note: "secret in tracked file" });
     expect(git(dir, "show", `${snapshotOf(ctx, r.checkpoint.id)}:config/app.json`)).not.toContain(FAKE_SECRET);
     expect(r.checkpoint.coverage.manual.join("\n")).toContain("config/app.json");
+  });
+
+  test("H1c a tracked file with a glob in its name that now holds a secret takes back only itself, not every file its name matches", async () => {
+    const { dir, ctx } = await setupDemo();
+    write(dir, "notes/[a]b.txt", "committed\n");
+    write(dir, "notes/ab.txt", "committed\n");
+    git(dir, "add", ".");
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "glob names");
+    write(dir, "notes/[a]b.txt", `{"key":"${FAKE_SECRET}"}\n`);
+    write(dir, "notes/ab.txt", "an edit to keep\n");
+    const r = await tm.checkpoint(ctx, { note: "glob name" });
+    const snap = snapshotOf(ctx, r.checkpoint.id);
+    expect(git(dir, "show", `${snap}:notes/[a]b.txt`)).toBe("committed");
+    expect(git(dir, "show", `${snap}:notes/ab.txt`)).toBe("an edit to keep");
   });
 
   test("H2b a recovery of that save point lists the edit it could not bring back", async () => {
@@ -103,6 +119,41 @@ describe("security review fixes", () => {
   test("H5b saved paths must stay inside the project", () => {
     for (const bad of ["../x", "a/../../x", "/etc/passwd", "", "a/./b", "a//b"]) expect(tm.isSafeRelPath(bad)).toBe(false);
     for (const good of ["a", "src/x.js", ".env", "a b/ü.txt"]) expect(tm.isSafeRelPath(good)).toBe(true);
+  });
+
+  test("H5c work pinned to a project folder keeps its result when the caller's working folder is deleted meanwhile, and refuses a folder that leads outside", () => {
+    const root = tempDir("pinned");
+    const proj = join(root, "proj");
+    const home = join(root, "home");
+    mkdirSync(join(proj, "notes"), { recursive: true });
+    mkdirSync(join(root, "outside"));
+    mkdirSync(home);
+    symlinkSync(join(root, "outside"), join(proj, "away"));
+    const before = process.cwd();
+    try {
+      process.chdir(home);
+      const r = inPinnedDir(proj, "notes", false, () => {
+        rmSync(home, { recursive: true });
+        return "written";
+      });
+      expect(r).toEqual({ inside: true, value: "written" });
+      expect(realpathSync(process.cwd())).toBe(realpathSync(proj));
+      expect(inPinnedDir(proj, "away", true, () => "never")).toEqual({ inside: false });
+      expect(inPinnedDir(proj, "away/deeper", true, () => "never")).toEqual({ inside: false });
+      expect(existsSync(join(root, "outside", "deeper"))).toBe(false);
+      // The caller's folder and the project both gone by the end: the working folder ends at the home folder (Security N3).
+      mkdirSync(home);
+      process.chdir(home);
+      const gone = inPinnedDir(proj, "notes", false, () => {
+        rmSync(home, { recursive: true });
+        rmSync(proj, { recursive: true });
+        return "done";
+      });
+      expect(gone).toEqual({ inside: true, value: "done" });
+      expect(realpathSync(process.cwd())).toBe(realpathSync(homedir()));
+    } finally {
+      process.chdir(before);
+    }
   });
 
   test("H6 a forged verdict line is ignored", async () => {
