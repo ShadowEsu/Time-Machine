@@ -1,6 +1,6 @@
 // First-run signals: the user sees the save point before a risky command, init says plainly when
 // there is no check, and status tells the setup skill what is missing.
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -96,13 +96,14 @@ describe("tm init with no test command", () => {
 describe("tm status", () => {
   test("says whether the project is set up and its check approved, and never makes a store", async () => {
     const { dir, tmHome, ctx } = repo({ "package.json": JSON.stringify({ name: "app", scripts: { test: "node --test" } }) });
-    expect(tm.status(ctx)).toEqual({ initialized: false, approved: false, check: null });
+    const at = { kind: "git", configPath: join(realpathSync.native(dir), "timemachine.yml") };
+    expect(tm.status(ctx)).toEqual({ initialized: false, approved: false, check: null, ...at });
     expect(existsSync(tmHome)).toBe(false);
     await tm.init(ctx, { approve: false });
-    expect(tm.status(ctx)).toEqual({ initialized: true, approved: false, check: "npm test" });
+    expect(tm.status(ctx)).toEqual({ initialized: true, approved: false, check: "npm test", ...at });
     await tm.init(ctx);
-    expect(tm.status(ctx)).toEqual({ initialized: true, approved: true, check: "npm test" });
+    expect(tm.status(ctx)).toEqual({ initialized: true, approved: true, check: "npm test", ...at });
     writeConfig(dir, { command: "" });
-    expect(tm.status(ctx)).toEqual({ initialized: true, approved: false, check: null });
+    expect(tm.status(ctx)).toEqual({ initialized: true, approved: false, check: null, ...at });
   });
 });

@@ -22,7 +22,7 @@ Pro gets cheaper the longer you stay, with a floor.
 
 ## Alternatives considered
 
-- $1 off every month until free (founder's first idea). Caps lifetime revenue at $45 per subscriber and makes most loyal users free. Rejected.
+- $1 off every month until free (the team's first idea). Caps lifetime revenue at $45 per subscriber and makes most loyal users free. Rejected.
 - Flat $9 with perks only. Kept as the perk layer on top of the ladder.
 
 ## Rules

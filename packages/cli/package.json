@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "description": "Save points for your projects before AI agents act, checked with your own tests.",
-  "author": "Preston Susanto <preston@unvibe.site>",
+  "author": "The Time Machine team <preston@unvibe.site>",
   "homepage": "https://time-machine-site.vercel.app",
   "repository": {
     "type": "git",

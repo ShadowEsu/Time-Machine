@@ -10,7 +10,7 @@ import { TmError } from "./errors.js";
 import { privateDir } from "./paths.js";
 import { resolveProject, type Project } from "./project.js";
 import { looksSecret, NOTE_LOOKS_SECRET } from "./secret-patterns.js";
-import { listIds } from "./store.js";
+import { listIds, noSuchCheckpoint } from "./store.js";
 import type { Ctx, RunNote } from "./types.js";
 
 const NOTES_FILE = "notes.json";
@@ -74,7 +74,7 @@ export function setNote(ctx: Ctx, change: NoteChange): RunNote {
   if (!CHECKPOINT_ID.test(id)) throw new TmError("usage", `"${id}" is not a checkpoint ID. IDs look like cp-0003.`);
   if ([title, note].some((t) => t !== undefined && looksSecret(t))) throw new TmError("usage", NOTE_LOOKS_SECRET);
   const p = resolveProject(ctx);
-  if (!listIds(p).includes(id)) throw new TmError("not_found", `There is no checkpoint ${id}. Run tm timeline to see them.`);
+  if (!listIds(p).includes(id)) throw noSuchCheckpoint(p, id);
   const all = read(p);
   const before = all[id];
   const nextTitle = title ?? before?.title ?? "";

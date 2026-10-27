@@ -1,6 +1,6 @@
 # ADR 0012: The web app replaces the Mac app
 
-Date: 22 October 2026. Status: accepted by the founder. Implemented.
+Date: 22 October 2026. Status: accepted by the team. Implemented.
 
 ## Decision
 
@@ -16,7 +16,7 @@ The Electron Mac app is retired. Its renderer and engine bridge live on as the w
 - Apple signing and notarization (D08) needed a paid Apple Developer account and an adult account holder, and was the one Phase B item no session could finish.
 - `tm ui` already drove the same renderer and the same engine from the CLI, with a token-guarded local server and boundary tests. Keeping two shells doubled every change.
 - A browser app runs on macOS, Linux and Windows the day it ships, and in cloud development environments where 64 percent of developers now work.
-- The founder wants one thing to sell: the web app, once, for $50 (ADR 0013).
+- We want one thing to sell: the web app, once, for $50 (ADR 0013).
 
 ## What the web app loses
 

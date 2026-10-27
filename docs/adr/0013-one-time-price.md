@@ -1,6 +1,6 @@
 # ADR 0013: One-time price for the web app
 
-Date: 22 October 2026. Status: accepted (founder decision). Supersedes ADR 0002.
+Date: 22 October 2026. Status: accepted (team decision). Supersedes ADR 0002.
 
 Update, 22 October 2026: the shipped code (`FREE_PROJECT_LIMIT = 3` in `packages/core/src/license.ts`) lets the web app list up to 3 projects at a time without a license, and the README, site and docs say so. The "no free tier" line below records the original decision; the code and its copy are what users get until that decision is revisited.
 
@@ -17,7 +17,7 @@ Update, 22 October 2026: the shipped code (`FREE_PROJECT_LIMIT = 3` in `packages
 
 ## Alternatives considered
 
-- **The Ladder subscription (ADR 0002).** A falling monthly price with a floor. Needs accounts, renewal emails, cancel flows and California automatic renewal compliance. Too much to run for a solo founder, and it makes the lawyer review longer. Superseded.
+- **The Ladder subscription (ADR 0002).** A falling monthly price with a floor. Needs accounts, renewal emails, cancel flows and California automatic renewal compliance. Too much to run for a small team, and it makes the lawyer review longer. Superseded.
 - **A free tier of the web app.** Considered as a limit on the number of projects. Dropped: one plan is simpler to explain, build and support, and the free open source tool already covers everyone who does not pay.
 - **Freemium with cloud features.** Would need hosted storage, accounts and billing, all out of scope in the build brief.
 

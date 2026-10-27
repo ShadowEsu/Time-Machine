@@ -6,7 +6,7 @@ import { esc } from "../shared/format.js";
 /** The Review step's main key. */
 export type ReviewKey = "bring-back" | "copy" | "try" | "try-again";
 
-/** What each key does: tv-use brings the version back (recover), tv-try runs the check on it in a safe copy. */
+/** What each key does: tv-use brings the version back (recover), tv-try runs the check on it in a copy. */
 export const REVIEW_KEY: Record<ReviewKey, { act: "tv-use" | "tv-try"; label: string }> = {
   "bring-back": { act: "tv-use", label: "Bring it back" },
   copy: { act: "tv-use", label: "Bring it back as a copy" },
@@ -17,7 +17,7 @@ export const REVIEW_KEY: Record<ReviewKey, { act: "tv-use" | "tv-try"; label: st
 /**
  * The key for a version. A project with no check (`checks` false) only saves versions: its key brings the version back
  * as a copy, with no check run and no verdict stored, whatever an old verdict says (Design gate MF4). With a check, a
- * passed version comes back; any other is tried in a safe copy first.
+ * passed version comes back; any other is tried in a copy first.
  */
 export function reviewKey(checks: boolean, verdict: Verdict | null, tried: boolean): ReviewKey {
   if (!checks) return "copy";
@@ -28,11 +28,11 @@ export function reviewKey(checks: boolean, verdict: Verdict | null, tried: boole
 /** The steps and the safe line on the rewind sheet. `gitDetails` adds the branch name for a Git project. */
 export function goBackSteps({ folder, id, gitDetails }: { folder: boolean; id: string; gitDetails: boolean }): string {
   const steps = folder
-    ? ["<b>We save your current version first,</b> so nothing is lost.", "<b>We build a recovery copy</b> next to your folder."]
+    ? ["<b>We save your current version first,</b> so nothing is lost.", "<b>We build a copy</b> next to your folder."]
     : [
         "<b>We save your current version first,</b> so nothing is lost.",
         `<b>We put this version on a new local branch</b>${gitDetails ? `, <span class="mono">tm/recover/${esc(id)}</span>` : ""}.`,
-        "<b>We build a recovery copy</b> next to your project folder.",
+        "<b>We build a copy</b> next to your project folder.",
       ];
   const safe = folder ? "<b>Nothing is deleted. Your folder is not touched.</b> You can undo it." : "<b>Nothing is pushed, merged, deployed or deleted. Your folder and branch are not touched.</b> You can undo it.";
   return `<ol class="rw-steps" aria-label="When you go back, we">

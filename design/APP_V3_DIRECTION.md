@@ -21,11 +21,11 @@ No implementation or scope decision is made by this study.
 
 ## What the references actually teach
 
-Research used public product material, official design posts and one founder interview. There was no access to logged-in competitor apps. Fonts below are reported by their teams, not measured from a running native app. Motion timings in our systems are proposals, not copied competitor measurements. Claims about why people return or pay are design hypotheses, not causal findings from these sources.
+Research used public product material, official design posts and one interview with Granola's Chris Pedregal. There was no access to logged-in competitor apps. Fonts below are reported by their teams, not measured from a running native app. Motion timings in our systems are proposals, not copied competitor measurements. Claims about why people return or pay are design hypotheses, not causal findings from these sources.
 
 ### Granola: a familiar artifact, quietly made better
 
-Sources: [new visual identity, by cofounder Sam Stephenson](https://www.granola.ai/blog/a-new-look-for-granola), [how to use Granola, including note provenance and citations](https://www.granola.ai/blog/get-the-best-from-granola), [Chris Pedregal interview with Peter Yang](https://creatoreconomy.so/p/the-hidden-rules-behind-successful-ai-products-chris-pedregal).
+Sources: [new visual identity, by Sam Stephenson](https://www.granola.ai/blog/a-new-look-for-granola), [how to use Granola, including note provenance and citations](https://www.granola.ai/blog/get-the-best-from-granola), [Chris Pedregal interview with Peter Yang](https://creatoreconomy.so/p/the-hidden-rules-behind-successful-ai-products-chris-pedregal).
 
 **Layout.** It starts as a notepad, not an AI dashboard. People can type, close it and get on with the meeting. Pedregal attributes return to this simplicity and convenience. The product's familiar shape lowers the cost of learning a new tool. Borrow the journal, not a generic chat-first landing screen.
 
@@ -35,7 +35,7 @@ Sources: [new visual identity, by cofounder Sam Stephenson](https://www.granola.
 
 **Our equivalent.** An agent turn becomes a readable entry: what you asked, what changed, what the agent claimed, what Time Machine actually ran, and the limits. Your title stays in ink. Generated interpretation stays secondary and marked AI. A click goes to a save point or check log. Do not turn accepted AI prose into a fact just by darkening it. Provenance remains available even after editing.
 
-**Why it is loved, with limits.** The founder describes a calming, trusty-notebook relationship. In the interview, he reports strong return and credits a narrow, convenient product that removes work. That is testimony from the founder, not independent evidence that warm paper causes retention. The transferable idea is relief plus useful context, not the reported retention figure. We should not put that figure in Time Machine copy.
+**Why it is loved, with limits.** Pedregal describes a calming, trusty-notebook relationship. In the interview, he reports strong return and credits a narrow, convenient product that removes work. That is testimony from Granola's own team, not independent evidence that warm paper causes retention. The transferable idea is relief plus useful context, not the reported retention figure. We should not put that figure in Time Machine copy.
 
 **Motion.** The sources explain the before/after artifact and the feeling, but do not establish native animation timings. We propose a brief arrival of the finished entry. No fake typing or padded progress in the real app.
 
@@ -192,7 +192,7 @@ The screen stays dark in light mode. That is the material contrast. Cobalt belon
 
 **Risk to test.** A knob can be slower than clicking a row. Do not ship it as the only path. The mockup supports wheel, drag, J/L and left/right keys, plus clicking ruler ticks. Labels must survive magnification and grayscale. The very dark display must stay legible in bright rooms. Hardware styling must not consume the room needed for a long title or a serious failure reason.
 
-## Founder-hinted feature surface
+## Team-hinted feature surface
 
 Every item below is **concept only in this study**. The static interactions do not establish an implementation or change MVP scope. Existing code may evolve independently. Check the build brief and actual code before making a public capability claim.
 
@@ -245,7 +245,7 @@ The mockups show a dashed **Vercel preview · read only** chip on the 3:49 save 
 
 The reference task is a Mac desktop project screen at 1280 by 800. The audience is a builder who has let an agent work and needs to understand what happened, then rescue a checked version without changing the working folder by accident.
 
-Observation: the existing preview has plain save-point rows and a large status, but the founder wants more perceived craft and useful depth. That founder feedback is the evidence for exploring a new direction. It is not evidence that a journal or a dial improves task success.
+Observation: the existing preview has plain save-point rows and a large status, but the team wants more perceived craft and useful depth. That team feedback is the evidence for exploring a new direction. It is not evidence that a journal or a dial improves task success.
 
 Proposed change: make provenance, named versions and recovery limits structural. Test a journal against a hardware-like selector. A keyboard route, fixed words, visible limits and reduced-motion treatment are guardrails in both.
 
@@ -270,7 +270,7 @@ Playwright opened each HTML from `file://`, waited for embedded fonts, and captu
 
 ## 20 October: production refinement
 
-Preston rejected the app's visual finish. The current screenshots show a warm,
+The team rejected the app's visual finish. The current screenshots show a warm,
 low-separation rail, an automatically open Ask consent panel and persistent
 scrollbars competing with the history. The next production pass keeps the
 working recovery model, not the concept's material palette.

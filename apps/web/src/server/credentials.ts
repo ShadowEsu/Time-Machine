@@ -1,14 +1,14 @@
 // API keys for the opt-in features. They are never written to projects.json or settings.json,
 // never logged, and never sent to the window: the window only learns whether each one is set.
-// A key comes from the environment first (GEMINI_API_KEY, VERCEL_TOKEN), then from a file in
-// the app's userData folder that holds it encrypted by macOS (Electron safeStorage).
+// A key comes from the environment first (GEMINI_API_KEY, ANTHROPIC_API_KEY, VERCEL_TOKEN), then
+// from a file in the app's userData folder that holds it encrypted by macOS (Electron safeStorage).
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import * as tm from "@timetm/core";
 import { z } from "zod";
-import { CredentialNameSchema, CredentialValueSchema, type CredentialName } from "../shared/api.js";
+import { CredentialNameSchema, CredentialValueSchema, type CredentialName, type CredentialStatus } from "../shared/api.js";
 
-const ENV_NAMES: Record<CredentialName, string> = { gemini: "GEMINI_API_KEY", vercel: "VERCEL_TOKEN" };
-const LABELS: Record<CredentialName, string> = { gemini: "Gemini API key", vercel: "Vercel token" };
+const ENV_NAMES: Record<CredentialName, string> = { gemini: "GEMINI_API_KEY", anthropic: "ANTHROPIC_API_KEY", vercel: "VERCEL_TOKEN" };
+const LABELS: Record<CredentialName, string> = { gemini: "Gemini API key", anthropic: "Anthropic API key", vercel: "Vercel token" };
 
 /** The part of Electron's safeStorage this module uses. Tests pass a stand-in. */
 export interface Cipher {
@@ -76,9 +76,11 @@ export class Credentials {
     renameSync(tmp, this.path);
   }
 
-  /** Whether each key is set. This is all the window ever sees. */
-  status(): Record<CredentialName, boolean> {
-    return { gemini: this.get("gemini") !== null, vercel: this.get("vercel") !== null };
+  /** Whether each key is set, and which one Ask uses: Gemini's when set, otherwise Anthropic's. This is all the window ever sees. */
+  status(): CredentialStatus {
+    const gemini = this.get("gemini") !== null;
+    const anthropic = this.get("anthropic") !== null;
+    return { gemini, anthropic, vercel: this.get("vercel") !== null, provider: gemini ? "gemini" : anthropic ? "anthropic" : null };
   }
 }
 

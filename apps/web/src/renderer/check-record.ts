@@ -5,6 +5,7 @@
 import type { TimelineEntry } from "@timetm/core";
 import type { Res, VerdictRecord } from "../shared/api.js";
 import { esc } from "../shared/format.js";
+import { checkReason } from "./status.js";
 
 /** The engine's reason is clipped to this many code points on screen, like a log line. */
 export const REASON_CHARS = 300;
@@ -21,7 +22,8 @@ export function acceptRecord(r: Res<VerdictRecord | null>, c: Pick<TimelineEntry
 export function checkBodyHtml(vr: VerdictRecord, ran: boolean, withReason: boolean): string {
   const exit = vr.exitCode === null ? "no exit code" : `exit code ${vr.exitCode}`;
   const net = vr.network.policy === "deny" ? "network off" : "network on";
-  const chars = Array.from(vr.reason);
-  const reason = chars.length > REASON_CHARS ? `${chars.slice(0, REASON_CHARS - 3).join("")}...` : vr.reason;
+  const said = checkReason(vr.reason);
+  const chars = Array.from(said);
+  const reason = chars.length > REASON_CHARS ? `${chars.slice(0, REASON_CHARS - 3).join("")}...` : said;
   return `<div class="cw-b sel-text">${vr.command.trim() ? `<div><span class="cw-p" aria-hidden="true">$ </span>${esc(vr.command)}</div>` : ""}${ran ? `<div>${esc(`${exit} · ${net}`)}</div>` : ""}${withReason ? `<div class="cw-r">${esc(reason)}</div>` : ""}</div>`;
 }

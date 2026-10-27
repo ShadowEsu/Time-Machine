@@ -1,4 +1,5 @@
 import { chmodSync, lstatSync, mkdirSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** A path saved in a manifest must be relative and stay inside the project. */
@@ -8,7 +9,7 @@ export function isSafeRelPath(p: string): boolean {
 }
 
 /** Resolves symbolic links in the part of the path that exists (macOS /var is /private/var), in the letter case on disk. */
-function realish(p: string): string {
+export function realish(p: string): string {
   const abs = resolve(p);
   try {
     return realpathSync.native(abs);
@@ -52,4 +53,53 @@ export function safeTarget(dir: string, rel: string): string | null {
     }
   }
   return join(dir, ...parts);
+}
+
+/**
+ * Runs `fn` with the working folder pinned to the folder `relDir` inside `root` (each part made first when `make`), so the
+ * names `fn` uses stay in that folder: a folder on the way swapped for a symbolic link can't send them elsewhere. Each part
+ * is entered on its own, then the folder reached is checked to be inside `root`; a pinned working folder doesn't move when
+ * a path is swapped later. `{ inside: false }` when it isn't inside. Synchronous only (chdir throws in worker threads);
+ * the working folder is put back after.
+ */
+export function inPinnedDir<T>(root: string, relDir: string, make: boolean, fn: () => T): { inside: false } | { inside: true; value: T } {
+  let home: string | null;
+  try {
+    home = process.cwd();
+  } catch {
+    home = null; // the working folder was deleted: it ends at root
+  }
+  // The root is resolved once and entered as resolved, and the end check compares with that same path: a root swapped
+  // after this can't move both sides of the check at once.
+  const rootReal = realish(root);
+  try {
+    process.chdir(rootReal);
+    const top = statSync(".");
+    const rootNow = statSync(rootReal);
+    if (top.dev !== rootNow.dev || top.ino !== rootNow.ino) return { inside: false };
+    for (const part of relDir ? relDir.split("/") : []) {
+      if (make && !lstatSync(part, { throwIfNoEntry: false })) mkdirSync(part);
+      const st = lstatSync(part, { throwIfNoEntry: false });
+      if (!st?.isDirectory()) return { inside: false };
+      process.chdir(part);
+      // The folder entered is the one just looked at: a swap for a symbolic link in between would have moved the working
+      // folder outside before the last check, and a later part could be made there.
+      const here = statSync(".");
+      if (here.dev !== st.dev || here.ino !== st.ino) return { inside: false };
+    }
+    const rel = relative(rootReal, realpathSync.native("."));
+    if (rel.startsWith(`..${sep}`) || rel === ".." || isAbsolute(rel)) return { inside: false };
+    return { inside: true, value: fn() };
+  } finally {
+    // Putting the working folder back never hides what fn returned or threw: a folder gone meanwhile falls back to root, then
+    // to the home folder, so the process never stays in a folder a later swap could move (Security N3).
+    for (const back of [() => home ?? root, () => root, () => homedir(), () => "/"]) {
+      try {
+        process.chdir(back());
+        break;
+      } catch {
+        // Try the next one.
+      }
+    }
+  }
 }

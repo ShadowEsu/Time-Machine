@@ -13,7 +13,7 @@ export interface PurposeWords {
 }
 
 export const PURPOSES: { [P in Purpose]: PurposeWords } = {
-  code: { label: "Code project", hint: "An app, a site or a library, with a check that tells you it works.", unit: "save point", units: "save points" },
+  code: { label: "Code project", hint: "An app, a site or a library. Add a check that tells you it works, or only save versions.", unit: "save point", units: "save points" },
   documents: { label: "Documents and notes", hint: "Writing, notes, a thesis, an Obsidian vault.", unit: "save point", units: "save points" },
   research: { label: "Research and experiments", hint: "Analysis scripts, data and trial-run outputs.", unit: "run", units: "runs" },
   agents: { label: "AI agent workspace", hint: "A folder an agent works in, so you can see what it changed and go back.", unit: "save point", units: "save points" },
@@ -37,15 +37,16 @@ export function unitCount(purpose: Purpose, n: number): string {
   return `${n} ${n === 1 ? w.unit : w.units}`;
 }
 
-/** A check is part of a code project. The others may skip it and only save versions. */
-export const checkRequired = (purpose: Purpose): boolean => purpose === "code";
+/** A check is recommended for a code project. Every purpose may skip it and only save versions (a project with no tests yet). */
+export const checkRecommended = (purpose: Purpose): boolean => purpose === "code";
 
 /**
- * Whether a project has a check: code always does; anything else once a check has ever run on it, or one is stored.
- * Without one, the app says when it was saved, never "Not checked yet", and never offers to check it.
+ * Whether a project has a check: whether a check command is set now, once that is known. Until it is read, a project
+ * that has ever been checked counts as having one. Without one the app says when it was saved, never "Not checked yet",
+ * and never offers to check it; old verdicts stay as history (Design re-check 1).
  */
-export function hasCheck(purpose: Purpose, everChecked: boolean, stored: boolean): boolean {
-  return checkRequired(purpose) || everChecked || stored;
+export function hasCheck(commandSet: boolean | null, everChecked: boolean): boolean {
+  return commandSet ?? everChecked;
 }
 
 const ICONS: { [P in Purpose]: string } = {

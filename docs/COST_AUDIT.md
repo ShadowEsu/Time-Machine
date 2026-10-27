@@ -28,7 +28,7 @@ Read-only audit, 2026-10-19 20:40 to 21:05 UTC. Nothing was changed: no billing,
 | Supabase DB size | **`tm_waitlist` schema** | same | 196,608 B. `waitlist`: 0 live rows (1 insert ever). `funnel_events`: 17 rows, all `visit`, all on 2026-10-19 | same (`pg_stat_user_tables`) |
 | Supabase REST requests | `jaymini-prod`, all schemas | 2026-10-12 to 2026-10-19, daily | 1, 48, 22, 21, 35, 25, 24, 50 (226 total). Auth, storage and realtime: 0 | `GET /v1/projects/{ref}/analytics/endpoints/usage.api-counts?interval=7day` |
 | Supabase REST requests | **TM RPCs** | 2026-10-18 20:40Z to 2026-10-19 20:40Z | out of 52 REST calls: 17 `funnel_event_add`, 1 `waitlist_join_pending`, 2 `waitlist_status` | `GET /v1/projects/{ref}/analytics/endpoints/logs?sql=` (table `logs`) |
-| Gemini (Ask, opt-in) | GCP project `gen-lang-client-0763360198` (#1011998020612), which owns the key in `gemini-app.env`. The same key is in `apps/desktop/.env` and is shared with Preston's other apps | now | `billingEnabled: false`, `billingAccountName: ""`. Key restricted to `generativelanguage.googleapis.com` | `apikeys v2 keys:lookupKey`, `cloudbilling v1 projects/{n}/billingInfo` |
+| Gemini (Ask, opt-in) | GCP project `gen-lang-client-0763360198` (#1011998020612), which owns the key in `gemini-app.env`. The same key is in `apps/desktop/.env` and is shared with the owner's other apps | now | `billingEnabled: false`, `billingAccountName: ""`. Key restricted to `generativelanguage.googleapis.com` | `apikeys v2 keys:lookupKey`, `cloudbilling v1 projects/{n}/billingInfo` |
 | Gemini requests | Same project (all apps sharing the key) | 30 days to 2026-10-19T20:59Z | `CreateInteraction` (the Ask endpoint): 3 × 2xx, 3 × 4xx. `StreamGenerateContent` (not used by TM): 35 × 2xx, 45 × 4xx, 9 × 5xx. Daily total: 66 on 10-17, 29 on 10-18, 0 on other days | Cloud Monitoring `serviceruntime.googleapis.com/api/request_count` |
 | GitHub Actions | Repo `ShadowEsu/Time-Machine` (public, created 2026-10-14) | 2026-10-15 to 2026-10-19 | 67 runs, 134.7 min run time, **billable_ms 0** on every run (macOS + Ubuntu) | `gh api repos/…/actions/runs/{id}/timing` |
 | npm | `timetm` | now | not published (registry 404) | `npm view timetm` |
@@ -40,11 +40,11 @@ Read-only audit, 2026-10-19 20:40 to 21:05 UTC. Nothing was changed: no billing,
 
 | Field | What was tried | Result | Who can close it |
 |---|---|---|---|
-| Vercel itemized usage and costs | `GET /v1/usage` | `plan_upgrade_required` (Pro/Enterprise only) | Dashboard https://vercel.com/shadowesus-projects/~/usage (Preston's login) |
+| Vercel itemized usage and costs | `GET /v1/usage` | `plan_upgrade_required` (Pro/Enterprise only) | Dashboard https://vercel.com/shadowesus-projects/~/usage (the owner's login) |
 | Supabase org usage, egress, spend cap | `/v1/organizations/{org}/usage`, `/billing` (`Cannot GET`), `/platform/organizations/{org}/usage` and `/platform/projects/{ref}/daily-stats` | `401 Unsupported access token` (a PAT cannot reach these) | Dashboard https://supabase.com/dashboard/org/nmuyvgwvznrnqtevftff/usage |
-| GitHub account billing | `gh api /users/ShadowEsu/settings/billing/usage` and `/actions` | needs the `user` scope. The token has `gist, read:org, repo, workflow` | Preston: `gh auth refresh -h github.com -s user`, or https://github.com/settings/billing |
+| GitHub account billing | `gh api /users/ShadowEsu/settings/billing/usage` and `/actions` | needs the `user` scope. The token has `gist, read:org, repo, workflow` | The owner: `gh auth refresh -h github.com -s user`, or https://github.com/settings/billing |
 | Gemini token counts | No inference was issued, by design. Monitoring gives request counts only | not available | AI Studio usage page for project `gen-lang-client-0763360198` |
-| Apple Developer Program | No account surface was available | unknown | Preston |
+| Apple Developer Program | No account surface was available | unknown | The owner |
 
 Composio (live): the Vercel connection is `ACTIVE`, and `VERCEL_GET_TEAMS` now returns `shadowesus-projects`. HANDOFF §3 used to record a 403 here; it has been updated. All Composio Supabase and Stripe connections are `EXPIRED`. Usage data in this report came from the Vercel CLI login token and the Supabase PAT, both read-only.
 
@@ -71,13 +71,13 @@ Composio (live): the Vercel connection is `ACTIVE`, and `VERCEL_GET_TEAMS` now r
 
 ## Risks and actions (no billing changes made)
 
-1. **Shared Hobby limits (team-wide).** The team already has a Blob block until 2026-10-28 (Unvibe store). A spike in any project counts against the same allowance that TM uses. Action: watch https://vercel.com/shadowesus-projects/~/usage. Whether to move off Hobby is Preston's call. Vercel's terms limit Hobby to non-commercial use [INFERENCE from Vercel docs; check before launch].
+1. **Shared Hobby limits (team-wide).** The team already has a Blob block until 2026-10-28 (Unvibe store). A spike in any project counts against the same allowance that TM uses. Action: watch https://vercel.com/shadowesus-projects/~/usage. Whether to move off Hobby is the owner's call. Vercel's terms limit Hobby to non-commercial use [INFERENCE from Vercel docs; check before launch].
 2. **Public request abuse.** `0005` and its API mapping are live. `0006` and per-client API buckets are implemented and locally verified, pending live apply and deployment. They limit accepted RPC work, not Vercel function invocations or invalid payloads rejected before Supabase. Still open: platform-level request limits if the plan supports them, and retention for stale pending signups.
 3. **Shared database.** TM writes go into Jaymini's production DB on a Free org. Data is isolated by schema, but capacity and egress are shared. Egress could not be measured.
-4. **Gemini.** No billing account is linked, so the key runs on the free tier. Free-tier data-use terms apply, and the consent text already says so. Rotating the previously leaked Google key is still Preston's task (brief).
+4. **Gemini.** No billing account is linked, so the key runs on the free tier. Free-tier data-use terms apply, and the consent text already says so. Rotating the previously leaked Google key is still the owner's task (brief).
 5. **Supabase org owner has `mfa_enabled: false`.** This is an account-safety risk for billing control.
 
-## Needs Preston's approval
+## Needs the owner's approval
 
 - Any Vercel or Supabase plan change, spend cap or spend management setting.
 - Linking billing to the Gemini project, and rotating the key.

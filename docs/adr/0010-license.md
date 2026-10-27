@@ -1,12 +1,12 @@
 # ADR 0010: License
 
-Date: 17 October 2026. Status: accepted (founder decision, relayed by BOSS).
+Date: 17 October 2026. Status: accepted (team decision, relayed by BOSS).
 
 ## Decision
 
 - The repository, the `tm` CLI (npm name `timetm`), the core engine and the web app source are under the **MIT License**. See `LICENSE`.
 - Every `package.json` says `"license": "MIT"`.
-- The npm package is still not published. The founder creates the npm account with 2FA and publishes. Agents never publish.
+- The npm package is still not published. The owner creates the npm account with 2FA and publishes. Agents never publish.
 
 ## Alternatives
 

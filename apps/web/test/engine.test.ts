@@ -49,10 +49,10 @@ test("a project with no test command: setup approves nothing, the first save poi
     const ctx = { cwd: project, env: process.env };
     // The wizard's step 2 shows the "No test command found" state for an empty verifyCommand.
     expect(await engine.run({ method: "init", projectId })).toMatchObject({ ok: true, data: { created: true, verifyCommand: "", approvedCheck: null } });
-    expect(status(ctx)).toEqual({ initialized: true, approved: false, check: null });
+    expect(status(ctx)).toMatchObject({ initialized: true, approved: false, check: null, kind: "git" });
     expect(await engine.run({ method: "checkpoint", projectId, note: "First save point", ifChanged: true })).toMatchObject({ ok: true, data: { checkpoint: { id: "cp-0001" } } });
     expect(await engine.run({ method: "setCheck", projectId, command: "node -e 0" })).toMatchObject({ ok: true, data: { verifyCommand: "node -e 0" } });
-    expect(status(ctx)).toEqual({ initialized: true, approved: true, check: "node -e 0" });
+    expect(status(ctx)).toMatchObject({ initialized: true, approved: true, check: "node -e 0" });
     expect(await engine.run({ method: "verify", projectId, id: "cp-0001" })).toMatchObject({ ok: true, data: { verdict: "PASS" } });
   } finally {
     if (before === undefined) delete process.env.TM_HOME;
@@ -189,7 +189,7 @@ test("run notes: pin and name a save point through the engine; long or secret te
     expect(await engine.run({ method: "setNote", projectId, id: "cp-0001", title: "Baseline, seed 42", pinned: true })).toMatchObject({ ok: true, data: { title: "Baseline, seed 42", pinned: true } });
     expect(await engine.run({ method: "notes", projectId })).toMatchObject({ ok: true, data: { "cp-0001": { title: "Baseline, seed 42", pinned: true } } });
     expect(await engine.run({ method: "setNote", projectId, id: "cp-0001", note: "DB_PASSWORD=hunter2-correct-horse" })).toMatchObject({ ok: false, error: { kind: "usage" } });
-    expect(await engine.run({ method: "setNote", projectId, id: "cp-0009", title: "x" })).toMatchObject({ ok: false, error: { kind: "not_found" } });
+    expect(await engine.run({ method: "setNote", projectId, id: "cp-0009", title: "x" })).toMatchObject({ ok: false, error: { kind: "usage" } });
     expect(listing(folder)).toEqual([`run-01.csv a,b\n1,2\n ${lstatSync(join(folder, "run-01.csv")).mtimeMs}`]);
   });
 });
