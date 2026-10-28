@@ -8,7 +8,7 @@ import { instanceClient, rateLimited } from "./ratelimit.js";
 import { isAllowedOrigin, rateLimitReply, readJsonObject } from "./waitlist.js";
 
 export const STRIPE_API = "https://api.stripe.com/v1";
-// The body is only {agreed, termsVersion, privacyVersion}.
+// The body is only {agreed, termsVersion, privacyVersion, boxVersion}.
 export const MAX_CHECKOUT_BYTES = 1024;
 export const UPSTREAM_TIMEOUT_MS = 8000;
 // Every Stripe call names its API version, so a Dashboard upgrade never changes the fields read here
@@ -90,9 +90,9 @@ const SessionSchema = z.object({
 });
 
 /**
- * POST {agreed: true, termsVersion, privacyVersion} starts a Checkout Session and returns its link. The body is the box
- * before Buy, ticked next to the current Terms and Privacy Policy (agreement.js); without it Stripe is never called.
- * When and which versions were agreed to go in the session's metadata.
+ * POST {agreed: true, termsVersion, privacyVersion, boxVersion} starts a Checkout Session and returns its link. The body is the box
+ * before Buy, ticked to agree to the Terms and confirm the Privacy notice was read (agreement.js); without it Stripe is never called.
+ * When, which page versions and which box wording were shown go in the session's metadata.
  * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null,
  *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string, now?: () => number }} deps

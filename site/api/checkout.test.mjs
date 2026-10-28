@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
-import { PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
+import { BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
 import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, publicKeyOf, siteOrigin } from "./_lib/checkout.js";
 import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
@@ -15,8 +15,8 @@ const created = () => json({ id: "cs_test_synthetic", object: "checkout.session"
 // A fixed clock for the session's expiry time.
 const NOW = Date.UTC(2026, 9, 23, 17, 0, 0);
 
-// The box before Buy was ticked next to the current Terms and Privacy Policy.
-const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
+// The current box was ticked to agree to the Terms and confirm the Privacy notice was read.
+const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION };
 
 function request(overrides = {}, body = AGREED) {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -59,6 +59,7 @@ describe("checkout handler", () => {
       "metadata[agreed_at]": "2026-10-23T17:00:00.000Z",
       "metadata[terms_version]": TERMS_VERSION,
       "metadata[privacy_version]": PRIVACY_VERSION,
+      "metadata[box_version]": BOX_VERSION,
       "payment_intent_data[metadata][product]": "tm-web",
       // The shortest life Stripe allows (30 minutes) plus a minute for clock drift.
       expires_at: String(NOW / 1000 + 31 * 60),
@@ -70,7 +71,7 @@ describe("checkout handler", () => {
 
   it("refuses without a ticked box, with 400 agreement_required and no Stripe call", async () => {
     const { fetch, deps } = setup();
-    for (const body of [{}, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }, { ...AGREED, agreed: false }, { ...AGREED, agreed: "true" }]) {
+    for (const body of [{}, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION }, { ...AGREED, agreed: false }, { ...AGREED, agreed: "true" }]) {
       expect(await handleCheckout(request({}, body), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_required" } });
     }
     expect(fetch).not.toHaveBeenCalled();
@@ -78,8 +79,10 @@ describe("checkout handler", () => {
 
   it("refuses a box ticked next to other or missing versions, with 400 agreement_outdated and no Stripe call", async () => {
     const { fetch, deps } = setup();
-    for (const body of [{ ...AGREED, termsVersion: "terms-2026-01-01" }, { ...AGREED, privacyVersion: "privacy-2026-01-01" }, { agreed: true }, { agreed: true, termsVersion: TERMS_VERSION }]) {
-      expect(await handleCheckout(request({}, body), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_outdated" } });
+    for (const field of ["termsVersion", "privacyVersion", "boxVersion"]) {
+      for (const value of ["outdated-version", undefined]) {
+        expect(await handleCheckout(request({}, { ...AGREED, [field]: value }), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_outdated" } });
+      }
     }
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -215,7 +218,10 @@ describe("checkout handler", () => {
     const script = readFileSync(new URL("../assets/buy.js", import.meta.url), "utf8");
     expect(script).toContain(`var TERMS_VERSION = "${TERMS_VERSION}";`);
     expect(script).toContain(`var PRIVACY_VERSION = "${PRIVACY_VERSION}";`);
-    for (const words of ['"I agree to the "', 'link("terms.html", "Terms (draft)")', 'link("privacy.html", "Privacy (draft)")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
+    expect(script).toContain(`var BOX_VERSION = "${BOX_VERSION}";`);
+    expect(script).toContain('box.setAttribute("data-box-version", BOX_VERSION)');
+    expect(script).toContain('boxVersion: box.getAttribute("data-box-version")');
+    for (const words of ['"I agree to the "', 'link("terms.html", "Terms (draft)")', '" and have read the "', 'link("privacy.html", "Privacy notice (draft)")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
     expect(script).not.toMatch(/box\.checked = true/);
     expect(script).toContain("agreement_outdated");
   });

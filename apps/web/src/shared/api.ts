@@ -1,7 +1,7 @@
 // The narrow bridge between the browser page and the engine. The tm ui server validates every
 // call with these schemas before it touches the engine. The preview build fakes this API.
 import { z } from "zod";
-import { PRIVACY_VERSION, TERMS_VERSION } from "./agreement.js";
+import { BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "./agreement.js";
 import type { AskProvider } from "./ask.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "./links.js";
 import type {
@@ -186,7 +186,7 @@ export type FeatureChange = z.infer<typeof FeatureChange>;
 /** The same email rule the site uses: one @, no spaces, a dot in the domain. */
 const SignInEmail = z.string().trim().toLowerCase().max(254).regex(/^[^\s@]{1,64}@[^\s@.][^\s@]*\.[^\s@]{2,}$/);
 /** The ticked Terms and Privacy box, with the versions it named. The site's /api/auth refuses a sign-in without it. */
-const Agreement = { agreed: z.literal(true), termsVersion: z.literal(TERMS_VERSION), privacyVersion: z.literal(PRIVACY_VERSION) };
+const Agreement = { agreed: z.literal(true), termsVersion: z.literal(TERMS_VERSION), privacyVersion: z.literal(PRIVACY_VERSION), boxVersion: z.literal(BOX_VERSION) };
 
 /** Every call the window can make. One schema per method. */
 export const CallSchema = z.discriminatedUnion("method", [

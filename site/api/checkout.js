@@ -1,5 +1,5 @@
 // POST /api/checkout starts a Stripe Checkout Session for the one-time web app purchase and returns its link.
-// The body says the buyer ticked the Terms and Privacy box before Buy: {agreed: true, termsVersion, privacyVersion}.
+// The body says the buyer ticked the Terms and Privacy box before Buy: {agreed: true, termsVersion, privacyVersion, boxVersion}.
 // Vercel Node.js function using the Web Request and Response signature.
 // Needs STRIPE_SECRET_KEY and TM_LICENSE_PRIVATE_KEY in Vercel. Optional: SITE_ORIGIN, STRIPE_PRICE_ID.
 import { handleCheckout } from "./_lib/checkout.js";

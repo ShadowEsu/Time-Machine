@@ -7,9 +7,10 @@
   "use strict";
 
   var CONTACT = "preston@unvibe.site";
-  // Must equal TERMS_VERSION and PRIVACY_VERSION in site/api/_lib/agreement.js (a test keeps them equal).
+  // Must equal TERMS_VERSION, PRIVACY_VERSION and BOX_VERSION in site/api/_lib/agreement.js (a test keeps them equal).
   var TERMS_VERSION = "terms-2026-10-22";
   var PRIVACY_VERSION = "privacy-2026-10-28";
+  var BOX_VERSION = "agree-box-2026-10-29";
   var MSG = {
     soon: "The price is set. Checkout is not open yet, so nothing is for sale today.",
     starting: "Opening checkout…",
@@ -44,11 +45,12 @@
   box.required = true;
   box.setAttribute("data-terms-version", TERMS_VERSION);
   box.setAttribute("data-privacy-version", PRIVACY_VERSION);
+  box.setAttribute("data-box-version", BOX_VERSION);
   var words = document.createElement("span");
   words.appendChild(document.createTextNode("I agree to the "));
   words.appendChild(link("terms.html", "Terms (draft)"));
-  words.appendChild(document.createTextNode(" and "));
-  words.appendChild(link("privacy.html", "Privacy (draft)"));
+  words.appendChild(document.createTextNode(" and have read the "));
+  words.appendChild(link("privacy.html", "Privacy notice (draft)"));
   words.appendChild(document.createTextNode(". I am 18 or older, or I am the parent or guardian paying."));
   agree.appendChild(box);
   agree.appendChild(words);
@@ -111,7 +113,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ agreed: true, termsVersion: box.getAttribute("data-terms-version"), privacyVersion: box.getAttribute("data-privacy-version") })
+      body: JSON.stringify({ agreed: true, termsVersion: box.getAttribute("data-terms-version"), privacyVersion: box.getAttribute("data-privacy-version"), boxVersion: box.getAttribute("data-box-version") })
     })
       .then(function (res) {
         return res.json().then(

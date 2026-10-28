@@ -68,8 +68,8 @@ function authHeaders(env, token) {
 
 /**
  * POST {action:"send", email} emails a code. POST {action:"verify", email, code} trades it for a token.
- * Both also carry {agreed: true, termsVersion, privacyVersion}: the box by the email field, ticked next to the current
- * Terms and Privacy Policy (agreement.js). Without it nothing is sent to Supabase. The agreement is recorded in the
+ * Both also carry {agreed: true, termsVersion, privacyVersion, boxVersion}: the box by the email field, ticked to agree
+ * to the Terms and confirm the Privacy notice was read (agreement.js). Without it nothing is sent to Supabase. The agreement is recorded in the
  * Supabase Auth user's metadata: on send it goes with a new email's account as it is created, and on verify it is
  * written to the signed-in user, which also covers an email that already had an account.
  * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null,
