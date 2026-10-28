@@ -105,6 +105,16 @@ export const VercelLinkSchema = z.strictObject({
 });
 export type VercelLink = z.infer<typeof VercelLinkSchema>;
 
+/** What Settings says before a Vercel project is linked. Raise VERCEL_CONSENT_VERSION whenever it changes. */
+export const VERCEL_READ_NOTE = "Read only. Time Machine reads deploys from Vercel to show them next to your save points. It never deploys, promotes or rolls back anything.";
+/** The version of VERCEL_READ_NOTE a link was made under. A link made under another version shows no deploys until linked again. */
+export const VERCEL_CONSENT_VERSION = "2026-10-28";
+
+/** True while the project is linked and the link was made under the current VERCEL_READ_NOTE. */
+export function vercelConsentValid(features: { vercel: VercelLink | null; vercelConsent?: { version: string } | null | undefined }): boolean {
+  return !!features.vercel && features.vercelConsent?.version === VERCEL_CONSENT_VERSION;
+}
+
 export const AutoSaveSchema = z.enum(["off", "change"]);
 export type AutoSave = z.infer<typeof AutoSaveSchema>;
 
@@ -119,6 +129,11 @@ export const FeaturesSchema = z.strictObject({
   askConsent: z.strictObject({ at: z.string(), version: z.string(), provider: z.enum(["gemini", "anthropic"]).nullable() }).nullable().optional(),
   /** The Vercel project whose deploys show on the timeline. Null when none is linked. */
   vercel: VercelLinkSchema.nullable().default(null),
+  /**
+   * When the person last linked a Vercel project and which VERCEL_READ_NOTE they read then. Missing in files from before
+   * consent records: those links show no deploys until linked again (vercelConsentValid).
+   */
+  vercelConsent: z.strictObject({ at: z.string(), version: z.string() }).nullable().optional(),
   /**
    * "change": save when files change, while Time Machine is open (after 20 s of quiet, at most once a
    * minute). New plain folders for documents, research or agents start with "change"; everything else "off".

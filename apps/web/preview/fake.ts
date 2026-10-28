@@ -2,7 +2,7 @@
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
 import type { DiffResult, FindGoodResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
-import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, FeatureChange, Features, LicenseStatus, Method, ProjectCheckConfig, ProjectEntry, ProjectStatus, Res, Results, RunNote, Settings, SourceRow, ThinPreview, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
+import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AppEvent, type AskResult, type Call, type CallOf, type CredentialName, type DeploymentsResult, type FeatureChange, type Features, type LicenseStatus, type Method, type ProjectCheckConfig, type ProjectEntry, type ProjectStatus, type Res, type Results, type RunNote, type Settings, type SourceRow, type ThinPreview, type TmBridge, type VercelDeployment, type Verdict } from "../src/shared/api.js";
 import { ASK_CONSENT_VERSION, ASK_EXAMPLES, askConsentValid, type AskProvider } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "../src/shared/links.js";
@@ -215,10 +215,13 @@ const FAKE_SOURCES: SourceRow[] = [
 /** What the person agreed to when they turned Ask on, as the engine records it. */
 const agreed = (provider: AskProvider | null): NonNullable<Features["askConsent"]> => ({ at: ago(1), version: ASK_CONSENT_VERSION, provider });
 
+/** The preview's Vercel project, linked under the current read-only note, as the engine records a link. */
+const linked = (): Pick<Features, "vercel" | "vercelConsent"> => ({ vercel: { ...PREVIEW_LINK }, vercelConsent: { at: ago(1), version: VERCEL_CONSENT_VERSION } });
+
 /** A project's features after one setFeature change, as the engine applies it. */
 function withFeature(f: Features, c: FeatureChange, provider: AskProvider | null): Features {
   if (c.feature === "ask") return { ...f, ask: c.enabled, ...(c.enabled ? { askConsent: agreed(provider) } : {}) };
-  if (c.feature === "vercel") return { ...f, vercel: c.link };
+  if (c.feature === "vercel") return { ...f, vercel: c.link, ...(c.link ? { vercelConsent: { at: ago(0), version: VERCEL_CONSENT_VERSION } } : {}) };
   return { ...f, autoSave: c.autoSave };
 }
 
@@ -296,10 +299,10 @@ export class FakeEngine implements TmBridge {
       this.notes.set(TRIAL_ID, { "cp-0003": { title: "Baseline run, seed 42", note: "The reference run. Same data as run 02 with a fixed seed. Compare new runs against this one.", pinned: true, updated: ago(60 * 8) } });
     }
     const off = this.project.features;
-    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, askConsent: agreed("gemini"), vercel: { ...PREVIEW_LINK } };
-    if (features === "ask-off") this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, askConsent: agreed("gemini"), ...linked() };
+    if (features === "ask-off") this.project.features = { ...off, ask: false, ...linked() };
     if (features === "no-key") {
-      this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+      this.project.features = { ...off, ask: false, ...linked() };
       this.credentials = { ...this.credentials, gemini: false };
     }
     if (features === "no-vercel") {
@@ -307,7 +310,7 @@ export class FakeEngine implements TmBridge {
       this.credentials = { ...this.credentials, vercel: false };
     }
     if (features === "ask-claude" || features === "ask-stale") {
-      this.project.features = features === "ask-stale" ? { ...off, ask: true, askConsent: agreed("gemini"), vercel: { ...PREVIEW_LINK } } : { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+      this.project.features = features === "ask-stale" ? { ...off, ask: true, askConsent: agreed("gemini"), ...linked() } : { ...off, ask: false, ...linked() };
       this.credentials = { ...this.credentials, gemini: false, anthropic: true };
     }
   }
@@ -873,7 +876,7 @@ export class FakeEngine implements TmBridge {
         return [{ teamId: "team_preview", teamName: "Your team", projectId: "prj_marigold", name: "marigold-tips", repo: "you/marigold-tips" }];
       case "deployments": {
         const link = this.project.features.vercel;
-        if (!link) return null;
+        if (!link || !vercelConsentValid(this.project.features)) return null;
         if (!this.credentials.vercel) throw new Error("Add a Vercel token in Settings to see deploys. Time Machine only reads from Vercel.");
         const result: DeploymentsResult = { link, matched: [], otherCommits: [], noCommit: [], fetchedAt: new Date().toISOString() };
         for (const [id, target] of [["cp-0002", "preview"], ["cp-0003", "production"]] as const) {

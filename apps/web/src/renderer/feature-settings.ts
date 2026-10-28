@@ -1,7 +1,7 @@
 // Settings > <project>: the check (command, setup, time limit, network), saving when files change, Ask on or off, the
 // Gemini API key, the Vercel token and which Vercel project is linked. Keys go straight to the main process. The window
 // only ever learns whether each one is set, and a pasted key is never written into markup.
-import type { AutoSave, CredentialName, ProjectCheckConfig, Purpose, VercelLink, VercelProjectOption } from "../shared/api.js";
+import { VERCEL_READ_NOTE, vercelConsentValid, type AutoSave, type CredentialName, type ProjectCheckConfig, type Purpose, type VercelLink, type VercelProjectOption } from "../shared/api.js";
 import { askConsentText, askConsentValid, type AskProvider } from "../shared/ask.js";
 import { esc } from "../shared/format.js";
 import { AUTO_SAVE_LABEL, AUTO_SAVE_NOTE } from "./add-flow.js";
@@ -17,6 +17,8 @@ export interface FeatureSettingsView {
   /** "change": the engine saves when files change, while Time Machine is open. */
   autoSave: AutoSave;
   link: VercelLink | null;
+  /** Linked before the current read-only note was agreed to, so no deploys are read until it is linked again. */
+  linkStale?: boolean;
   keys: Record<CredentialName, boolean>;
   /** Vercel projects the token can see, once the person asked to choose one. */
   options: VercelProjectOption[] | null;
@@ -124,7 +126,10 @@ function optionLabel(o: VercelProjectOption): string {
 function vercelProjectRow(v: FeatureSettingsView): string {
   const dis = v.busy ? " disabled" : "";
   let body: string;
-  if (v.link) {
+  if (v.link && v.linkStale) {
+    body = `<div class="ft-note" role="note"><b>Deploys are paused.</b> This link to <b>${esc(v.link.name)}</b> was made before Time Machine recorded what you agreed to. Read the note above, then link it again to show its deploys.</div>
+      <div class="row-btns"><button type="button" class="btn dark" data-fa="relink"${dis}>Link ${esc(v.link.name)} again</button><button type="button" class="btn" data-fa="unlink"${dis}>Unlink</button></div>`;
+  } else if (v.link) {
     body = `<div>Linked to <b>${esc(v.link.name)}</b>. Its deploys show next to the save point whose Git commit they were built from.</div>
       <div class="row-btns"><button type="button" class="btn" data-fa="unlink"${dis}>Unlink</button></div>`;
   } else {
@@ -152,7 +157,7 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
   const askSaid = code ? askConsentText(v.provider ?? null).summary : "Ask answers questions about this folder’s saved versions with your own AI key: it sends their times, names, notes and the names of changed files, never what is in your files.";
   // Vercel deploys come from Git commits, so only a code project is offered them.
   const vercel = code ? `<h3 class="ft-sec">Vercel deploys</h3>
-    <p class="ft-ro-note">Read only. Time Machine reads deploys from Vercel to show them next to your save points. It never deploys, promotes or rolls back anything.</p>
+    <p class="ft-ro-note">${esc(VERCEL_READ_NOTE)}</p>
     ${keyRow(v, "vercel", `A token from <button type="button" class="ft-link" data-fa="tokens">vercel.com/account/tokens</button>. It is only used to read projects and deploys.`)}
     ${vercelProjectRow(v)}` : "";
   return `<div class="ft-settings">
@@ -193,7 +198,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
       return draw();
     }
     // A check that can't be read (a moved folder, a broken settings file) leaves the other rows working; its row says so.
-    Object.assign(v, { phase: "ready", ask: askConsentValid(p.features, creds.data.provider), provider: creds.data.provider, autoSave: p.features.autoSave, link: p.features.vercel, keys: creds.data, runtime: "browser", purpose: p.purpose, check: config.ok ? config.data : null, checkProblem: config.ok ? null : config.error.message });
+    Object.assign(v, { phase: "ready", ask: askConsentValid(p.features, creds.data.provider), provider: creds.data.provider, autoSave: p.features.autoSave, link: p.features.vercel, linkStale: !!p.features.vercel && !vercelConsentValid(p.features), keys: creds.data, runtime: "browser", purpose: p.purpose, check: config.ok ? config.data : null, checkProblem: config.ok ? null : config.error.message });
     if (v.link || !v.keys.vercel) v.options = null;
     drawKeep();
   };
@@ -331,6 +336,15 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
           const r = await api.call({ method: "setFeature", projectId, change: { feature: "vercel", link } });
           if (!r.ok) throw new Error(r.error.message);
           return `Linked to ${o.name}. Time Machine only reads from it.`;
+        });
+      }
+      case "relink": {
+        const link = v.link;
+        if (!link) return;
+        return void run(async () => {
+          const r = await api.call({ method: "setFeature", projectId, change: { feature: "vercel", link } });
+          if (!r.ok) throw new Error(r.error.message);
+          return `Linked to ${link.name} again. Time Machine only reads from it.`;
         });
       }
       case "unlink":

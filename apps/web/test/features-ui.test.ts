@@ -345,6 +345,16 @@ describe("Settings > Features", () => {
     expect(linked).toContain('data-fa="unlink"');
   });
 
+  test("a link made before consent records says deploys are paused and offers Link again, with the name escaped", () => {
+    const stale = featureSettingsHtml({ ...base, link: { teamId: null, projectId: "prj_1", name: "<i>m</i>" }, linkStale: true });
+    expect(stale).toContain("Deploys are paused.");
+    expect(stale).toContain('data-fa="relink"');
+    expect(stale).toContain("Link &lt;i&gt;m&lt;/i&gt; again");
+    expect(stale).toContain('data-fa="unlink"');
+    expect(stale).not.toContain("<i>m</i>");
+    expect(featureSettingsHtml({ ...base, link: { teamId: null, projectId: "prj_1", name: "m" } })).not.toContain("Deploys are paused.");
+  });
+
   test("the Ask switch shows the consent details while it is off", () => {
     expect(featureSettingsHtml(base)).toMatch(/<details class="ft-details" open>/);
     expect(featureSettingsHtml({ ...base, ask: true })).toMatch(/<details class="ft-details">/);
