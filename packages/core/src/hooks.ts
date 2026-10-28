@@ -1,6 +1,6 @@
 // C15: Claude Code hooks. Save before agent turns and risky commands, check after.
 import { exec, execFile } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, constants, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -234,11 +234,39 @@ function wantedHooks(command: string): { event: string; matcher?: string; entry:
 const quotedWord = "'(?:[^']|'\\\\'')*'";
 const installedCommand = new RegExp(`^(?:tm|npx -y timetm(?:@[\\w.-]+)?|(?:ELECTRON_RUN_AS_NODE=1 )?${quotedWord} '(?:[^']|'\\\\'')*[/\\\\](?:tm\\.js|cli\\.cjs)') hook (?:prompt|pre-bash|stop)$`);
 
+/**
+ * True when the settings file, or the .claude folder it is in, is a symbolic link. A cloned repo could point either at
+ * a file outside the project (a shell profile, a key), and writing through it would change that file (Security INFO).
+ */
+function linkedSettings(path: string): boolean {
+  for (const p of [dirname(path), path]) {
+    try {
+      if (lstatSync(p).isSymbolicLink()) return true;
+    } catch {
+      // Not there yet: nothing to follow.
+    }
+  }
+  return false;
+}
+
+/** Writes settings without following a link that appeared after the check: O_NOFOLLOW on the file itself. */
+function writeSettings(path: string, text: string): void {
+  const fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o644);
+  try {
+    writeSync(fd, text);
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /** Installs or reconnects our hooks, preserving other tools' hooks and project settings. */
 export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<HookInstallResult> {
   const p = resolveProject(ctx);
   const settingsPath = join(p.root, ".claude", "settings.json");
   let settings: z.infer<typeof SettingsSchema> = {};
+  if (linkedSettings(settingsPath)) {
+    throw new TmError("usage", `${settingsPath} or its .claude folder is a link to somewhere else, so it was left alone. Add the hooks by hand, see docs/GUIDE.md.`);
+  }
   if (existsSync(settingsPath)) {
     let raw: unknown;
     try {
@@ -277,7 +305,7 @@ export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<
     added.push(w.event);
   }
   mkdirSync(dirname(settingsPath), { recursive: true });
-  writeFileSync(settingsPath, JSON.stringify({ ...settings, hooks }, null, 2) + "\n");
+  writeSettings(settingsPath, JSON.stringify({ ...settings, hooks }, null, 2) + "\n");
   audit(p, "hook-install", null, added.length ? `added ${added.join(", ")}` : "already installed");
   return { settingsPath, added, alreadyPresent };
 }
@@ -285,7 +313,8 @@ export async function hookInstall(ctx: Ctx, opts: { command: string }): Promise<
 /**
  * Removes the hook lines Time Machine installed from the project's Claude Code settings (settings.json and
  * settings.local.json), keeping every other tool's hooks and setting. A file that is not plain JSON in the expected
- * shape is left alone and listed as unreadable. Files are written only when something was removed.
+ * shape, or that is (or sits in) a link to somewhere else, is left alone and listed as unreadable. Files are written
+ * only when something was removed.
  */
 export function hookRemove(p: Project): { files: { path: string; removed: string[] }[]; unreadable: string[] } {
   const files: { path: string; removed: string[] }[] = [];
@@ -293,6 +322,10 @@ export function hookRemove(p: Project): { files: { path: string; removed: string
   for (const name of ["settings.json", "settings.local.json"]) {
     const path = join(p.root, ".claude", name);
     if (!existsSync(path)) continue;
+    if (linkedSettings(path)) {
+      unreadable.push(path);
+      continue;
+    }
     let parsed: z.infer<typeof SettingsSchema>;
     try {
       const r = SettingsSchema.safeParse(JSON.parse(readFileSync(path, "utf8")));
@@ -314,7 +347,7 @@ export function hookRemove(p: Project): { files: { path: string; removed: string
     }
     if (!removed.length) continue;
     const { hooks: _old, ...rest } = parsed;
-    writeFileSync(path, JSON.stringify(Object.keys(hooks).length ? { ...rest, hooks } : rest, null, 2) + "\n");
+    writeSettings(path, JSON.stringify(Object.keys(hooks).length ? { ...rest, hooks } : rest, null, 2) + "\n");
     files.push({ path, removed });
   }
   return { files, unreadable };

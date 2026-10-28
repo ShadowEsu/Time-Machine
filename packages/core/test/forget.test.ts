@@ -1,7 +1,7 @@
 // tm forget takes back what tm init and tm hook install agreed to on this computer (consent rule 6, Security T5):
 // after it, the plugin's guarded hooks and the check tools step aside, our hook lines are gone, other tools' hooks and
 // the save points stay.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -69,5 +69,39 @@ describe("tm forget", () => {
     const { tmHome, ctx } = repo();
     expect(tm.forget(ctx)).toMatchObject({ approvalRemoved: false, hooksRemoved: [], unreadable: [] });
     expect(existsSync(tmHome)).toBe(false);
+  });
+});
+
+describe("a .claude/settings.json that is a link (Security INFO)", () => {
+  // A cloned repo can ship .claude/settings.json, or .claude itself, as a link to a file outside the project.
+  function linked(how: "file" | "folder"): { dir: string; ctx: tm.Ctx; target: string; original: string } {
+    const { dir, ctx } = repo();
+    const outside = join(dir, "..", "outside");
+    mkdirSync(outside, { recursive: true });
+    const target = join(outside, "settings.json");
+    const original = '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"tm hook stop"}]}]}}\n';
+    writeFileSync(target, original);
+    if (how === "file") {
+      mkdirSync(join(dir, ".claude"));
+      symlinkSync(target, join(dir, ".claude", "settings.json"));
+    } else symlinkSync(outside, join(dir, ".claude"));
+    return { dir, ctx, target, original };
+  }
+
+  test.each(["file", "folder"] as const)("linked %s: tm hook install refuses and the file it points to is unchanged", async (how) => {
+    const { dir, ctx, target, original } = linked(how);
+    writeConfig(dir);
+    await tm.init(ctx);
+    await expect(tm.hookInstall(ctx, { command: "tm" })).rejects.toThrow(/is a link to somewhere else, so it was left alone/);
+    expect(readFileSync(target, "utf8")).toBe(original);
+  });
+
+  test.each(["file", "folder"] as const)("linked %s: tm forget leaves it alone, names it, and still takes back the approval", async (how) => {
+    const { dir, ctx, target, original } = linked(how);
+    writeConfig(dir);
+    await tm.init(ctx);
+    const r = tm.forget(ctx);
+    expect(r).toMatchObject({ approvalRemoved: true, hooksRemoved: [], unreadable: [join(dir, ".claude", "settings.json")] });
+    expect(readFileSync(target, "utf8")).toBe(original);
   });
 });
