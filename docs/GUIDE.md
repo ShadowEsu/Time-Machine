@@ -307,7 +307,7 @@ tm hook install
 
 This adds hooks to the project's `.claude/settings.json`. Your existing settings stay.
 
-- **Before each prompt:** saves a save point. It is skipped if nothing changed.
+- **Before each prompt:** saves a save point. It is skipped if nothing changed. The save point keeps the first 120 characters of your prompt, on this computer, so the timeline can say what the agent was asked. Time Machine uploads it nowhere; Ask in `tm ui`, if you turn it on, sends it with the history and lists it before you turn Ask on.
 - **Before risky shell commands** like `rm -rf` or `git reset --hard`: saves a save point first. Claude Code then shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." The command is clipped to about 60 characters, and replaced by "a risky command" when it holds a secret. Nothing is shown when nothing changed since the last save point, and the prompt and Stop hooks show nothing.
 - **When Claude stops:** saves and runs the check. If the check passed before and fails now, it tells Claude which save point last worked.
 

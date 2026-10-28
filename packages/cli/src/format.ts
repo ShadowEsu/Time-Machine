@@ -281,6 +281,7 @@ export function fmtHookInstall(r: HookInstallResult & { command: string; absolut
   return [
     r.added.length ? `Added Claude Code hooks to ${r.settingsPath}: ${r.added.join(", ")}` : `Claude Code hooks were already in ${r.settingsPath}`,
     "  Before each prompt and before risky shell commands, a checkpoint is saved if anything changed.",
+    "  Each save point keeps the first 120 characters of your prompt, on this computer. Time Machine uploads it nowhere; Ask in tm ui, if you turn it on, sends it and says so first.",
     "  When Claude stops, the newest checkpoint is checked. If it passed before and fails now, Claude is told which checkpoint last worked.",
     `The hooks run: ${r.command}`,
     ...(r.absolute ? ["  If you move or delete this folder, run tm hook install again."] : []),
