@@ -1,6 +1,6 @@
 // Human output. Every line is built from the same result object the --json flag prints,
 // so the two can never disagree.
-import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
+import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, UndoRecoverResult, Verdict, VerifyResult } from "@timetm/core";
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -190,6 +190,15 @@ export function fmtRestore(r: RestoreResult): string {
   ].join("\n");
 }
 
+export function fmtUndoRecover(r: UndoRecoverResult): string {
+  return [
+    `Undid the recovery of ${r.id}.`,
+    ...(r.removedBranch ? [`  Removed branch  ${r.removedBranch}`] : []),
+    r.removedCopy ? `  Removed copy    ${r.removedCopy}` : "  The recovery copy was already gone.",
+    "Your folder, your branch and every save point were not touched.",
+  ].join("\n");
+}
+
 export function fmtRelink(r: { root: string; kind: string; store: string }): string {
   return [`Time Machine now protects ${r.root}. Its save points, settings and notes came along.`, `Next: tm timeline -C ${r.root}`].join("\n");
 }
@@ -272,6 +281,7 @@ export function fmtHookInstall(r: HookInstallResult & { command: string; absolut
   return [
     r.added.length ? `Added Claude Code hooks to ${r.settingsPath}: ${r.added.join(", ")}` : `Claude Code hooks were already in ${r.settingsPath}`,
     "  Before each prompt and before risky shell commands, a checkpoint is saved if anything changed.",
+    "  Each save point keeps the first 120 characters of your prompt, on this computer. Time Machine uploads it nowhere; Ask in tm ui, if you turn it on, sends it and says so first.",
     "  When Claude stops, the newest checkpoint is checked. If it passed before and fails now, Claude is told which checkpoint last worked.",
     `The hooks run: ${r.command}`,
     ...(r.absolute ? ["  If you move or delete this folder, run tm hook install again."] : []),

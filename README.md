@@ -63,7 +63,7 @@ With `tm` installed (see above), add Time Machine to Claude Code from this repo,
 
 The plugin brings the Claude Code hooks, the MCP server and a `/time-machine:setup` skill that runs `tm init` with you. Its hooks run in every Claude Code session, but they act only in projects where you ran `tm init` on this computer. A `timemachine.yml` that came with a cloned repo is not enough: `tm init` approves the project's check (`verify.setup`, `verify.command` and `verify.network`) and records that approval in your Time Machine store, outside the project. `tm init --no-approve` writes or keeps the file without approving it, so you can read the guessed check first. Everywhere else, and when `tm` is not on your PATH, the hooks do nothing.
 
-What you see in Claude Code: before a risky shell command such as `git reset --hard`, when Time Machine saved first, Claude Code shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." It shows nothing when nothing changed since the last save point, and nothing at the end of a turn. On a prompt it speaks only once per change it needs from you: a check that changed, or a Git that is too old (both below). Hooks from `tm hook install` show the same line.
+What you see in Claude Code: before a risky shell command such as `git reset --hard`, when Time Machine saved first, Claude Code shows you one line, for example "Time Machine saved cp-0007 before git reset --hard." It shows nothing when nothing changed since the last save point, and nothing at the end of a turn. On a prompt it speaks only once per change it needs from you: a check that changed, or a Git that is too old (both below). Hooks from `tm hook install` show the same line. Each save point keeps the first 120 characters of your prompt, on this computer. Time Machine uploads it nowhere; Ask in `tm ui`, if you turn it on, sends it and says so first.
 
 Not sure what is missing? `tm status` says whether the project has a `timemachine.yml` and whether this computer approved its check. `/time-machine:setup` runs it for you. If `tm init` finds no test command, it says so, and approves nothing until you set `verify.command`.
 
@@ -141,6 +141,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | `tm verify cp-0003` | Runs your check there and records a verdict |
 | `tm find-good` | Walks back until a save point passes |
 | `tm recover cp-0003` | Saves your current state first, then makes branch `tm/recover/cp-0003` and a recovery copy |
+| `tm recover --undo cp-0003` | Undoes that recovery: removes its branch and recovery copy, but only while neither changed. Never touches your folder, your branch or a save point. With two recoveries of one save point, name the branch or the copy folder |
 | `tm restore cp-0003 -- src/app.js` | Puts files or folders back into your folder from a save point. Saves your folder first, deletes nothing, commits nothing. `--dry-run` writes nothing |
 | `tm relink <old> <new>` | The project's folder moved: keeps its save points, settings, notes and checks at the new path |
 | `tm list` | Lists every project in the store, with its save points and size, and says when a folder is gone |

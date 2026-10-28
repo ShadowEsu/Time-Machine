@@ -2,7 +2,7 @@
 // Gemini API key, the Vercel token and which Vercel project is linked. Keys go straight to the main process. The window
 // only ever learns whether each one is set, and a pasted key is never written into markup.
 import type { AutoSave, CredentialName, ProjectCheckConfig, Purpose, VercelLink, VercelProjectOption } from "../shared/api.js";
-import { ASK_CONSENT } from "../shared/ask.js";
+import { askConsentText, askConsentValid, type AskProvider } from "../shared/ask.js";
 import { esc } from "../shared/format.js";
 import { AUTO_SAVE_LABEL, AUTO_SAVE_NOTE } from "./add-flow.js";
 import { announceFeatures, errorText, FEATURES_CHANGED, isolateTyping, patch, type FeatureApi } from "./feature-dom.js";
@@ -10,7 +10,10 @@ import { checkRecommended } from "./purpose.js";
 
 export interface FeatureSettingsView {
   phase: "loading" | "ready" | "unavailable";
+  /** Ask is on and the person agreed to the current text for the service it would use now. */
   ask: boolean;
+  /** The service Ask would send to now; null with no key. Decides which consent text is shown. */
+  provider?: AskProvider | null;
   /** "change": the engine saves when files change, while Time Machine is open. */
   autoSave: AutoSave;
   link: VercelLink | null;
@@ -102,14 +105,15 @@ function keyRow(v: FeatureSettingsView, name: CredentialName, help: string): str
   </div></div>`;
 }
 
-function consentDetails(open: boolean): string {
+function consentDetails(open: boolean, provider: AskProvider | null): string {
+  const t = askConsentText(provider);
   const list = (items: readonly string[]): string => `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
   return `<details class="ft-details"${open ? " open" : ""}><summary>What is sent and what is never sent</summary>
-    <h3>What is sent</h3>${list(ASK_CONSENT.sent)}
-    <h3>Never sent</h3>${list(ASK_CONSENT.neverSent)}
-    <p>${esc(ASK_CONSENT.where)}</p>
-    <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
-    <p>${esc(ASK_CONSENT.accuracy)}</p>
+    <h3>What is sent</h3>${list(t.sent)}
+    <h3>Never sent</h3>${list(t.neverSent)}
+    <p>${esc(t.where)}</p>
+    <p>${esc(t.freeTier)} <button type="button" class="ft-link" data-fa="terms">${provider === "anthropic" ? "Read Anthropic’s commercial terms" : "Read Google’s Gemini API terms"}</button></p>
+    <p>${esc(t.accuracy)}</p>
   </details>`;
 }
 
@@ -145,7 +149,7 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
   const status = v.problem ? `<p class="ft-err" role="alert">${esc(v.problem)}</p>` : v.status ? `<p class="ft-status" role="status">${esc(v.status)}</p>` : "";
   const code = v.purpose === "code";
   // A documents or research folder hears what Ask does in one plain sentence; the details stay one click away.
-  const askSaid = code ? ASK_CONSENT.summary : "Ask answers questions about this folder’s saved versions with your own AI key: it sends their times, names, notes and the names of changed files, never what is in your files.";
+  const askSaid = code ? askConsentText(v.provider ?? null).summary : "Ask answers questions about this folder’s saved versions with your own AI key: it sends their times, names, notes and the names of changed files, never what is in your files.";
   // Vercel deploys come from Git commits, so only a code project is offered them.
   const vercel = code ? `<h3 class="ft-sec">Vercel deploys</h3>
     <p class="ft-ro-note">Read only. Time Machine reads deploys from Vercel to show them next to your save points. It never deploys, promotes or rolls back anything.</p>
@@ -162,8 +166,8 @@ export function featureSettingsHtml(v: FeatureSettingsView): string {
     <h3 class="ft-sec" id="ft-ask-${v.projectId}" tabindex="-1">Ask about your history</h3>
     <div class="setrow"><span class="l">Ask</span><div class="ft-stack">
       <div class="toggle"><button type="button" class="switch ${v.ask ? "on" : ""}" role="switch" aria-checked="${v.ask}" aria-label="Ask about your history for this project" data-fa="ask"${dis}></button><span class="ft-muted">${esc(askSaid)}</span></div>
-      ${consentDetails(!v.ask)}
-      <span class="ft-muted">${esc(ASK_CONSENT.off)}</span>
+      ${consentDetails(!v.ask, v.provider ?? null)}
+      <span class="ft-muted">${esc(askConsentText(v.provider ?? null).off)}</span>
     </div></div>
     ${keyRow(v, "gemini", "Your own key from Google AI Studio. Questions go from this computer straight to Google.")}
     ${vercel}
@@ -189,7 +193,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
       return draw();
     }
     // A check that can't be read (a moved folder, a broken settings file) leaves the other rows working; its row says so.
-    Object.assign(v, { phase: "ready", ask: p.features.ask, autoSave: p.features.autoSave, link: p.features.vercel, keys: creds.data, runtime: "browser", purpose: p.purpose, check: config.ok ? config.data : null, checkProblem: config.ok ? null : config.error.message });
+    Object.assign(v, { phase: "ready", ask: askConsentValid(p.features, creds.data.provider), provider: creds.data.provider, autoSave: p.features.autoSave, link: p.features.vercel, keys: creds.data, runtime: "browser", purpose: p.purpose, check: config.ok ? config.data : null, checkProblem: config.ok ? null : config.error.message });
     if (v.link || !v.keys.vercel) v.options = null;
     drawKeep();
   };
@@ -299,7 +303,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
         return void run(async () => {
           const r = await api.call({ method: "setFeature", projectId, change: { feature: "ask", enabled: !v.ask } });
           if (!r.ok) throw new Error(r.error.message);
-          return r.data.features.ask ? "Ask is on for this project." : "Ask is off for this project. Nothing more is sent.";
+          return r.data.features.ask && askConsentValid(r.data.features, v.provider ?? null) ? "Ask is on for this project." : "Ask is off for this project. Nothing more is sent.";
         });
       case "remove-key": {
         const name = el.dataset.name === "vercel" ? "vercel" : "gemini";
@@ -337,7 +341,7 @@ export function renderFeatureSettings(host: HTMLElement, projectId: string, api:
           return "Unlinked. Deploys no longer show on the timeline.";
         });
       case "terms":
-        return void api.call({ method: "openExternal", url: ASK_CONSENT.termsUrl });
+        return void api.call({ method: "openExternal", url: askConsentText(v.provider ?? null).termsUrl });
       case "tokens":
         return void api.call({ method: "openExternal", url: TOKENS_URL });
       case "reload":

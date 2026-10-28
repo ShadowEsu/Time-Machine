@@ -6,7 +6,7 @@
 import * as tm from "@timetm/core";
 import { z } from "zod";
 import type { AskResult, ProjectEntry } from "../shared/api.js";
-import type { AskProvider } from "../shared/ask.js";
+import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { pointTitle } from "../shared/format.js";
 
 export const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -250,12 +250,16 @@ async function callAnthropic(deps: AskDeps, key: string, input: string): Promise
   return text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
 }
 
-/** Answers a question about one project. Refuses unless the person turned Ask on for it. */
+/** Answers a question about one project. Refuses unless the person turned Ask on for it, for this service and this consent text. */
 export async function askHistory(p: ProjectEntry, ctx: tm.Ctx, question: string, deps: AskDeps): Promise<AskResult> {
   if (!p.features.ask) throw new tm.TmError("usage", `Ask about your history is off for ${p.name}. Turn it on for this project first.`);
   // Gemini first when both keys are set, so a person who set up Gemini keeps it.
   const use = deps.key ? { provider: "gemini" as const, key: deps.key } : deps.anthropicKey ? { provider: "anthropic" as const, key: deps.anthropicKey } : null;
   if (!use) throw new tm.TmError("usage", "Ask needs an API key. Add a Gemini API key in Settings, or set GEMINI_API_KEY or ANTHROPIC_API_KEY before you start Time Machine.");
+  // Agreeing once is not agreeing to everything: a new consent text, or a key for another service, asks again.
+  if (!askConsentValid(p.features, use.provider)) {
+    throw new tm.TmError("usage", `What Ask sends, or where it sends it, changed since Ask was turned on for ${p.name}. Nothing was sent. Read what Ask sends and turn it on again.`);
+  }
   const facts = await gatherFacts(ctx, p.name);
   if (facts.flagged(question)) throw new tm.TmError("usage", "Your question looks like it holds a secret, so it was not sent. Ask it without the secret.");
   if (!facts.checkpoints.length) throw new tm.TmError("usage", "There are no save points yet, so there is no history to ask about.");

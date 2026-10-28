@@ -38,5 +38,36 @@ export const ASK_CONSENT_ANTHROPIC = {
   termsUrl: "https://www.anthropic.com/legal/commercial-terms",
 } as const;
 
+/**
+ * The version of what the consent screen says. Raise it whenever ASK_CONSENT or ASK_CONSENT_ANTHROPIC changes:
+ * a project's Ask then stays off until the person reads the new text and turns it on again (test/ask.test.ts pins it).
+ */
+export const ASK_CONSENT_VERSION = "2026-10-27";
+
+/** The consent screen's words for one service. */
+export type AskConsentText = { readonly [K in keyof typeof ASK_CONSENT]: (typeof ASK_CONSENT)[K] extends readonly string[] ? readonly string[] : string } & { service: string };
+
+/** What the consent screen shows for the service Ask would use. Null (no key yet) shows the Gemini text, the default. */
+export function askConsentText(provider: AskProvider | null): AskConsentText {
+  if (provider === "anthropic") return { ...ASK_CONSENT, ...ASK_CONSENT_ANTHROPIC, service: "Anthropic’s Claude API" };
+  return { ...ASK_CONSENT, service: "Google’s Gemini API" };
+}
+
+/** What was agreed to when Ask was turned on: when, which consent text, and for which service. */
+export interface AskConsentRecord {
+  at: string;
+  version: string;
+  provider: AskProvider | null;
+}
+
+/**
+ * Ask may send only while it is on and the person agreed to the current consent text for the service it would use now.
+ * A new text version, or a key for another service, turns it back into a question.
+ */
+export function askConsentValid(features: { ask: boolean; askConsent?: AskConsentRecord | null | undefined }, provider: AskProvider | null): boolean {
+  const c = features.askConsent;
+  return features.ask && !!c && c.version === ASK_CONSENT_VERSION && c.provider === provider;
+}
+
 /** Sample questions. The preview has canned answers for these. */
 export const ASK_EXAMPLES = ["When did it last work?", "What changed after the last working save?", "What did Claude Code do today?"] as const;

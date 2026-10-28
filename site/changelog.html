@@ -50,6 +50,32 @@
 
 <div class="wrap cl">
 
+  <section class="cl-day" aria-labelledby="d-2026-10-28">
+    <h2 class="cl-date" id="d-2026-10-28"><time datetime="2026-10-28">28 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">Every waitlist form asks with its own box</h3>
+        <p>The waitlist form at the top of the home page now has the same unticked box as every other page: “Email me when the CLI is on npm. Nothing else.” Nothing is sent until you tick it.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/43">PR #43</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Ask names the service it sends to, and asks again when that changes</h3>
+        <p>With only an Anthropic key, Ask’s consent screen, its terms link and its status lines name Anthropic’s Claude API instead of Google’s. Turning Ask on records when you agreed, to which text and for which service. If the text changes or your key is for the other service, Ask pauses and shows the consent screen again before anything is sent.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/43">PR #43</a></p>
+      </li>
+      <li>
+        <h3 class="h4">The hooks say they keep the start of your prompt</h3>
+        <p><code translate="no">tm hook install</code>, the guide and the plugin’s setup now say that each save point keeps the first <span class="num">120</span> characters of your prompt, on this computer, and that only Ask sends it, after saying so.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/43">PR #43</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Undo a recovery, and see progress while checks run</h3>
+        <p><code translate="no">tm recover --undo</code> takes back a recovery by save point, branch or copy folder. <code translate="no">tm verify</code> and <code translate="no">tm find-good</code> show their progress in a terminal. The guide lists every command.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/43">PR #43</a></p>
+      </li>
+    </ol>
+  </section>
+
   <section class="cl-day" aria-labelledby="d-2026-10-22">
     <h2 class="cl-date" id="d-2026-10-22"><time datetime="2026-10-22">22 October 2026</time></h2>
     <ol class="cl-list">

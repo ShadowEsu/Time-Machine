@@ -56,4 +56,4 @@ Run `tm demo` only if the user asks for it. It builds a small synthetic project 
 
 ## When you are done
 
-Tell the user that from now on Time Machine saves before each prompt and before risky shell commands in this project, and checks the project when Claude stops. Before a risky command it shows one line, for example "Time Machine saved cp-0007 before git reset --hard." Save points are listed with `tm timeline`.
+Tell the user that from now on Time Machine saves before each prompt and before risky shell commands in this project, and checks the project when Claude stops. Tell them each save point keeps the first 120 characters of their prompt, on this computer: Time Machine uploads it nowhere, and Ask in `tm ui`, if they turn it on, sends it and says so first. Before a risky command it shows one line, for example "Time Machine saved cp-0007 before git reset --hard." Save points are listed with `tm timeline`.
