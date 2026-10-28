@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
+import { PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
 import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, publicKeyOf, siteOrigin } from "./_lib/checkout.js";
 import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
@@ -13,8 +14,12 @@ const created = () => json({ id: "cs_test_synthetic", object: "checkout.session"
 // A fixed clock for the session's expiry time.
 const NOW = Date.UTC(2026, 9, 23, 17, 0, 0);
 
-function request(overrides = {}) {
-  return { method: "POST", origin: `https://${HOST}`, host: HOST, ...overrides };
+// The box before Buy was ticked next to the current Terms and Privacy Policy.
+const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
+
+function request(overrides = {}, body = AGREED) {
+  const text = typeof body === "string" ? body : JSON.stringify(body);
+  return { method: "POST", origin: `https://${HOST}`, host: HOST, contentLength: String(new TextEncoder().encode(text).length), readBody: async () => text, ...overrides };
 }
 
 function setup({ env = ENV, response = created } = {}) {
@@ -49,6 +54,10 @@ describe("checkout handler", () => {
       cancel_url: `https://${HOST}/#pricing`,
       allow_promotion_codes: "true",
       "metadata[product]": "tm-web",
+      // What the buyer agreed to before Buy, kept with the session.
+      "metadata[agreed_at]": "2026-10-23T17:00:00.000Z",
+      "metadata[terms_version]": TERMS_VERSION,
+      "metadata[privacy_version]": PRIVACY_VERSION,
       "payment_intent_data[metadata][product]": "tm-web",
       // The shortest life Stripe allows (30 minutes) plus a minute for clock drift.
       expires_at: String(NOW / 1000 + 31 * 60),
@@ -56,6 +65,30 @@ describe("checkout handler", () => {
     expect(PRICE_CENTS).toBe(5000);
     expect(PRODUCT_TAG).toBe("tm-web");
     expect(form.mode).not.toBe("subscription");
+  });
+
+  it("refuses without a ticked box, with 400 agreement_required and no Stripe call", async () => {
+    const { fetch, deps } = setup();
+    for (const body of [{}, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }, { ...AGREED, agreed: false }, { ...AGREED, agreed: "true" }]) {
+      expect(await handleCheckout(request({}, body), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_required" } });
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a box ticked next to other or missing versions, with 400 agreement_outdated and no Stripe call", async () => {
+    const { fetch, deps } = setup();
+    for (const body of [{ ...AGREED, termsVersion: "terms-2026-01-01" }, { ...AGREED, privacyVersion: "privacy-2026-01-01" }, { agreed: true }, { agreed: true, termsVersion: TERMS_VERSION }]) {
+      expect(await handleCheckout(request({}, body), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_outdated" } });
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a body that is not a small JSON object before calling Stripe", async () => {
+    const { fetch, deps } = setup();
+    expect((await handleCheckout(request({}, "{not json"), deps)).status).toBe(400);
+    expect((await handleCheckout(request({}, "[]"), deps)).status).toBe(400);
+    expect((await handleCheckout(request({}, { ...AGREED, pad: "x".repeat(4096) }), deps)).status).toBe(413);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("limits each client to 10 sessions per 10 minutes, answering 429 without asking Stripe (Security L2)", async () => {
@@ -167,7 +200,7 @@ describe("checkout handler", () => {
     vi.stubEnv("STRIPE_SECRET_KEY", ENV.STRIPE_SECRET_KEY);
     vi.stubEnv("TM_LICENSE_PRIVATE_KEY", SIGNING);
     try {
-      const res = await POST(new Request(`https://${HOST}/api/checkout`, { method: "POST", headers: { host: HOST, origin: `https://${HOST}` } }));
+      const res = await POST(new Request(`https://${HOST}/api/checkout`, { method: "POST", headers: { host: HOST, origin: `https://${HOST}`, "content-type": "application/json" }, body: JSON.stringify(AGREED) }));
       expect(res.status).toBe(200);
       expect(res.headers.get("Cache-Control")).toBe("no-store");
       expect(await res.json()).toEqual({ ok: true, url: LINK });

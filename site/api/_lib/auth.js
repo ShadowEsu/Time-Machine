@@ -3,6 +3,7 @@
 // email they paid with. Keys are derived from Stripe's own records, so the site keeps no license table.
 // Rules: never log the email, the code, the token, the anon key or the Stripe key. Never fake a key.
 import { z } from "zod";
+import { agreementRecord, agreementRefusal } from "./agreement.js";
 import { isCheckoutConfigured, reply, signsReleaseKeys, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
 import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, paymentStanding, SESSION_EXPAND, SessionSchema } from "./license.js";
 import { rateLimited } from "./ratelimit.js";
@@ -67,9 +68,13 @@ function authHeaders(env, token) {
 
 /**
  * POST {action:"send", email} emails a code. POST {action:"verify", email, code} trades it for a token.
+ * Both also carry {agreed: true, termsVersion, privacyVersion}: the box by the email field, ticked next to the current
+ * Terms and Privacy Policy (agreement.js). Without it nothing is sent to Supabase. The agreement is recorded in the
+ * Supabase Auth user's metadata: on send it goes with a new email's account as it is created, and on verify it is
+ * written to the signed-in user, which also covers an email that already had an account.
  * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null,
  *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
- * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void }} deps
+ * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, now?: () => number }} deps
  */
 export async function handleAuth(req, deps) {
   const log = deps.log ?? (() => {});
@@ -79,17 +84,21 @@ export async function handleAuth(req, deps) {
   if (fail) return fail;
   const body = AuthBody.safeParse(data);
   if (!body.success) return reply(400, { ok: false, error: "bad_request" });
+  const refused = agreementRefusal(data);
+  if (refused) return refused;
   if (!isAuthConfigured(deps.env)) return reply(503, { ok: false, error: "auth_closed" });
   if (rateLimited(body.data.action, clientId(req.ip, deps.env.SUPABASE_ANON_KEY))) return rateLimitReply();
 
   const base = `${supabaseOrigin(deps.env)}/auth/v1`;
   const send = body.data.action === "send";
+  const agreement = agreementRecord((deps.now ?? Date.now)());
   let res;
   try {
     res = await deps.fetch(send ? `${base}/otp` : `${base}/verify`, {
       method: "POST",
       headers: authHeaders(deps.env),
-      body: JSON.stringify(send ? { email: body.data.email, create_user: true } : { type: "email", email: body.data.email, token: body.data.code }),
+      // Supabase keeps `data` as user metadata only when this call creates the user.
+      body: JSON.stringify(send ? { email: body.data.email, create_user: true, data: agreement } : { type: "email", email: body.data.email, token: body.data.code }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch (err) {
@@ -107,6 +116,22 @@ export async function handleAuth(req, deps) {
   const parsed = res.ok ? VerifyReply.safeParse(await res.json().catch(() => null)) : null;
   if (!parsed || !parsed.success) {
     log(res.ok ? "auth: supabase verify returned an unexpected shape" : `auth: supabase verify returned status ${res.status}`);
+    return reply(502, { ok: false, error: "auth_error" });
+  }
+  // The code proved the email, so its user now records this agreement, new or not. Unrecorded means not signed in.
+  try {
+    const saved = await deps.fetch(`${base}/user`, {
+      method: "PUT",
+      headers: authHeaders(deps.env, parsed.data.access_token),
+      body: JSON.stringify({ data: agreement }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+    if (!saved.ok) {
+      log(`auth: supabase user update returned status ${saved.status}`);
+      return reply(502, { ok: false, error: "auth_error" });
+    }
+  } catch (err) {
+    log(`auth: supabase request failed (${err && err.name ? err.name : "Error"})`);
     return reply(502, { ok: false, error: "auth_error" });
   }
   return reply(200, { ok: true, token: parsed.data.access_token, expiresIn: parsed.data.expires_in });
