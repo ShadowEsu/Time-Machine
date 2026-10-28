@@ -3,7 +3,7 @@
 // All data is synthetic. The real app calls @timetm/core instead.
 import type { DiffResult, FindGoodResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
 import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, FeatureChange, Features, LicenseStatus, Method, ProjectCheckConfig, ProjectEntry, ProjectStatus, Res, Results, RunNote, Settings, SourceRow, ThinPreview, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
-import { ASK_EXAMPLES } from "../src/shared/ask.js";
+import { ASK_CONSENT_VERSION, ASK_EXAMPLES, askConsentValid, type AskProvider } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "../src/shared/links.js";
 import { looksSecret, NOTE_LOOKS_SECRET } from "../../../packages/core/src/secret-patterns.js";
@@ -63,15 +63,17 @@ export type Scenario = "broken" | "works" | "unchecked" | "new";
  * The opt-in features in the preview. "off" is a fresh install. "on" has Ask turned on and a Vercel
  * project linked. "ask-off" has a Gemini key but Ask off. "no-key" has no Gemini key. "ask-error"
  * has Ask on but Gemini unreachable. "no-vercel" has no Vercel token and nothing linked.
+ * "ask-claude" has only an Anthropic key and Ask off. "ask-stale" had Ask turned on for Gemini, and
+ * now only an Anthropic key is set, so Ask is paused until the person agrees again.
  */
-export type FeatureStory = "off" | "on" | "ask-off" | "no-key" | "ask-error" | "no-vercel";
+export type FeatureStory = "off" | "on" | "ask-off" | "no-key" | "ask-error" | "no-vercel" | "ask-claude" | "ask-stale";
 
 const SCENARIOS: readonly Scenario[] = ["broken", "works", "unchecked", "new"];
-const FEATURE_STORIES: readonly FeatureStory[] = ["ask-off", "no-key", "ask-error", "no-vercel"];
+const FEATURE_STORIES: readonly FeatureStory[] = ["ask-off", "no-key", "ask-error", "no-vercel", "ask-claude", "ask-stale"];
 
 /**
  * The preview story for a ?state= value. ?state=works, unchecked or new tell a different story with
- * the features on. ?state=ask-off, no-key, ask-error or no-vercel tell the demo story with the
+ * the features on. ?state=ask-off, no-key, ask-error, no-vercel, ask-claude or ask-stale tell the demo story with the
  * features in that state. With no value it is the demo story with the features on.
  */
 export function previewStory(state: string | null): { scenario: Scenario; features: FeatureStory } {
@@ -210,9 +212,12 @@ const FAKE_SOURCES: SourceRow[] = [
   { id: "desktop", label: "Desktop", path: "/Users/you/Desktop", found: true },
 ];
 
+/** What the person agreed to when they turned Ask on, as the engine records it. */
+const agreed = (provider: AskProvider | null): NonNullable<Features["askConsent"]> => ({ at: ago(1), version: ASK_CONSENT_VERSION, provider });
+
 /** A project's features after one setFeature change, as the engine applies it. */
-function withFeature(f: Features, c: FeatureChange): Features {
-  if (c.feature === "ask") return { ...f, ask: c.enabled };
+function withFeature(f: Features, c: FeatureChange, provider: AskProvider | null): Features {
+  if (c.feature === "ask") return { ...f, ask: c.enabled, ...(c.enabled ? { askConsent: agreed(provider) } : {}) };
   if (c.feature === "vercel") return { ...f, vercel: c.link };
   return { ...f, autoSave: c.autoSave };
 }
@@ -291,16 +296,25 @@ export class FakeEngine implements TmBridge {
       this.notes.set(TRIAL_ID, { "cp-0003": { title: "Baseline run, seed 42", note: "The reference run. Same data as run 02 with a fixed seed. Compare new runs against this one.", pinned: true, updated: ago(60 * 8) } });
     }
     const off = this.project.features;
-    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, vercel: { ...PREVIEW_LINK } };
+    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, askConsent: agreed("gemini"), vercel: { ...PREVIEW_LINK } };
     if (features === "ask-off") this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
     if (features === "no-key") {
       this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
       this.credentials = { ...this.credentials, gemini: false };
     }
     if (features === "no-vercel") {
-      this.project.features = { ...off, ask: true, vercel: null };
+      this.project.features = { ...off, ask: true, askConsent: agreed("gemini"), vercel: null };
       this.credentials = { ...this.credentials, vercel: false };
     }
+    if (features === "ask-claude" || features === "ask-stale") {
+      this.project.features = features === "ask-stale" ? { ...off, ask: true, askConsent: agreed("gemini"), vercel: { ...PREVIEW_LINK } } : { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+      this.credentials = { ...this.credentials, gemini: false, anthropic: true };
+    }
+  }
+
+  /** The service Ask would use: Gemini first, as in the app. */
+  private askProvider(): AskProvider | null {
+    return this.credentials.gemini ? "gemini" : this.credentials.anthropic ? "anthropic" : null;
   }
 
   /** `story` is the scenario by default. Try the demo in the "new" story builds the broken one. */
@@ -507,7 +521,7 @@ export class FakeEngine implements TmBridge {
       case "cleanStore":
         return { files: [], bytes: 0, applied: call.apply };
       case "setFeature": {
-        p.features = withFeature(p.features, call.change);
+        p.features = withFeature(p.features, call.change, this.askProvider());
         return p;
       }
       case "ask":
@@ -839,17 +853,18 @@ export class FakeEngine implements TmBridge {
         window.open(call.url, "_blank", "noopener,noreferrer");
         return true;
       case "setFeature": {
-        this.project.features = withFeature(this.project.features, call.change);
+        this.project.features = withFeature(this.project.features, call.change, this.askProvider());
         return this.project;
       }
       case "credentials":
-        return { ...this.credentials, provider: this.credentials.gemini ? "gemini" : this.credentials.anthropic ? "anthropic" : null };
+        return { ...this.credentials, provider: this.askProvider() };
       case "setCredential":
         this.credentials = { ...this.credentials, [call.name]: call.value !== null };
         return { configured: this.credentials[call.name] };
       case "ask":
         if (!this.project.features.ask) throw new Error(`Ask about your history is off for ${this.project.name}. Turn it on for this project first.`);
         if (!this.credentials.gemini && !this.credentials.anthropic) throw new Error("Ask needs an API key. Add a Gemini API key in Settings, or set GEMINI_API_KEY or ANTHROPIC_API_KEY before you start Time Machine.");
+        if (!askConsentValid(this.project.features, this.askProvider())) throw new Error(`What Ask sends, or where it sends it, changed since Ask was turned on for ${this.project.name}. Nothing was sent. Read what Ask sends and turn it on again.`);
         await wait(900);
         if (this.features === "ask-error") throw new Error("Could not reach Gemini. Check the internet connection and try again.");
         return this.askAnswer(call.question);

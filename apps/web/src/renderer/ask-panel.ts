@@ -3,7 +3,7 @@
 // comes back from the model is escaped before it touches the page.
 import type { TimelineEntry } from "@timetm/core";
 import type { AskResult, Verdict } from "../shared/api.js";
-import { ASK_CONSENT, ASK_EXAMPLES } from "../shared/ask.js";
+import { ASK_EXAMPLES, askConsentText, askConsentValid, type AskProvider } from "../shared/ask.js";
 import { esc, plural, verdictKey, verdictWord, when } from "../shared/format.js";
 import { announceFeatures, errorText, FEATURES_CHANGED, isolateTyping, patch, type FeatureApi } from "./feature-dom.js";
 
@@ -31,8 +31,12 @@ export interface AskTurn {
 
 export interface AskView {
   phase: "loading" | "off" | "on" | "unavailable";
-  /** Whether a Gemini API key is set. Never the key. */
+  /** Whether an API key Ask can use is set (Gemini or Anthropic). Never the key. */
   hasKey: boolean;
+  /** The service Ask would send to now: Gemini when its key is set, else Claude. Null with no key. */
+  provider: AskProvider | null;
+  /** Ask was on, but what it sends or where changed since the person agreed, so it asks again. */
+  reconsent: boolean;
   turns: AskTurn[];
   points: ReadonlyMap<string, CitedPoint>;
   menuOpen: boolean;
@@ -41,6 +45,9 @@ export interface AskView {
   problem: string | null;
   canOpenSettings: boolean;
 }
+
+/** The short name of the model service, for status lines. */
+const serviceShort = (p: AskProvider | null): string => (p === "anthropic" ? "Claude" : "Gemini");
 
 const CANT_TELL = "I can't tell from the history";
 
@@ -62,14 +69,15 @@ function paragraphs(text: string): string {
 }
 
 /** An answer: escaped model text, the cited save points as chips, and what it was based on. */
-export function answerHtml(result: AskResult, points: ReadonlyMap<string, CitedPoint>): string {
+export function answerHtml(result: AskResult, points: ReadonlyMap<string, CitedPoint>, provider: AskProvider | null = "gemini"): string {
   const cantTell = result.answer.trim().startsWith(CANT_TELL);
   const chips = result.cites.map((id) => citeChip(id, points.get(id))).filter(Boolean);
   const basis = `Based on ${plural(result.basis, "save point")}.`;
   const caution = chips.length ? "Check the cited points before you rely on this." : "Check the save points yourself before you rely on this.";
+  const writer = provider === "anthropic" ? "Written by Anthropic Claude" : "Written by Google Gemini";
   return `<div class="ft-a${cantTell ? " ft-cant" : ""}">${paragraphs(result.answer)}${
     chips.length ? `<div class="ft-cites"><span class="ft-cites-l">Cited</span>${chips.join("")}</div>` : ""
-  }<div class="ft-basis">${esc(basis)} ${esc(caution)} <span class="ft-aitag" title="Written by Google Gemini">AI</span></div></div>`;
+  }<div class="ft-basis">${esc(basis)} ${esc(caution)} <span class="ft-aitag" title="${writer}">AI</span></div></div>`;
 }
 
 function suggestions(v: AskView): string {
@@ -79,13 +87,13 @@ function suggestions(v: AskView): string {
   return `<div class="ft-sugg" aria-label="Suggested questions">${left.map((q) => `<button type="button" data-fa="suggest" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>`;
 }
 
-function turnHtml(t: AskTurn, k: number, points: ReadonlyMap<string, CitedPoint>): string {
+function turnHtml(t: AskTurn, k: number, points: ReadonlyMap<string, CitedPoint>, provider: AskProvider | null): string {
   const q = `<div class="ft-q">${esc(t.question)}</div>`;
-  if (t.status === "asking") return `${q}<div class="ft-a ft-wait" role="status"><span class="spin" aria-hidden="true"></span>Asking Gemini about the history…</div>`;
+  if (t.status === "asking") return `${q}<div class="ft-a ft-wait" role="status"><span class="spin" aria-hidden="true"></span>Asking ${serviceShort(provider)} about the history…</div>`;
   if (t.status === "failed") {
     return `${q}<div class="ft-err" role="alert"><span>${esc(t.error ?? "Something went wrong. Try again.")}</span><button type="button" class="btn ghost" data-fa="retry" data-k="${k}">Try again</button></div>`;
   }
-  return t.result ? `${q}${answerHtml(t.result, points)}` : q;
+  return t.result ? `${q}${answerHtml(t.result, points, provider)}` : q;
 }
 
 /** No Gemini key yet: the exact variable to set with a Copy button, and this project's Ask row in Settings as the other way in. Never a dead panel. */
@@ -97,15 +105,18 @@ function keyNeeded(v: AskView): string {
 }
 
 function consentCard(v: AskView): string {
+  const t = askConsentText(v.provider);
   const list = (items: readonly string[], cls: string): string => `<ul class="${cls}">${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  const again = v.reconsent ? `<p class="ft-note" role="note"><b>Ask is paused.</b> What it sends, or where it sends it, changed since you turned it on. Read it again before you turn it back on.</p>` : "";
   return `<div class="ft-consent">
-    <h3>${esc(ASK_CONSENT.title)}</h3>
-    <p>${esc(ASK_CONSENT.summary)}</p>
-    <h4>What is sent</h4>${list(ASK_CONSENT.sent, "ft-yes")}
-    <h4>Never sent</h4>${list(ASK_CONSENT.neverSent, "ft-no")}
-    <p>${esc(ASK_CONSENT.where)}</p>
-    <p>${esc(ASK_CONSENT.freeTier)} <button type="button" class="ft-link" data-fa="terms">Read Google’s Gemini API terms</button></p>
-    <p class="ft-muted">${esc(ASK_CONSENT.accuracy)} ${esc(ASK_CONSENT.off)}</p>
+    <h3>${esc(t.title)}</h3>
+    ${again}
+    <p>${esc(t.summary)}</p>
+    <h4>What is sent</h4>${list(t.sent, "ft-yes")}
+    <h4>Never sent</h4>${list(t.neverSent, "ft-no")}
+    <p>${esc(t.where)}</p>
+    <p>${esc(t.freeTier)} <button type="button" class="ft-link" data-fa="terms">${v.provider === "anthropic" ? "Read Anthropic’s commercial terms" : "Read Google’s Gemini API terms"}</button></p>
+    <p class="ft-muted">${esc(t.accuracy)} ${esc(t.off)}</p>
     ${v.hasKey ? "" : keyNeeded(v)}
     <button type="button" class="btn dark big" data-fa="on"${v.busy ? " disabled" : ""}>Turn on Ask for this project</button>
   </div>`;
@@ -120,19 +131,19 @@ export function askPanelHtml(v: AskView): string {
   const bar = `<div class="ft-ask-bar"><span>On for this project</span><span class="ft-sp"></span><div class="ft-menu-wrap"><button type="button" class="btn ghost ft-menu-btn" data-fa="menu" aria-label="Ask menu" aria-haspopup="menu" aria-expanded="${v.menuOpen}">⋯</button>${
     v.menuOpen ? `<div class="ft-menu" role="menu"><button type="button" role="menuitem" data-fa="off">Turn off Ask for this project</button></div>` : ""
   }</div></div>`;
-  const intro = v.turns.length ? "" : `<p class="ft-intro">Ask a question about this project’s save points. Gemini answers from the history only, and can be wrong.</p>`;
+  const intro = v.turns.length ? "" : `<p class="ft-intro">Ask a question about this project’s save points. ${serviceShort(v.provider)} answers from the history only, and can be wrong.</p>`;
   const noKey = v.hasKey ? "" : keyNeeded(v);
   const disabled = v.busy || !v.hasKey ? " disabled" : "";
   return `${bar}
-    <div class="ft-thread" aria-live="polite">${intro}${v.turns.map((t, k) => turnHtml(t, k, v.points)).join("")}${problem}${noKey}${suggestions(v)}</div>
+    <div class="ft-thread" aria-live="polite">${intro}${v.turns.map((t, k) => turnHtml(t, k, v.points, v.provider)).join("")}${problem}${noKey}${suggestions(v)}</div>
     <form class="ft-ask-in"><textarea data-keep="ask-q" maxlength="500" rows="2" placeholder="Ask about this project’s history…" aria-label="Ask about this project’s history"${disabled}></textarea><button type="submit" class="btn dark"${disabled}>Ask</button></form>
-    <p class="ft-ask-foot">Sent to Google Gemini with your own key. File contents and check logs are not read for Ask. Known secrets are filtered; do not include secrets in your question.</p>`;
+    <p class="ft-ask-foot">Sent to ${v.provider === "anthropic" ? "Anthropic’s Claude" : "Google Gemini"} with your own key. File contents and check logs are not read for Ask. Known secrets are filtered; do not include secrets in your question.</p>`;
 }
 
 /** Mounts the Ask panel for one project in host. Returns a function that removes it. */
 export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOpenSettings }: AskPanelOptions): () => void {
   let alive = true;
-  const v: AskView = { phase: "loading", hasKey: false, turns: [], points: new Map(), menuOpen: false, busy: false, problem: null, canOpenSettings: !!onOpenSettings };
+  const v: AskView = { phase: "loading", hasKey: false, provider: null, reconsent: false, turns: [], points: new Map(), menuOpen: false, busy: false, problem: null, canOpenSettings: !!onOpenSettings };
   host.classList.add("ft-ask");
 
   const draw = (): void => {
@@ -157,8 +168,11 @@ export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOp
       v.problem = !boot.ok ? boot.error.message : !creds.ok ? creds.error.message : "That project is no longer in the list.";
       return draw();
     }
-    v.hasKey = creds.data.gemini;
-    v.phase = p.features.ask ? "on" : "off";
+    v.provider = creds.data.provider;
+    v.hasKey = creds.data.provider !== null;
+    const agreed = askConsentValid(p.features, v.provider);
+    v.phase = agreed ? "on" : "off";
+    v.reconsent = p.features.ask && !agreed;
     v.problem = null;
     draw();
     if (v.phase === "on") {
@@ -245,7 +259,7 @@ export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOp
       case "on":
         return void setAsk(true);
       case "terms":
-        return void api.call({ method: "openExternal", url: ASK_CONSENT.termsUrl });
+        return void api.call({ method: "openExternal", url: askConsentText(v.provider).termsUrl });
       case "settings":
         return onOpenSettings?.();
       case "copy-env":

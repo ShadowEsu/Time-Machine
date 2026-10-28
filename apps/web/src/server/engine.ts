@@ -8,6 +8,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import * as tm from "@timetm/core";
 import { z } from "zod";
 import type { AddedProject, AgentRow, AppEvent, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectCheckConfig, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Res, Results, StorageResult, StoreProject } from "../shared/api.js";
+import { ASK_CONSENT_VERSION } from "../shared/ask.js";
 import { PRICING_URL } from "../shared/links.js";
 import { Account, siteFromEnv } from "./account.js";
 import { askHistory } from "./ask.js";
@@ -522,9 +523,12 @@ export class Engine {
       case "setFeature": {
         // Works for a moved project too, so a feature can always be turned off.
         const c = call.change;
+        // Turning Ask on records what was agreed: when, which consent text and the service the keys point at now.
+        // Turning it off keeps that record, so the last agreement can still be shown.
+        const askConsent = c.feature === "ask" && c.enabled ? { at: new Date().toISOString(), version: ASK_CONSENT_VERSION, provider: this.services.credentials.status().provider } : undefined;
         const p = this.state.updateProject(call.projectId, (x) => ({
           ...x,
-          features: c.feature === "ask" ? { ...x.features, ask: c.enabled } : c.feature === "vercel" ? { ...x.features, vercel: c.link } : { ...x.features, autoSave: c.autoSave },
+          features: c.feature === "ask" ? { ...x.features, ask: c.enabled, ...(askConsent ? { askConsent } : {}) } : c.feature === "vercel" ? { ...x.features, vercel: c.link } : { ...x.features, autoSave: c.autoSave },
         }));
         if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
         if (c.feature === "vercel") this.vercel.forget();

@@ -12,7 +12,8 @@ import { Credentials, readDevEnv, type Cipher } from "../src/server/credentials.
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
 import { CallSchema, type ProjectEntry } from "../src/shared/api.ts";
-import { ASK_EXAMPLES } from "../src/shared/ask.ts";
+import { ASK_CONSENT, ASK_CONSENT_ANTHROPIC, ASK_CONSENT_VERSION, ASK_EXAMPLES, askConsentText, askConsentValid } from "../src/shared/ask.ts";
+import { createHash } from "node:crypto";
 import { FakeEngine } from "../preview/fake.ts";
 
 const KEY = "test-gemini-key-not-real";
@@ -40,11 +41,14 @@ function seeded(): Promise<Seeded> {
     writeFileSync(join(dir, "docs", "notes.txt"), `${CONTENT}\n`);
     await tm.checkpoint(ctx, { note: `Pointed the app at ${ENV_VALUE}` });
     await tm.verify(ctx, "cp-0003");
-    const entry: ProjectEntry = { id: "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f", path: dir, name: "marigold", addedAt: "2026-10-16T00:00:00Z", demo: true, features: { ask: true, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
+    const entry: ProjectEntry = { id: "5d6e7f80-1a2b-4c3d-8e9f-0a1b2c3d4e5f", path: dir, name: "marigold", addedAt: "2026-10-16T00:00:00Z", demo: true, features: { ask: true, askConsent: { at: "2026-10-27T00:00:00Z", version: ASK_CONSENT_VERSION, provider: "gemini" }, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
     return { dir, ctx, entry };
   })();
   return shared;
 }
+
+/** The same project, agreed to for Claude instead of Gemini. */
+const forClaude = (e: ProjectEntry): ProjectEntry => ({ ...e, features: { ...e.features, askConsent: { at: "2026-10-27T00:00:00Z", version: ASK_CONSENT_VERSION, provider: "anthropic" } } });
 
 interface Sent {
   url: string;
@@ -170,7 +174,7 @@ describe("asking", () => {
     const { ctx, entry } = await seeded();
     const reply = { id: "msg_x", type: "message", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: '```json\n{"answer": "It last worked at the save at 10:42.", "cites": ["cp-0003"]}\n```' }] };
     const { fetch, sent } = fakeFetch(() => new Response(JSON.stringify(reply), { status: 200, headers: { "content-type": "application/json" } }));
-    const r = await askHistory(entry, ctx, "When did it last work?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch });
+    const r = await askHistory(forClaude(entry), ctx, "When did it last work?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch });
     expect(r).toEqual({ answer: "It last worked at the save at 10:42.", cites: ["cp-0003"], basis: 7 });
     const req = sent[0];
     if (!req) throw new Error("no request");
@@ -191,13 +195,41 @@ describe("asking", () => {
   test("TM_ASK_MODEL picks the Claude model, and Anthropic errors are plain sentences without the key", async () => {
     const { ctx, entry } = await seeded();
     const missing = fakeFetch(() => new Response(JSON.stringify({ type: "error", error: { message: `bad ${ANTHROPIC_KEY}` } }), { status: 404 }));
-    const err = await askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, anthropicModel: "claude-haiku-4-5", fetch: missing.fetch }).catch((e: unknown) => e);
+    const err = await askHistory(forClaude(entry), ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, anthropicModel: "claude-haiku-4-5", fetch: missing.fetch }).catch((e: unknown) => e);
     expect(JSON.parse(missing.sent[0]?.body ?? "{}")).toMatchObject({ model: "claude-haiku-4-5" });
     expect(err instanceof Error && err.message).toBe("Claude does not offer the model claude-haiku-4-5. Check TM_ASK_MODEL, or unset it to use claude-sonnet-4-5.");
     const denied = fakeFetch(() => new Response("{}", { status: 401 }));
-    await expect(askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch: denied.fetch })).rejects.toThrow("Claude did not accept the API key. Check ANTHROPIC_API_KEY.");
+    await expect(askHistory(forClaude(entry), ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch: denied.fetch })).rejects.toThrow("Claude did not accept the API key. Check ANTHROPIC_API_KEY.");
     const cut = fakeFetch(() => new Response(JSON.stringify({ stop_reason: "max_tokens", content: [{ type: "text", text: '{"answer": "It' }] }), { status: 200 }));
-    await expect(askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch: cut.fetch })).rejects.toThrow(/Claude stopped before the answer was finished/);
+    await expect(askHistory(forClaude(entry), ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch: cut.fetch })).rejects.toThrow(/Claude stopped before the answer was finished/);
+  });
+
+  test("consent is per service and per consent text: anything else sends nothing", async () => {
+    const { ctx, entry } = await seeded();
+    const { fetch, sent } = fakeFetch(() => answer("x", []));
+    const refused = /changed since Ask was turned on for marigold\. Nothing was sent\./;
+    // Agreed for Gemini, but only an Anthropic key is set now.
+    await expect(askHistory(entry, ctx, "What changed?", { key: null, anthropicKey: ANTHROPIC_KEY, fetch })).rejects.toThrow(refused);
+    // Agreed to an older consent text.
+    const old = { ...entry, features: { ...entry.features, askConsent: { at: "2026-01-01T00:00:00Z", version: "2026-01-01", provider: "gemini" as const } } };
+    await expect(askHistory(old, ctx, "What changed?", { key: KEY, fetch })).rejects.toThrow(refused);
+    // Turned on before consent records existed.
+    const { askConsent: _drop, ...before } = entry.features;
+    await expect(askHistory({ ...entry, features: before }, ctx, "What changed?", { key: KEY, fetch })).rejects.toThrow(refused);
+    expect(sent).toHaveLength(0);
+  });
+
+  test("the consent screen names the service Ask would use", () => {
+    expect(askConsentText("anthropic")).toMatchObject({ where: ASK_CONSENT_ANTHROPIC.where, termsUrl: ASK_CONSENT_ANTHROPIC.termsUrl, sent: ASK_CONSENT.sent });
+    expect(askConsentText("gemini").where).toBe(ASK_CONSENT.where);
+    expect(askConsentText(null).termsUrl).toBe(ASK_CONSENT.termsUrl);
+    expect(askConsentValid({ ask: false, askConsent: { at: "x", version: ASK_CONSENT_VERSION, provider: "gemini" } }, "gemini")).toBe(false);
+  });
+
+  test("changing the consent text means raising ASK_CONSENT_VERSION", () => {
+    // If this fails, the words people agree to changed: raise ASK_CONSENT_VERSION, then update both values here.
+    const digest = createHash("sha256").update(JSON.stringify([ASK_CONSENT, ASK_CONSENT_ANTHROPIC])).digest("hex").slice(0, 16);
+    expect({ version: ASK_CONSENT_VERSION, digest }).toEqual({ version: "2026-10-27", digest: "df2eeeb9841c11f8" });
   });
 
   test("a request that takes too long is stopped", async () => {
@@ -257,10 +289,18 @@ describe("the engine", () => {
       expect(sent).toHaveLength(0);
       const on = await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "ask", enabled: true } });
       expect(on.ok && on.data).toMatchObject({ features: { ask: true, vercel: null } });
-      expect(new AppState(appDir).find(entry.id)?.features.ask).toBe(true);
+      // Turning it on stores what was agreed: the consent text's version and the service the key is for, read back from disk.
+      const stored = new AppState(appDir).find(entry.id)?.features;
+      expect(stored).toMatchObject({ ask: true, askConsent: { version: ASK_CONSENT_VERSION, provider: "gemini" } });
+      expect(Number.isNaN(Date.parse(stored?.askConsent?.at ?? ""))).toBe(false);
       const r = await engine.run({ method: "ask", projectId: entry.id, question: "When did it last work?" });
       expect(r).toEqual({ ok: true, data: { answer: "It last worked at the save at 10:42, Added dark mode.", cites: ["cp-0003"], basis: 7 } });
       expect(await engine.run({ method: "credentials" })).toEqual({ ok: true, data: { gemini: true, anthropic: false, vercel: false, provider: "gemini" } });
+      // Turning it off keeps the record of the last agreement, and Ask refuses again.
+      await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "ask", enabled: false } });
+      expect(new AppState(appDir).find(entry.id)?.features).toMatchObject({ ask: false, askConsent: { version: ASK_CONSENT_VERSION, provider: "gemini" } });
+      expect(await engine.run({ method: "ask", projectId: entry.id, question: "When?" })).toMatchObject({ ok: false, error: { kind: "usage" } });
+      expect(sent).toHaveLength(1);
     } finally {
       if (before === undefined) delete process.env.TM_HOME;
       else process.env.TM_HOME = before;
