@@ -235,13 +235,15 @@ const quotedWord = "'(?:[^']|'\\\\'')*'";
 const installedCommand = new RegExp(`^(?:tm|npx -y timetm(?:@[\\w.-]+)?|(?:ELECTRON_RUN_AS_NODE=1 )?${quotedWord} '(?:[^']|'\\\\'')*[/\\\\](?:tm\\.js|cli\\.cjs)') hook (?:prompt|pre-bash|stop)$`);
 
 /**
- * True when the settings file, or the .claude folder it is in, is a symbolic link. A cloned repo could point either at
- * a file outside the project (a shell profile, a key), and writing through it would change that file (Security INFO).
+ * True when the settings file, or the .claude folder it is in, is a symbolic link, or the file is a hard link shared
+ * with another file (as setCheck refuses for timemachine.yml). A cloned repo could point either at a file outside the
+ * project (a shell profile, a key), and writing through it would change that file (Security INFO).
  */
 function linkedSettings(path: string): boolean {
   for (const p of [dirname(path), path]) {
     try {
-      if (lstatSync(p).isSymbolicLink()) return true;
+      const st = lstatSync(p);
+      if (st.isSymbolicLink() || (p === path && st.nlink > 1)) return true;
     } catch {
       // Not there yet: nothing to follow.
     }
@@ -249,8 +251,8 @@ function linkedSettings(path: string): boolean {
   return false;
 }
 
-/** Writes settings without following a link that appeared after the check: O_NOFOLLOW on the file itself. */
-function writeSettings(path: string, text: string): void {
+/** Writes settings without following a link that appeared after the check: O_NOFOLLOW on the file itself. Exported for its test. */
+export function writeSettings(path: string, text: string): void {
   const fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o644);
   try {
     writeSync(fd, text);

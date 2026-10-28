@@ -1,12 +1,13 @@
 // tm forget takes back what tm init and tm hook install agreed to on this computer (consent rule 6, Security T5):
 // after it, the plugin's guarded hooks and the check tools step aside, our hook lines are gone, other tools' hooks and
 // the save points stay.
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
 import { git, write } from "../../../fixtures/demo/build.ts";
 import { tempDir, writeConfig } from "../../../fixtures/demo/setup.ts";
+import { writeSettings } from "../src/hooks.ts";
 
 function repo(): { dir: string; tmHome: string; ctx: tm.Ctx } {
   const root = tempDir("forget");
@@ -103,5 +104,28 @@ describe("a .claude/settings.json that is a link (Security INFO)", () => {
     const r = tm.forget(ctx);
     expect(r).toMatchObject({ approvalRemoved: true, hooksRemoved: [], unreadable: [join(dir, ".claude", "settings.json")] });
     expect(readFileSync(target, "utf8")).toBe(original);
+  });
+
+  test("a settings.json hard linked to another file is left alone too", async () => {
+    const { dir, ctx } = repo();
+    const outside = join(dir, "..", "shared.json");
+    writeFileSync(outside, "{}\n");
+    mkdirSync(join(dir, ".claude"));
+    linkSync(outside, join(dir, ".claude", "settings.json"));
+    writeConfig(dir);
+    await tm.init(ctx);
+    await expect(tm.hookInstall(ctx, { command: "tm" })).rejects.toThrow(/is a link to somewhere else/);
+    expect(tm.forget(ctx).unreadable).toEqual([join(dir, ".claude", "settings.json")]);
+    expect(readFileSync(outside, "utf8")).toBe("{}\n");
+  });
+
+  test("the write itself refuses a link that appears after the check (O_NOFOLLOW)", () => {
+    const { dir } = repo();
+    const target = join(dir, "..", "target.txt");
+    writeFileSync(target, "keep\n");
+    const path = join(dir, "settings.json");
+    symlinkSync(target, path);
+    expect(() => writeSettings(path, "{}\n")).toThrow(expect.objectContaining({ code: "ELOOP" }));
+    expect(readFileSync(target, "utf8")).toBe("keep\n");
   });
 });
