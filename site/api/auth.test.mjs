@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./auth.js";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
@@ -176,5 +177,20 @@ describe("auth handler", () => {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
     }
+  });
+
+  it("the sign-in page has an unticked box naming the current versions, with both pages linked and the age line", () => {
+    const page = readFileSync(new URL("../account.html", import.meta.url), "utf8");
+    const send = page.slice(page.indexOf('data-account-step="send"'), page.indexOf('data-account-step="verify"'));
+    const box = send.match(/<label class="wl-consent account-agree">(<input\b[^>]*>)<span>(.*?)<\/span><\/label>/);
+    expect(box).not.toBeNull();
+    expect(box[1]).toContain('type="checkbox"');
+    expect(box[1]).not.toContain("checked");
+    expect(box[1]).toContain(`data-terms-version="${TERMS_VERSION}"`);
+    expect(box[1]).toContain(`data-privacy-version="${PRIVACY_VERSION}"`);
+    expect(box[2]).toBe('I agree to the <a href="terms.html">Terms (draft)</a> and <a href="privacy.html">Privacy (draft)</a>. I am 13 or older.');
+    const script = readFileSync(new URL("../assets/account.js", import.meta.url), "utf8");
+    expect(script).toContain("agreement_required");
+    expect(script).toContain("agreement_outdated");
   });
 });
