@@ -262,7 +262,6 @@
     });
   });
 
-  agreeBox.addEventListener("change", function () { agreeBox.removeAttribute("aria-invalid"); });
   verifyForm.querySelector("[data-account-back]").addEventListener("click", function () { show("send"); say(""); emailField.focus(); });
   keys.querySelector("[data-account-signout]").addEventListener("click", signOut);
 
