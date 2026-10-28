@@ -7,7 +7,7 @@
     "name": "The Time Machine team",
     "email": "preston@unvibe.site"
   },
-  "homepage": "https://time-machine-site.vercel.app",
+  "homepage": "https://time-machine.company",
   "repository": "https://github.com/ShadowEsu/Time-Machine",
   "license": "MIT",
   "keywords": ["checkpoints", "undo", "recovery", "tests", "git"]

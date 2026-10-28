@@ -7,7 +7,7 @@ const LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
 const VERCEL_APP = new RegExp(`^(?:${LABEL}\\.)+vercel\\.app$`);
 
 /** The Time Machine website. The only page the app links to about itself. */
-export const SITE_HOST = "time-machine-site.vercel.app";
+export const SITE_HOST = "time-machine.company";
 /** Where the one-time license is bought. Shown in Settings and when the free project limit is reached. */
 export const PRICING_URL = `https://${SITE_HOST}/#pricing`;
 

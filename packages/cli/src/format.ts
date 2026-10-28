@@ -85,7 +85,7 @@ export function fmtForget(r: ForgetResult): string {
 export function fmtLicense(r: LicenseStatus): string {
   if (r.active) return `Licensed, purchase ${r.id}, issued ${r.issued}.`;
   if (r.problem !== null) return `License problem: ${r.problem}`;
-  return `No license on this computer. The web app lists up to ${r.freeProjectLimit} projects at a time without one. A license, $50 once at https://time-machine-site.vercel.app/#pricing, lifts that limit: run tm license <key>. The tm command line tool stays free and open source.`;
+  return `No license on this computer. The web app lists up to ${r.freeProjectLimit} projects at a time without one. A license, $50 once at https://time-machine.company/#pricing, lifts that limit: run tm license <key>. The tm command line tool stays free and open source.`;
 }
 
 /** A .env key's value is kept only when listed as plain; every other key keeps only its name. */

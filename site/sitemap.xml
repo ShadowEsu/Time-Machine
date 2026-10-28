@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://time-machine-site.vercel.app/</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/how-it-works</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/security</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/company</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/changelog</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/blog</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/blog/rewind-does-not-cover-the-shell</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/blog/a-save-point-should-prove-it-works</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/blog/what-time-machine-does-not-do</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/blog/why-a-safety-net-makes-people-braver</loc></url>
-  <url><loc>https://time-machine-site.vercel.app/blog/building-in-the-open</loc></url>
+  <url><loc>https://time-machine.company/</loc></url>
+  <url><loc>https://time-machine.company/how-it-works</loc></url>
+  <url><loc>https://time-machine.company/security</loc></url>
+  <url><loc>https://time-machine.company/company</loc></url>
+  <url><loc>https://time-machine.company/changelog</loc></url>
+  <url><loc>https://time-machine.company/blog</loc></url>
+  <url><loc>https://time-machine.company/blog/rewind-does-not-cover-the-shell</loc></url>
+  <url><loc>https://time-machine.company/blog/a-save-point-should-prove-it-works</loc></url>
+  <url><loc>https://time-machine.company/blog/what-time-machine-does-not-do</loc></url>
+  <url><loc>https://time-machine.company/blog/why-a-safety-net-makes-people-braver</loc></url>
+  <url><loc>https://time-machine.company/blog/building-in-the-open</loc></url>
 </urlset>

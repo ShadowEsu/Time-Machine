@@ -6,7 +6,7 @@
 
 Time Machine saves your project before Claude Code acts. It runs your own tests on each save point in a separate copy, then brings back the newest one that passes, on a new branch. Your folder and current branch are never touched. Nothing is pushed, merged or deployed.
 
-Website and waitlist: **https://time-machine-site.vercel.app**
+Website and waitlist: **https://time-machine.company**
 
 > **Status: early.** The `tm` CLI, the web app (`tm ui`), the Claude Code hooks and the MCP server work from source. **Not on npm yet** (build below). The web app is free for up to 3 projects at a time; a $50 one-time license lifts that limit. Checkout is not open yet.
 
@@ -122,7 +122,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | Store | Save points live in `~/.timemachine` (or `$TM_HOME`) with a git bundle, so they survive the project folder being deleted | Built, tested |
 | Tests | 776 automated tests in 73 files, 99 of them for the site's functions, passing locally on macOS at `bee70a3` (3 skipped there). CI runs them on macOS and Linux with Node 22 and 24. Also run on a real project, `sindresorhus/slugify` | Built |
 | npm package | `timetm`, command `tm` | Not published yet |
-| Website | Static site in `site/`: a waitlist (pending signups, no email yet) and anonymous visit counts. Public at https://time-machine-site.vercel.app | Live |
+| Website | Static site in `site/`: a waitlist (pending signups, no email yet) and anonymous visit counts. Public at https://time-machine.company | Live |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
 | Web app license | Free for up to 3 projects at a time; $50 once lifts the limit. Updates while we ship them, key verified offline, sign in on the site to see it again. The CLI, hooks and MCP stay open source | Built (`tm license`, Settings > License in `tm ui`, site checkout, sign-in); checkout not open yet, see ADR 0013 |
 
