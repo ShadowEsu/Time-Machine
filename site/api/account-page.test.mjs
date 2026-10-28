@@ -93,11 +93,18 @@ describe("the sign-in page script", () => {
     await settle();
     expect(p.sendForm.hidden).toBe(false);
     p.emailField.value = EMAIL;
+    expect(p.note.getAttribute("data-state")).toBe(null);
     p.sendForm.fire("submit");
     await settle();
     expect(p.auth()).toEqual([]);
     expect(p.box.getAttribute("aria-invalid")).toBe("true");
     expect(p.note.textContent).toBe("Please tick the box to get a code.");
+    expect(p.note.getAttribute("data-state")).toBe("error");
+    // Ticking clears the note, and an empty note carries no error style (Design P2: no empty red pill).
+    p.box.checked = true;
+    p.box.fire("change");
+    expect(p.note.textContent).toBe("");
+    expect(p.note.getAttribute("data-state")).toBe(null);
   });
 
   it("sends the box's versions with the code request and again with the code", async () => {
