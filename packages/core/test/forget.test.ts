@@ -1,7 +1,7 @@
 // tm forget takes back what tm init and tm hook install agreed to on this computer (consent rule 6, Security T5):
 // after it, the plugin's guarded hooks and the check tools step aside, our hook lines are gone, other tools' hooks and
 // the save points stay.
-import { existsSync, linkSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as tm from "@timetm/core";
@@ -10,7 +10,8 @@ import { tempDir, writeConfig } from "../../../fixtures/demo/setup.ts";
 import { writeSettings } from "../src/hooks.ts";
 
 function repo(): { dir: string; tmHome: string; ctx: tm.Ctx } {
-  const root = tempDir("forget");
+  // The real path: on macOS the temp folder is /var/… while tm reports /private/var/… (the folder's real path).
+  const root = realpathSync(tempDir("forget"));
   const dir = join(root, "app");
   write(dir, "index.js", "export const a = 1;\n");
   git(root, "init", "-q", "-b", "main", dir);
