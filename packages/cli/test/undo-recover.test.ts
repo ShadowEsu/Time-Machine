@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { git } from "../../../fixtures/demo/build.ts";
-import { setupDemo, type Demo } from "../../../fixtures/demo/setup.ts";
+import { setupDemo, tempDir, type Demo } from "../../../fixtures/demo/setup.ts";
 import { main } from "../src/main.ts";
 
 interface Run { code: number; out: string; err: string }
@@ -69,6 +69,18 @@ describe("tm recover --undo", () => {
     expect(byCopy.out).toContain("Removed copy");
     expect(existsSync(first.copyDir)).toBe(false);
     expect(branches(demo)).toBe("");
+  });
+
+  test("a folder that is not a recovery copy matches nothing: exit 4, the one recovery and that folder stay", async () => {
+    const demo = await setupDemo();
+    const r = await recover(demo, "cp-0003");
+    const other = tempDir("not-a-copy");
+    const u = await run(demo, "recover", "--undo", other);
+    expect(u.code).toBe(4);
+    expect(u.err).toContain(`There is no recovery of ${other} to undo.`);
+    expect(branches(demo)).toContain(r.branch);
+    expect(existsSync(r.copyDir)).toBe(true);
+    expect(existsSync(other)).toBe(true);
   });
 
   test("--to does not apply with --undo", async () => {
