@@ -3,7 +3,7 @@
 // Plain TypeScript, one render function.
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerdictRecord, VerifyResult } from "@timetm/core";
 import type { AgentRow, AppEvent, AutoSave, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, LicenseStatus, Method, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Results, RunNote, Settings, SourceRow, StorageResult, StoreProject, TmBridge, Verdict } from "../shared/api.js";
-import type { AskProvider } from "../shared/ask.js";
+import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, plural, pointAt, pointClock, pointTime, pointTitle, pointWhen, sameSecondLine, savePointPhrase, seconds, sentenceStart, shortTitle, triggerLabel, triggerSentence, twinOrdinal, verdictKey, verdictWord, versionPhrase, versionTimePhrase, when } from "../shared/format.js";
@@ -710,7 +710,7 @@ function sidebar(mobile = false): string {
     : `<button ${planAttrs} data-act="plan"><span class="plan-r"><span>Free plan</span><b>${esc(`${used} of ${plural(lic.freeProjectLimit, "project")}`)}</b></span><span class="bar" aria-hidden="true"><i style="width:${usage(used, lic.freeProjectLimit)}%"></i></span><small>See what a license adds</small></button>`;
   // History itself stays here; Ask, when a project has it on, sends titles and changes to the service its key is for, so
   // the rail says so. Until a key exists nothing can be sent, and the rail says that instead (dev#26).
-  const askOn = st.projects.some((x) => x.features.ask);
+  const askOn = st.askProvider !== undefined && st.projects.some((x) => askConsentValid(x.features, st.askProvider ?? null));
   const askWords = !askOn || st.askProvider === undefined ? "" : st.askProvider === null ? " · Ask is on, but needs a key" : ` · Ask sends titles and changes to ${st.askProvider === "gemini" ? "Gemini" : "Claude"}`;
   // A modal panel is a div: an aside may be a region, never a dialog.
   const tag = mobile ? "div" : "aside";

@@ -110,8 +110,13 @@ export type AutoSave = z.infer<typeof AutoSaveSchema>;
 
 /** Opt-in features per project. Each is off until the person turns it on, except auto save for new plain folders. */
 export const FeaturesSchema = z.strictObject({
-  /** Ask about your history: sends a summary of the history to Google's Gemini API. */
+  /** Ask about your history: sends a summary of the history to the AI service the person's own key is for. */
   ask: z.boolean().default(false),
+  /**
+   * What the person agreed to when they last turned Ask on: when, which consent text (ASK_CONSENT_VERSION) and for which
+   * service. Missing in files from before consent records: those projects are asked again (shared/ask.ts askConsentValid).
+   */
+  askConsent: z.strictObject({ at: z.string(), version: z.string(), provider: z.enum(["gemini", "anthropic"]).nullable() }).nullable().optional(),
   /** The Vercel project whose deploys show on the timeline. Null when none is linked. */
   vercel: VercelLinkSchema.nullable().default(null),
   /**

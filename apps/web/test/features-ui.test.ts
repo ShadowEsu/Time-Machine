@@ -3,7 +3,7 @@
 // come out escaped, and only allow-listed pages may open in the browser.
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CallSchema, type AskResult, type DeploymentsResult, type VercelDeployment } from "../src/shared/api.ts";
-import { ASK_CONSENT, ASK_EXAMPLES } from "../src/shared/ask.ts";
+import { ASK_CONSENT, ASK_CONSENT_ANTHROPIC, ASK_EXAMPLES } from "../src/shared/ask.ts";
 import { esc, when } from "../src/shared/format.ts";
 import { isAllowedExternal } from "../src/shared/links.ts";
 import { answerHtml, askPanelHtml, citeChip, type AskView, type CitedPoint } from "../src/renderer/ask-panel.ts";
@@ -21,7 +21,7 @@ const POINTS: ReadonlyMap<string, CitedPoint> = new Map([
 const ATTACK = `<img src=x onerror="alert(1)"><script>alert('x')</script>`;
 
 function view(extra: Partial<AskView> = {}): AskView {
-  return { phase: "on", hasKey: true, turns: [], points: POINTS, menuOpen: false, busy: false, problem: null, canOpenSettings: true, ...extra };
+  return { phase: "on", hasKey: true, provider: "gemini", reconsent: false, turns: [], points: POINTS, menuOpen: false, busy: false, problem: null, canOpenSettings: true, ...extra };
 }
 
 function deployment(id: string, extra: Partial<VercelDeployment> = {}): VercelDeployment {
@@ -108,6 +108,25 @@ describe("the Ask panel", () => {
     expect(html.match(/data-fa="on"/g)).toHaveLength(1);
     expect(html).toContain("Turn on Ask for this project");
     expect(html).not.toContain("<textarea");
+  });
+
+  test("with only an Anthropic key, the consent card and the panel name Anthropic, never Google", () => {
+    const off = askPanelHtml(view({ phase: "off", provider: "anthropic" }));
+    for (const line of [ASK_CONSENT_ANTHROPIC.summary, ASK_CONSENT_ANTHROPIC.where, ASK_CONSENT_ANTHROPIC.freeTier]) expect(off).toContain(esc(line));
+    expect(off).toContain("Read Anthropic’s commercial terms");
+    expect(off).not.toMatch(/Google|Gemini/);
+    const on = askPanelHtml(view({ provider: "anthropic", turns: [{ question: "When?", status: "asking", result: null, error: null }] }));
+    expect(on).toContain("Asking Claude");
+    expect(on).toContain("Sent to Anthropic’s Claude with your own key.");
+    expect(on).not.toMatch(/Google|Gemini/);
+  });
+
+  test("Ask that was on for other words or another service is paused, and says so above the consent", () => {
+    const html = askPanelHtml(view({ phase: "off", reconsent: true }));
+    expect(html).toContain("Ask is paused.");
+    expect(html.indexOf("Ask is paused.")).toBeLessThan(html.indexOf("What is sent"));
+    expect(html).not.toContain("<textarea");
+    expect(askPanelHtml(view({ phase: "off" }))).not.toContain("Ask is paused.");
   });
 
   test("off without a key names the exact variable with Copy, kept whole, and points to this project's Ask settings", () => {
