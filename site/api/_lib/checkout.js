@@ -3,10 +3,13 @@
 // the Stripe secret key, never return Stripe's error text, never fake a checkout link.
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { z } from "zod";
+import { agreementRecord, agreementRefusal } from "./agreement.js";
 import { instanceClient, rateLimited } from "./ratelimit.js";
-import { isAllowedOrigin, rateLimitReply } from "./waitlist.js";
+import { isAllowedOrigin, rateLimitReply, readJsonObject } from "./waitlist.js";
 
 export const STRIPE_API = "https://api.stripe.com/v1";
+// The body is only {agreed, termsVersion, privacyVersion}.
+export const MAX_CHECKOUT_BYTES = 1024;
 export const UPSTREAM_TIMEOUT_MS = 8000;
 // Every Stripe call names its API version, so a Dashboard upgrade never changes the fields read here
 // (payment_intent.latest_charge and the dispute list included).
@@ -87,8 +90,11 @@ const SessionSchema = z.object({
 });
 
 /**
- * POST starts a Checkout Session and returns its link.
- * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null }} req
+ * POST {agreed: true, termsVersion, privacyVersion} starts a Checkout Session and returns its link. The body is the box
+ * before Buy, ticked next to the current Terms and Privacy Policy (agreement.js); without it Stripe is never called.
+ * When and which versions were agreed to go in the session's metadata.
+ * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null,
+ *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string, now?: () => number }} deps
  * @returns {Promise<{ status: number, headers: Record<string, string>, body: object }>}
  */
@@ -96,6 +102,10 @@ export async function handleCheckout(req, deps) {
   const log = deps.log ?? (() => {});
   if (req.method !== "POST") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "POST" });
   if (!isAllowedOrigin(req.origin, req.host)) return reply(403, { ok: false, error: "forbidden_origin" });
+  const { data: body, fail } = await readJsonObject(req, MAX_CHECKOUT_BYTES);
+  if (fail) return fail;
+  const refused = agreementRefusal(body);
+  if (refused) return refused;
   if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(503, { ok: false, error: "checkout_closed" });
   const site = siteOrigin(deps.env, req.host);
   if (!site) return reply(400, { ok: false, error: "bad_request" });
@@ -115,6 +125,7 @@ export async function handleCheckout(req, deps) {
   form.set("cancel_url", `${site}/#pricing`);
   form.set("allow_promotion_codes", "true");
   form.set("metadata[product]", PRODUCT_TAG);
+  for (const [key, value] of Object.entries(agreementRecord((deps.now ?? Date.now)()))) form.set(`metadata[${key}]`, value);
   form.set("payment_intent_data[metadata][product]", PRODUCT_TAG);
   form.set("expires_at", String(Math.floor((deps.now ?? Date.now)() / 1000) + SESSION_LIFETIME_S));
 
