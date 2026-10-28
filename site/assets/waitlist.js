@@ -115,8 +115,9 @@
 
       var value = email.value.trim();
       if (!value || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) return fail(MSG.email, email);
-      // Forms with a checkbox need the tick. Forms without one ask through the button and the line under it.
-      if (consent && !consent.checked) return fail(MSG.consent, consent);
+      // Every form needs its own unticked box: consent is only what the person ticked. A form without one never sends.
+      if (!consent) return fail(MSG.badRequest);
+      if (!consent.checked) return fail(MSG.consent, consent);
 
       if (isFile) return say(status, form, "info", MSG.soon);
 
@@ -127,7 +128,7 @@
 
       var controller = typeof AbortController === "function" ? new AbortController() : null;
       var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
-      var body = { email: value, consent: true, source: location.pathname, company: honeypot ? honeypot.value : "" };
+      var body = { email: value, consent: consent.checked, source: location.pathname, company: honeypot ? honeypot.value : "" };
       if (ref) body.ref = ref;
 
       fetch(api("waitlist"), {
