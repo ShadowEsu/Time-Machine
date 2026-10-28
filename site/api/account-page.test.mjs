@@ -20,6 +20,16 @@ function boxAttributes() {
   return attrs;
 }
 
+// The note under the box, with every attribute account.html gives it (an error style shipped on an empty note shows
+// an empty red pill: Design P2, 28 Oct).
+function noteAttributes() {
+  const tag = PAGE.match(/<p\b[^>]*\bdata-account-agree-note\b[^>]*>/)?.[0];
+  if (!tag) throw new Error("account.html has no note under the agree box");
+  const attrs = {};
+  for (const m of tag.slice(2, -1).matchAll(/([\w-]+)(?:="([^"]*)")?/g)) attrs[m[1]] = m[2] ?? "";
+  return attrs;
+}
+
 class El {
   constructor(attrs = {}, inner = {}) {
     this.attrs = { ...attrs };
@@ -47,7 +57,7 @@ class El {
 function page() {
   const emailField = new El({ name: "email" });
   const box = new El({ name: "agree", ...boxAttributes() });
-  const note = new El({ id: "account-agree-note", "data-account-agree-note": "" });
+  const note = new El(noteAttributes());
   const codeField = new El({ name: "code" });
   const sendForm = new El({ "data-account-step": "send" }, { 'input[name="email"]': emailField, 'input[name="agree"]': box, "[data-account-agree-note]": note });
   const verifyForm = new El({ "data-account-step": "verify" }, { 'input[name="code"]': codeField, "[data-account-sent]": new El(), "[data-account-back]": new El() });
