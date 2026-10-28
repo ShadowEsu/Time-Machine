@@ -21,6 +21,6 @@ export interface SignInAgreement {
 export const AGREED: SignInAgreement = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION };
 
 /** Said when a code is asked for without the box, by the window, the preview, or the site's refusal. */
-export const AGREE_FIRST = "Tick the box to agree to the Terms and Privacy first.";
+export const AGREE_FIRST = "Tick the box to agree to the Terms first.";
 /** Said when the site checks other versions than this app's box names. */
 export const AGREEMENT_OUTDATED = "The Terms or Privacy changed since this version of Time Machine. Update it, then sign in.";

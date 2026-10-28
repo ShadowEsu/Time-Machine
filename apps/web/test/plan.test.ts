@@ -94,7 +94,7 @@ describe("Plan", () => {
       expect(email.indexOf('id="signin-agree"')).toBeLessThan(email.indexOf("</form>"));
       expect(signInPanel(at({ agreed: true }))).toMatch(/<input type="checkbox" id="signin-agree"[^>]* checked/);
       // Sent without the box: the alert is tied to the box, not the email field.
-      const refused = signInPanel(at({ email: "a@b.co", error: "Tick the box to agree to the Terms and Privacy first.", agreeError: true }));
+      const refused = signInPanel(at({ email: "a@b.co", error: "Tick the box to agree to the Terms first.", agreeError: true }));
       expect(refused).toMatch(/<input type="checkbox" id="signin-agree"[^>]*aria-invalid="true" aria-describedby="signin-error"/);
       expect(refused).toMatch(/<input id="signin-email"[^>]*aria-invalid="false" aria-describedby="signin-email-d"/);
       expect(SIGNED_OUT.agreed).toBe(false);

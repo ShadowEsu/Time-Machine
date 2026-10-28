@@ -137,7 +137,7 @@ describe("account", () => {
     const busy = site({ send: () => json({ ok: false, error: "rate_limited" }, 429) });
     expect((await failure(busy.account.signIn(EMAIL, AGREED))).message).toBe("Too many tries, wait a minute.");
     const unticked = site({ send: () => json({ ok: false, error: "agreement_required" }, 400) });
-    expect((await failure(unticked.account.signIn(EMAIL, AGREED))).message).toBe("Tick the box to agree to the Terms and Privacy first.");
+    expect((await failure(unticked.account.signIn(EMAIL, AGREED))).message).toBe("Tick the box to agree to the Terms first.");
     const outdated = site({ send: () => json({ ok: false, error: "agreement_outdated" }, 400) });
     expect((await failure(outdated.account.signIn(EMAIL, AGREED))).message).toBe("The Terms or Privacy changed since this version of Time Machine. Update it, then sign in.");
     const noKeys = site({ account: () => json({ ok: false, error: "checkout_closed" }, 503) });
@@ -231,7 +231,7 @@ describe("contract, engine and preview", () => {
     expect(await fake.call({ method: "signOut" })).toEqual({ ok: true, data: { ok: true } });
     expect(await fake.call({ method: "accountLicenses" })).toEqual({ ok: true, data: null });
     // Like the site, the preview sends no code without the box.
-    expect(await fake.call({ method: "signIn", email: EMAIL } as Call)).toMatchObject({ ok: false, error: { message: "Tick the box to agree to the Terms and Privacy first." } });
+    expect(await fake.call({ method: "signIn", email: EMAIL } as Call)).toMatchObject({ ok: false, error: { message: "Tick the box to agree to the Terms first." } });
     for (const method of ["signIn", "verifyCode"] as const) {
       for (const field of ["termsVersion", "privacyVersion", "boxVersion"]) {
         for (const value of ["outdated-version", undefined]) {
