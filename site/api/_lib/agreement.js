@@ -1,10 +1,10 @@
 // The Terms a person agrees to and Privacy notice they have read before sign-in and checkout.
-// The page versions name each page's "Last updated" date; BOX_VERSION names the box wording.
-// Every box sends all three versions, so an older page or app is refused and says why.
+// A page version names that page's "Last updated" date, with a letter suffix when its words change twice on one day.
+// BOX_VERSION names the box wording. Every box sends all three versions, so an older page or app is refused and says why.
 import { reply } from "./waitlist.js";
 
 export const TERMS_VERSION = "terms-2026-10-22";
-export const PRIVACY_VERSION = "privacy-2026-10-28";
+export const PRIVACY_VERSION = "privacy-2026-10-28b";
 export const BOX_VERSION = "agree-box-2026-10-29";
 
 /**

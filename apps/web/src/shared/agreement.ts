@@ -4,7 +4,7 @@ import { SITE_HOST } from "./links.js";
 
 /** Must equal TERMS_VERSION, PRIVACY_VERSION and BOX_VERSION in site/api/_lib/agreement.js (a test keeps them equal). */
 export const TERMS_VERSION = "terms-2026-10-22";
-export const PRIVACY_VERSION = "privacy-2026-10-28";
+export const PRIVACY_VERSION = "privacy-2026-10-28b";
 export const BOX_VERSION = "agree-box-2026-10-29";
 
 export const TERMS_URL = `https://${SITE_HOST}/terms.html`;
