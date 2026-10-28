@@ -1979,7 +1979,7 @@ function agentsScreen(): string {
     const working = a.working ? `<p class="b9-sub b9-now"><i class="breath" aria-hidden="true"></i>Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</p>` : "";
     const approve = a.claudeCode === "needs-approval" && a.check ? `<p class="b9-sub">The check it would run: <code class="mono">${esc(a.check)}</code></p>` : "";
     // Disconnect is tm forget: offered wherever Time Machine acts or has lines here (Security T5).
-    const disconnect = a.claudeCode === "connected" || a.claudeCode === "not-running" || a.claudeCode === "partial" ? `<button class="btn ghost" data-act="forget" data-id="${a.projectId}">Disconnect</button>` : "";
+    const disconnect = a.claudeCode === "connected" || a.claudeCode === "not-running" || a.claudeCode === "partial" ? `<button class="btn" data-act="forget" data-id="${a.projectId}">Disconnect</button>` : "";
     const btn =
       a.claudeCode === "needs-approval"
         ? a.check
