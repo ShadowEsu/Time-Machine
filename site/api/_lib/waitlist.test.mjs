@@ -160,6 +160,10 @@ describe("waitlist handler", () => {
     expect(isAllowedOrigin("http://localhost:4173", HOST)).toBe(true);
     expect(isAllowedOrigin("http://127.0.0.1:3000", HOST)).toBe(true);
     expect(isAllowedOrigin(`https://${HOST}`, HOST)).toBe(true);
+    // Both hosts serve the site (Security D-1/D-2, 28 Oct): each accepts only its own origin.
+    expect(isAllowedOrigin("https://time-machine.company", "time-machine.company")).toBe(true);
+    expect(isAllowedOrigin("https://time-machine-site.vercel.app", "time-machine.company")).toBe(false);
+    expect(isAllowedOrigin("https://time-machine.company", "time-machine-site.vercel.app")).toBe(false);
   });
 
   it("compares Origin with the Host header and ignores x-forwarded-host", async () => {
