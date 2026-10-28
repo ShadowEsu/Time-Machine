@@ -194,6 +194,8 @@ cp-0003   PASS        2026-10-15 10:42  4e1d0b7  Added dark mode
 
 **Exit codes.** `verify` and `find-good` exit with the verdict code: PASS 0, FAIL 1, INCOMPLETE 2, BLOCKED 3, ERROR 4. Other commands exit 0 on success and 4 on an error, such as "There are no checkpoints yet". Usage errors exit 64. That includes bad flags, unknown commands and an invalid `timemachine.yml`.
 
+**Progress.** A check can take minutes. In a terminal, `verify` and `find-good` print a line on stderr before each check starts, for example `Checking cp-0005 (2 of 6, newest first). Ctrl+C stops.` Ctrl+C stops the check and removes its temporary copy. With `--json`, or when the output goes to a pipe or a file, they print no progress lines.
+
 ## 6. timemachine.yml reference
 
 The file lives at your project root. Unknown keys are rejected, so typos show up as errors.

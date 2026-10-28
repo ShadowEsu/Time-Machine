@@ -19,7 +19,7 @@ export { open } from "./open.js";
 export { verify } from "./verify.js";
 export { checkLogTail, TAIL_READ_BYTES, type LogTail } from "./logTail.js";
 export { checkRecord } from "./checkRecord.js";
-export { findGood } from "./findGood.js";
+export { findGood, type FindGoodOptions } from "./findGood.js";
 export { recover, undoRecover } from "./recover.js";
 export { restorePaths } from "./restore.js";
 export { auditAutoSaveFailed, log } from "./audit.js";

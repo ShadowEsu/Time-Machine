@@ -5,6 +5,9 @@ import { main } from "../src/main.ts";
 
 interface Run { code: number; out: string; err: string }
 async function run(demo: Demo, ...argv: string[]): Promise<Run> {
+  return runAs(demo, false, ...argv);
+}
+async function runAs(demo: Demo, isTTY: boolean, ...argv: string[]): Promise<Run> {
   let out = "";
   let err = "";
   const code = await main(argv, {
@@ -12,7 +15,7 @@ async function run(demo: Demo, ...argv: string[]): Promise<Run> {
     env: demo.ctx.env ?? {},
     stdout: (s) => { out += s; },
     stderr: (s) => { err += s; },
-    isTTY: false,
+    isTTY,
   });
   return { code, out, err };
 }
@@ -56,5 +59,25 @@ describe("CLI output", () => {
   test("usage errors exit 64, never 2", async () => {
     expect((await run(demo, "nope")).code).toBe(64);
     expect((await run(demo, "verify", "--bogus")).code).toBe(64);
+  });
+
+  test("on a terminal, find-good names each check before it runs, newest first; stdout stays the result", async () => {
+    const r = await runAs(demo, true, "find-good");
+    expect(r.code).toBe(0);
+    expect(r.err.trim().split("\n")).toEqual([
+      "Checking cp-0006 (1 of 6, newest first). Ctrl+C stops.",
+      "Checking cp-0005 (2 of 6, newest first). Ctrl+C stops.",
+      "Checking cp-0004 (3 of 6, newest first). Ctrl+C stops.",
+      "Checking cp-0003 (4 of 6, newest first). Ctrl+C stops.",
+    ]);
+    expect(r.out).not.toContain("Checking cp-");
+  });
+
+  test("progress lines never reach pipes or --json", async () => {
+    for (const argv of [["find-good"], ["verify", "cp-0003"]]) {
+      expect((await runAs(demo, false, ...argv)).err).toBe("");
+      expect((await runAs(demo, true, ...argv, "--json")).err).toBe("");
+    }
+    expect((await runAs(demo, true, "verify")).err).toBe("Checking the newest save point in a separate copy. Ctrl+C stops.\n");
   });
 });

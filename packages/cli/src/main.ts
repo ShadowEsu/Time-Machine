@@ -272,12 +272,15 @@ export async function main(argv: string[], io: Io): Promise<number> {
         return complete(r.missing);
       }
       case "verify": {
+        // A check can take minutes. On a terminal, say what is running before it starts (stderr, so stdout stays the result).
+        if (io.isTTY && !json) io.stderr(`Checking ${args[0] ?? "the newest save point"} in a separate copy. Ctrl+C stops.\n`);
         const r = await tm.verify(ctx, args[0]);
         print(r, fmtVerify(r, style));
         return tm.EXIT_CODES[r.verdict];
       }
       case "find-good": {
-        const r = await tm.findGood(ctx);
+        const onTry = io.isTTY && !json ? (id: string, n: number, of: number) => io.stderr(`Checking ${id} (${n} of ${of}, newest first). Ctrl+C stops.\n`) : undefined;
+        const r = await tm.findGood(ctx, onTry ? { onTry } : {});
         print(r, fmtFindGood(r, style));
         return tm.EXIT_CODES[r.verdict];
       }
