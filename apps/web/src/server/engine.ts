@@ -559,9 +559,9 @@ export class Engine {
       case "siteStatus":
         return this.account.siteStatus();
       case "signIn":
-        return this.account.signIn(call.email);
+        return this.account.signIn(call.email, { agreed: call.agreed, termsVersion: call.termsVersion, privacyVersion: call.privacyVersion });
       case "verifyCode":
-        return this.account.verifyCode(call.email, call.code);
+        return this.account.verifyCode(call.email, call.code, { agreed: call.agreed, termsVersion: call.termsVersion, privacyVersion: call.privacyVersion });
       case "accountLicenses":
         return this.account.accountLicenses();
       case "signOut":
