@@ -3,10 +3,10 @@
 // come out escaped, and only allow-listed pages may open in the browser.
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CallSchema, type AskResult, type DeploymentsResult, type VercelDeployment } from "../src/shared/api.ts";
-import { ASK_CONSENT, ASK_CONSENT_ANTHROPIC, ASK_EXAMPLES } from "../src/shared/ask.ts";
+import { ASK_CONSENT, ASK_CONSENT_ANTHROPIC, ASK_CONSENT_VERSION, ASK_EXAMPLES } from "../src/shared/ask.ts";
 import { esc, when } from "../src/shared/format.ts";
 import { isAllowedExternal } from "../src/shared/links.ts";
-import { answerHtml, askPanelHtml, citeChip, type AskView, type CitedPoint } from "../src/renderer/ask-panel.ts";
+import { answerHtml, askPanelHtml, askViewState, citeChip, type AskView, type CitedPoint } from "../src/renderer/ask-panel.ts";
 import { chipsByCheckpoint, deployChip, deployLink, renderDeployChips, unlinkedHtml } from "../src/renderer/deploys.ts";
 import { checkPatch, featureSettingsHtml, type FeatureSettingsView } from "../src/renderer/feature-settings.ts";
 import { FakeEngine, previewStory } from "../preview/fake.ts";
@@ -127,6 +127,19 @@ describe("the Ask panel", () => {
     expect(html.indexOf("Ask is paused.")).toBeLessThan(html.indexOf("What is sent"));
     expect(html).not.toContain("<textarea");
     expect(askPanelHtml(view({ phase: "off" }))).not.toContain("Ask is paused.");
+  });
+
+  test("a stored agreement for another service or older words renders the paused consent card, not the question box (Security T-L1)", () => {
+    const agreed = (provider: "gemini" | "anthropic", version = ASK_CONSENT_VERSION) => ({ ask: true, vercel: null, autoSave: "off" as const, askConsent: { at: "2026-10-27T00:00:00Z", version, provider } });
+    expect(askViewState(agreed("gemini"), "gemini")).toEqual({ phase: "on", reconsent: false });
+    for (const [features, provider] of [[agreed("gemini"), "anthropic"], [agreed("anthropic", "2026-01-01"), "anthropic"], [{ ask: true, vercel: null, autoSave: "off" as const }, "gemini"]] as const) {
+      const state = askViewState(features, provider);
+      expect(state).toEqual({ phase: "off", reconsent: true });
+      const html = askPanelHtml(view({ ...state, provider }));
+      expect(html).toContain("Ask is paused.");
+      expect(html).not.toContain("<textarea");
+    }
+    expect(askViewState({ ask: false, vercel: null, autoSave: "off" }, "gemini")).toEqual({ phase: "off", reconsent: false });
   });
 
   test("off without a key names the exact variable with Copy, kept whole, and points to this project's Ask settings", () => {

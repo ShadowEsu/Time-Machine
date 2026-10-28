@@ -2,7 +2,7 @@
 // the project, after reading exactly what is sent (shared/ask.ts, ADR 0008). Every word that
 // comes back from the model is escaped before it touches the page.
 import type { TimelineEntry } from "@timetm/core";
-import type { AskResult, Verdict } from "../shared/api.js";
+import type { AskResult, Features, Verdict } from "../shared/api.js";
 import { ASK_EXAMPLES, askConsentText, askConsentValid, type AskProvider } from "../shared/ask.js";
 import { esc, plural, verdictKey, verdictWord, when } from "../shared/format.js";
 import { announceFeatures, errorText, FEATURES_CHANGED, isolateTyping, patch, type FeatureApi } from "./feature-dom.js";
@@ -140,6 +140,15 @@ export function askPanelHtml(v: AskView): string {
     <p class="ft-ask-foot">Sent to ${v.provider === "anthropic" ? "Anthropic’s Claude" : "Google Gemini"} with your own key. File contents and check logs are not read for Ask. Known secrets are filtered; do not include secrets in your question.</p>`;
 }
 
+/**
+ * On only while the stored agreement matches the current consent text and the service the key is for. A project with
+ * Ask turned on under other words or another service shows the consent card again, paused (reconsent).
+ */
+export function askViewState(features: Features, provider: AskProvider | null): Pick<AskView, "phase" | "reconsent"> {
+  const agreed = askConsentValid(features, provider);
+  return { phase: agreed ? "on" : "off", reconsent: features.ask && !agreed };
+}
+
 /** Mounts the Ask panel for one project in host. Returns a function that removes it. */
 export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOpenSettings }: AskPanelOptions): () => void {
   let alive = true;
@@ -170,9 +179,7 @@ export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOp
     }
     v.provider = creds.data.provider;
     v.hasKey = creds.data.provider !== null;
-    const agreed = askConsentValid(p.features, v.provider);
-    v.phase = agreed ? "on" : "off";
-    v.reconsent = p.features.ask && !agreed;
+    Object.assign(v, askViewState(p.features, v.provider));
     v.problem = null;
     draw();
     if (v.phase === "on") {

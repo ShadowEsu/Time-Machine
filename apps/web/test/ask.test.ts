@@ -306,6 +306,16 @@ describe("the engine", () => {
       else process.env.TM_HOME = before;
     }
   });
+
+  test("with only an Anthropic key, turning Ask on records Anthropic as the service agreed to (Security T-L1)", async () => {
+    const { dir, entry } = await seeded();
+    const appDir = join(tempDir("app"), "data");
+    const state = new AppState(appDir);
+    state.updateProjects((list) => [...list, { ...entry, features: { ask: false, vercel: null, autoSave: "off" } }]);
+    const engine = new Engine(state, { candidates: ["false"], version: "9.9.9" }, { credentials: new Credentials(join(dir, "..", "credentials.json"), noCipher, { ANTHROPIC_API_KEY: ANTHROPIC_KEY }), fetch: fakeFetch(() => answer("x", [])).fetch });
+    await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "ask", enabled: true } });
+    expect(new AppState(appDir).find(entry.id)?.features.askConsent).toMatchObject({ version: ASK_CONSENT_VERSION, provider: "anthropic" });
+  });
 });
 
 describe("keys", () => {
