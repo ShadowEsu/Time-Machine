@@ -9,6 +9,7 @@ import type {
   DemoResult,
   DiffResult,
   FindGoodResult,
+  ForgetResult,
   HookInstallResult,
   HookState,
   InitResult,
@@ -240,6 +241,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookPreview"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookInstall"), projectId: ProjectId }),
+  /** tm forget: takes back this computer's approval of the check and the hook lines tm hook install added. Save points stay. */
+  z.strictObject({ method: z.literal("forget"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("demo") }),
   z.strictObject({ method: z.literal("storage") }),
   z
@@ -510,6 +513,7 @@ export interface Results {
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;
+  forget: ForgetResult;
   demo: { project: AddedProject; result: DemoResult };
   storage: StorageResult;
   cleanStore: CleanStoreResult;

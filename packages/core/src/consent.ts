@@ -3,7 +3,7 @@
 // the exact install step and check the user approved. Plugin hooks and the MCP check tools run
 // only while that hash matches.
 import { createHash } from "node:crypto";
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { CONFIG_FILE, loadConfig, type ProjectConfig } from "./config.js";
@@ -34,6 +34,15 @@ export function recordConsent(p: Project, cfg: ProjectConfig): string {
   writeFileSync(`${path}.tmp`, JSON.stringify({ verifyHash: verifyHash(cfg), at: new Date().toISOString() }) + "\n");
   renameSync(`${path}.tmp`, path);
   return checkCommand(cfg);
+}
+
+/** Forgets this computer's approval of the project's check (and the once-per-check warning). True when there was one. */
+export function removeConsent(p: Project): boolean {
+  const path = join(p.store, CONSENT_FILE);
+  const had = existsSync(path);
+  rmSync(path, { force: true });
+  rmSync(join(p.store, WARNED_FILE), { force: true });
+  return had;
 }
 
 /** Whether the current check is the one the user approved. Never creates the store. */

@@ -115,7 +115,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 
 | | What | Status |
 |---|---|---|
-| `tm` command | `init`, `status`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `restore`, `relink`, `list`, `thin`, `doctor`, `demo`, `hook install`, `mcp`, `ui`, `license` | Built, tested |
+| `tm` command | `init`, `status`, `forget`, `checkpoint`, `timeline`, `diff`, `log`, `open`, `verify`, `find-good`, `recover`, `restore`, `relink`, `list`, `thin`, `doctor`, `demo`, `hook install`, `mcp`, `ui`, `license` | Built, tested |
 | Web app | `tm ui`: onboarding, history, checks with live output, the failing test names for Jest, Vitest, Mocha, `node --test` and TAP output, comparison, **Put it back** for one file or all, rewind with undo, plain folders, auto save, run notes and pins, moved or deleted folders kept read only with **It moved…** and **Bring back a copy…**, agents, storage, settings (including each project's check), opt-in Ask (Gemini or Anthropic key) and read-only Vercel deploy links, live CLI and hook updates | Built from source |
 | Claude Code hooks | Save before each prompt and before risky shell commands (`rm -rf`, `git reset --hard`, `git clean -f`, `DROP TABLE` and similar). Check at the end of each turn, and tell Claude if a working state just broke | Built, tested |
 | MCP server | 7 tools for any agent that speaks MCP: checkpoint, timeline, diff, verify, find_good, recover, log | Built, tested |
@@ -132,6 +132,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 |---|---|
 | `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step, and approves its check for the Claude Code plugin. `--no-approve` only writes the file |
 | `tm status` | Says whether this project is set up and its check approved on this computer. Changes nothing |
+| `tm forget` | Takes back this computer's approval of the check, so the Claude Code plugin and the MCP check tools do nothing in this project, and removes the hook lines `tm hook install` added. Other tools' hooks and the save points stay; `tm init` sets it up again |
 | `tm ui [--no-open] [--port N]` | Opens the web app in your browser; files and engine stay on your computer |
 | `tm license [key] [--remove]` | Shows, saves or forgets the one-time web app license on this computer |
 | `tm checkpoint -m "note"` | Saves code (including uncommitted changes), files not in Git yet, lockfiles and version pins such as `.nvmrc` even when `.gitignore` skips them, environment file digests, config key names, and runtime versions |

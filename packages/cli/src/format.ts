@@ -1,6 +1,6 @@
 // Human output. Every line is built from the same result object the --json flag prints,
 // so the two can never disagree.
-import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, UndoRecoverResult, Verdict, VerifyResult } from "@timetm/core";
+import type { CheckpointResult, DemoResult, ForgetResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, UndoRecoverResult, Verdict, VerifyResult } from "@timetm/core";
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -71,6 +71,15 @@ export function fmtStatus(r: StatusResult): string {
   if (r.check === null) return ["Set up, but there is no check yet. Set verify.command in timemachine.yml, then run tm init to approve it.", settings].join("\n");
   if (!r.approved) return ["Set up, but the check is not approved on this computer.", `  Check     ${r.check}`, settings, "When the check is right, run tm init to approve it."].join("\n");
   return ["Set up. The check is approved on this computer.", `  Check     ${r.check}`, settings].join("\n");
+}
+
+export function fmtForget(r: ForgetResult): string {
+  return [
+    r.approvalRemoved ? "This computer no longer approves the project's check. The Claude Code plugin and the MCP check tools do nothing here now." : "This computer had not approved the project's check, so there was nothing to take back.",
+    ...(r.hooksRemoved.length ? r.hooksRemoved.map((f) => `Removed Time Machine's hook lines from ${f.path}: ${f.removed.join(", ")}. Other tools' hooks stay.`) : ["No Time Machine hook lines were in .claude/settings.json."]),
+    ...r.unreadable.map((path) => `${path} is not plain JSON (it may have comments), so it was left alone. Remove any "tm hook" lines in it by hand.`),
+    `Save points stay in ${r.store}. Delete that folder to remove them. tm init sets the project up again.`,
+  ].join("\n");
 }
 
 export function fmtLicense(r: LicenseStatus): string {
