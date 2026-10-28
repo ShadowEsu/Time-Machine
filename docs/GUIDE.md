@@ -159,7 +159,7 @@ Your broken state was saved first as cp-0007, so you can always come back to it.
 
 ## 5. Commands reference
 
-Every command takes `--json`. The JSON and the human output come from the same result. `-h`, `--help` and `--version` work everywhere.
+Every command except `tm ui` takes `--json`. The JSON and the human output come from the same result. `-h`, `--help` and `--version` work everywhere, and `tm <command> --help` shows one command with an example. `-C <path>` (`--project <path>`) runs a command for the project in that folder instead of the current one; it also works for a folder that was moved or deleted.
 
 | Command | What it does |
 |---|---|
@@ -171,12 +171,19 @@ Every command takes `--json`. The JSON and the human output come from the same r
 | `tm open <cp> [--dir path]` | Rebuilds a save point in a separate folder. Default is a temp folder. |
 | `tm verify [cp]` | Runs the check on a save point. Default is the newest. |
 | `tm find-good` | Checks save points from newest to oldest until one passes. |
-| `tm recover <cp>` | Saves your current state, then makes a recovery branch and copy. |
+| `tm recover <cp> [--to folder]` | Saves your current state, then makes a recovery branch and copy. The copy goes next to the project, or into `--to`. Never pushes. |
+| `tm restore <cp> [--dry-run] -- <path>...` | Puts files or folders back into your folder from a save point, for example `tm restore cp-0003 -- src/app.js`. Paths are relative to the project's folder; a folder brings back everything saved under it. Your folder is saved first, so what this replaces stays in the history. Deletes nothing and commits nothing. `--dry-run` says what would come back and writes nothing. Exits 2 when a path was skipped. |
+| `tm relink <old> <new>` | The project's folder moved: keeps its save points, settings, notes and checks at the new path. |
+| `tm list` | Lists every project in the store: its path, kind, save points and size, and whether its folder is gone. |
+| `tm thin [--apply]` | Shows which old auto saves can go, and why. `--apply` removes them. Working, pinned, named and recent save points always stay. |
+| `tm doctor` | Checks every save point in the store for damage: manifests, Git refs and saved copies. Exits 2 when it finds any. |
 | `tm log` | Shows the append-only audit log. |
 | `tm demo [dir]` | Builds the Marigold Tips demo and runs the rescue. |
 | `tm hook install` | Adds Claude Code hooks to `.claude/settings.json`. |
 | `tm hook <prompt\|pre-bash\|stop> [--if-initialized]` | What the hooks call. Reads hook JSON on stdin. `--if-initialized` does nothing, silently, unless this computer approved the project's check with `tm init`. The Claude Code plugin uses it. |
 | `tm mcp` | Runs an MCP server over stdio. |
+| `tm ui [--port N] [--no-open]` | Opens the local browser app. Ctrl+C stops it. |
+| `tm license [key] [--remove]` | Shows the web app license on this computer, saves a key, or forgets it. The `tm` command line tool needs no license. |
 
 `checkpoint` also takes `--trigger <name>` to label what caused the save point. The default is `manual`. A trigger that starts with `claude-code` is refused with a usage error (exit code 64), because only the hooks (`tm hook`) can mark a save point as made by Claude Code.
 
@@ -185,7 +192,7 @@ Each save point also records which agent made it, when one did: `agent: { name, 
 `timeline` rows look like this:
 
 ```
-History of my-app
+History of /Users/you/my-app (times in PDT)
 cp-0004   FAIL        2026-10-15 10:51  8a03f6e  Agent: fixed lint warnings
 cp-0003   PASS        2026-10-15 10:42  4e1d0b7  Added dark mode
 ```
