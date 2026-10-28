@@ -16,7 +16,7 @@ Only confirmed, subscribed rows count in positions and totals. Only confirmed, s
 
 ## What gets stored
 
-One row per normalized email: email, consent, source page, signup time, the person's own referral code, the code that referred them (if any), and `confirmed_at` and `unsubscribed_at` times (both empty for a site signup). No tokens. Saving again with the same email changes nothing, so an unsubscribed person is never added back.
+One row per normalized email: email, consent, `consent_text_version` (which words by the box the person ticked, for example `waitlist-2026-10-28`; `unrecorded` for rows saved before `0007`), source page, signup time, the person's own referral code, the code that referred them (if any), and `confirmed_at` and `unsubscribed_at` times (both empty for a site signup). No tokens. Saving again with the same email changes nothing, so an unsubscribed person is never added back.
 
 The `funnel_events` table stores event type, page path, a referral flag and the time. It holds no email or referral code. Neither table stores IP addresses, browser details or cookies. The `funnel_daily` view reports daily visits, raw signups (pending included), confirmations, unsubscribes, shares and copies.
 
@@ -24,7 +24,7 @@ The `funnel_events` table stores event type, page path, a referral flag and the 
 
 Row level security is on with no policies. The `anon` and `authenticated` roles cannot read or write the tables or the view. `anon` can run three security definer functions and nothing else: `waitlist_join_pending`, `waitlist_status` and `funnel_event_add` (see `0004_api_access.sql`). The site calls them with the project's anon key, kept in Vercel as `SUPABASE_KEY`. The anon key is public by design, so anyone holding it can call these functions directly. Migration `0005` enforces write caps, event types and strict plain paths inside the database, not just the site API.
 
-## 1. Apply migrations 0001 to 0006
+## 1. Apply migrations 0001 to 0007
 
 In Supabase **SQL Editor**, paste these files in order and click **Run**:
 
@@ -34,8 +34,16 @@ In Supabase **SQL Editor**, paste these files in order and click **Run**:
 4. `supabase/migrations/0004_api_access.sql`
 5. `supabase/migrations/0005_bounded_public_rpcs.sql`
 6. `supabase/migrations/0006_per_client_limits.sql`
+7. `supabase/migrations/0007_consent_text_version.sql`
 
 The combined block in the click-by-click guide covers `0001` through `0004`; then apply `0005` and `0006` separately, in that order. Apply `0006` before deploying the API that sends `p_client`. Its optional trailing parameter keeps the previous API working during deployment. `0006` is safe to reapply. Do not rerun older migrations after `0006`: they would recreate obsolete RPC signatures.
+
+`0007` adds `consent_text_version` and makes `waitlist_join_pending` require `p_consent_version`. It drops the `0006` signature, so signups through the `0006` API fail until the API that sends the version is live: apply `0007` right before that deploy. `0007` is safe to reapply. To roll it back, redeploy the previous API, then run this and rerun `0006`; the column and its values stay:
+
+```sql
+drop function if exists tm_waitlist.waitlist_join_pending(text, text, text, text, text);
+alter table tm_waitlist.waitlist alter column consent_text_version drop not null;
+```
 
 With the Supabase CLI: `supabase link --project-ref <your-project-ref>`, then `supabase db push`.
 

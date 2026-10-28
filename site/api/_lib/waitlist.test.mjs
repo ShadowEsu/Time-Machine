@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "../waitlist.js";
-import { clientId, clientIp, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody } from "./waitlist.js";
+import { clientId, clientIp, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody, WAITLIST_CONSENT_VERSION } from "./waitlist.js";
 
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
@@ -35,7 +35,7 @@ function setup({ env = ENV, response = joined } = {}) {
   return { fetch, log, deps: { env, fetch, log } };
 }
 
-const good = { email: EMAIL, consent: true, source: "/blog/first-post", company: "" };
+const good = { email: EMAIL, consent: true, consentVersion: WAITLIST_CONSENT_VERSION, source: "/blog/first-post", company: "" };
 
 describe("waitlist handler", () => {
   it("saves a pending signup with one Supabase call and sends no email", async () => {
@@ -48,7 +48,7 @@ describe("waitlist handler", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_KEY}`);
-    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null, p_client: null });
+    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_consent_version: WAITLIST_CONSENT_VERSION, p_source: "/blog/first-post", p_ref: null, p_client: null });
   });
 
   it("passes a well formed ref code to Supabase", async () => {
@@ -103,6 +103,16 @@ describe("waitlist handler", () => {
       const res = await handleWaitlist(request({ ...good, consent }), deps);
       expect(res.status).toBe(400);
       expect(res.body).toEqual({ ok: false, error: "consent_required" });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it("refuses a tick on other words than the current box's: an old page, a missing or forged version (Security T2)", async () => {
+    for (const consentVersion of [undefined, "on", "waitlist-2026-01-01", null, ["waitlist-2026-10-28"]]) {
+      const { fetch, deps } = setup();
+      const res = await handleWaitlist(request({ ...good, consentVersion }), deps);
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ ok: false, error: "consent_outdated" });
       expect(fetch).not.toHaveBeenCalled();
     }
   });
