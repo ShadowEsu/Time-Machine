@@ -165,6 +165,7 @@ Every command except `tm ui` takes `--json`. The JSON and the human output come 
 |---|---|
 | `tm init [--no-approve]` | Writes `timemachine.yml` with a guessed check and install step. Keeps an existing file. Approves the current check on this computer for the Claude Code plugin and the MCP `verify` and `find_good` tools. Run it again to approve a changed check. `--no-approve` only writes or keeps the file, and prints how to approve. |
 | `tm status` | Says if this project has `timemachine.yml` and if this computer approved its check. Changes nothing. `--json` prints `{"initialized", "approved", "check"}`; `check` is null when there is no `verify.command`. The plugin's setup skill uses it. |
+| `tm forget` | Takes back what `tm init` and `tm hook install` agreed to on this computer. The check's approval (`consent.json`) is removed, so the plugin's hooks and the MCP `verify` and `find_good` tools do nothing here, and Time Machine's lines are taken out of `.claude/settings.json` and `.claude/settings.local.json`. Other tools' hooks and settings stay. A settings file that is not plain JSON, or that is a link to somewhere else, is left alone and named. Save points stay in the store until you delete that folder (see "How do I clean up?"). `tm init` sets the project up again. |
 | `tm checkpoint [-m note] [--if-changed]` | Saves a save point. `--if-changed` skips it when nothing changed since the newest one. |
 | `tm timeline` | Lists save points, newest first, with verdicts. |
 | `tm diff <a> <b>` | Compares code, files, config keys, dependencies and environment. |
@@ -361,6 +362,7 @@ claude mcp add timemachine -- tm mcp
 
 **How do I clean up?**
 
+- Stop Time Machine acting in a project: `tm forget`, or **Disconnect** on its row in Agents in `tm ui`. It takes back the check's approval and removes Time Machine's hook lines; save points stay.
 - Recovery branches: `git branch -D tm/recover/cp-0003`.
 - Pinned refs: `git for-each-ref refs/tm` lists them. Remove one with `git update-ref -d refs/tm/cp-0003`.
 - A whole project's store: find the folder under `~/.timemachine/projects/` whose `project.json` names your project, and delete it. This deletes its save points for good.

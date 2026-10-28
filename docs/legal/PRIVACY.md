@@ -15,6 +15,8 @@ The `tm` tool and the web app keep everything locally: save points, Git bundles,
 | Email address | You join the waitlist | To write to you when the CLI is on npm |
 | Billing details | You buy the web app license | Stripe processes payment. We never see your full card number. Stripe keeps the email you gave at checkout |
 | Email address | You sign in on the website | To send a one-time code and to find your purchases at Stripe by that email. No password is stored |
+| Sign-in agreement record | You sign in on the website or in the web app (sign-in is not open yet) | Before we send a code, you tick a box to agree to the Terms and this Privacy Policy. Your account in Supabase Auth keeps your email and a record that you agreed, with the time and which version of each. Each sign-in writes it again, so it shows your latest agreement |
+| Purchase agreement record | You buy the web app license (checkout is not open yet) | Before you buy, you tick a box to agree to the Terms and this Privacy Policy. Stripe's record of your purchase keeps when you agreed and which version of each you agreed to |
 | License key contents | You buy the web app license | An opaque purchase id, the plan and the issue date, signed by us. Nothing about you |
 | Website visits | You visit the site | Cookieless, aggregate page counts. No ad tracking |
 | Support messages | You contact us | To help you |
@@ -30,7 +32,7 @@ The `tm` tool and the web app keep everything locally: save points, Git bundles,
 
 ## 4. Who we share with
 
-Only service providers that help us run Time Machine: Vercel, which hosts the website and its functions, Supabase, which holds the waitlist database, and Stripe, which processes payment once checkout opens. We will add any other provider here before we use it. We may share information if the law requires it.
+Only service providers that help us run Time Machine: Vercel, which hosts the website and its functions, Supabase, which holds the waitlist database and sign-in accounts, and Stripe, which processes payment once checkout opens. We will add any other provider here before we use it. We may share information if the law requires it.
 
 **Features you turn on that talk to other services.** These are off until you turn them on, and they talk to the other service directly from your computer with your own key. We do not receive this data.
 

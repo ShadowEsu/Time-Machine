@@ -3,6 +3,7 @@ export * from "./errors.js";
 export * from "./types.js";
 export { init, planInit, type InitPlan } from "./init.js";
 export { approvedCheck, status, type ConsentState } from "./consent.js";
+export { forget, type ForgetResult } from "./forget.js";
 export { CHECK_CHANGED_MEANWHILE, projectConfig, setCheck, setProjectConfig } from "./setCheck.js";
 // checkpoint and hookInstall come through folder.ts, which handles plain folder projects.
 export { checkpoint, hookInstall, protect } from "./folder.js";

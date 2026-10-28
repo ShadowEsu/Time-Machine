@@ -33,6 +33,8 @@ export function tmCommand(call: Call, projectPath: string | null): string | null
     case "hookInstall":
     case "hookPreview":
       return inProject("tm hook install");
+    case "forget":
+      return inProject("tm forget");
     case "demo":
       return "tm demo --json";
     default:

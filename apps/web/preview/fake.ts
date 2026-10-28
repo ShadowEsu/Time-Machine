@@ -1,8 +1,9 @@
 // An in-memory stand-in for the engine, used only by the browser preview. It replays the
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
-import type { DiffResult, FindGoodResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
-import type { AppEvent, AskResult, Call, CallOf, CredentialName, DeploymentsResult, FeatureChange, Features, LicenseStatus, Method, ProjectCheckConfig, ProjectEntry, ProjectStatus, Res, Results, RunNote, Settings, SourceRow, ThinPreview, TmBridge, VercelDeployment, Verdict } from "../src/shared/api.js";
+import type { DiffResult, FindGoodResult, ForgetResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
+import { AGREE_FIRST, AGREEMENT_OUTDATED, PRIVACY_VERSION, TERMS_VERSION } from "../src/shared/agreement.js";
+import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AppEvent, type AskResult, type Call, type CallOf, type CredentialName, type DeploymentsResult, type FeatureChange, type Features, type LicenseStatus, type Method, type ProjectCheckConfig, type ProjectEntry, type ProjectStatus, type Res, type Results, type RunNote, type Settings, type SourceRow, type ThinPreview, type TmBridge, type VercelDeployment, type Verdict } from "../src/shared/api.js";
 import { ASK_CONSENT_VERSION, ASK_EXAMPLES, askConsentValid, type AskProvider } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "../src/shared/links.js";
@@ -215,10 +216,13 @@ const FAKE_SOURCES: SourceRow[] = [
 /** What the person agreed to when they turned Ask on, as the engine records it. */
 const agreed = (provider: AskProvider | null): NonNullable<Features["askConsent"]> => ({ at: ago(1), version: ASK_CONSENT_VERSION, provider });
 
+/** The preview's Vercel project, linked under the current read-only note, as the engine records a link. */
+const linked = (): Pick<Features, "vercel" | "vercelConsent"> => ({ vercel: { ...PREVIEW_LINK }, vercelConsent: { at: ago(1), version: VERCEL_CONSENT_VERSION } });
+
 /** A project's features after one setFeature change, as the engine applies it. */
 function withFeature(f: Features, c: FeatureChange, provider: AskProvider | null): Features {
   if (c.feature === "ask") return { ...f, ask: c.enabled, ...(c.enabled ? { askConsent: agreed(provider) } : {}) };
-  if (c.feature === "vercel") return { ...f, vercel: c.link };
+  if (c.feature === "vercel") return { ...f, vercel: c.link, ...(c.link ? { vercelConsent: { at: ago(0), version: VERCEL_CONSENT_VERSION } } : {}) };
   return { ...f, autoSave: c.autoSave };
 }
 
@@ -265,6 +269,12 @@ function record(entry: TimelineEntry, command: string, at: string): VerifyResult
   };
 }
 
+/** Like the site's /api/auth: no code without the ticked Terms and Privacy box, at the versions the site checks. */
+function agreedLikeTheSite(call: { agreed?: unknown; termsVersion?: unknown; privacyVersion?: unknown }): void {
+  if (call.agreed !== true) throw new Error(AGREE_FIRST);
+  if (call.termsVersion !== TERMS_VERSION || call.privacyVersion !== PRIVACY_VERSION) throw new Error(AGREEMENT_OUTDATED);
+}
+
 export class FakeEngine implements TmBridge {
   private listeners = new Set<(e: AppEvent) => void>();
   private points: Point[] = [];
@@ -288,6 +298,8 @@ export class FakeEngine implements TmBridge {
   private checkConfig: ProjectCheckConfig = { command: "npm test", setup: "npm ci --prefer-offline --no-audit --no-fund", timeoutSeconds: 600, network: "allow", maxFileMB: 5 };
   /** The email signed in with code 123456, or null. The preview's sign-in is pretend: nothing is sent. */
   private signedIn: string | null = null;
+  /** The demo's Claude Code hook lines: in, until Disconnect takes them out (tm forget); Connect puts them back. */
+  private claudeConnected = true;
 
   constructor(readonly scenario: Scenario = "broken", readonly features: FeatureStory = "off") {
     this.reset();
@@ -296,10 +308,10 @@ export class FakeEngine implements TmBridge {
       this.notes.set(TRIAL_ID, { "cp-0003": { title: "Baseline run, seed 42", note: "The reference run. Same data as run 02 with a fixed seed. Compare new runs against this one.", pinned: true, updated: ago(60 * 8) } });
     }
     const off = this.project.features;
-    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, askConsent: agreed("gemini"), vercel: { ...PREVIEW_LINK } };
-    if (features === "ask-off") this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+    if (features === "on" || features === "ask-error") this.project.features = { ...off, ask: true, askConsent: agreed("gemini"), ...linked() };
+    if (features === "ask-off") this.project.features = { ...off, ask: false, ...linked() };
     if (features === "no-key") {
-      this.project.features = { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+      this.project.features = { ...off, ask: false, ...linked() };
       this.credentials = { ...this.credentials, gemini: false };
     }
     if (features === "no-vercel") {
@@ -307,7 +319,7 @@ export class FakeEngine implements TmBridge {
       this.credentials = { ...this.credentials, vercel: false };
     }
     if (features === "ask-claude" || features === "ask-stale") {
-      this.project.features = features === "ask-stale" ? { ...off, ask: true, askConsent: agreed("gemini"), vercel: { ...PREVIEW_LINK } } : { ...off, ask: false, vercel: { ...PREVIEW_LINK } };
+      this.project.features = features === "ask-stale" ? { ...off, ask: true, askConsent: agreed("gemini"), ...linked() } : { ...off, ask: false, ...linked() };
       this.credentials = { ...this.credentials, gemini: false, anthropic: true };
     }
   }
@@ -517,6 +529,7 @@ export class FakeEngine implements TmBridge {
       case "hookPreview":
         return { settingsPath: `${p.path}/.claude/settings.json`, command: "tm", runs: true, plugin: false, lines: [] };
       case "hookInstall":
+      case "forget":
         throw new Error("The preview connects Claude Code to the demo project only.");
       case "cleanStore":
         return { files: [], bytes: 0, applied: call.apply };
@@ -649,8 +662,10 @@ export class FakeEngine implements TmBridge {
       case "siteStatus":
         return { checkout: true, auth: true };
       case "signIn":
+        agreedLikeTheSite(call);
         return { ok: true };
       case "verifyCode":
+        agreedLikeTheSite(call);
         if (call.code !== "123456") throw new Error("That code didn't match.");
         this.signedIn = call.email;
         return { ok: true };
@@ -794,7 +809,14 @@ export class FakeEngine implements TmBridge {
       }
       case "hookInstall":
         await wait(300);
+        this.claudeConnected = true;
         return { settingsPath: `${ROOT}/.claude/settings.json`, added: [], alreadyPresent: ["UserPromptSubmit", "PreToolUse", "Stop"] };
+      case "forget": {
+        await wait(300);
+        const r: ForgetResult = { approvalRemoved: this.claudeConnected, hooksRemoved: this.claudeConnected ? [{ path: `${ROOT}/.claude/settings.json`, removed: ["UserPromptSubmit", "PreToolUse", "Stop"] }] : [], unreadable: [], store: `/Users/you/.timemachine/projects/${PROJECT_ID}` };
+        this.claudeConnected = false;
+        return r;
+      }
       case "demo": {
         // The new-user walkthrough builds the demo story, then rescues it with the same steps as the engine.
         if (this.scenario !== "new" || this.added) throw new Error("This preview is the demo. Reload the page to start the story over.");
@@ -831,7 +853,7 @@ export class FakeEngine implements TmBridge {
         await wait(200);
         return { files: [], bytes: 0, applied: call.apply };
       case "agents":
-        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", via: "settings", pluginOff: false, check: "npm test", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }] : [];
+        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: this.claudeConnected ? "connected" : "not-connected", via: "settings", pluginOff: false, check: "npm test", settingsPath: `${ROOT}/.claude/settings.json`, missing: this.claudeConnected ? [] : ["UserPromptSubmit", "PreToolUse", "Stop"], working: false, workingSince: null }] : [];
       case "isolation":
         return { mode: "host", networkSandbox: "sandbox-exec" };
       case "setSettings":
@@ -873,7 +895,7 @@ export class FakeEngine implements TmBridge {
         return [{ teamId: "team_preview", teamName: "Your team", projectId: "prj_marigold", name: "marigold-tips", repo: "you/marigold-tips" }];
       case "deployments": {
         const link = this.project.features.vercel;
-        if (!link) return null;
+        if (!link || !vercelConsentValid(this.project.features)) return null;
         if (!this.credentials.vercel) throw new Error("Add a Vercel token in Settings to see deploys. Time Machine only reads from Vercel.");
         const result: DeploymentsResult = { link, matched: [], otherCommits: [], noCommit: [], fetchedAt: new Date().toISOString() };
         for (const [id, target] of [["cp-0002", "preview"], ["cp-0003", "production"]] as const) {

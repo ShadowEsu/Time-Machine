@@ -1,6 +1,7 @@
 // The narrow bridge between the browser page and the engine. The tm ui server validates every
 // call with these schemas before it touches the engine. The preview build fakes this API.
 import { z } from "zod";
+import { PRIVACY_VERSION, TERMS_VERSION } from "./agreement.js";
 import type { AskProvider } from "./ask.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "./links.js";
 import type {
@@ -9,6 +10,7 @@ import type {
   DemoResult,
   DiffResult,
   FindGoodResult,
+  ForgetResult,
   HookInstallResult,
   HookState,
   InitResult,
@@ -105,6 +107,16 @@ export const VercelLinkSchema = z.strictObject({
 });
 export type VercelLink = z.infer<typeof VercelLinkSchema>;
 
+/** What Settings says before a Vercel project is linked. Raise VERCEL_CONSENT_VERSION whenever it changes. */
+export const VERCEL_READ_NOTE = "Read only. Time Machine reads deploys from Vercel to show them next to your save points. It never deploys, promotes or rolls back anything.";
+/** The version of VERCEL_READ_NOTE a link was made under. A link made under another version shows no deploys until linked again. */
+export const VERCEL_CONSENT_VERSION = "2026-10-28";
+
+/** True while the project is linked and the link was made under the current VERCEL_READ_NOTE. */
+export function vercelConsentValid(features: { vercel: VercelLink | null; vercelConsent?: { version: string } | null | undefined }): boolean {
+  return !!features.vercel && features.vercelConsent?.version === VERCEL_CONSENT_VERSION;
+}
+
 export const AutoSaveSchema = z.enum(["off", "change"]);
 export type AutoSave = z.infer<typeof AutoSaveSchema>;
 
@@ -119,6 +131,11 @@ export const FeaturesSchema = z.strictObject({
   askConsent: z.strictObject({ at: z.string(), version: z.string(), provider: z.enum(["gemini", "anthropic"]).nullable() }).nullable().optional(),
   /** The Vercel project whose deploys show on the timeline. Null when none is linked. */
   vercel: VercelLinkSchema.nullable().default(null),
+  /**
+   * When the person last linked a Vercel project and which VERCEL_READ_NOTE they read then. Missing in files from before
+   * consent records: those links show no deploys until linked again (vercelConsentValid).
+   */
+  vercelConsent: z.strictObject({ at: z.string(), version: z.string() }).nullable().optional(),
   /**
    * "change": save when files change, while Time Machine is open (after 20 s of quiet, at most once a
    * minute). New plain folders for documents, research or agents start with "change"; everything else "off".
@@ -168,6 +185,8 @@ export type FeatureChange = z.infer<typeof FeatureChange>;
 
 /** The same email rule the site uses: one @, no spaces, a dot in the domain. */
 const SignInEmail = z.string().trim().toLowerCase().max(254).regex(/^[^\s@]{1,64}@[^\s@.][^\s@]*\.[^\s@]{2,}$/);
+/** The ticked Terms and Privacy box, with the versions it named. The site's /api/auth refuses a sign-in without it. */
+const Agreement = { agreed: z.literal(true), termsVersion: z.literal(TERMS_VERSION), privacyVersion: z.literal(PRIVACY_VERSION) };
 
 /** Every call the window can make. One schema per method. */
 export const CallSchema = z.discriminatedUnion("method", [
@@ -225,6 +244,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookPreview"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookInstall"), projectId: ProjectId }),
+  /** tm forget: takes back this computer's approval of the check and the hook lines tm hook install added. Save points stay. */
+  z.strictObject({ method: z.literal("forget"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("demo") }),
   z.strictObject({ method: z.literal("storage") }),
   z
@@ -255,10 +276,10 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("removeLicense") }),
   /** What the Time Machine site has open: buying and sign-in. */
   z.strictObject({ method: z.literal("siteStatus") }),
-  /** Emails a six digit sign-in code. The email goes to the site only; the app keeps nothing. */
-  z.strictObject({ method: z.literal("signIn"), email: SignInEmail }),
-  /** Trades the code for a sign-in token that the server keeps in memory only. */
-  z.strictObject({ method: z.literal("verifyCode"), email: SignInEmail, code: z.string().regex(/^\d{6}$/) }),
+  /** Emails a six digit sign-in code. The email goes to the site only; the app keeps nothing. Needs the ticked box. */
+  z.strictObject({ method: z.literal("signIn"), email: SignInEmail, ...Agreement }),
+  /** Trades the code for a sign-in token that the server keeps in memory only. Sends the same agreement again. */
+  z.strictObject({ method: z.literal("verifyCode"), email: SignInEmail, code: z.string().regex(/^\d{6}$/), ...Agreement }),
   z.strictObject({ method: z.literal("accountLicenses") }),
   /** Forgets the sign-in token. Nothing is sent to the site. */
   z.strictObject({ method: z.literal("signOut") }),
@@ -495,6 +516,7 @@ export interface Results {
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;
+  forget: ForgetResult;
   demo: { project: AddedProject; result: DemoResult };
   storage: StorageResult;
   cleanStore: CleanStoreResult;

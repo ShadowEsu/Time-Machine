@@ -40,7 +40,7 @@
     <h1>Time Machine Privacy Policy</h1>
     <div class="banner" role="note">
       <strong>DRAFT. Not in effect. Needs lawyer review.</strong>
-      <p>Last updated: 22 October 2026.</p>
+      <p>Last updated: 28 October 2026.</p>
     </div>
 
     <p>Short version: your code never leaves your computer. We collect as little as we can, we never sell it, and secret values from config files like <code>.env</code> are never stored anywhere, even on your own machine. Only their key names and a fingerprint are kept.</p>
@@ -56,6 +56,7 @@
         <tbody>
           <tr><td>Email address</td><td>You join the waitlist</td><td>To write to you when the CLI is on npm</td></tr>
           <tr><td>Purchase record</td><td>You buy the web app key through Stripe</td><td>To issue your key and handle a refund</td></tr>
+          <tr><td>Sign-in record</td><td>You sign in on this site or in the web app</td><td>To send a one-time code, and to keep a record that you agreed to the Terms and this Privacy Policy</td></tr>
           <tr><td>Website visits</td><td>You visit the site</td><td>Cookieless, aggregate page counts. No ad tracking</td></tr>
           <tr><td>Support messages</td><td>You contact us</td><td>To help you</td></tr>
         </tbody>
@@ -68,7 +69,10 @@
     <p>To limit requests, we store a one-way code derived from your IP address, not the IP itself. Codes older than one hour are removed in batches during later requests.</p>
 
     <h2>Purchases <span class="tag tag-plan draft-tag">Draft</span></h2>
-    <p><strong>Draft, pending lawyer review. Checkout is not open yet.</strong> A purchase of the web app key goes through Stripe. This site never sees your card details. Stripe tells us that a checkout session was paid, and we issue a license key that holds an opaque purchase id, the plan and the issue date. The key holds no name and no email. The key is shown on the page Stripe sends you back to. To see it again, you sign in at <a href="account.html">/account</a> with a one-time code sent to the email you gave at checkout. That is the only email the site sends, and only when you ask for it. The sign-in token lives in your browser for that tab only. Stripe keeps its own record of the payment under <a href="https://stripe.com/privacy" rel="noopener">its privacy policy</a>.</p>
+    <p><strong>Draft, pending lawyer review. Checkout is not open yet.</strong> A purchase of the web app key goes through Stripe. This site never sees your card details. Before you buy, you tick a box to agree to the Terms and this Privacy Policy. Stripe's record of your purchase keeps when you agreed and which version of each you agreed to. Stripe tells us that a checkout session was paid, and we issue a license key that holds an opaque purchase id, the plan and the issue date. The key holds no name and no email. The key is shown on the page Stripe sends you back to. To see it again, you sign in at <a href="account.html">/account</a> with a one-time code sent to the email you gave at checkout. That is the only email the site sends, and only when you ask for it. The sign-in token lives in your browser for that tab only. Stripe keeps its own record of the payment under <a href="https://stripe.com/privacy" rel="noopener">its privacy policy</a>.</p>
+
+    <h2>Sign-in <span class="tag tag-plan draft-tag">Draft</span></h2>
+    <p><strong>Draft, pending lawyer review. Sign-in is not open yet.</strong> Before we send a sign-in code, on this site or in the web app, you tick a box to agree to the Terms and this Privacy Policy. When you sign in, your account in Supabase Auth keeps your email and a record that you agreed, with the time and which version of each you agreed to. Each sign-in writes that record again, so it shows your latest agreement.</p>
 
     <h2>3. What we never do</h2>
     <ul>
@@ -79,7 +83,7 @@
     </ul>
 
     <h2>4. Who we share with</h2>
-    <p>Only service providers that help us run Time Machine: Vercel, which hosts this site and its functions, Supabase, which holds the waitlist database, and Stripe, which processes payment once checkout opens. We will add any other provider here before we use it. We may share information if the law requires it.</p>
+    <p>Only service providers that help us run Time Machine: Vercel, which hosts this site and its functions, Supabase, which holds the waitlist database and sign-in accounts, and Stripe, which processes payment once checkout opens. We will add any other provider here before we use it. We may share information if the law requires it.</p>
 
     <h2>5. How long we keep it</h2>
     <p>Purchase records: for as long as tax and accounting law requires. Waitlist emails: until you ask us to delete yours, and we delete the whole list 6 months after launch.</p>

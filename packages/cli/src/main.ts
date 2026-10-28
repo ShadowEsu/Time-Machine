@@ -3,7 +3,7 @@ import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
-import { fmtCheckpoint, fmtDemo, fmtDiff, fmtDoctor, fmtFindGood, fmtHookInstall, fmtInit, fmtLicense, fmtList, fmtLog, fmtOpen, fmtRecover, fmtRelink, fmtRestore, fmtStatus, fmtThin, fmtTimeline, fmtUndoRecover, fmtVerify, makeStyle } from "./format.js";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtDoctor, fmtFindGood, fmtForget, fmtHookInstall, fmtInit, fmtLicense, fmtList, fmtLog, fmtOpen, fmtRecover, fmtRelink, fmtRestore, fmtStatus, fmtThin, fmtTimeline, fmtUndoRecover, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
 import { runUi } from "./ui/server.js";
@@ -53,6 +53,8 @@ Usage: tm <command> [options]
   init [--no-approve]   Create timemachine.yml with a guessed check, or keep yours, and approve
                         its check for the Claude Code plugin; --no-approve only writes the file
   status                Say if this project is set up and its check approved on this computer
+  forget                Take back this computer's approval and remove the hook lines tm added;
+                        save points stay
   demo [dir]            Build a broken demo project and watch it get rescued
   checkpoint [-m note]  Save a checkpoint of the project as it is now
                         --if-changed skips it when nothing changed, --trigger names the source
@@ -137,6 +139,7 @@ interface Spec {
 const COMMANDS: Record<string, Spec> = {
   init: { args: [0, 0], flags: ["no-approve", "project"], usage: "tm init [--no-approve]", about: "Protect this project: a Git repository gets timemachine.yml with a guessed check, a plain folder gets its settings in the store. Approves the check on this computer.", example: "tm init" },
   status: { args: [0, 0], flags: ["project"], usage: "tm status", about: "Say if this project is set up, where its settings are, and if its check is approved on this computer.", example: "tm status" },
+  forget: { args: [0, 0], flags: ["project"], usage: "tm forget", about: "Take back what tm init and tm hook install agreed to on this computer: the check's approval is removed, so the Claude Code plugin and the MCP check tools do nothing here, and the hook lines tm hook install added to .claude/settings.json are removed. Other tools' hooks stay. Save points stay in the store until you delete them. tm init sets it up again.", example: "tm forget" },
   checkpoint: { args: [0, 0], flags: ["message", "trigger", "if-changed", "project"], usage: "tm checkpoint [-m <note>] [--if-changed] [--trigger <source>]", about: "Save a checkpoint of the project as it is now. Every result lists what was not saved.", example: 'tm checkpoint -m "before the big rewrite"' },
   demo: { args: [0, 1], flags: [], usage: "tm demo [dir]", about: "Build a broken demo project and watch it get rescued.", example: "tm demo /tmp/marigold" },
   hook: { args: [1, 1], flags: ["if-initialized"], usage: "tm hook <install|prompt|pre-bash|stop> [--if-initialized]", about: "Add Claude Code hooks to .claude/settings.json (install), or run one hook, reading its JSON on stdin.", example: "tm hook install" },
@@ -246,6 +249,11 @@ export async function main(argv: string[], io: Io): Promise<number> {
           return 0;
         }
         print(r, fmtStatus(r));
+        return 0;
+      }
+      case "forget": {
+        const r = tm.forget(ctx);
+        print(r, fmtForget(r));
         return 0;
       }
       case "checkpoint": {

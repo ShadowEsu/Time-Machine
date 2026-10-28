@@ -7,7 +7,7 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import * as tm from "@timetm/core";
 import { z } from "zod";
-import type { AddedProject, AgentRow, AppEvent, Call, HookPreview, IsolationInfo, LicenseStatus, ProjectCheckConfig, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Res, Results, StorageResult, StoreProject } from "../shared/api.js";
+import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AddedProject, type AgentRow, type AppEvent, type Call, type HookPreview, type IsolationInfo, type LicenseStatus, type ProjectCheckConfig, type ProjectEntry, type ProjectPreview, type ProjectStatus, type Purpose, type Res, type Results, type StorageResult, type StoreProject } from "../shared/api.js";
 import { ASK_CONSENT_VERSION } from "../shared/ask.js";
 import { PRICING_URL } from "../shared/links.js";
 import { Account, siteFromEnv } from "./account.js";
@@ -523,12 +523,19 @@ export class Engine {
       case "setFeature": {
         // Works for a moved project too, so a feature can always be turned off.
         const c = call.change;
-        // Turning Ask on records what was agreed: when, which consent text and the service the keys point at now.
-        // Turning it off keeps that record, so the last agreement can still be shown.
-        const askConsent = c.feature === "ask" && c.enabled ? { at: new Date().toISOString(), version: ASK_CONSENT_VERSION, provider: this.services.credentials.status().provider } : undefined;
+        // Turning Ask on, or linking a Vercel project, records what was agreed: when and which text (for Ask, also the
+        // service the keys point at now). Turning it off or unlinking keeps that record, so the last agreement can be shown.
+        const at = new Date().toISOString();
+        const askConsent = c.feature === "ask" && c.enabled ? { at, version: ASK_CONSENT_VERSION, provider: this.services.credentials.status().provider } : undefined;
+        const vercelConsent = c.feature === "vercel" && c.link ? { at, version: VERCEL_CONSENT_VERSION } : undefined;
         const p = this.state.updateProject(call.projectId, (x) => ({
           ...x,
-          features: c.feature === "ask" ? { ...x.features, ask: c.enabled, ...(askConsent ? { askConsent } : {}) } : c.feature === "vercel" ? { ...x.features, vercel: c.link } : { ...x.features, autoSave: c.autoSave },
+          features:
+            c.feature === "ask"
+              ? { ...x.features, ask: c.enabled, ...(askConsent ? { askConsent } : {}) }
+              : c.feature === "vercel"
+                ? { ...x.features, vercel: c.link, ...(vercelConsent ? { vercelConsent } : {}) }
+                : { ...x.features, autoSave: c.autoSave },
         }));
         if (!p) throw new tm.TmError("not_found", "That project is no longer in the list.");
         if (c.feature === "vercel") this.vercel.forget();
@@ -552,9 +559,9 @@ export class Engine {
       case "siteStatus":
         return this.account.siteStatus();
       case "signIn":
-        return this.account.signIn(call.email);
+        return this.account.signIn(call.email, { agreed: call.agreed, termsVersion: call.termsVersion, privacyVersion: call.privacyVersion });
       case "verifyCode":
-        return this.account.verifyCode(call.email, call.code);
+        return this.account.verifyCode(call.email, call.code, { agreed: call.agreed, termsVersion: call.termsVersion, privacyVersion: call.privacyVersion });
       case "accountLicenses":
         return this.account.accountLicenses();
       case "signOut":
@@ -599,8 +606,9 @@ export class Engine {
         // Not queued behind a running check: a note is one small file in the store, written atomically.
         return tm.setNote(ctx, { id: call.id, title: call.title, note: call.note, pinned: call.pinned });
       case "deployments": {
+        // Nothing is read from Vercel unless the link was made under the current read-only note.
         const link = p.features.vercel;
-        if (!link) return null;
+        if (!link || !vercelConsentValid(p.features)) return null;
         const [read, t] = await Promise.all([this.vercel.deployments(link), tm.timeline(ctx)]);
         return matchDeployments(link, t.checkpoints, read.value, new Date(read.at).toISOString());
       }
@@ -676,6 +684,9 @@ export class Engine {
           }
           return tm.hookInstall(ctx, { command: h.command });
         });
+      case "forget":
+        // tm forget: the check's approval and our hook lines go; other tools' hooks and the save points stay.
+        return this.serial(p.id, "Disconnecting Claude Code", async () => tm.forget(ctx));
       case "cleanStore":
         if (!call.apply) return tm.cleanStore(ctx, { apply: false });
         return this.serial(p.id, "Cleaning up", () => tm.cleanStore(ctx, { apply: true, files: call.files ?? [] }));

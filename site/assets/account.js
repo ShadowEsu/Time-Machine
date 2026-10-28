@@ -1,5 +1,7 @@
 /* Sign in with a one-time email code to see your web app keys again.
-   The token from /api/auth lives in sessionStorage only, for this tab. Keys are shown, never stored or logged. */
+   The token from /api/auth lives in sessionStorage only, for this tab. Keys are shown, never stored or logged.
+   No code is asked for until the Terms and Privacy box is ticked. Both calls to /api/auth send the versions the box
+   names (its data-terms-version and data-privacy-version), and the server records them. */
 (function () {
   "use strict";
 
@@ -12,6 +14,8 @@
     checkoutClosed: "Checkout is not open yet, so there are no purchases to sign in to.",
     email: "Please enter a valid email address.",
     code: "Please enter the 6-digit code from the email.",
+    agree: "Please tick the box to get a code.",
+    outdated: "The Terms or Privacy changed since this page loaded. Reload the page, read them, and tick the box again.",
     sending: "Sending the code…",
     sent: "We sent a 6-digit code to ",
     checking: "Checking the code…",
@@ -30,6 +34,14 @@
   var keys = document.querySelector("[data-account-keys]");
   if (!status || !sendForm || !verifyForm || !keys) return;
   var emailField = sendForm.querySelector('input[name="email"]');
+  var agreeBox = sendForm.querySelector('input[name="agree"]');
+  if (!agreeBox) return;
+  // Why the box stopped a send is said right under it (Design, 28 Oct), not in the status line above the form.
+  var agreeNote = sendForm.querySelector("[data-account-agree-note]");
+  agreeBox.addEventListener("change", function () {
+    agreeBox.removeAttribute("aria-invalid");
+    if (agreeNote) agreeNote.textContent = "";
+  });
   var codeField = verifyForm.querySelector('input[name="code"]');
   var sentLine = verifyForm.querySelector("[data-account-sent]");
   var list = keys.querySelector("[data-account-list]");
@@ -37,6 +49,8 @@
   var script = document.currentScript || document.querySelector('script[src*="account.js"]');
   var api = function (path) { return new URL("../api/" + path, script ? script.src : location.href).href; };
   var email = "";
+  // What the ticked box agreed to, sent again with the code.
+  var agreement = null;
 
   function store(value) {
     try {
@@ -90,8 +104,28 @@
       .then(function (r) { clearTimeout(timer); return r; }, function () { clearTimeout(timer); return { status: 0, data: {} }; });
   }
 
+  // Marks the box, moves focus to it and says why nothing was sent: under the box while it shows, else in the status line.
+  function refuse(text) {
+    agreeBox.setAttribute("aria-invalid", "true");
+    if (agreeNote && !sendForm.hidden) {
+      say("");
+      agreeNote.textContent = text;
+    } else say(text, "error");
+    agreeBox.focus();
+  }
+
+  // A POST to /api/auth that carries what the box agreed to.
+  function authBody(body, agreed) {
+    body.agreed = agreed.agreed;
+    body.termsVersion = agreed.termsVersion;
+    body.privacyVersion = agreed.privacyVersion;
+    return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  }
+
   function messageFor(r) {
     if (r.status === 0) return MSG.network;
+    if (r.status === 400 && r.data.error === "agreement_required") return MSG.agree;
+    if (r.status === 400 && r.data.error === "agreement_outdated") return MSG.outdated;
     if (r.status === 401) return MSG.badCode;
     if (r.status === 429) return MSG.rateLimited;
     if (r.status === 503 && r.data.error === "auth_closed") return MSG.closed;
@@ -181,18 +215,24 @@
     var value = emailField.value.trim();
     if (!value || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) { emailField.setAttribute("aria-invalid", "true"); emailField.focus(); return say(MSG.email, "error"); }
     emailField.removeAttribute("aria-invalid");
+    if (!agreeBox.checked) return refuse(MSG.agree);
+    agreeBox.removeAttribute("aria-invalid");
+    if (agreeNote) agreeNote.textContent = "";
+    var agreed = { agreed: true, termsVersion: agreeBox.getAttribute("data-terms-version"), privacyVersion: agreeBox.getAttribute("data-privacy-version") };
     busy(sendForm, true);
     say(MSG.sending, "pending");
-    call("auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", email: value }) }).then(function (r) {
+    call("auth", authBody({ action: "send", email: value }, agreed)).then(function (r) {
       busy(sendForm, false);
       if (r.status === 200 && r.data.ok === true) {
         email = value;
+        agreement = agreed;
         sentLine.textContent = MSG.sent + email + ".";
         codeField.value = "";
         say("");
         show("verify");
         codeField.focus();
       } else {
+        if (r.status === 400 && /^agreement_/.test(r.data.error)) return refuse(messageFor(r));
         say(messageFor(r), "error");
       }
     });
@@ -205,12 +245,15 @@
     codeField.removeAttribute("aria-invalid");
     busy(verifyForm, true);
     say(MSG.checking, "pending");
-    call("auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify", email: email, code: code }) }).then(function (r) {
+    call("auth", authBody({ action: "verify", email: email, code: code }, agreement)).then(function (r) {
       busy(verifyForm, false);
       var token = r.data.token;
       if (r.status === 200 && r.data.ok === true && typeof token === "string" && TOKEN_RE.test(token)) {
         store(token);
         load(token);
+      } else if (r.status === 400 && /^agreement_/.test(r.data.error)) {
+        show("send");
+        refuse(messageFor(r));
       } else {
         say(messageFor(r), "error");
         codeField.focus();
@@ -218,6 +261,7 @@
     });
   });
 
+  agreeBox.addEventListener("change", function () { agreeBox.removeAttribute("aria-invalid"); });
   verifyForm.querySelector("[data-account-back]").addEventListener("click", function () { show("send"); say(""); emailField.focus(); });
   keys.querySelector("[data-account-signout]").addEventListener("click", signOut);
 

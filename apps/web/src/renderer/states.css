@@ -128,6 +128,10 @@
 .si-form { display: grid; gap: 8px; }
 .si-form .set-keyin { margin-top: 4px; }
 .si-form .row-btns { gap: 4px 18px; }
+/* The unticked Terms and Privacy box under the email: nothing is sent until it is ticked. */
+.si-agree { display: flex; gap: 10px; align-items: flex-start; margin-top: 4px; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); cursor: pointer; }
+.si-agree input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ink); cursor: pointer; }
+.si-agree input[aria-invalid="true"] { outline: 2px solid var(--broken); outline-offset: 2px; }
 .set-keyin .si-code { flex: 0 1 180px; letter-spacing: .3em; font-variant-numeric: tabular-nums; }
 .si-keys { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
 .si-key { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }

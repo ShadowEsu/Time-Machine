@@ -1,8 +1,13 @@
 // Vercel deploys on the timeline (ADR 0009). Read only, matched to save points by commit,
 // never by time. Every test injects fetch, so nothing here touches the network.
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { setupDemo, tempDir } from "../../../fixtures/demo/setup.ts";
+import { Credentials, type Cipher } from "../src/server/credentials.ts";
+import { Engine } from "../src/server/engine.ts";
+import { AppState } from "../src/server/state.ts";
 import { matchDeployments, Vercel, vercelRequest, type FetchInit, type FetchLike, type VercelIo } from "../src/server/vercel.ts";
-import type { VercelDeployment, VercelLink } from "../src/shared/api.ts";
+import { VERCEL_CONSENT_VERSION, type ProjectEntry, type VercelDeployment, type VercelLink } from "../src/shared/api.ts";
 import { z } from "zod";
 import { FakeEngine } from "../preview/fake.ts";
 
@@ -321,5 +326,44 @@ describe("Vercel in the browser preview", () => {
     }
     await fake.call({ method: "setFeature", projectId, change: { feature: "vercel", link: null } });
     expect(await fake.call({ method: "deployments", projectId })).toEqual({ ok: true, data: null });
+  });
+});
+
+describe("the engine records what was agreed when a project is linked", () => {
+  const noCipher: Cipher = { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => "" };
+
+  test("a link from before consent records reads nothing from Vercel; linking again records the note's version and reads", async () => {
+    const { dir, ctx } = await setupDemo();
+    const appDir = join(tempDir("app"), "data");
+    const state = new AppState(appDir);
+    const entry: ProjectEntry = { id: "6e7f8091-2b3c-4d5e-9f0a-1b2c3d4e5f60", path: dir, name: "marigold", addedAt: "2026-10-16T00:00:00Z", demo: true, features: { ask: false, vercel: LINK, autoSave: "off" }, kind: "git", purpose: "code" };
+    state.updateProjects((list) => [...list, entry]);
+    const { fetch, sent } = fakeFetch({ "/v7/deployments": () => ({ body: { deployments: [], pagination: { count: 0, next: null, prev: null } } }) });
+    // The engine hands its fetch only to the Vercel client here, which uses FetchLike's subset (ok, status, json).
+    const engineFetch = fetch as unknown as typeof globalThis.fetch;
+    const engine = new Engine(state, { candidates: ["false"], version: "9.9.9" }, { credentials: new Credentials(join(dir, "..", "credentials.json"), noCipher, { VERCEL_TOKEN: TOKEN }), fetch: engineFetch });
+    const before = process.env.TM_HOME;
+    process.env.TM_HOME = ctx.tmHome;
+    try {
+      // Linked in a file written before records existed: no request leaves the Mac.
+      expect(await engine.run({ method: "deployments", projectId: entry.id })).toEqual({ ok: true, data: null });
+      expect(sent).toHaveLength(0);
+      // Linking again stores when and which note, read back from disk, and deploys are read.
+      expect((await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "vercel", link: LINK } })).ok).toBe(true);
+      const stored = new AppState(appDir).find(entry.id)?.features;
+      expect(stored).toMatchObject({ vercel: LINK, vercelConsent: { version: VERCEL_CONSENT_VERSION } });
+      expect(Number.isNaN(Date.parse(stored?.vercelConsent?.at ?? ""))).toBe(false);
+      const read = await engine.run({ method: "deployments", projectId: entry.id });
+      expect(read.ok && read.data).toMatchObject({ link: LINK });
+      expect(sent.map((s) => s.url.pathname)).toEqual(["/v7/deployments"]);
+      // Unlinking stops reads and keeps the record of the last agreement.
+      await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "vercel", link: null } });
+      expect(new AppState(appDir).find(entry.id)?.features).toMatchObject({ vercel: null, vercelConsent: { version: VERCEL_CONSENT_VERSION } });
+      expect(await engine.run({ method: "deployments", projectId: entry.id })).toEqual({ ok: true, data: null });
+      expect(sent).toHaveLength(1);
+    } finally {
+      if (before === undefined) delete process.env.TM_HOME;
+      else process.env.TM_HOME = before;
+    }
   });
 });
