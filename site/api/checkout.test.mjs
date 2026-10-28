@@ -15,7 +15,7 @@ const created = () => json({ id: "cs_test_synthetic", object: "checkout.session"
 // A fixed clock for the session's expiry time.
 const NOW = Date.UTC(2026, 9, 23, 17, 0, 0);
 
-// The current box was ticked to agree to the Terms and confirm the Privacy notice was read.
+// The current box was ticked to agree to the Terms and confirm the Privacy Policy was read.
 const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION };
 
 function request(overrides = {}, body = AGREED) {
@@ -221,7 +221,7 @@ describe("checkout handler", () => {
     expect(script).toContain(`var BOX_VERSION = "${BOX_VERSION}";`);
     expect(script).toContain('box.setAttribute("data-box-version", BOX_VERSION)');
     expect(script).toContain('boxVersion: box.getAttribute("data-box-version")');
-    for (const words of ['"I agree to the "', 'link("terms.html", "Terms (draft)")', '" and have read the "', 'link("privacy.html", "Privacy notice (draft)")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
+    for (const words of ['"I agree to the "', 'link("terms.html", "Terms (draft)")', '" and have read the "', 'link("privacy.html", "Privacy Policy (draft)")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
     expect(script).not.toMatch(/box\.checked = true/);
     expect(script).toContain("agreement_outdated");
   });

@@ -50,7 +50,7 @@
   words.appendChild(document.createTextNode("I agree to the "));
   words.appendChild(link("terms.html", "Terms (draft)"));
   words.appendChild(document.createTextNode(" and have read the "));
-  words.appendChild(link("privacy.html", "Privacy notice (draft)"));
+  words.appendChild(link("privacy.html", "Privacy Policy (draft)"));
   words.appendChild(document.createTextNode(". I am 18 or older, or I am the parent or guardian paying."));
   agree.appendChild(box);
   agree.appendChild(words);

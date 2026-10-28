@@ -1,4 +1,4 @@
-// The Terms a person agrees to and Privacy notice they have read before sign-in and checkout.
+// The Terms a person agrees to and Privacy Policy they have read before sign-in and checkout.
 // A page version names that page's "Last updated" date, with a letter suffix when its words change twice on one day.
 // BOX_VERSION names the box wording. Every box sends all three versions, so an older page or app is refused and says why.
 import { reply } from "./waitlist.js";

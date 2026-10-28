@@ -91,7 +91,7 @@ const SessionSchema = z.object({
 
 /**
  * POST {agreed: true, termsVersion, privacyVersion, boxVersion} starts a Checkout Session and returns its link. The body is the box
- * before Buy, ticked to agree to the Terms and confirm the Privacy notice was read (agreement.js); without it Stripe is never called.
+ * before Buy, ticked to agree to the Terms and confirm the Privacy Policy was read (agreement.js); without it Stripe is never called.
  * When, which page versions and which box wording were shown go in the session's metadata.
  * @param {{ method: string, origin?: string|null, host?: string|null, ip?: string|null,
  *           contentLength?: string|null, readBody: (maxBytes: number) => Promise<string> }} req

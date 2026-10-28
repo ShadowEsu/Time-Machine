@@ -11,7 +11,7 @@ const HOST = "timemachine.example.test";
 const EMAIL = "Buyer@Example.test";
 const NORMALIZED = "buyer@example.test";
 const TOKEN = "synthetic.access.token-0123456789";
-// The current box was ticked to agree to the Terms and confirm the Privacy notice was read.
+// The current box was ticked to agree to the Terms and confirm the Privacy Policy was read.
 const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION };
 const SEND = { action: "send", email: EMAIL, ...AGREED };
 const NOW = Date.UTC(2026, 9, 28, 9, 30, 0);
@@ -187,7 +187,7 @@ describe("auth handler", () => {
     expect(box[1]).toContain(`data-terms-version="${TERMS_VERSION}"`);
     expect(box[1]).toContain(`data-privacy-version="${PRIVACY_VERSION}"`);
     expect(box[1]).toContain(`data-box-version="${BOX_VERSION}"`);
-    expect(box[2]).toBe('I agree to the <a href="terms.html">Terms (draft)</a> and have read the <a href="privacy.html">Privacy notice (draft)</a>. I am 13 or older.');
+    expect(box[2]).toBe('I agree to the <a href="terms.html">Terms (draft)</a> and have read the <a href="privacy.html">Privacy Policy (draft)</a>. I am 13 or older.');
     // Why a send was refused is said right under the box, and the box names it (Design, 28 Oct).
     const note = box[1].match(/aria-describedby="([^"]+)"/)?.[1];
     expect(note).toBeTruthy();

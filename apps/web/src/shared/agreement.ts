@@ -1,4 +1,4 @@
-// The Terms someone agrees to and Privacy notice they have read by ticking the box before Send code. The site's /api/auth refuses
+// The Terms someone agrees to and Privacy Policy they have read by ticking the box before Send code. The site's /api/auth refuses
 // a sign-in without that box, and records these versions. No Zod here, so the window bundle stays small.
 import { SITE_HOST } from "./links.js";
 

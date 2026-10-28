@@ -88,7 +88,7 @@ describe("Plan", () => {
       expect(box).toContain('data-model="signin-agree"');
       expect(box).not.toMatch(/\bchecked\b/);
       expect(box).toContain('aria-invalid="false"');
-      expect(email).toContain('I agree to the <button type="button" class="ft-link" data-act="signin-terms">Terms (draft)</button> and have read the <button type="button" class="ft-link" data-act="signin-privacy">Privacy notice (draft)</button>. I am 13 or older.');
+      expect(email).toContain('I agree to the <button type="button" class="ft-link" data-act="signin-terms">Terms (draft)</button> and have read the <button type="button" class="ft-link" data-act="signin-privacy">Privacy Policy (draft)</button>. I am 13 or older.');
       // Under the email field, inside the form Send code submits.
       expect(email.indexOf('id="signin-email"')).toBeLessThan(email.indexOf('id="signin-agree"'));
       expect(email.indexOf('id="signin-agree"')).toBeLessThan(email.indexOf("</form>"));
