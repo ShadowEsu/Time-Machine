@@ -3,7 +3,7 @@ import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
-import { fmtCheckpoint, fmtDemo, fmtDiff, fmtDoctor, fmtFindGood, fmtHookInstall, fmtInit, fmtLicense, fmtList, fmtLog, fmtOpen, fmtRecover, fmtRelink, fmtRestore, fmtStatus, fmtThin, fmtTimeline, fmtVerify, makeStyle } from "./format.js";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtDoctor, fmtFindGood, fmtHookInstall, fmtInit, fmtLicense, fmtList, fmtLog, fmtOpen, fmtRecover, fmtRelink, fmtRestore, fmtStatus, fmtThin, fmtTimeline, fmtUndoRecover, fmtVerify, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
 import { runUi } from "./ui/server.js";
@@ -62,6 +62,7 @@ Usage: tm <command> [options]
   verify [cp]           Run the check on a checkpoint (default: newest)
   find-good             Find the newest checkpoint that passes
   recover <cp> [--to f] Make a recovery branch and copy (in folder f if given). Never pushes
+  recover --undo <cp>   Remove a recovery's branch and copy, only while nothing in them changed
   restore <cp> [--dry-run] -- <path>...
                         Put files or folders back from a save point into your folder; saves first
   relink <old> <new>    A project's folder moved: keep its history at the new path
@@ -102,10 +103,11 @@ const OPTIONS = {
   "no-approve": { type: "boolean" },
   remove: { type: "boolean" },
   "dry-run": { type: "boolean" },
+  undo: { type: "boolean" },
 } as const satisfies ParseArgsConfig["options"];
 
 type Flag = Exclude<keyof typeof OPTIONS, "json" | "help" | "version">;
-const FLAGS: readonly Flag[] = ["project", "message", "trigger", "dir", "to", "apply", "if-changed", "if-initialized", "port", "no-open", "no-approve", "remove", "dry-run"];
+const FLAGS: readonly Flag[] = ["project", "message", "trigger", "dir", "to", "apply", "if-changed", "if-initialized", "port", "no-open", "no-approve", "remove", "dry-run", "undo"];
 
 const FLAG_HELP: Record<Flag, string> = {
   project: "-C, --project <path>  The project's folder, even one that was moved or deleted (default: here)",
@@ -121,6 +123,7 @@ const FLAG_HELP: Record<Flag, string> = {
   "no-approve": "--no-approve          Write or keep timemachine.yml, but do not approve its check",
   remove: "--remove              Forget the license on this computer",
   "dry-run": "--dry-run             Say what would come back, and write nothing",
+  undo: "--undo                Undo a recovery instead: <cp>, its branch, or its copy's folder",
 };
 
 interface Spec {
@@ -144,7 +147,7 @@ const COMMANDS: Record<string, Spec> = {
   open: { args: [1, 1], flags: ["dir", "project"], usage: "tm open <cp> [--dir <folder>]", about: "Rebuild a save point in a separate folder. Your folder is not touched. Exits 2 when something saved is missing.", example: "tm open cp-0003 --dir ~/Desktop/thesis-cp-0003" },
   verify: { args: [0, 1], flags: ["project"], usage: "tm verify [cp]", about: "Run the project's check on a save point in a separate copy (default: the newest).", example: "tm verify cp-0004" },
   "find-good": { args: [0, 0], flags: ["project"], usage: "tm find-good", about: "Check save points from the newest back until one passes.", example: "tm find-good" },
-  recover: { args: [1, 1], flags: ["to", "project"], usage: "tm recover <cp> [--to <folder>]", about: "Bring a save point back as a recovery copy (and a branch, for Git). Saves the current state first. Never pushes. Works for a folder that was moved or deleted too.", example: "tm recover cp-0003 -C ~/Documents/Thesis --to ~/Desktop" },
+  recover: { args: [1, 1], flags: ["to", "undo", "project"], usage: "tm recover <cp> [--to <folder>]   or   tm recover --undo <cp | branch | copy folder>", about: "Bring a save point back as a recovery copy (and a branch, for Git). Saves the current state first. Never pushes. Works for a folder that was moved or deleted too. --undo removes a recovery's branch and copy again, but only while both are as the recovery left them; it never touches your folder, your branch or a save point.", example: "tm recover cp-0003 -C ~/Documents/Thesis --to ~/Desktop" },
   restore: { args: [2, Infinity], flags: ["dry-run", "project"], usage: "tm restore <cp> [--dry-run] -- <path> [<path>...]", about: "Put files or folders back from a save point into your folder. Paths are relative to the project's folder; a folder brings back everything saved under it. Your folder is saved first, so what this replaces stays in the history. Nothing is deleted: files the save point lacks are kept. A Git project gets files only, nothing committed. Exits 2 when a path was skipped.", example: "tm restore cp-0003 -- chapter-1.md notes/" },
   relink: { args: [2, 2], flags: [], usage: "tm relink <old path> <new path>", about: "A project's folder moved: point Time Machine at the new path. Its save points, settings and notes come along.", example: "tm relink ~/Documents/Thesis ~/Dropbox/Thesis" },
   list: { args: [0, 0], flags: [], usage: "tm list", about: "List every project in the store: its path, kind, save points and size, and whether its folder is gone.", example: "tm list" },
@@ -286,6 +289,27 @@ export async function main(argv: string[], io: Io): Promise<number> {
       }
       case "recover": {
         const to = str(values.to);
+        if (values.undo === true) {
+          if (to !== undefined) throw new UsageError("--to does not apply with --undo.");
+          const target = args[0] ?? "";
+          const branchMatch = /^tm\/recover\/(cp-\d+)(-\d+)?$/.exec(target);
+          let found = tm.recoveries(ctx, /^cp-\d+$/.test(target) ? target : branchMatch?.[1]);
+          if (branchMatch) found = found.filter((x) => x.branch === target);
+          else if (!/^cp-\d+$/.test(target)) {
+            const dir = resolve(io.cwd, target);
+            const real = existsSync(dir) ? realpathSync(dir) : dir;
+            found = found.filter((x) => x.copyDir === real);
+          }
+          const one = found[0];
+          if (!one) throw new tm.TmError("not_found", `There is no recovery of ${target} to undo. tm log lists the recoveries that were made.`);
+          if (found.length > 1) {
+            const listed = found.map((x) => `  ${x.branch || x.copyDir}${x.branch && x.copyDir ? `   copy ${x.copyDir}` : ""}`).join("\n");
+            throw new UsageError(`${target} has ${found.length} recoveries. Name the one to undo by its branch or copy folder:\n${listed}`);
+          }
+          const r = await tm.undoRecover(ctx, one);
+          print(r, fmtUndoRecover(r));
+          return 0;
+        }
         const r = await tm.recover(ctx, args[0] ?? "", to !== undefined ? { dest: resolve(io.cwd, to) } : {});
         print(r, fmtRecover(r));
         return complete(r.missing);

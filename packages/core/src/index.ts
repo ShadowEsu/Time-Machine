@@ -20,7 +20,7 @@ export { verify } from "./verify.js";
 export { checkLogTail, TAIL_READ_BYTES, type LogTail } from "./logTail.js";
 export { checkRecord } from "./checkRecord.js";
 export { findGood, type FindGoodOptions } from "./findGood.js";
-export { recover, undoRecover } from "./recover.js";
+export { recover, recoveries, undoRecover } from "./recover.js";
 export { restorePaths } from "./restore.js";
 export { auditAutoSaveFailed, log } from "./audit.js";
 export { CLAUDE_PLUGIN_ID, claudePluginStatus, hookStatus, runHook, isRisky, NPM_PUBLISHED, npxHookCandidates, npxHookCommand, probeHookCommand, probePluginTm, shellQuote, TM_HELP_MARKER, type ClaudePluginStatus, type HookState, type HookStatusResult } from "./hooks.js";

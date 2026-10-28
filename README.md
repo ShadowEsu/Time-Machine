@@ -141,6 +141,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | `tm verify cp-0003` | Runs your check there and records a verdict |
 | `tm find-good` | Walks back until a save point passes |
 | `tm recover cp-0003` | Saves your current state first, then makes branch `tm/recover/cp-0003` and a recovery copy |
+| `tm recover --undo cp-0003` | Undoes that recovery: removes its branch and recovery copy, but only while neither changed. Never touches your folder, your branch or a save point. With two recoveries of one save point, name the branch or the copy folder |
 | `tm restore cp-0003 -- src/app.js` | Puts files or folders back into your folder from a save point. Saves your folder first, deletes nothing, commits nothing. `--dry-run` writes nothing |
 | `tm relink <old> <new>` | The project's folder moved: keeps its save points, settings, notes and checks at the new path |
 | `tm list` | Lists every project in the store, with its save points and size, and says when a folder is gone |

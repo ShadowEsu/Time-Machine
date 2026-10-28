@@ -96,9 +96,11 @@ describe("plain folder projects", () => {
     expect(readFileSync(join(dir, "chapters", "01-intro.md"), "utf8")).toContain("Rewritten.");
     expect(existsSync(join(dir, ".git"))).toBe(false);
 
-    // Undo removes only the copy: there is no branch.
+    // Undo removes only the copy: there is no branch. recoveries() finds it, and forgets it once undone.
+    expect(tm.recoveries(ctx, r.id)).toEqual([{ id: "cp-0001", branch: "", copyDir: r.copyDir }]);
     const u = await tm.undoRecover(ctx, { id: r.id, branch: "", copyDir: r.copyDir });
     expect(u).toEqual({ id: "cp-0001", removedBranch: "", removedCopy: r.copyDir });
+    expect(tm.recoveries(ctx)).toEqual([]);
     expect(existsSync(r.copyDir)).toBe(false);
     expect(listing(dir)).toEqual(before);
   });

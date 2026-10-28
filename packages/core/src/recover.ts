@@ -178,6 +178,25 @@ function worktrees(p: Project): { dir: string; branch: string | null; head: stri
   return out;
 }
 
+/**
+ * The recoveries that undoRecover could still undo, oldest first: each recovery branch `tm/recover/<cp>[-N]` with its
+ * recovery copy (`copyDir` is "" when that copy is gone), or for a plain folder each recorded recovery copy.
+ * `id` limits it to one save point. It only reads; undoRecover still checks that nothing changed before removing anything.
+ */
+export function recoveries(ctx: Ctx, id?: string): { id: string; branch: string; copyDir: string }[] {
+  const p = resolveProject(ctx);
+  if (p.kind === "folder") return readCopies(p).filter((c) => id === undefined || c.id === id).map((c) => ({ id: c.id, branch: "", copyDir: c.dir }));
+  const trees = worktrees(p);
+  const out: { id: string; branch: string; copyDir: string }[] = [];
+  for (const ref of splitZ(git(p.root, p.env, ["for-each-ref", "--sort=creatordate", "--format=%(refname)%00", "refs/heads/tm/recover/"]))) {
+    const branch = ref.trim().replace(/^refs\/heads\//, "");
+    const m = /^tm\/recover\/(cp-\d+)(-\d+)?$/.exec(branch);
+    if (!m?.[1] || (id !== undefined && m[1] !== id)) continue;
+    out.push({ id: m[1], branch, copyDir: trees.find((w) => w.branch === `refs/heads/${branch}` && w.dir !== real(p.root))?.dir ?? "" });
+  }
+  return out;
+}
+
 /** Each file a recovery wrote and its hash: the saved files, and a config file rewritten with its plain values. */
 function writtenFiles(m: Manifest): Map<string, string> {
   const written = new Map(m.files.map((f) => [f.path, f.sha256]));

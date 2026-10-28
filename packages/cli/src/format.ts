@@ -1,6 +1,6 @@
 // Human output. Every line is built from the same result object the --json flag prints,
 // so the two can never disagree.
-import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, Verdict, VerifyResult } from "@timetm/core";
+import type { CheckpointResult, DemoResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, UndoRecoverResult, Verdict, VerifyResult } from "@timetm/core";
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -187,6 +187,15 @@ export function fmtRestore(r: RestoreResult): string {
     ...list(`Kept (not in ${r.id}, left as they are)`, r.kept),
     ...list("Skipped", r.skipped),
     ...(r.note ? [r.note] : []),
+  ].join("\n");
+}
+
+export function fmtUndoRecover(r: UndoRecoverResult): string {
+  return [
+    `Undid the recovery of ${r.id}.`,
+    ...(r.removedBranch ? [`  Removed branch  ${r.removedBranch}`] : []),
+    r.removedCopy ? `  Removed copy    ${r.removedCopy}` : "  The recovery copy was already gone.",
+    "Your folder, your branch and every save point were not touched.",
   ].join("\n");
 }
 
