@@ -4,7 +4,7 @@
 import { reply } from "./waitlist.js";
 
 export const TERMS_VERSION = "terms-2026-10-22";
-export const PRIVACY_VERSION = "privacy-2026-10-22";
+export const PRIVACY_VERSION = "privacy-2026-10-28";
 
 /**
  * A 400 reply when the body did not agree to the current Terms and Privacy Policy, or null when it did.
