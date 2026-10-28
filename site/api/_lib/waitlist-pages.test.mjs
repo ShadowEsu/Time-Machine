@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { WAITLIST_CONSENT_VERSION } from "./waitlist.js";
 
 // Consent is only what the person ticked (ledger 299, Security T1): every waitlist form on the site carries its own
 // unticked, required consent box. waitlist.js refuses to send from a form without one.
@@ -32,6 +33,8 @@ describe("waitlist forms", () => {
     expect(box).toContain('type="checkbox"');
     expect(box).toMatch(/\brequired\b/);
     expect(box).not.toMatch(/\bchecked\b/);
+    // The value is the wording's version the server accepts, so a tick is recorded against these words (T2).
+    expect(box).toContain(`value="${WAITLIST_CONSENT_VERSION}"`);
     expect(body).toMatch(/<label class="wl-consent"><input\b[^>]*name="consent"[^>]*><span>Email me when the CLI is on npm\. Nothing else\.<\/span><\/label>/);
   });
 });

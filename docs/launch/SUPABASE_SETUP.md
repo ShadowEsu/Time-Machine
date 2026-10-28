@@ -12,7 +12,7 @@ Each signup is saved as pending and unconfirmed. The site sends no email. Pendin
 
 ## What gets stored
 
-- **Each signup:** the email, the consent tick, the page they signed up from, the time, their own referral code, the referral code that brought them (if any), and confirmation and unsubscribe times. Both times stay empty for a site signup.
+- **Each signup:** the email, the consent tick, which words by the box were ticked (a dated version such as `waitlist-2026-10-28`), the page they signed up from, the time, their own referral code, the referral code that brought them (if any), and confirmation and unsubscribe times. Both times stay empty for a site signup.
 - **Funnel counts:** the event type (visit, share or copy), the page path, whether the visit came from a referral link, and the time. No email and no code.
 - **Never stored:** IP addresses, browser details, cookies, tokens.
 - **Abuse controls:** a code derived from the IP using HMAC, the endpoint bucket and the time. Only the last hour counts. Older codes are removed in batches during later accepted requests, not on a schedule. No raw IP reaches Supabase.
@@ -399,6 +399,8 @@ Then run [`supabase/migrations/0005_bounded_public_rpcs.sql`](../../supabase/mig
 Next run [`supabase/migrations/0006_per_client_limits.sql`](../../supabase/migrations/0006_per_client_limits.sql) **before** deploying the site API that sends `p_client`. Per client: 5 signup calls/minute and 20/hour, 30 status lookups/minute, 60 events/minute. The API derives a 22-character HMAC code from Vercel's client IP using `SUPABASE_KEY`; it sends only that code to Supabase. New and duplicate signups use the same quota. Over quota returns `429 rate_limited` with `Retry-After: 60`. Counts and inserts run under transaction advisory locks. The `client_calls` table has RLS enabled and no public grants.
 
 The new optional parameter lets the old API keep working during rollout. A missing IP skips the per-client bucket. Direct PostgREST callers can omit or forge the parameter; the global `0005` caps still bind them. Unkeyed health lookups remain read-only. To roll back the API, redeploy its previous version and keep `0006` installed. See [RPC limits and rollback](../../supabase/README.md#public-rpc-limits-and-rollback).
+
+Then run [`supabase/migrations/0007_consent_text_version.sql`](../../supabase/migrations/0007_consent_text_version.sql) **right before** deploying the site API that sends `p_consent_version`. It records which words by the box each person ticked (rows from before it say `unrecorded`) and refuses a signup without a well-formed version, direct PostgREST callers included. It replaces the `0006` signature, so signups through the old API fail until the new one is live. Rollback: [supabase/README.md](../../supabase/README.md#1-apply-migrations-0001-to-0007).
 
 
 ## 2. Let the API see the schema
