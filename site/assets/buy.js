@@ -9,7 +9,7 @@
   var CONTACT = "preston@unvibe.site";
   // Must equal TERMS_VERSION and PRIVACY_VERSION in site/api/_lib/agreement.js (a test keeps them equal).
   var TERMS_VERSION = "terms-2026-10-22";
-  var PRIVACY_VERSION = "privacy-2026-10-22";
+  var PRIVACY_VERSION = "privacy-2026-10-28";
   var MSG = {
     soon: "The price is set. Checkout is not open yet, so nothing is for sale today.",
     starting: "Opening checkout…",
