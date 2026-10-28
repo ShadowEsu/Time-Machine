@@ -4,6 +4,7 @@
 // error or a result. Quitting the app signs out.
 import * as tm from "@timetm/core";
 import { z } from "zod";
+import { AGREE_FIRST, AGREEMENT_OUTDATED, type SignInAgreement } from "../shared/agreement.js";
 import type { AccountLicenses, SiteStatus } from "../shared/api.js";
 import { SITE_HOST } from "../shared/links.js";
 
@@ -73,6 +74,8 @@ function sentence(status: number, error: string | null): string {
   if (status === 503 && error === "auth_closed") return NOT_OPEN;
   if (status === 503 && error === "checkout_closed") return NO_CHECKOUT;
   if (status === 401 && error === "bad_code") return BAD_CODE;
+  if (status === 400 && error === "agreement_required") return AGREE_FIRST;
+  if (status === 400 && error === "agreement_outdated") return AGREEMENT_OUTDATED;
   return TROUBLE;
 }
 
@@ -133,15 +136,15 @@ export class Account {
     return { checkout: h.checkout, auth: h.auth };
   }
 
-  /** Asks the site to email a six digit code. */
-  async signIn(email: string): Promise<{ ok: true }> {
-    await this.request("POST", "/api/auth", Sent, { body: { action: "send", email } });
+  /** Asks the site to email a six digit code. The site refuses without the ticked box and records what it agreed to. */
+  async signIn(email: string, agreement: SignInAgreement): Promise<{ ok: true }> {
+    await this.request("POST", "/api/auth", Sent, { body: { action: "send", email, ...agreement } });
     return { ok: true };
   }
 
-  /** Trades the code for a sign-in token, kept in memory only. */
-  async verifyCode(email: string, code: string): Promise<{ ok: true }> {
-    const v = await this.request("POST", "/api/auth", Verified, { body: { action: "verify", email, code } });
+  /** Trades the code for a sign-in token, kept in memory only. The site records the agreement on the signed-in email. */
+  async verifyCode(email: string, code: string, agreement: SignInAgreement): Promise<{ ok: true }> {
+    const v = await this.request("POST", "/api/auth", Verified, { body: { action: "verify", email, code, ...agreement } });
     this.#token = { value: v.token, expires: this.now() + v.expiresIn * 1000 };
     return { ok: true };
   }

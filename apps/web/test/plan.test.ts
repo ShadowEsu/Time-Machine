@@ -82,6 +82,24 @@ describe("Plan", () => {
       expect(code).toContain('data-act="signin-restart"');
     });
 
+    test("Send code sits with an unticked box for the Terms and Privacy, both linked, and the age line", () => {
+      const email = signInPanel(at({}));
+      const box = email.match(/<input type="checkbox" id="signin-agree"[^>]*>/)?.[0] ?? "";
+      expect(box).toContain('data-model="signin-agree"');
+      expect(box).not.toMatch(/\bchecked\b/);
+      expect(box).toContain('aria-invalid="false"');
+      expect(email).toContain('I agree to the <button type="button" class="ft-link" data-act="signin-terms">Terms (draft)</button> and <button type="button" class="ft-link" data-act="signin-privacy">Privacy (draft)</button>. I am 13 or older.');
+      // Under the email field, inside the form Send code submits.
+      expect(email.indexOf('id="signin-email"')).toBeLessThan(email.indexOf('id="signin-agree"'));
+      expect(email.indexOf('id="signin-agree"')).toBeLessThan(email.indexOf("</form>"));
+      expect(signInPanel(at({ agreed: true }))).toMatch(/<input type="checkbox" id="signin-agree"[^>]* checked/);
+      // Sent without the box: the alert is tied to the box, not the email field.
+      const refused = signInPanel(at({ email: "a@b.co", error: "Tick the box to agree to the Terms and Privacy first.", agreeError: true }));
+      expect(refused).toMatch(/<input type="checkbox" id="signin-agree"[^>]*aria-invalid="true" aria-describedby="signin-error"/);
+      expect(refused).toMatch(/<input id="signin-email"[^>]*aria-invalid="false" aria-describedby="signin-email-d"/);
+      expect(SIGNED_OUT.agreed).toBe(false);
+    });
+
     test("lists the keys for the email with Use this key, and never shows a key", () => {
       const html = signInPanel(at({ step: "keys", account: { email: "a@b.co", licenses: [{ key: "TM1.secretpayload.sig", id: "p_9", issued: "2026-10-20T10:00:00Z" }] } }));
       expect(html).toContain('data-act="account-use" data-id="p_9"');

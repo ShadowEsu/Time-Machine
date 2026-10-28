@@ -4,6 +4,7 @@
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerdictRecord, VerifyResult } from "@timetm/core";
 import type { AgentRow, AppEvent, AutoSave, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, LicenseStatus, Method, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Results, RunNote, Settings, SourceRow, StorageResult, StoreProject, TmBridge, Verdict } from "../shared/api.js";
 import { askConsentValid, type AskProvider } from "../shared/ask.js";
+import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, plural, pointAt, pointClock, pointTime, pointTitle, pointWhen, sameSecondLine, savePointPhrase, seconds, sentenceStart, shortTitle, triggerLabel, triggerSentence, twinOrdinal, verdictKey, verdictWord, versionPhrase, versionTimePhrase, when } from "../shared/format.js";
@@ -2170,22 +2171,32 @@ async function useAccountKey(id: string): Promise<void> {
   root.querySelector<HTMLElement>(error ? "#signin-h" : "#license-h")?.focus();
 }
 
-/** Send code: the site emails a six digit code to that address. */
+/** The box was not ticked, or the site refused it: back to the email step, with the alert tied to the box. */
+function refuseSignIn(error: string): void {
+  st.account = { ...st.account, step: "email", working: false, error, agreeError: true };
+  render();
+  root.querySelector<HTMLInputElement>("#signin-agree")?.focus();
+}
+
+/** Send code: the site emails a six digit code to that address, once the Terms and Privacy box is ticked. */
 async function sendSignInCode(): Promise<void> {
   const email = st.account.email.trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    st.account = { ...st.account, step: "email", error: "Type the email you bought the license with." };
+    st.account = { ...st.account, step: "email", error: "Type the email you bought the license with.", agreeError: false };
     render();
     root.querySelector<HTMLInputElement>("#signin-email")?.focus();
     return;
   }
-  st.account = { ...st.account, email, working: true, error: null };
+  if (!st.account.agreed) return refuseSignIn(AGREE_FIRST);
+  st.account = { ...st.account, email, working: true, error: null, agreeError: false };
   render();
   try {
-    await api({ method: "signIn", email });
+    await api({ method: "signIn", email, ...AGREED });
     st.account = { ...st.account, step: "code", code: "", working: false, sentAt: Date.now() };
   } catch (e) {
-    st.account = { ...st.account, working: false, error: msg(e) };
+    const error = msg(e);
+    if (error === AGREE_FIRST || error === AGREEMENT_OUTDATED) return refuseSignIn(error);
+    st.account = { ...st.account, working: false, error };
   }
   render();
   root.querySelector<HTMLInputElement>(st.account.step === "code" ? "#signin-code" : "#signin-email")?.focus();
@@ -2200,16 +2211,19 @@ async function verifySignIn(): Promise<void> {
     root.querySelector<HTMLInputElement>("#signin-code")?.focus();
     return;
   }
+  if (!st.account.agreed) return refuseSignIn(AGREE_FIRST);
   st.account = { ...st.account, code, working: true, error: null };
   render();
   try {
-    await api({ method: "verifyCode", email: st.account.email, code });
+    await api({ method: "verifyCode", email: st.account.email, code, ...AGREED });
     const account = await api({ method: "accountLicenses" });
     st.account = account
       ? { ...st.account, step: "keys", code: "", working: false, account }
       : { ...st.account, step: "email", code: "", working: false, error: "Sign-in ended before your keys could be read. Send a new code." };
   } catch (e) {
-    st.account = { ...st.account, working: false, error: msg(e) };
+    const error = msg(e);
+    if (error === AGREE_FIRST || error === AGREEMENT_OUTDATED) return refuseSignIn(error);
+    st.account = { ...st.account, working: false, error };
   }
   render();
   root.querySelector<HTMLElement>(st.account.step === "keys" ? "#signin-h" : st.account.step === "code" ? "#signin-code" : "#signin-email")?.focus();
@@ -4668,6 +4682,10 @@ async function onClick(el: HTMLElement): Promise<void> {
       return;
     case "license-buy":
       return void bridge.call({ method: "openExternal", url: PRICING_URL });
+    case "signin-terms":
+      return void bridge.call({ method: "openExternal", url: TERMS_URL });
+    case "signin-privacy":
+      return void bridge.call({ method: "openExternal", url: PRIVACY_URL });
     case "theme":
       return setSetting({ theme: d.v === "light" || d.v === "dark" ? d.v : "system" });
     case "toggle":
@@ -5200,6 +5218,18 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     }
     if (t.dataset.model === "signin-code") {
       st.account.code = t.value;
+      return;
+    }
+    if (t.dataset.model === "signin-agree") {
+      st.account.agreed = t.checked;
+      // Ticked after a refusal: the alert about the box goes, in place, so focus stays on it.
+      if (t.checked && st.account.agreeError) {
+        st.account.error = null;
+        st.account.agreeError = false;
+        t.setAttribute("aria-invalid", "false");
+        t.removeAttribute("aria-describedby");
+        root.querySelector("#signin-error")?.remove();
+      }
       return;
     }
     if (t.dataset.model === "license-key") {

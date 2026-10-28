@@ -33,9 +33,13 @@ export interface AccountView {
   account: AccountLicenses | null;
   /** When the last code was sent (ms), so Send a new code can wait out the site's limit; null before one is sent. */
   sentAt: number | null;
+  /** The Terms and Privacy box under the email. Unticked to start; no code is asked for until it is ticked. */
+  agreed: boolean;
+  /** The error is about that box, so the alert is tied to it rather than the email field. */
+  agreeError: boolean;
 }
 
-export const SIGNED_OUT: AccountView = { site: null, step: "email", email: "", code: "", working: false, error: null, account: null, sentAt: null };
+export const SIGNED_OUT: AccountView = { site: null, step: "email", email: "", code: "", working: false, error: null, account: null, sentAt: null, agreed: false, agreeError: false };
 
 /** How long Send a new code waits after a send: the site answers a send too soon with Retry-After: 60. */
 export const RESEND_WAIT_MS = 60_000;
@@ -66,10 +70,13 @@ export function signInPanel(a: AccountView, now = Date.now()): string {
   if (!a.site.auth) return `<div class="si-card">${head('<span class="lic-pill">Not open yet</span>')}<p class="si-p">Sign-in is not open yet. When it is, you can get your key here with your email. Until then, paste your key below.</p></div>`;
   const describedBy = (help: string): string => `${help}${a.error ? " signin-error" : ""}`;
   if (a.step === "email") {
+    const onEmail = !!a.error && !a.agreeError;
+    const onBox = !!a.error && a.agreeError;
     return `<div class="si-card">${head()}<form class="si-form" data-form="signin-email" novalidate>
       <label class="set-l" for="signin-email">Email you bought with</label>
       <p class="set-d" id="signin-email-d">We email you a 6-digit code. Your email goes to the Time Machine site only, and this app keeps nothing after you quit.</p>
-      <div class="set-keyin"><input id="signin-email" class="field" data-model="signin-email" type="email" value="${esc(a.email)}" placeholder="you@example.com" autocomplete="email" spellcheck="false" autocapitalize="off" aria-invalid="${!!a.error}" aria-describedby="${describedBy("signin-email-d")}" ${busy}><button class="btn dark" type="submit" ${busy}>${a.working ? "Sending…" : "Send code"}</button></div>
+      <div class="set-keyin"><input id="signin-email" class="field" data-model="signin-email" type="email" value="${esc(a.email)}" placeholder="you@example.com" autocomplete="email" spellcheck="false" autocapitalize="off" aria-invalid="${onEmail}" aria-describedby="${onEmail ? describedBy("signin-email-d") : "signin-email-d"}" ${busy}><button class="btn dark" type="submit" ${busy}>${a.working ? "Sending…" : "Send code"}</button></div>
+      <label class="si-agree"><input type="checkbox" id="signin-agree" data-model="signin-agree"${a.agreed ? " checked" : ""} aria-invalid="${onBox}"${onBox ? ' aria-describedby="signin-error"' : ""} ${busy}><span>I agree to the <button type="button" class="ft-link" data-act="signin-terms">Terms (draft)</button> and <button type="button" class="ft-link" data-act="signin-privacy">Privacy (draft)</button>. I am 13 or older.</span></label>
       ${error}</form></div>`;
   }
   if (a.step === "code") {
