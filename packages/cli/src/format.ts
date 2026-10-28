@@ -77,7 +77,7 @@ export function fmtForget(r: ForgetResult): string {
   return [
     r.approvalRemoved ? "This computer no longer approves the project's check. The Claude Code plugin and the MCP check tools do nothing here now." : "This computer had not approved the project's check, so there was nothing to take back.",
     ...(r.hooksRemoved.length ? r.hooksRemoved.map((f) => `Removed Time Machine's hook lines from ${f.path}: ${f.removed.join(", ")}. Other tools' hooks stay.`) : ["No Time Machine hook lines were in .claude/settings.json."]),
-    ...r.unreadable.map((path) => `${path} is not plain JSON (it may have comments), so it was left alone. Remove any "tm hook" lines in it by hand.`),
+    ...r.unreadable.map((path) => `${path} is not plain JSON (it may have comments) or is a link to another file, so it was left alone. Remove any "tm hook" lines in it by hand.`),
     `Save points stay in ${r.store}. Delete that folder to remove them. tm init sets the project up again.`,
   ].join("\n");
 }

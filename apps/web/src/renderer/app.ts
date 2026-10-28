@@ -4107,7 +4107,7 @@ async function forgetProject(projectId: string): Promise<void> {
   const name = st.projects.find((p) => p.id === projectId)?.name ?? "this project";
   try {
     const r = await api({ method: "forget", projectId });
-    toast(r.unreadable.length ? `Disconnected ${name}, but its ${r.unreadable.map((x) => x.split("/").pop()).join(" and ")} is not plain JSON, so we left it alone. Remove any tm hook lines in it by hand.` : `Disconnected. Claude Code no longer saves or checks in ${name}. Its save points stay.`);
+    toast(r.unreadable.length ? `Disconnected ${name}, but its ${r.unreadable.map((x) => x.split("/").pop()).join(" and ")} is not plain JSON or is a link to another file, so we left it alone. Remove any tm hook lines in it by hand.` : `Disconnected. Claude Code no longer saves or checks in ${name}. Its save points stay.`);
   } catch (e) {
     toast(msg(e));
   }

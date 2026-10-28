@@ -13,7 +13,7 @@ export interface ForgetResult {
   approvalRemoved: boolean;
   /** Settings files hook lines were taken out of, and for which Claude Code events. */
   hooksRemoved: { path: string; removed: string[] }[];
-  /** Settings files that are not plain JSON in the expected shape, so they were left alone. */
+  /** Settings files that are not plain JSON in the expected shape, or are links to somewhere else, so they were left alone. */
   unreadable: string[];
   /** Where the save points are. They are not deleted. */
   store: string;
