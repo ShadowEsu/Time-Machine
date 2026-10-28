@@ -9,7 +9,7 @@ import { Account, DEFAULT_SITE, siteFromEnv, type AccountFetch, type AccountFetc
 import { Credentials, type Cipher } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
-import { AGREED, PRIVACY_URL, PRIVACY_VERSION, TERMS_URL, TERMS_VERSION } from "../src/shared/agreement.ts";
+import { AGREED, BOX_VERSION, PRIVACY_URL, PRIVACY_VERSION, TERMS_URL, TERMS_VERSION } from "../src/shared/agreement.ts";
 import { CallSchema, type Call } from "../src/shared/api.ts";
 import { isAllowedExternal } from "../src/shared/links.ts";
 import { FakeEngine } from "../preview/fake.ts";
@@ -80,7 +80,7 @@ describe("account", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.origin).toBe(SITE);
     expect(init.headers["content-type"]).toBe("application/json");
-    expect(JSON.parse(init.body ?? "")).toEqual({ action: "send", email: EMAIL, agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+    expect(JSON.parse(init.body ?? "")).toEqual({ action: "send", email: EMAIL, agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION });
   });
 
   test("verifyCode keeps the token in memory only; accountLicenses sends it and lists the keys", async () => {
@@ -89,7 +89,7 @@ describe("account", () => {
     expect(fetch).not.toHaveBeenCalled();
     const verified = await account.verifyCode(EMAIL, "123456", AGREED);
     expect(verified).toEqual({ ok: true });
-    expect(JSON.parse(fetch.mock.calls[0]![1].body ?? "")).toEqual({ action: "verify", email: EMAIL, code: "123456", agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+    expect(JSON.parse(fetch.mock.calls[0]![1].body ?? "")).toEqual({ action: "verify", email: EMAIL, code: "123456", agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION });
     const listed = await account.accountLicenses();
     expect(listed).toEqual({ email: EMAIL, licenses: LICENSES });
     const [url, init] = fetch.mock.calls[1]!;
@@ -137,7 +137,7 @@ describe("account", () => {
     const busy = site({ send: () => json({ ok: false, error: "rate_limited" }, 429) });
     expect((await failure(busy.account.signIn(EMAIL, AGREED))).message).toBe("Too many tries, wait a minute.");
     const unticked = site({ send: () => json({ ok: false, error: "agreement_required" }, 400) });
-    expect((await failure(unticked.account.signIn(EMAIL, AGREED))).message).toBe("Tick the box to agree to the Terms and Privacy first.");
+    expect((await failure(unticked.account.signIn(EMAIL, AGREED))).message).toBe("Tick the box to agree to the Terms first.");
     const outdated = site({ send: () => json({ ok: false, error: "agreement_outdated" }, 400) });
     expect((await failure(outdated.account.signIn(EMAIL, AGREED))).message).toBe("The Terms or Privacy changed since this version of Time Machine. Update it, then sign in.");
     const noKeys = site({ account: () => json({ ok: false, error: "checkout_closed" }, 503) });
@@ -178,8 +178,13 @@ describe("contract, engine and preview", () => {
     // Without the box, or with it ticked next to other versions, nothing reaches the site.
     for (const method of ["signIn", "verifyCode"]) {
       const call = { method, email: EMAIL, ...(method === "verifyCode" ? { code: "123456" } : {}) };
-      for (const agreement of [{}, { ...AGREED, agreed: false }, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }, { ...AGREED, termsVersion: "terms-2026-01-01" }, { ...AGREED, privacyVersion: "privacy-2026-01-01" }, { agreed: true }]) {
+      for (const agreement of [{}, { ...AGREED, agreed: false }, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION }, { agreed: true }]) {
         expect(CallSchema.safeParse({ ...call, ...agreement }).success).toBe(false);
+      }
+      for (const field of ["termsVersion", "privacyVersion", "boxVersion"]) {
+        for (const value of ["outdated-version", undefined]) {
+          expect(CallSchema.safeParse({ ...call, ...AGREED, [field]: value }).success).toBe(false);
+        }
       }
     }
     expect(CallSchema.safeParse({ method: "siteStatus" }).success).toBe(true);
@@ -200,8 +205,10 @@ describe("contract, engine and preview", () => {
       expect(await engine.run({ method: "siteStatus" })).toEqual({ ok: true, data: { checkout: true, auth: true } });
       expect(await engine.run({ method: "accountLicenses" })).toEqual({ ok: true, data: null });
       expect(await engine.run({ method: "signIn", email: EMAIL, ...AGREED })).toEqual({ ok: true, data: { ok: true } });
+      expect(JSON.parse(fetch.mock.calls[1]![1].body ?? "")).toEqual({ action: "send", email: EMAIL, ...AGREED });
       expect(await engine.run({ method: "verifyCode", email: EMAIL, code: "000000", ...AGREED })).toEqual({ ok: false, error: { kind: "usage", message: "That code didn't match." } });
       expect(await engine.run({ method: "verifyCode", email: EMAIL, code: "123456", ...AGREED })).toEqual({ ok: true, data: { ok: true } });
+      expect(JSON.parse(fetch.mock.calls[3]![1].body ?? "")).toEqual({ action: "verify", email: EMAIL, code: "123456", ...AGREED });
       expect(await engine.run({ method: "accountLicenses" })).toEqual({ ok: true, data: { email: EMAIL, licenses: LICENSES } });
       expect(await engine.run({ method: "signOut" })).toEqual({ ok: true, data: { ok: true } });
       expect(await engine.run({ method: "accountLicenses" })).toEqual({ ok: true, data: null });
@@ -224,13 +231,22 @@ describe("contract, engine and preview", () => {
     expect(await fake.call({ method: "signOut" })).toEqual({ ok: true, data: { ok: true } });
     expect(await fake.call({ method: "accountLicenses" })).toEqual({ ok: true, data: null });
     // Like the site, the preview sends no code without the box.
-    expect(await fake.call({ method: "signIn", email: EMAIL } as Call)).toMatchObject({ ok: false, error: { message: "Tick the box to agree to the Terms and Privacy first." } });
+    expect(await fake.call({ method: "signIn", email: EMAIL } as Call)).toMatchObject({ ok: false, error: { message: "Tick the box to agree to the Terms first." } });
+    for (const method of ["signIn", "verifyCode"] as const) {
+      for (const field of ["termsVersion", "privacyVersion", "boxVersion"]) {
+        for (const value of ["outdated-version", undefined]) {
+          const call = { method, email: EMAIL, code: "123456", ...AGREED, [field]: value } as Call;
+          expect(await fake.call(call)).toMatchObject({ ok: false, error: { message: "The Terms or Privacy changed since this version of Time Machine. Update it, then sign in." } });
+        }
+      }
+    }
   });
 
   test("the box names the versions the site's /api/auth checks, and its two pages open from the app", () => {
     const site = readFileSync(new URL("../../../site/api/_lib/agreement.js", import.meta.url), "utf8");
     expect(site).toContain(`export const TERMS_VERSION = "${TERMS_VERSION}";`);
     expect(site).toContain(`export const PRIVACY_VERSION = "${PRIVACY_VERSION}";`);
+    expect(site).toContain(`export const BOX_VERSION = "${BOX_VERSION}";`);
     expect(TERMS_URL).toBe("https://time-machine-site.vercel.app/terms.html");
     expect(PRIVACY_URL).toBe("https://time-machine-site.vercel.app/privacy.html");
     expect(isAllowedExternal(TERMS_URL) && isAllowedExternal(PRIVACY_URL)).toBe(true);

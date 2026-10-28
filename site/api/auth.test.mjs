@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./auth.js";
-import { PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
+import { BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
 import { handleAuth, isAuthConfigured } from "./_lib/auth.js";
 import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
@@ -11,11 +11,11 @@ const HOST = "timemachine.example.test";
 const EMAIL = "Buyer@Example.test";
 const NORMALIZED = "buyer@example.test";
 const TOKEN = "synthetic.access.token-0123456789";
-// The box was ticked next to the current Terms and Privacy Policy.
-const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION };
+// The current box was ticked to agree to the Terms and confirm the Privacy Policy was read.
+const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION };
 const SEND = { action: "send", email: EMAIL, ...AGREED };
 const NOW = Date.UTC(2026, 9, 28, 9, 30, 0);
-const RECORD = { agreed_at: "2026-10-28T09:30:00.000Z", terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION };
+const RECORD = { agreed_at: "2026-10-28T09:30:00.000Z", terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION, box_version: BOX_VERSION };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 
 function request(body, overrides = {}) {
@@ -77,7 +77,7 @@ describe("auth handler", () => {
     const { fetch, deps } = setup();
     const unticked = [
       { action: "send", email: EMAIL },
-      { action: "send", email: EMAIL, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
+      { action: "send", email: EMAIL, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION },
       { ...SEND, agreed: false },
       { ...SEND, agreed: "true" },
       { action: "verify", email: EMAIL, code: "123456" },
@@ -91,15 +91,13 @@ describe("auth handler", () => {
 
   it("refuses a box ticked next to other or missing versions, with 400 agreement_outdated and no Supabase call", async () => {
     const { fetch, deps } = setup();
-    const outdated = [
-      { ...SEND, termsVersion: "terms-2026-01-01" },
-      { ...SEND, privacyVersion: "privacy-2026-01-01" },
-      { action: "send", email: EMAIL, agreed: true },
-      { action: "send", email: EMAIL, agreed: true, termsVersion: TERMS_VERSION },
-      { action: "verify", email: EMAIL, code: "123456", ...AGREED, privacyVersion: "" },
-    ];
-    for (const body of outdated) {
-      expect(await handleAuth(request(body), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_outdated" } });
+    for (const action of ["send", "verify"]) {
+      for (const field of ["termsVersion", "privacyVersion", "boxVersion"]) {
+        for (const value of ["outdated-version", undefined]) {
+          const body = { action, email: EMAIL, ...(action === "verify" ? { code: "123456" } : {}), ...AGREED, [field]: value };
+          expect(await handleAuth(request(body), deps)).toEqual({ status: 400, headers: {}, body: { ok: false, error: "agreement_outdated" } });
+        }
+      }
     }
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -188,7 +186,8 @@ describe("auth handler", () => {
     expect(box[1]).not.toContain("checked");
     expect(box[1]).toContain(`data-terms-version="${TERMS_VERSION}"`);
     expect(box[1]).toContain(`data-privacy-version="${PRIVACY_VERSION}"`);
-    expect(box[2]).toBe('I agree to the <a href="terms.html">Terms (draft)</a> and <a href="privacy.html">Privacy (draft)</a>. I am 13 or older.');
+    expect(box[1]).toContain(`data-box-version="${BOX_VERSION}"`);
+    expect(box[2]).toBe('I agree to the <a href="terms.html">Terms (draft)</a> and have read the <a href="privacy.html">Privacy Policy (draft)</a>. I am 13 or older.');
     // Why a send was refused is said right under the box, and the box names it (Design, 28 Oct).
     const note = box[1].match(/aria-describedby="([^"]+)"/)?.[1];
     expect(note).toBeTruthy();

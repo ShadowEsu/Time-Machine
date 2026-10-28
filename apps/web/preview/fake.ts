@@ -2,7 +2,7 @@
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
 import type { DiffResult, FindGoodResult, ForgetResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
-import { AGREE_FIRST, AGREEMENT_OUTDATED, PRIVACY_VERSION, TERMS_VERSION } from "../src/shared/agreement.js";
+import { AGREE_FIRST, AGREEMENT_OUTDATED, BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "../src/shared/agreement.js";
 import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AppEvent, type AskResult, type Call, type CallOf, type CredentialName, type DeploymentsResult, type FeatureChange, type Features, type LicenseStatus, type Method, type ProjectCheckConfig, type ProjectEntry, type ProjectStatus, type Res, type Results, type RunNote, type Settings, type SourceRow, type ThinPreview, type TmBridge, type VercelDeployment, type Verdict } from "../src/shared/api.js";
 import { ASK_CONSENT_VERSION, ASK_EXAMPLES, askConsentValid, type AskProvider } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
@@ -270,9 +270,9 @@ function record(entry: TimelineEntry, command: string, at: string): VerifyResult
 }
 
 /** Like the site's /api/auth: no code without the ticked Terms and Privacy box, at the versions the site checks. */
-function agreedLikeTheSite(call: { agreed?: unknown; termsVersion?: unknown; privacyVersion?: unknown }): void {
+function agreedLikeTheSite(call: { agreed?: unknown; termsVersion?: unknown; privacyVersion?: unknown; boxVersion?: unknown }): void {
   if (call.agreed !== true) throw new Error(AGREE_FIRST);
-  if (call.termsVersion !== TERMS_VERSION || call.privacyVersion !== PRIVACY_VERSION) throw new Error(AGREEMENT_OUTDATED);
+  if (call.termsVersion !== TERMS_VERSION || call.privacyVersion !== PRIVACY_VERSION || call.boxVersion !== BOX_VERSION) throw new Error(AGREEMENT_OUTDATED);
 }
 
 export class FakeEngine implements TmBridge {

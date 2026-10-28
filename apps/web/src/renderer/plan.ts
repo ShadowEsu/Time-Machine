@@ -76,7 +76,7 @@ export function signInPanel(a: AccountView, now = Date.now()): string {
       <label class="set-l" for="signin-email">Email you bought with</label>
       <p class="set-d" id="signin-email-d">We email you a 6-digit code. Your email goes to the Time Machine site only, and this app keeps nothing after you quit.</p>
       <div class="set-keyin"><input id="signin-email" class="field" data-model="signin-email" type="email" value="${esc(a.email)}" placeholder="you@example.com" autocomplete="email" spellcheck="false" autocapitalize="off" aria-invalid="${onEmail}" aria-describedby="${onEmail ? describedBy("signin-email-d") : "signin-email-d"}" ${busy}><button class="btn dark" type="submit" ${busy}>${a.working ? "Sending…" : "Send code"}</button></div>
-      <label class="si-agree"><input type="checkbox" id="signin-agree" data-model="signin-agree"${a.agreed ? " checked" : ""} aria-invalid="${onBox}"${onBox ? ' aria-describedby="signin-error"' : ""} ${busy}><span>I agree to the <button type="button" class="ft-link" data-act="signin-terms">Terms (draft)</button> and <button type="button" class="ft-link" data-act="signin-privacy">Privacy (draft)</button>. I am 13 or older.</span></label>
+      <label class="si-agree"><input type="checkbox" id="signin-agree" data-model="signin-agree"${a.agreed ? " checked" : ""} aria-invalid="${onBox}"${onBox ? ' aria-describedby="signin-error"' : ""} ${busy}><span>I agree to the <button type="button" class="ft-link" data-act="signin-terms">Terms (draft)</button> and have read the <button type="button" class="ft-link" data-act="signin-privacy">Privacy Policy (draft)</button>. I am 13 or older.</span></label>
       ${error}</form></div>`;
   }
   if (a.step === "code") {

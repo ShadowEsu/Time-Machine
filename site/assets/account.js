@@ -1,7 +1,7 @@
 /* Sign in with a one-time email code to see your web app keys again.
    The token from /api/auth lives in sessionStorage only, for this tab. Keys are shown, never stored or logged.
    No code is asked for until the Terms and Privacy box is ticked. Both calls to /api/auth send the versions the box
-   names (its data-terms-version and data-privacy-version), and the server records them. */
+   names (its data-terms-version, data-privacy-version and data-box-version), and the server records them. */
 (function () {
   "use strict";
 
@@ -119,6 +119,7 @@
     body.agreed = agreed.agreed;
     body.termsVersion = agreed.termsVersion;
     body.privacyVersion = agreed.privacyVersion;
+    body.boxVersion = agreed.boxVersion;
     return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   }
 
@@ -218,7 +219,7 @@
     if (!agreeBox.checked) return refuse(MSG.agree);
     agreeBox.removeAttribute("aria-invalid");
     if (agreeNote) agreeNote.textContent = "";
-    var agreed = { agreed: true, termsVersion: agreeBox.getAttribute("data-terms-version"), privacyVersion: agreeBox.getAttribute("data-privacy-version") };
+    var agreed = { agreed: true, termsVersion: agreeBox.getAttribute("data-terms-version"), privacyVersion: agreeBox.getAttribute("data-privacy-version"), boxVersion: agreeBox.getAttribute("data-box-version") };
     busy(sendForm, true);
     say(MSG.sending, "pending");
     call("auth", authBody({ action: "send", email: value }, agreed)).then(function (r) {
@@ -261,7 +262,6 @@
     });
   });
 
-  agreeBox.addEventListener("change", function () { agreeBox.removeAttribute("aria-invalid"); });
   verifyForm.querySelector("[data-account-back]").addEventListener("click", function () { show("send"); say(""); emailField.focus(); });
   keys.querySelector("[data-account-signout]").addEventListener("click", signOut);
 
