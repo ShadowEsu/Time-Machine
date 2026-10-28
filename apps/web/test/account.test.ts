@@ -53,7 +53,7 @@ async function failure(p: Promise<unknown>): Promise<tm.TmError> {
 
 describe("site address", () => {
   test("defaults to the Time Machine site, and TM_SITE_ORIGIN may point at https or a local http site", () => {
-    expect(DEFAULT_SITE).toBe("https://time-machine.company");
+    expect(DEFAULT_SITE).toBe("https://time-machine-site.vercel.app");
     expect(siteFromEnv({})).toBe(DEFAULT_SITE);
     expect(siteFromEnv({ TM_SITE_ORIGIN: "http://localhost:3000/" })).toBe("http://localhost:3000");
     expect(siteFromEnv({ TM_SITE_ORIGIN: "https://staging.example.test/x" })).toBe("https://staging.example.test");
@@ -247,8 +247,8 @@ describe("contract, engine and preview", () => {
     expect(site).toContain(`export const TERMS_VERSION = "${TERMS_VERSION}";`);
     expect(site).toContain(`export const PRIVACY_VERSION = "${PRIVACY_VERSION}";`);
     expect(site).toContain(`export const BOX_VERSION = "${BOX_VERSION}";`);
-    expect(TERMS_URL).toBe("https://time-machine.company/terms.html");
-    expect(PRIVACY_URL).toBe("https://time-machine.company/privacy.html");
+    expect(TERMS_URL).toBe("https://time-machine-site.vercel.app/terms.html");
+    expect(PRIVACY_URL).toBe("https://time-machine-site.vercel.app/privacy.html");
     expect(isAllowedExternal(TERMS_URL) && isAllowedExternal(PRIVACY_URL)).toBe(true);
   });
 });
