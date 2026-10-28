@@ -36,6 +36,12 @@
   var emailField = sendForm.querySelector('input[name="email"]');
   var agreeBox = sendForm.querySelector('input[name="agree"]');
   if (!agreeBox) return;
+  // Why the box stopped a send is said right under it (Design, 28 Oct), not in the status line above the form.
+  var agreeNote = sendForm.querySelector("[data-account-agree-note]");
+  agreeBox.addEventListener("change", function () {
+    agreeBox.removeAttribute("aria-invalid");
+    if (agreeNote) agreeNote.textContent = "";
+  });
   var codeField = verifyForm.querySelector('input[name="code"]');
   var sentLine = verifyForm.querySelector("[data-account-sent]");
   var list = keys.querySelector("[data-account-list]");
@@ -98,11 +104,14 @@
       .then(function (r) { clearTimeout(timer); return r; }, function () { clearTimeout(timer); return { status: 0, data: {} }; });
   }
 
-  // Marks the box, moves focus to it and says why nothing was sent.
+  // Marks the box, moves focus to it and says why nothing was sent: under the box while it shows, else in the status line.
   function refuse(text) {
     agreeBox.setAttribute("aria-invalid", "true");
+    if (agreeNote && !sendForm.hidden) {
+      say("");
+      agreeNote.textContent = text;
+    } else say(text, "error");
     agreeBox.focus();
-    say(text, "error");
   }
 
   // A POST to /api/auth that carries what the box agreed to.
@@ -208,6 +217,7 @@
     emailField.removeAttribute("aria-invalid");
     if (!agreeBox.checked) return refuse(MSG.agree);
     agreeBox.removeAttribute("aria-invalid");
+    if (agreeNote) agreeNote.textContent = "";
     var agreed = { agreed: true, termsVersion: agreeBox.getAttribute("data-terms-version"), privacyVersion: agreeBox.getAttribute("data-privacy-version") };
     busy(sendForm, true);
     say(MSG.sending, "pending");

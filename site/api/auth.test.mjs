@@ -189,6 +189,10 @@ describe("auth handler", () => {
     expect(box[1]).toContain(`data-terms-version="${TERMS_VERSION}"`);
     expect(box[1]).toContain(`data-privacy-version="${PRIVACY_VERSION}"`);
     expect(box[2]).toBe('I agree to the <a href="terms.html">Terms (draft)</a> and <a href="privacy.html">Privacy (draft)</a>. I am 13 or older.');
+    // Why a send was refused is said right under the box, and the box names it (Design, 28 Oct).
+    const note = box[1].match(/aria-describedby="([^"]+)"/)?.[1];
+    expect(note).toBeTruthy();
+    expect(send.indexOf(`id="${note}"`)).toBeGreaterThan(send.indexOf(box[0]));
     const script = readFileSync(new URL("../assets/account.js", import.meta.url), "utf8");
     expect(script).toContain("agreement_required");
     expect(script).toContain("agreement_outdated");
