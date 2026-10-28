@@ -216,7 +216,7 @@ interface State {
   changesFor: string;
   /** A confirm before removing a project, going back to a version without proof, or protecting a whole folder (with its path
    *  and what it is for, so either answer can carry on into the Add flow). */
-  confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore"; id: string | null; path?: string; purpose?: Purpose | null }) | null;
+  confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget"; id: string | null; path?: string; purpose?: Purpose | null }) | null;
   /** A button that shows its pressed state because its shortcut just fired. */
   flash: { sel: string; until: number } | null;
   /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
@@ -233,10 +233,10 @@ interface State {
 
 class ApiFailure extends Error {}
 
-const RECORDED: Method[] = ["init", "setCheck", "checkpoint", "diff", "open", "verify", "findGood", "recover", "undoRecover", "log", "hookInstall", "demo", "cleanStore"];
+const RECORDED: Method[] = ["init", "setCheck", "checkpoint", "diff", "open", "verify", "findGood", "recover", "undoRecover", "log", "hookInstall", "forget", "demo", "cleanStore"];
 const TITLES: Partial<{ [M in Method]: string }> = {
   init: "Set up", setCheck: "Change the check", checkpoint: "Save now", diff: "Compare", open: "Try it in a copy", verify: "Check it works",
-  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this rewind", log: "Audit log", hookInstall: "Connect Claude Code", demo: "Try the demo",
+  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this rewind", log: "Audit log", hookInstall: "Connect Claude Code", forget: "Disconnect Claude Code", demo: "Try the demo",
   cleanStore: "Clean up storage",
 };
 
@@ -1977,14 +1977,18 @@ function agentsScreen(): string {
         : ((a.via === "plugin" ? pluginWords[a.claudeCode] : undefined) ?? agentWords[a.claudeCode]) + (a.pluginOff ? " The Time Machine plugin is installed but turned off for this project." : "");
     const working = a.working ? `<p class="b9-sub b9-now"><i class="breath" aria-hidden="true"></i>Claude Code is working now${a.workingSince ? `, since ${esc(clock(a.workingSince))}` : ""}.</p>` : "";
     const approve = a.claudeCode === "needs-approval" && a.check ? `<p class="b9-sub">The check it would run: <code class="mono">${esc(a.check)}</code></p>` : "";
+    // Disconnect is tm forget: offered wherever Time Machine acts or has lines here (Security T5).
+    const disconnect = a.claudeCode === "connected" || a.claudeCode === "not-running" || a.claudeCode === "partial" ? `<button class="btn ghost" data-act="forget" data-id="${a.projectId}">Disconnect</button>` : "";
     const btn =
       a.claudeCode === "needs-approval"
         ? a.check
           ? `<button class="btn dark" data-act="approve-check" data-id="${a.projectId}">Approve this check</button>`
           : `<button class="btn" data-act="project" data-id="${a.projectId}">Set a check first</button>`
-        : a.claudeCode === "not-connected" || a.claudeCode === "partial"
-          ? `<button class="btn" data-act="hook" data-id="${a.projectId}">${a.claudeCode === "partial" ? "Add the missing lines" : "Connect"}</button>`
-          : "";
+        : a.claudeCode === "partial"
+          ? `<span class="row-btns"><button class="btn" data-act="hook" data-id="${a.projectId}">Add the missing lines</button>${disconnect}</span>`
+          : a.claudeCode === "not-connected"
+            ? `<button class="btn" data-act="hook" data-id="${a.projectId}">Connect</button>`
+            : disconnect;
     const path = st.settings.showGitDetails && a.settingsPath ? `<p class="mono b9-path sel-text">${esc(a.settingsPath)}</p>` : "";
     return `<div class="b9-row"><div class="b9-main"><p class="b9-t">${esc(a.name)}</p><p class="b9-sub">Claude Code: ${esc(words)}</p>${approve}${working}${path}</div>${btn}</div>`;
   });
@@ -4084,6 +4088,20 @@ async function approveCheck(projectId: string): Promise<void> {
   render();
 }
 
+/** tm forget for one project: the check's approval and Time Machine's hook lines go. Save points stay. */
+async function forgetProject(projectId: string): Promise<void> {
+  const name = st.projects.find((p) => p.id === projectId)?.name ?? "this project";
+  try {
+    const r = await api({ method: "forget", projectId });
+    toast(r.unreadable.length ? `Disconnected ${name}, but its ${r.unreadable.map((x) => x.split("/").pop()).join(" and ")} is not plain JSON, so we left it alone. Remove any tm hook lines in it by hand.` : `Disconnected. Claude Code no longer saves or checks in ${name}. Its save points stay.`);
+  } catch (e) {
+    toast(msg(e));
+  }
+  st.agents = await api({ method: "agents" }).catch(() => st.agents);
+  render();
+  refocus(`[data-act="hook"][data-id="${CSS.escape(projectId)}"], [data-act="approve-check"][data-id="${CSS.escape(projectId)}"]`);
+}
+
 /** An error says what happened in plain words, and its way forward sits in the same card. `alert` only where it was announced before. */
 function failCard(cause: string, actions: string, alert = false): string {
   return `<div class="note bad fail-card"><p${alert ? ' role="alert"' : ""}>${esc(cause)}</p><div class="row-btns">${actions}</div></div>`;
@@ -4484,6 +4502,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       render();
       if (c?.act === "tv-use") return rewindDo();
       if (c?.act === "remove" && c.id) return removeProject(c.id);
+      if (c?.act === "forget" && c.id) return forgetProject(c.id);
       if (c?.act === "thin" && c.id) return thinApply(c.id);
       if (c?.act === "whole-folder") return startAdd(c.path ?? null, c.purpose ?? null);
       if (c?.act === "restore" && c.id) return putBack(c.id, pathList(c.path ?? "[]"));
@@ -4702,6 +4721,16 @@ async function onClick(el: HTMLElement): Promise<void> {
         act: "remove", id: d.id, action: "Remove from app",
         title: `Remove ${name} from the app?`,
         body: "The app stops showing it. Its save points stay in the store on this computer, and your project folder is not touched. Add it again any time.",
+      };
+      return render();
+    }
+    case "forget": {
+      const name = st.projects.find((x) => x.id === d.id)?.name;
+      if (!d.id || !name) return;
+      st.confirm = {
+        act: "forget", id: d.id, action: "Disconnect",
+        title: `Disconnect Claude Code from ${name}?`,
+        body: "Claude Code stops saving and checking here. This computer stops approving the project’s check, so the Time Machine plugin does nothing in it, and the lines Time Machine added to .claude/settings.json come out. Other tools’ hooks stay, and so do the save points. Connect again any time.",
       };
       return render();
     }

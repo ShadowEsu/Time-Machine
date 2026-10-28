@@ -1,7 +1,7 @@
 // An in-memory stand-in for the engine, used only by the browser preview. It replays the
 // Marigold Tips demo story: six save points, cp-0004 broke it, find-good lands on cp-0003.
 // All data is synthetic. The real app calls @timetm/core instead.
-import type { DiffResult, FindGoodResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
+import type { DiffResult, FindGoodResult, ForgetResult, RecoverResult, RestoreResult, TimelineEntry, UndoRecoverResult, VerifyResult } from "@timetm/core";
 import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AppEvent, type AskResult, type Call, type CallOf, type CredentialName, type DeploymentsResult, type FeatureChange, type Features, type LicenseStatus, type Method, type ProjectCheckConfig, type ProjectEntry, type ProjectStatus, type Res, type Results, type RunNote, type Settings, type SourceRow, type ThinPreview, type TmBridge, type VercelDeployment, type Verdict } from "../src/shared/api.js";
 import { ASK_CONSENT_VERSION, ASK_EXAMPLES, askConsentValid, type AskProvider } from "../src/shared/ask.js";
 import { clock } from "../src/shared/format.js";
@@ -291,6 +291,8 @@ export class FakeEngine implements TmBridge {
   private checkConfig: ProjectCheckConfig = { command: "npm test", setup: "npm ci --prefer-offline --no-audit --no-fund", timeoutSeconds: 600, network: "allow", maxFileMB: 5 };
   /** The email signed in with code 123456, or null. The preview's sign-in is pretend: nothing is sent. */
   private signedIn: string | null = null;
+  /** The demo's Claude Code hook lines: in, until Disconnect takes them out (tm forget); Connect puts them back. */
+  private claudeConnected = true;
 
   constructor(readonly scenario: Scenario = "broken", readonly features: FeatureStory = "off") {
     this.reset();
@@ -520,6 +522,7 @@ export class FakeEngine implements TmBridge {
       case "hookPreview":
         return { settingsPath: `${p.path}/.claude/settings.json`, command: "tm", runs: true, plugin: false, lines: [] };
       case "hookInstall":
+      case "forget":
         throw new Error("The preview connects Claude Code to the demo project only.");
       case "cleanStore":
         return { files: [], bytes: 0, applied: call.apply };
@@ -797,7 +800,14 @@ export class FakeEngine implements TmBridge {
       }
       case "hookInstall":
         await wait(300);
+        this.claudeConnected = true;
         return { settingsPath: `${ROOT}/.claude/settings.json`, added: [], alreadyPresent: ["UserPromptSubmit", "PreToolUse", "Stop"] };
+      case "forget": {
+        await wait(300);
+        const r: ForgetResult = { approvalRemoved: this.claudeConnected, hooksRemoved: this.claudeConnected ? [{ path: `${ROOT}/.claude/settings.json`, removed: ["UserPromptSubmit", "PreToolUse", "Stop"] }] : [], unreadable: [], store: `/Users/you/.timemachine/projects/${PROJECT_ID}` };
+        this.claudeConnected = false;
+        return r;
+      }
       case "demo": {
         // The new-user walkthrough builds the demo story, then rescues it with the same steps as the engine.
         if (this.scenario !== "new" || this.added) throw new Error("This preview is the demo. Reload the page to start the story over.");
@@ -834,7 +844,7 @@ export class FakeEngine implements TmBridge {
         await wait(200);
         return { files: [], bytes: 0, applied: call.apply };
       case "agents":
-        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: "connected", via: "settings", pluginOff: false, check: "npm test", settingsPath: `${ROOT}/.claude/settings.json`, missing: [], working: false, workingSince: null }] : [];
+        return this.added ? [{ projectId: PROJECT_ID, name: "marigold-tips", claudeCode: this.claudeConnected ? "connected" : "not-connected", via: "settings", pluginOff: false, check: "npm test", settingsPath: `${ROOT}/.claude/settings.json`, missing: this.claudeConnected ? [] : ["UserPromptSubmit", "PreToolUse", "Stop"], working: false, workingSince: null }] : [];
       case "isolation":
         return { mode: "host", networkSandbox: "sandbox-exec" };
       case "setSettings":

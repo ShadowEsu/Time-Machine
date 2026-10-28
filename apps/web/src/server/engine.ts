@@ -684,6 +684,9 @@ export class Engine {
           }
           return tm.hookInstall(ctx, { command: h.command });
         });
+      case "forget":
+        // tm forget: the check's approval and our hook lines go; other tools' hooks and the save points stay.
+        return this.serial(p.id, "Disconnecting Claude Code", async () => tm.forget(ctx));
       case "cleanStore":
         if (!call.apply) return tm.cleanStore(ctx, { apply: false });
         return this.serial(p.id, "Cleaning up", () => tm.cleanStore(ctx, { apply: true, files: call.files ?? [] }));

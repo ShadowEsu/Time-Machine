@@ -87,6 +87,21 @@ describe("tm status", () => {
   });
 });
 
+describe("tm forget (Security T5)", () => {
+  test("after it, tm status --json says approved:false and the plugin's hooks print and save nothing", async () => {
+    const { dir, env } = project(withTests);
+    await run(dir, env, ["init"]);
+    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toMatchObject({ approved: true });
+    const r = await run(dir, env, ["forget", "--json"]);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.out)).toMatchObject({ approvalRemoved: true, hooksRemoved: [], unreadable: [] });
+    expect(JSON.parse((await run(dir, env, ["status", "--json"])).out)).toMatchObject({ initialized: true, approved: false });
+    expect(await run(dir, env, ["hook", "pre-bash", "--if-initialized"], bash(dir, "rm -rf dist"))).toEqual(silent);
+    expect(await run(dir, env, ["hook", "prompt", "--if-initialized"], JSON.stringify({ cwd: dir, prompt: "x" }))).toEqual(silent);
+    expect(JSON.parse((await run(dir, env, ["timeline", "--json"])).out).checkpoints).toEqual([]);
+  });
+});
+
 describe("tm demo", () => {
   test("ends with the next step for the user's own project", async () => {
     const root = tempDir("clidemo");
