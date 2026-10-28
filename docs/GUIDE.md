@@ -172,6 +172,7 @@ Every command except `tm ui` takes `--json`. The JSON and the human output come 
 | `tm verify [cp]` | Runs the check on a save point. Default is the newest. |
 | `tm find-good` | Checks save points from newest to oldest until one passes. |
 | `tm recover <cp> [--to folder]` | Saves your current state, then makes a recovery branch and copy. The copy goes next to the project, or into `--to`. Never pushes. |
+| `tm recover --undo <cp \| branch \| copy folder>` | Undoes a recovery: removes its branch and recovery copy, but only while the branch has no new commits and the copy has no changes. Never touches your folder, your branch or a save point, including the one the recovery saved first. When a save point has two recoveries, it lists them; name the branch or the copy folder. |
 | `tm restore <cp> [--dry-run] -- <path>...` | Puts files or folders back into your folder from a save point, for example `tm restore cp-0003 -- src/app.js`. Paths are relative to the project's folder; a folder brings back everything saved under it. Your folder is saved first, so what this replaces stays in the history. Deletes nothing and commits nothing. `--dry-run` says what would come back and writes nothing. Exits 2 when a path was skipped. |
 | `tm relink <old> <new>` | The project's folder moved: keeps its save points, settings, notes and checks at the new path. |
 | `tm list` | Lists every project in the store: its path, kind, save points and size, and whether its folder is gone. |
