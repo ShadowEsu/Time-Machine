@@ -477,6 +477,8 @@
 .account-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .account-row input[aria-invalid="true"] { border-color: var(--broken-dot); }
 .account-form .btn-ghost { margin-top: 14px; }
+.account-form .account-agree { display: flex; margin: 14px 0 0; font-weight: 400; color: var(--ink-2); line-height: 1.5; }
+.account-agree a { color: var(--ink); }
 .account-sent { margin: 0 0 16px; color: var(--ink-2); line-height: 1.5; overflow-wrap: anywhere; }
 .account-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 24px; }
 .account-head h2 { margin: 0; }

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
@@ -208,5 +209,14 @@ describe("checkout handler", () => {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
     }
+  });
+
+  it("the Buy button's box names the current versions, both pages and the age line, and sends them", () => {
+    const script = readFileSync(new URL("../assets/buy.js", import.meta.url), "utf8");
+    expect(script).toContain(`var TERMS_VERSION = "${TERMS_VERSION}";`);
+    expect(script).toContain(`var PRIVACY_VERSION = "${PRIVACY_VERSION}";`);
+    for (const words of ['"I agree to the "', 'link("terms.html", "Terms (draft)")', 'link("privacy.html", "Privacy (draft)")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
+    expect(script).not.toMatch(/box\.checked = true/);
+    expect(script).toContain("agreement_outdated");
   });
 });
