@@ -158,8 +158,10 @@ export function renderAskPanel(host: HTMLElement, { projectId, api, onCite, onOp
   const draw = (): void => {
     if (!alive) return;
     patch(host, askPanelHtml(v));
+    // A conversation opens at its newest turn. The consent card (Ask off or paused) opens at its top, so the paused note
+    // and the first lines of what is sent are the first thing read (Design P2, 28 Oct).
     const thread = host.querySelector(".ft-thread");
-    if (thread) thread.scrollTop = thread.scrollHeight;
+    if (thread) thread.scrollTop = v.phase === "on" ? thread.scrollHeight : 0;
   };
 
   const loadPoints = async (): Promise<void> => {
