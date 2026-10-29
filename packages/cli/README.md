@@ -4,7 +4,7 @@ Save points for your projects before AI agents act, checked with your own tests.
 
 When an AI agent or a late night change breaks your project, Time Machine finds the newest save point that still passes your check, rebuilds it in a separate copy, and prepares a recovery branch. It never touches your folder or your current branch, and it never pushes, merges or deploys.
 
-**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. Website: https://time-machine-site.vercel.app
+**Status: early.** The engine, CLI, local browser app, Claude Code hooks and MCP server work from source. Website: https://time-machine.company
 
 ## Install
 
@@ -47,7 +47,7 @@ Engine commands take `--json`. Human and JSON output come from the same result. 
 
 ## License
 
-The `tm` command line tool is free and open source under the MIT license and never needs a key. Every command in the table above, including recovery, works without one. The local browser app (`tm ui`) is free for up to 3 projects at a time; a one-time $50 license from https://time-machine-site.vercel.app/#pricing lifts that limit. The key is shown on the purchase page, and you can sign in there later to see it again. It is checked on your computer with a public key, so nothing phones home.
+The `tm` command line tool is free and open source under the MIT license and never needs a key. Every command in the table above, including recovery, works without one. The local browser app (`tm ui`) is free for up to 3 projects at a time; a one-time $50 license from https://time-machine.company/#pricing lifts that limit. The key is shown on the purchase page, and you can sign in there later to see it again. It is checked on your computer with a public key, so nothing phones home.
 
 ```sh
 tm license             # licensed, no license, or what is wrong with the saved key

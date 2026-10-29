@@ -13,7 +13,7 @@ Follow these steps in order. Run the commands from the project folder.
 
 Run `command -v tm && tm --version`.
 
-If `tm` is not found, stop here. Tell the user the plugin needs the `tm` command, and point them to the install guide: https://time-machine-site.vercel.app/install.md. Do not install it yourself unless the user asks.
+If `tm` is not found, stop here. Tell the user the plugin needs the `tm` command, and point them to the install guide: https://time-machine.company/install.md. Do not install it yourself unless the user asks.
 
 ## 2. Check that this is a Git project
 

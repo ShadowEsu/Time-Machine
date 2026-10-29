@@ -33,7 +33,7 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 | `STRIPE_SECRET_KEY` | the `sk_test_` key from step 1 | the live key |
 | `TM_LICENSE_PRIVATE_KEY` | the throwaway private key from step 2 | the release private key |
 | `SUPABASE_ANON_KEY` | the Supabase project's anon key | same |
-| `SITE_ORIGIN` | leave unset, so the preview's own address is used | `https://time-machine-site.vercel.app`, or the custom domain |
+| `SITE_ORIGIN` | leave unset, so the preview's own address is used | `https://time-machine.company` |
 
 - **Then:** make a preview deployment so the settings apply, and open `/api/health` on it. It should show `"checkout": true`. It shows `"auth": true` only after step 4. Production keeps showing `"checkout": false` until step 9.
 

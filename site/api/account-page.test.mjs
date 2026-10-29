@@ -20,6 +20,16 @@ function boxAttributes() {
   return attrs;
 }
 
+// The note under the box, with every attribute account.html gives it (an error style shipped on an empty note shows
+// an empty red pill: Design P2, 28 Oct).
+function noteAttributes() {
+  const tag = PAGE.match(/<p\b[^>]*\bdata-account-agree-note\b[^>]*>/)?.[0];
+  if (!tag) throw new Error("account.html has no note under the agree box");
+  const attrs = {};
+  for (const m of tag.slice(2, -1).matchAll(/([\w-]+)(?:="([^"]*)")?/g)) attrs[m[1]] = m[2] ?? "";
+  return attrs;
+}
+
 class El {
   constructor(attrs = {}, inner = {}) {
     this.attrs = { ...attrs };
@@ -47,7 +57,7 @@ class El {
 function page() {
   const emailField = new El({ name: "email" });
   const box = new El({ name: "agree", ...boxAttributes() });
-  const note = new El({ id: "account-agree-note", "data-account-agree-note": "" });
+  const note = new El(noteAttributes());
   const codeField = new El({ name: "code" });
   const sendForm = new El({ "data-account-step": "send" }, { 'input[name="email"]': emailField, 'input[name="agree"]': box, "[data-account-agree-note]": note });
   const verifyForm = new El({ "data-account-step": "verify" }, { 'input[name="code"]': codeField, "[data-account-sent]": new El(), "[data-account-back]": new El() });
@@ -93,11 +103,18 @@ describe("the sign-in page script", () => {
     await settle();
     expect(p.sendForm.hidden).toBe(false);
     p.emailField.value = EMAIL;
+    expect(p.note.getAttribute("data-state")).toBe(null);
     p.sendForm.fire("submit");
     await settle();
     expect(p.auth()).toEqual([]);
     expect(p.box.getAttribute("aria-invalid")).toBe("true");
     expect(p.note.textContent).toBe("Please tick the box to get a code.");
+    expect(p.note.getAttribute("data-state")).toBe("error");
+    // Ticking clears the note, and an empty note carries no error style (Design P2: no empty red pill).
+    p.box.checked = true;
+    p.box.fire("change");
+    expect(p.note.textContent).toBe("");
+    expect(p.note.getAttribute("data-state")).toBe(null);
   });
 
   it("sends the box's versions with the code request and again with the code", async () => {

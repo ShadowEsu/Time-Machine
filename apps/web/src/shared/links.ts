@@ -6,7 +6,8 @@ import { ASK_CONSENT, ASK_CONSENT_ANTHROPIC } from "./ask.js";
 const LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
 const VERCEL_APP = new RegExp(`^(?:${LABEL}\\.)+vercel\\.app$`);
 
-/** The Time Machine website. The only page the app links to about itself. */
+/** The Time Machine website. The only page the app links to about itself. It stays on the vercel.app host, which every
+ *  network reaches, while some networks still block the new time-machine.company domain (Security A-1, 28 Oct). */
 export const SITE_HOST = "time-machine-site.vercel.app";
 /** Where the one-time license is bought. Shown in Settings and when the free project limit is reached. */
 export const PRICING_URL = `https://${SITE_HOST}/#pricing`;

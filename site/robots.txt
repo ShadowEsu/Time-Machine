@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://time-machine-site.vercel.app/sitemap.xml
+Sitemap: https://time-machine.company/sitemap.xml

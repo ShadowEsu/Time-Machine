@@ -1,6 +1,6 @@
 # Waitlist database setup
 
-This is done. Since 18 October 2026 the waitlist on https://time-machine-site.vercel.app saves signups. This page records how it is set up, so it can be checked or rebuilt.
+This is done. Since 18 October 2026 the waitlist on https://time-machine.company saves signups. This page records how it is set up, so it can be checked or rebuilt.
 
 Each signup is saved as pending and unconfirmed. The site sends no email. Pending signups do not count in anyone's place in line, the total, or referral credit. How a signup becomes confirmed, and any future waitlist email, is not decided yet. See [Waitlist email](EMAIL_OPT_IN.md).
 
@@ -416,7 +416,7 @@ Redeploy after changing either. The site sends every call with the `tm_waitlist`
 
 ## 4. Check it works
 
-1. Open https://time-machine-site.vercel.app/api/health. It should show `{"ok":true,"waitlist":true,"database":"reachable","email":false}`. `database` comes from a real read-only call and can lag up to 30 seconds behind (CDN cache). `unreachable` means a wrong key, a missing grant or a paused project.
+1. Open https://time-machine.company/api/health. It should show `{"ok":true,"waitlist":true,"database":"reachable","email":false}`. `database` comes from a real read-only call and can lag up to 30 seconds behind (CDN cache). `unreachable` means a wrong key, a missing grant or a paused project.
 2. Sign up on the live site with a `+test` address. The form should say the signup is saved and pending.
 3. In the SQL Editor, run `select email, source, created_at from tm_waitlist.waitlist order by created_at desc limit 5;` and see the row. Delete test rows with the query in the next section.
 

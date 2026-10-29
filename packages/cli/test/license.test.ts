@@ -32,7 +32,7 @@ function home(): { root: string; tmHome: string; env: NodeJS.ProcessEnv } {
 
 const payload = { v: 1 as const, id: "cs_test_abcdefgh", plan: "web" as const, issued: "2026-10-22" };
 const none = { active: false, id: null, issued: null, problem: null };
-const NONE_LINE = "No license on this computer. The web app lists up to 3 projects at a time without one. A license, $50 once at https://time-machine-site.vercel.app/#pricing, lifts that limit: run tm license <key>. The tm command line tool stays free and open source.\n";
+const NONE_LINE = "No license on this computer. The web app lists up to 3 projects at a time without one. A license, $50 once at https://time-machine.company/#pricing, lifts that limit: run tm license <key>. The tm command line tool stays free and open source.\n";
 
 describe("tm license", () => {
   test("shows no license without making a store, saves a key, shows it, and forgets it", async () => {

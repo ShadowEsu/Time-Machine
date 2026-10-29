@@ -38,9 +38,15 @@
   if (!agreeBox) return;
   // Why the box stopped a send is said right under it (Design, 28 Oct), not in the status line above the form.
   var agreeNote = sendForm.querySelector("[data-account-agree-note]");
+  // The note is styled as an error only while it says something, so an empty one draws nothing (Design P2, 28 Oct).
+  function note(text) {
+    if (!agreeNote) return;
+    agreeNote.textContent = text;
+    if (text) agreeNote.setAttribute("data-state", "error"); else agreeNote.removeAttribute("data-state");
+  }
   agreeBox.addEventListener("change", function () {
     agreeBox.removeAttribute("aria-invalid");
-    if (agreeNote) agreeNote.textContent = "";
+    note("");
   });
   var codeField = verifyForm.querySelector('input[name="code"]');
   var sentLine = verifyForm.querySelector("[data-account-sent]");
@@ -109,7 +115,7 @@
     agreeBox.setAttribute("aria-invalid", "true");
     if (agreeNote && !sendForm.hidden) {
       say("");
-      agreeNote.textContent = text;
+      note(text);
     } else say(text, "error");
     agreeBox.focus();
   }
@@ -218,7 +224,7 @@
     emailField.removeAttribute("aria-invalid");
     if (!agreeBox.checked) return refuse(MSG.agree);
     agreeBox.removeAttribute("aria-invalid");
-    if (agreeNote) agreeNote.textContent = "";
+    note("");
     var agreed = { agreed: true, termsVersion: agreeBox.getAttribute("data-terms-version"), privacyVersion: agreeBox.getAttribute("data-privacy-version"), boxVersion: agreeBox.getAttribute("data-box-version") };
     busy(sendForm, true);
     say(MSG.sending, "pending");
