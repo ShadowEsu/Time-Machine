@@ -50,9 +50,40 @@
 
 <div class="wrap cl">
 
+  <section class="cl-day" aria-labelledby="d-2026-10-29">
+    <h2 class="cl-date" id="d-2026-10-29"><time datetime="2026-10-29">29 October 2026</time></h2>
+    <ol class="cl-list">
+      <li>
+        <h3 class="h4">The site moved to time-machine.company</h3>
+        <p>The site’s home is now <span translate="no">time-machine.company</span>. The old address, <span translate="no">time-machine-site.vercel.app</span>, keeps working. The web app still uses it for sign-in and license checks, so they work on networks that block the new address.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/46">PR #46</a></p>
+      </li>
+    </ol>
+  </section>
+
   <section class="cl-day" aria-labelledby="d-2026-10-28">
     <h2 class="cl-date" id="d-2026-10-28"><time datetime="2026-10-28">28 October 2026</time></h2>
     <ol class="cl-list">
+      <li>
+        <h3 class="h4">Take back consent with tm forget or Disconnect</h3>
+        <p><code translate="no">tm forget</code>, and Disconnect on the web app’s Agents page, remove a project’s approval and <span translate="no">Time Machine</span>’s own lines from its Claude Code hooks. Your save points stay.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/44">PR #44</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Agree before you sign in or pay</h3>
+        <p>Sign-in and checkout, once they open, ask you to tick an unticked box first: you agree to the Terms and confirm you have read the Privacy Policy. We record when you agreed and which wording you saw.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/44">PR #44</a>, <a href="https://github.com/ShadowEsu/Time-Machine/pull/45">PR #45</a></p>
+      </li>
+      <li>
+        <h3 class="h4">Vercel linking records the read-only note you agreed to</h3>
+        <p>Linking Vercel records when you agreed to its read-only note, and which one. Deploys are read only while that note is current.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/44">PR #44</a></p>
+      </li>
+      <li>
+        <h3 class="h4">The hooks never write through a linked settings file</h3>
+        <p>Installing the hooks never writes through a symlinked or hard-linked <code translate="no">.claude/settings.json</code>, or through a linked <code translate="no">.claude</code> folder.</p>
+        <p class="cl-pr"><a href="https://github.com/ShadowEsu/Time-Machine/pull/44">PR #44</a></p>
+      </li>
       <li>
         <h3 class="h4">Every waitlist form asks with its own box</h3>
         <p>The waitlist form at the top of the home page now has the same unticked box as every other page: “Email me when the CLI is on npm. Nothing else.” Nothing is sent until you tick it.</p>
