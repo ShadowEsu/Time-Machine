@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
-  "redirects": [{ "source": "/pricing", "destination": "/#pricing", "permanent": true }],
+  "redirects": [{ "source": "/pricing", "destination": "/#pricing", "permanent": false }],
   "git": { "deploymentEnabled": { "**": false, "main": true, "preview/**": true } },
   "headers": [
     {
