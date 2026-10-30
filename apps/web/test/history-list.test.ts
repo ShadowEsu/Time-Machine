@@ -91,3 +91,16 @@ describe("safety saves made one after another", () => {
     expect(foldRepeats(rows, key, "s2").map((r) => r.c.id)).toEqual(["s3", "s2", "s1", "x", "y", "s0"]);
   });
 });
+
+describe("a save point with no message", () => {
+  test("is named by its time in words, never by an internal number", async () => {
+    const { namePoint } = await import("../src/shared/format.ts");
+    const at = new Date();
+    at.setHours(2, 58, 48, 0);
+    const c = { id: "cp-0003", createdAt: at.toISOString() };
+    const twin = { id: "cp-0004", createdAt: at.toISOString() };
+    const n = namePoint(c, [c, twin], "", at);
+    expect(n.name).toMatch(/^Save at 2:58:48\sAM$/);
+    expect(n.name).not.toContain("#");
+  });
+});

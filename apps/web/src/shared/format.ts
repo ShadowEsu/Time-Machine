@@ -129,7 +129,7 @@ export function pointMessage(c: Titled & { subject?: string | null }, given = ""
 }
 
 /** A save point's name, in two parts: its message in quotes and, secondary, its time ("“Added dark mode”", "2:58:48 AM").
- *  With no message, the time and its number name it ("2:58:48 AM #3") and `time` is "". Times carry the day when not today. */
+ *  With no message, its time names it ("Save at 2:58:48 AM") and `time` is "". Times carry the day when not today. */
 export interface PointName {
   name: string;
   time: string;
@@ -140,8 +140,8 @@ export function namePoint(c: Stamped, peers: readonly Stamped[], message: string
   const time = Number.isNaN(d.getTime()) ? "" : d.toDateString() === now.toDateString() ? pointTime(c, peers) : `${shortDay(d)} ${pointTime(c, peers)}`;
   const m = message.trim();
   if (m) return { name: `“${m.length > MESSAGE_MAX ? `${m.slice(0, MESSAGE_MAX - 1).trimEnd()}…` : m}”`, time };
-  const n = /(\d+)$/.exec(c.id)?.[1];
-  return { name: [time || "Unknown time", n ? `#${Number(n)}` : ""].filter(Boolean).join(" "), time: "" };
+  // No message: a readable name from its time ("Save at 2:58:48 AM"). Twins in one second keep their "#N" in the Inspector only.
+  return { name: time ? `Save at ${time.replace(/ #\d+$/, "")}` : "A save with no time", time: "" };
 }
 
 /** The name on one line, for a label, a title or a heading: "“Added dark mode” · 2:58:48 AM", or "2:58:48 AM #3". */
@@ -149,9 +149,9 @@ export function nameLine(n: PointName): string {
   return n.time ? `${n.name} · ${n.time}` : n.name;
 }
 
-/** The name inside a sentence: "“Added dark mode” (2:58:48 AM)", or "the save point at 2:58:48 AM #3". */
+/** The name inside a sentence: "“Added dark mode” (2:58:48 AM)", or "the save at 2:58:48 AM". */
 export function namePhrase(n: PointName): string {
-  return n.time ? `${n.name} (${n.time})` : `the save point at ${n.name}`;
+  return n.time ? `${n.name} (${n.time})` : n.name.replace(/^Save at /, "the save at ");
 }
 
 /** A phrase made to start a sentence: "the save point at 8:16 PM #3" becomes "The save point at 8:16 PM #3". */

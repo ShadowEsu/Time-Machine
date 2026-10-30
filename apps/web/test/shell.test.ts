@@ -172,7 +172,7 @@ describe("project status", () => {
     expect(s.primary.title).toBe(`Bring back “Works” · ${withSeconds(sec(18, 4, 5))}`);
   });
 
-  test("twins in one second are told apart by their messages; with no message, by time and number (L364 #2)", () => {
+  test("twins in one second are told apart by their messages; with no message, by a readable time (L364 #2)", () => {
     const sec = (d: Date, s: number): string => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 18, 4, s).toISOString();
     const time = (iso: string): string => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
     const today = new Date();
@@ -182,19 +182,19 @@ describe("project status", () => {
     expect(s.secondary).toMatchObject({ label: "Bring back “Works”", sub: t5 });
     expect(goBackLabel(named[1]!, named)).toBe(`Bring back “Broke it” · ${t5}`);
     expect(s.voice).toBe(`Saved “Later” at ${time(sec(today, 30))}.`);
-    // No message: the time and the save point's number, never "the first save".
+    // No message: "Save at" and its time in names and buttons, never "the first save" and never an internal "#N".
     const untitled = [pt(1, "PASS", sec(today, 5), ""), pt(2, "FAIL", sec(today, 5), "Auto save")];
     const broken = projectStatus(untitled);
     expect(broken.voice).toBe(`Since ${t5} #2.`);
-    expect(broken.body).toContain(`The save point at ${t5} #1 still works.`);
-    expect(broken.primary).toEqual({ label: `Bring back ${t5} #1`, act: "rewind-to", id: "cp-0001", title: `Bring back ${t5} #1` });
+    expect(broken.body).toContain(`The save at ${t5} still works.`);
+    expect(broken.primary).toEqual({ label: `Bring back Save at ${t5}`, act: "rewind-to", id: "cp-0001", title: `Bring back Save at ${t5}` });
     expect(projectStatus([untitled[0]!, { ...untitled[1]!, verdict: null }]).voice).toBe(`Saved ${t5} #2.`);
     expect(pointClock(untitled[0]!, untitled)).toBe(`${t5} #1`);
     // Another day: the day goes in front of the time.
     const day = new Date(2026, 9, 14);
     const old = [pt(1, "PASS", sec(day, 5), ""), pt(2, "FAIL", sec(day, 5), "")];
     const dayName = day.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-    expect(projectStatus(old).primary.label).toBe(`Bring back ${dayName} ${time(sec(day, 5))} #1`);
+    expect(projectStatus(old).primary.label).toBe(`Bring back Save at ${dayName} ${time(sec(day, 5))}`);
     // The name someone gave a save point wins over its message.
     const given = projectStatus(named.slice(0, 2), null, true, (c) => (c.id === "cp-0001" ? "Last green before refactor" : pointMessage(c)));
     expect(given.primary.label).toBe("Bring back “Last green before refactor”");

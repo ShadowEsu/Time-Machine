@@ -1346,3 +1346,9 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .undo-card > .uc-t { flex: 1 1 300px; min-width: 0; display: grid; gap: 6px; }
 .undo-card .uc-k { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
 .undo-card .row-btns { align-items: center; }
+/* Round 3: the banner's buttons wrap on a phone; Claude Code's row keeps its name and state whole, on two lines. */
+.undo-card .row-btns { flex: 1 1 100%; flex-wrap: wrap; }
+@media (max-width: 480px) { .undo-card .row-btns .btn { white-space: normal; height: auto; min-height: 44px; } .undo-card .uc-k { flex-basis: 100%; } }
+.ag-row { flex-wrap: wrap; }
+.ag-row .it.ag .nm, .ag-row .it.ag .nm > span, .ag-row .it.ag .nm small { white-space: normal; overflow: visible; text-overflow: clip; }
+.ag-row .it.ag { flex: 1 1 140px; }

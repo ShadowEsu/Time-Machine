@@ -3340,21 +3340,22 @@ function backToNow(): void {
 }
 
 /**
- * Bring back from History. A version that passed its check (or any, in a folder with no check) asks once, on one sheet that
- * lists what comes back and what does not, then comes back and History itself shows where it is. One not proven goes
- * through the Rewind, which can try it in a copy first.
+ * Bring back from History: one sheet that lists what comes back and what does not, then it comes back and History itself
+ * shows where it is. A version not proven says so on the sheet, and can be checked once it is back.
  */
 function bringBack(id: string | undefined): Promise<void> | void {
   const p = project();
   const c = id ? entry(id) : null;
   if (!p || !c || st.busy) return;
-  if (st.screen !== "history" || folderMissing(p) || damagedReason(c) || (checksOn(p) && c.verdict !== "PASS")) return startRewind(id);
+  if (folderMissing(p) || damagedReason(c)) return startRewind(id);
+  const unproven = checksOn(p) && c.verdict !== "PASS";
   st.confirm = {
     act: "bring", id: c.id, action: "Bring it back",
     title: `Bring back ${said(c)}?`,
-    body: p.kind === "folder"
+    body: (p.kind === "folder"
       ? "We make a copy of it next to your folder. Your folder is not touched, and every save point stays."
-      : "We make a copy of it next to your folder, on a new branch. Your folder is not touched, and every save point stays.",
+      : "We make a copy of it next to your folder, on a new branch. Your folder is not touched, and every save point stays.")
+      + (unproven ? ` ${c.verdict === null ? "Not checked yet" : "Not proven to work"}: we’ll bring it back, then you can check it.` : ""),
     lists: { comes: comesBackLines(c), not: [...notSavedLines(c), `Changes after ${said(c)}. They stay saved in History.`] },
   };
   render();
@@ -3371,6 +3372,9 @@ async function bringDo(id: string): Promise<void> {
     const res = await api({ method: "recover", projectId: p.id, id });
     st.undo = { projectId: p.id, result: res, working: false };
     st.selected = res.id;
+    // From anywhere (Compare, the check sheet, Jump to), History is where it says what came back and where.
+    st.check = null;
+    st.screen = "history";
   } catch (e) {
     toast(e instanceof Error ? e.message : String(e));
   }
