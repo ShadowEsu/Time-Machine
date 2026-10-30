@@ -933,7 +933,7 @@ function history(): string {
   const useSteps = onUse && u ? folderPlan(u.result, p)?.steps ?? null : null;
   const savedLine = !saved ? ""
     : onUse && useSteps ? `<p class="uc-saved"><span>${esc(useSteps.onUse)} It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>
-      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd">${esc(useSteps.back)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.local)}</p>`
+      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${esc(useSteps.back)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.local)}</p>`
     : `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>`;
   const undoBar = u
     ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>.${onUse ? "" : " Your folder was not touched."}</p>
@@ -1095,11 +1095,11 @@ function useInFolder(res: RecoverResult, p: ProjectEntry): string {
     <p class="uc-end">${esc(steps.end)}</p>
     ${steps.left ? `<p class="uc-left">${esc(steps.left)}</p>` : ""}
     <button class="btn quiet uc-show" data-act="show-cmds" aria-expanded="${folderCmdsShown}">${folderCmdsShown ? "Hide commands" : "Show commands"}</button>
-    <pre class="mono sel-text uc-cmd">${esc(steps.commands)}</pre>
+    <pre class="mono sel-text uc-cmd" tabindex="0">${esc(steps.commands)}</pre>
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="commands">Copy commands</button><button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Or open the copy</button></div>
     <p class="uc-local">${esc(steps.local)}</p>${steps.hooks ? `<p>${esc(steps.hooks)}</p>` : ""}
     <p><b>To go back</b></p>
-    <pre class="mono sel-text uc-cmd">${esc(steps.back)}</pre>
+    <pre class="mono sel-text uc-cmd" tabindex="0">${esc(steps.back)}</pre>
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div>
     <p>${esc(steps.backNote)}</p>
     <details class="uc-why"><summary>Why these flags</summary><ul>${steps.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details></details></div>`;
