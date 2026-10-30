@@ -5,7 +5,7 @@ import type { Purpose, RunNote } from "../shared/api.js";
 import { esc } from "../shared/format.js";
 import { PURPOSES } from "./purpose.js";
 
-export type JournalFilter = "all" | "pinned";
+export type JournalFilter = "all" | "works" | "named" | "pinned";
 
 /** The longest name and note the store keeps (api.ts RunNoteSchema). */
 export const TITLE_MAX = 80;
@@ -43,9 +43,17 @@ export function rowTitle(made: string, trigger: string, files: readonly string[]
   return "Saved by you";
 }
 
-/** The save points the journal shows under a filter. */
-export function filtered<T extends { id: string }>(points: readonly T[], notes: ReadonlyMap<string, RunNote>, filter: JournalFilter): T[] {
-  return filter === "pinned" ? points.filter((c) => notes.get(c.id)?.pinned) : [...points];
+/** The save points History shows under a filter: all, the ones whose check passed, the ones someone named, or the pinned ones. */
+export function filtered<T extends { id: string; verdict: string | null }>(points: readonly T[], notes: ReadonlyMap<string, RunNote>, filter: JournalFilter): T[] {
+  if (filter === "works") return points.filter((c) => c.verdict === "PASS");
+  if (filter === "named") return points.filter((c) => !!notes.get(c.id)?.title?.trim());
+  if (filter === "pinned") return points.filter((c) => notes.get(c.id)?.pinned);
+  return [...points];
+}
+
+/** How many save points each filter shows. `works` is null for a project with no check, which has no Works filter. */
+export function filterCounts<T extends { id: string; verdict: string | null }>(points: readonly T[], notes: ReadonlyMap<string, RunNote>, checks: boolean): { works: number | null; named: number; pinned: number } {
+  return { works: checks ? filtered(points, notes, "works").length : null, named: filtered(points, notes, "named").length, pinned: filtered(points, notes, "pinned").length };
 }
 
 /** A small pin, filled when pinned. Decorative: the words beside it say so. */
@@ -53,17 +61,19 @@ export function pinIcon(on: boolean): string {
   return `<svg class="pin-i" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 2.5h4l-.6 4 2.6 2.4H4l2.6-2.4zM8 8.9v4.6" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
-/** All / Pinned above the journal, with how many are pinned. */
-export function filterBar(filter: JournalFilter, pinned: number, purpose: Purpose): string {
+/** All / Works / Named / Pinned over History's list, each filter with how many it shows. */
+export function filterBar(filter: JournalFilter, counts: { works: number | null; named: number; pinned: number }, purpose: Purpose): string {
   const u = unitWords(purpose);
   const b = (v: JournalFilter, label: string): string => `<button class="${filter === v ? "on" : ""}" aria-pressed="${filter === v}" data-act="journal-filter" data-v="${v}">${label}</button>`;
-  return `<div class="jf" role="group" aria-label="${esc(`Show ${u.many}`)}">${b("all", "All")}${b("pinned", `${pinIcon(true)}Pinned<span class="jf-n">${pinned}</span>`)}</div>`;
+  const n = (k: number): string => `<span class="jf-n">${k}</span>`;
+  return `<div class="jf" role="group" aria-label="${esc(`Show ${u.many}`)}">${b("all", "All")}${counts.works === null ? "" : b("works", `Works${n(counts.works)}`)}${b("named", `Named${n(counts.named)}`)}${b("pinned", `${pinIcon(true)}Pinned${n(counts.pinned)}`)}</div>`;
 }
 
-/** The Pinned filter with nothing pinned: what to do about it. */
-export function noPinned(purpose: Purpose): string {
+/** A filter that shows nothing: what it is waiting for, and the way back to all of them. */
+export function noneShown(filter: Exclude<JournalFilter, "all">, purpose: Purpose): string {
   const u = unitWords(purpose);
-  return `<div class="jf-empty"><p><b>${esc(`No pinned ${u.many} yet.`)}</b> ${esc(`Open a ${u.one} and choose Pin to keep it at hand.`)}</p><button class="btn quiet" data-act="journal-filter" data-v="all">Show all</button></div>`;
+  const words = { works: [`No ${u.many} have passed their check yet.`, ""], named: [`No named ${u.many} yet.`, `Open a ${u.one} and give it a name.`], pinned: [`No pinned ${u.many} yet.`, `Open a ${u.one} and choose Pin to keep it at hand.`] }[filter];
+  return `<div class="jf-empty"><p><b>${esc(words[0] ?? "")}</b>${words[1] ? ` ${esc(words[1])}` : ""}</p><button class="btn quiet" data-act="journal-filter" data-v="all">Show all</button></div>`;
 }
 
 /** The draft being typed in a detail. Kept in state, so a redraw never loses it. */
