@@ -115,7 +115,7 @@ describe("project status", () => {
   test("broken with a known working version: broken once, since the first failure, the way out named by its message with the time after it, see what changed", () => {
     const s = projectStatus(story);
     expect(s.head).toBe("Broken.");
-    expect(s.voice).toBe(`Since “Added a dependency” (${when(at(20, 16))}).`);
+    expect(s.voice).toBe(`Since ${when(at(20, 16))}.`);
     expect(s.body).toContain(`“Add dark mode” (${when(at(19, 3))}) still works.`);
     expect(s.primary).toEqual({ label: "Bring back “Add dark mode”", sub: when(at(19, 3)), act: "rewind-to", id: "cp-0002", title: `Bring back “Add dark mode” · ${when(at(19, 3))}` });
     expect(s.secondary).toEqual({ label: "See what changed", act: "compare", a: "cp-0002", b: "now" });
@@ -166,7 +166,7 @@ describe("project status", () => {
     const withSeconds = (iso: string): string => `${new Date(iso).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} ${new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
     const sameMinute = [pt(1, "PASS", sec(18, 4, 5), "Works"), pt(2, "FAIL", sec(18, 4, 40), "Broke it")];
     const s = projectStatus(sameMinute);
-    expect(s.voice).toBe(`Since “Broke it” (${withSeconds(sec(18, 4, 40))}).`);
+    expect(s.voice).toBe(`Since ${withSeconds(sec(18, 4, 40))}.`);
     expect(s.primary.label).toBe("Bring back “Works”");
     expect(s.primary.sub).toBe(withSeconds(sec(18, 4, 5)));
     expect(s.primary.title).toBe(`Bring back “Works” · ${withSeconds(sec(18, 4, 5))}`);
@@ -185,10 +185,10 @@ describe("project status", () => {
     // No message: the time and the save point's number, never "the first save".
     const untitled = [pt(1, "PASS", sec(today, 5), ""), pt(2, "FAIL", sec(today, 5), "Auto save")];
     const broken = projectStatus(untitled);
-    expect(broken.voice).toBe(`Since the save point at ${t5} #2.`);
+    expect(broken.voice).toBe(`Since ${t5} #2.`);
     expect(broken.body).toContain(`The save point at ${t5} #1 still works.`);
     expect(broken.primary).toEqual({ label: `Bring back ${t5} #1`, act: "rewind-to", id: "cp-0001", title: `Bring back ${t5} #1` });
-    expect(projectStatus([untitled[0]!, { ...untitled[1]!, verdict: null }]).voice).toBe(`Saved at ${t5} #2.`);
+    expect(projectStatus([untitled[0]!, { ...untitled[1]!, verdict: null }]).voice).toBe(`Saved ${t5} #2.`);
     expect(pointClock(untitled[0]!, untitled)).toBe(`${t5} #1`);
     // Another day: the day goes in front of the time.
     const day = new Date(2026, 9, 14);
