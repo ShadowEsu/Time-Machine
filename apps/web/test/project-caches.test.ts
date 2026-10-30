@@ -1,5 +1,5 @@
 // Save point ids restart at cp-0001 in every project, so what the app keeps by id must go when the open project changes,
-// or another project's files, passes and notes show on these rows (Design gate MF3).
+// or another project's files, checks and notes show on these rows (Design gate MF3).
 import { describe, expect, test } from "vitest";
 import { resetProjectCaches, type ProjectCaches } from "../src/renderer/project-caches.ts";
 
@@ -10,7 +10,6 @@ function filled(projectId: string): ProjectCaches {
     selected: "cp-0002",
     drawer: true,
     changes: new Map([["cp-0002", ["price.js"]]]),
-    passes: new Map([["cp-0002", 3]]),
     storedChecks: new Map([["cp-0002 PASS", null]]),
     deployChips: new Map([["cp-0002", "<span>Ready</span>"]]),
     notes: new Map([["cp-0002", { title: "Pricing", note: "", pinned: true, updated: "2026-10-25T07:00:00Z" }]]),
@@ -28,7 +27,7 @@ describe("switching projects", () => {
     expect(s.timeline).toBeNull();
     expect(s.selected).toBeNull();
     expect(s.drawer).toBe(false);
-    for (const m of [s.changes, s.passes, s.storedChecks, s.notes, s.deployChips]) expect(m.size).toBe(0);
+    for (const m of [s.changes, s.storedChecks, s.notes, s.deployChips]) expect(m.size).toBe(0);
     expect(s.changesFor).toBe("");
     expect(s.journalFilter).toBe("all");
     expect(s.noteDraft).toBeNull();
