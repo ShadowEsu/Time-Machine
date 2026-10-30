@@ -1,8 +1,8 @@
 import { generateKeyPairSync } from "node:crypto";
 import { request } from "node:http";
 import { connect } from "node:net";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { networkInterfaces, tmpdir } from "node:os";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { signLicense } from "@timetm/core";
@@ -56,6 +56,8 @@ describe("local browser boundary", () => {
     expect(boot.status).toBe(200);
     const data = JSON.parse(boot.body).data;
     expect(data).toMatchObject({ preview: false, projects: [], license: { active: expect.any(Boolean), freeProjectLimit: expect.any(Number) } });
+    // The home folder as given and after realpath, the only prefixes the app shows as ~.
+    expect(data.homes).toEqual([...new Set([homedir(), realpathSync(homedir())])]);
     // The browser app is the only runtime, so the desktop-only fields are gone.
     for (const gone of ["runtime", "hotkey", "hotkeyActive"]) expect(data, gone).not.toHaveProperty(gone);
     expect(shell.headers["access-control-allow-origin"]).toBeUndefined();

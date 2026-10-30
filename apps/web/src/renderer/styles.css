@@ -171,7 +171,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .it.on .pj-ic .dot:not(.v-pass):not(.v-fail) { background-color: var(--surface); }
 .it.add { color: var(--ink-3); }
 .it.ag { min-height: 54px; color: var(--ink-2); }
-.it.ag.off { color: var(--ink-3); }
 .dot { width: 10px; height: 10px; flex: none; border-radius: 50%; margin: 0 3px; box-shadow: inset 0 0 0 2px var(--ink-4); }
 .dot.v-pass { background: var(--works); box-shadow: none; }
 .dot.v-fail { background: var(--broken); box-shadow: none; border-radius: 2px; transform: rotate(45deg); width: 9px; height: 9px; }
@@ -323,8 +322,12 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 /* The undo card after a bring back: a sky card with the way back in it. */
 .doc > .undo-card { margin: 28px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--sky); border: 1.5px solid var(--sky-line); color: var(--sky-ink); font-size: 15px; line-height: 1.5; }
 .undo-card > .g { flex: none; width: 10px; height: 10px; }
-.undo-card > p { flex: 1 1 300px; min-width: 0; }
-.undo-card .row-btns { flex: none; }
+.undo-card > p { flex: 1 1 300px; min-width: 0; overflow-wrap: anywhere; }
+.undo-card .row-btns { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; }
+@media (max-width: 480px) {
+  .undo-card .row-btns { flex: 1 1 100%; }
+  .undo-card .row-btns > .btn { flex: 1 1 100%; justify-content: center; }
+}
 /* A folder that is gone: its notice and the two ways out sit where the main action was. */
 .hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -537,15 +540,17 @@ button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .know .honest dt:not(:first-child) { margin-top: 8px; }
 .know .honest dd { margin: 0; text-wrap: pretty; }
 
-/* The save point detail: the right column, or a full sheet when narrow. The time in the display face, the message
-   in the voice, then what the check said, one ink action and the record of what is kept. */
+/* The save point detail: the right column, or a full sheet when narrow. Its message as the heading in the display face, the
+   time under it, then what the check said, one ink action and the record of what is kept. */
 .rcol.detail .rc-body { gap: 18px; padding-bottom: 40px; }
-.sp-h { display: grid; gap: 4px; font-size: 40px; line-height: 1.04; }
-.sp-h .sp-t { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sp-h .voice { font-size: 28px; line-height: 1.14; color: var(--ink-2); overflow-wrap: anywhere; text-wrap: pretty; }
-/* Which of two save points in one second this is, under the heading that shows only the time. */
+.sp-h { font-size: 28px; line-height: 1.12; overflow-wrap: anywhere; text-wrap: pretty; }
+.sp-when { margin-top: -10px; font-size: 14.5px; line-height: 1.4; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sp-when:empty { display: none; }
+/* The name the save point was made with, under a name someone gave it. */
 .sp-twin { margin-top: -8px; font-size: 14px; line-height: 1.4; color: var(--ink-3); }
 .sp-v { color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+/* A save point's time beside the message a button names it by: the same line, quieter. */
+.b-sub { font-weight: 500; opacity: .72; font-variant-numeric: tabular-nums; }
 .sp-acts { display: grid; gap: 10px; justify-items: start; }
 .sp-acts > .btn.big { width: 100%; }
 .sp-links { display: flex; flex-wrap: wrap; gap: 0 22px; }
@@ -706,7 +711,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 /* On, the track is ink and the knob is paper, so the knob stands out in either theme, including a dark system theme. */
 .switch.on::after { transform: translateX(14px); background: var(--paper); }
 .toggle { display: flex; gap: 12px; align-items: flex-start; }
-.planned { display: inline-block; font-size: 13.5px; font-weight: 500; padding: 0 7px; margin-right: 6px; line-height: 20px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
 .hook-words { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13.5px; color: var(--ink-2); }
 .hook-exact { margin-top: 8px; font-size: 13.5px; }
 .hook-exact summary { cursor: pointer; width: max-content; max-width: 100%; padding: 6px 0; border-radius: 4px; color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--sky-line); text-decoration-thickness: 3px; text-underline-offset: 6px; }
