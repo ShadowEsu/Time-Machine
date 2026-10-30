@@ -1410,3 +1410,5 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .spk .vi { width: 14px; height: 14px; }
 .spark { height: 36px; gap: 6px; }
 .lp-two .lp-list { min-height: 168px; }
+.uc-cmd .tk { white-space: nowrap; }
+@media (max-width: 480px) { .uc-cmd { font-size: 12px; padding: 10px; } }
