@@ -326,6 +326,8 @@ main { position: relative; }
 /* At 860 px and below the 390 px capture is shown at phone size, as on the home page. */
 @media (max-width: 860px) { .app-win { max-width: 280px; margin-inline: auto; } }
 .app-fig figcaption { margin-top: 14px; font: 13px/1.5 var(--sans); color: var(--ink-3); }
+/* The code chip's tint plus the window's shadow take ink-3 under 4.5:1 here, so the command reads in ink-2. */
+.app-fig figcaption code { color: var(--ink-2); }
 
 /* pay once */
 .a-pay { padding: 18vh 0 16vh; border-top: 1px solid var(--line); }
