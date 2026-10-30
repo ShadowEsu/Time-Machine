@@ -697,7 +697,7 @@ function sidebar(mobile = false): string {
       // The purpose icon carries the status dot on its corner. The name gets the whole first line; the status and the age
       // share the second, the age on the right.
       return `<button class="it project-it${on ? " on" : ""}" data-act="project" data-id="${p.id}" ${on ? 'aria-current="page"' : ""} title="${esc(s?.problem && s.problemKind !== "missing" ? s.problem : p.path)}">
-        <span class="pj-ic">${purposeIcon(p.purpose, "sm")}<span class="dot v-${verdictKey(s?.problem ? "ERROR" : v)}" aria-hidden="true"></span></span><span class="nm"><span>${esc(p.name)}</span><small class="project-verdict"><span>${esc(label)}</span>${age}</small></span></button>`;
+        <span class="pj-ic">${purposeIcon(p.purpose, "sm")}<span class="dot v-${verdictKey(s?.problem ? "ERROR" : folderMark(p, v))}" aria-hidden="true"></span></span><span class="nm"><span>${esc(p.name)}</span><small class="project-verdict"><span>${esc(label)}</span>${age}</small></span></button>`;
     })
     .join("");
   const claude = claudeChannel(st.agents ?? [], st.lastTurn);
@@ -934,8 +934,8 @@ function history(): string {
   const onUse = !!u && folderOnUse(u.result, p);
   const useSteps = onUse && u ? folderPlan(u.result, p)?.steps ?? null : null;
   const savedLine = !saved ? ""
-    : onUse && useSteps ? `<p class="uc-saved"><span>${esc(useSteps.onUse)} It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>
-      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${cmdHtml(shownLines(useSteps.back))}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.locked)}</p><p class="uc-local">${esc(useSteps.local)}</p>`
+    : onUse && useSteps ? `<p class="uc-saved"><span>${proseHtml(useSteps.onUse)} It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>
+      <p>${proseHtml(useSteps.beforeBack)}</p><p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${cmdHtml(shownLines(useSteps.back))}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${proseHtml(useSteps.afterBack)}</p><p>${proseHtml(useSteps.locked)}</p><p class="uc-local">${esc(useSteps.local)}</p>`
     : `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>`;
   const undoBar = u
     ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>.${onUse ? "" : " Your folder was not touched."}</p>
@@ -1046,11 +1046,11 @@ function folderPlan(res: RecoverResult, p: ProjectEntry): { steps: ReturnType<ty
   }
   if (secrets === null) return { steps: null, loading: true };
   if ("failed" in secrets) return { steps: null, loading: false };
-  return { steps: folderSteps(p.path, homeOf(p.path), sha, res.id, { branch: before.branch, sha: before.head }, secrets), loading: false };
+  return { steps: folderSteps(p.path, homeOf(p.path), sha, res.id, { branch: before.branch, sha: before.head }, secrets, homePath(res.copyDir)), loading: false };
 }
 
 /** The folderState answer per project and recovery branch: null while it is asked. Asked again when the app comes back. */
-const folderSeen = new Map<string, FolderState | { excluded: []; tracked: []; forceAdd: []; branch: null; hooks: false; failed: true } | null>();
+const folderSeen = new Map<string, FolderState | { excluded: []; tracked: []; forceAdd: []; branch: null; failed: true } | null>();
 
 /**
  * The folder's state for the panel: asked once per bring back and again when the window comes back (you may have run the
@@ -1062,7 +1062,7 @@ function folderStateFor(p: ProjectEntry, branch: string): FolderState | { failed
   if (seen !== undefined) return seen;
   folderSeen.set(key, null);
   void bridge.call({ method: "folderState", projectId: p.id, branch }).then((r) => {
-    folderSeen.set(key, r.ok ? r.data : { excluded: [], tracked: [], forceAdd: [], branch: null, hooks: false, failed: true });
+    folderSeen.set(key, r.ok ? r.data : { excluded: [], tracked: [], forceAdd: [], branch: null, failed: true });
     render();
   });
   return undefined;
@@ -1071,6 +1071,15 @@ function folderStateFor(p: ProjectEntry, branch: string): FolderState | { failed
 /** The panel shows only where its commands run: macOS and Linux shells, never Windows, and only when turned on. */
 function folderPanelOn(): boolean {
   return folderCommandsOn() && st.boot.platform !== "win32";
+}
+
+/**
+ * The mark for a project's folder: once the folder is on use-<id>, the neutral ring (no check has run on the folder as it
+ * is now), not the broken newest save point's.
+ */
+function folderMark(p: ProjectEntry, v: Verdict | null): Verdict | null {
+  const u = st.undo;
+  return u?.projectId === p.id && folderOnUse(u.result, p) ? null : v;
 }
 
 /** True once the folder is on the branch the commands make (the engine reads its current branch). */
@@ -1090,6 +1099,11 @@ function cmdHtml(text: string): string {
   return text.split("\n").map((line) => line.split(" ").map((t) => `<span class="tk">${esc(t)}</span>`).join(" ")).join("\n");
 }
 
+/** Prose that names a branch keeps the name on one line: a hyphen in use-cp-0003 is not a place to break. */
+function proseHtml(text: string): string {
+  return esc(text).replace(/\b(?:use-cp-\d+(?:-\d+)?|tm\/[\w./-]*\w)/g, (m) => `<span class="nb">${m}</span>`);
+}
+
 /** The go-back line as shown: a line break after each &&, so every step is in view. Copy keeps folderCommands()' text. */
 function shownLines(line: string): string {
   return line.replace(/ && /g, " &&\n");
@@ -1105,18 +1119,20 @@ function useInFolder(res: RecoverResult, p: ProjectEntry): string {
   const n = steps.commands.split("\n").length;
   // The list opens by itself once Check it works there has passed; before that it is one line that expands.
   const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
-  return `<div class="uc-use${folderCmdsShown ? " shown" : ""}"><details class="uc-panel"${passed || folderPanelOpen ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands, your broken version stays saved</summary>
+  return `<div class="uc-use${folderCmdsShown ? " shown" : ""}"><details class="uc-panel"${passed || folderPanelOpen ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands for macOS and Linux (zsh, bash), your broken version stays saved</summary>
     <p>${esc(steps.intro)}</p>
-    <p class="uc-end">${esc(steps.end)}</p>
+    <p class="uc-end">${proseHtml(steps.end)}</p>
     ${steps.left ? `<p class="uc-left">${esc(steps.left)}</p>` : ""}
     <button class="btn quiet uc-show" data-act="show-cmds" aria-expanded="${folderCmdsShown}">${folderCmdsShown ? "Hide commands" : "Show commands"}</button>
     <pre class="mono sel-text uc-cmd" tabindex="0">${cmdHtml(steps.commands)}</pre>
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="commands">Copy commands</button><button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Or open the copy</button></div>
-    <p class="uc-local">${esc(steps.local)}</p>${steps.hooks ? `<p>${esc(steps.hooks)}</p>` : ""}
+    <p class="uc-local">${proseHtml(steps.local)}</p><p>${esc(steps.hooks)} ${esc(steps.onError)}</p>
+    <p>${proseHtml(steps.beforeBack)}</p>
     <p><b>To go back</b></p>
     <pre class="mono sel-text uc-cmd" tabindex="0">${cmdHtml(shownLines(steps.back))}</pre>
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div>
-    <p>${esc(steps.backNote)} ${esc(steps.locked)}</p>
+    <p>${proseHtml(steps.afterBack)}</p>
+    <p>${proseHtml(steps.backNote)} ${proseHtml(steps.locked)}</p>
     <details class="uc-why"${folderWhyOpen ? " open" : ""}><summary>Why these flags</summary><ul>${steps.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details></details></div>`;
 }
 
@@ -2741,7 +2757,7 @@ function toolbar(): string {
   const phoneMain = ready ? (checkFirst ? `<button class="btn tb-main" data-act="check" ${busy}>Check it works</button>` : `<button class="btn tb-main" data-act="save" ${busy}>Save now</button>`) : "";
   const v = p ? (st.statuses.get(p.id)?.newest?.verdict ?? null) : null;
   // The phone's project switcher names the project, so its accessible name starts with what it shows.
-  const switcher = `<button class="nav-toggle" data-act="nav-toggle" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>${p ? `<span class="dot v-${verdictKey(v)}" aria-hidden="true"></span><span class="nt-n">${esc(p.name)}</span><span class="sr-only">, open projects</span>` : '<span class="nt-n">Projects</span>'}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  const switcher = `<button class="nav-toggle" data-act="nav-toggle" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>${p ? `<span class="dot v-${verdictKey(folderMark(p, v))}" aria-hidden="true"></span><span class="nt-n">${esc(p.name)}</span><span class="sr-only">, open projects</span>` : '<span class="nt-n">Projects</span>'}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   return `<div class="toolbar">${buddy("tb-buddy")}${switcher}<nav class="crumb" aria-label="Where you are">${crumb}</nav>
     ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
     <span class="tb-sp"></span>

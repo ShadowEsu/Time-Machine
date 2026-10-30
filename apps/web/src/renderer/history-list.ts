@@ -116,7 +116,6 @@ export interface FolderSecretsIn {
   excluded: readonly string[];
   tracked: readonly string[];
   forceAdd?: readonly string[];
-  hooks?: boolean;
 }
 
 /**
@@ -127,8 +126,9 @@ export interface FolderSecretsIn {
  * here: the engine must pick unused names before this ships. The panel is off unless turned on.
  * `blocked` is set (and there are no commands) when no block can be offered, e.g. a tracked path whose ignored copy looks secret.
  */
-export function folderSteps(folder: string, home: string, recoverySha: string, id: string, was: FolderWas, secrets: FolderSecretsIn = { excluded: [], tracked: [] }): {
+export function folderSteps(folder: string, home: string, recoverySha: string, id: string, was: FolderWas, secrets: FolderSecretsIn = { excluded: [], tracked: [] }, copyShown = ""): {
   intro: string; end: string; commands: string; back: string; backNote: string; locked: string; left: string; local: string; blocked: string; why: string[]; onUse: string; hooks: string;
+  beforeBack: string; afterBack: string; onError: string;
 } {
   const use = `use-${id}`;
   const save = `tm/folder-before/${id}`;
@@ -138,24 +138,28 @@ export function folderSteps(folder: string, home: string, recoverySha: string, i
   });
   const ex = made.offer ? made.leftInPlace : [];
   return {
-    intro: "Run these in a terminal. They save your folder’s current state on its own branch, then switch the folder to a new branch made from the working version. Nothing is deleted.",
-    end: `You end on a new branch, ${use}, made from the working version. Your old branch is unchanged.`,
+    intro: "Run these in a terminal. They save your folder’s current state on its own branch, then switch the folder to a new branch made from the working version. These steps delete nothing.",
+    end: `You end on a new branch, ${use}, made from the working version. ${was.branch ? `Your old branch, ${was.branch}, is unchanged.` : "The commit you were on is unchanged."}`,
+    onError: "If any step stops with an error, run the go-back line.",
     commands: made.offer ? made.commands : "",
     back: made.offer ? made.back : "",
-    backNote: `This works after the commands above, or after any of them failed. If it stops at “invalid reference: ${save}”, your folder was never changed.`,
+    backNote: `This works after the commands above, or after any of them failed. If it stops at “invalid reference: ${save}”, your folder was never changed. Staged changes come back unstaged.`,
     locked: `If the last step says it cannot lock ${use}, you made commits there. They are kept, and the rest is already back.`,
     left: !ex.length ? "" : ex.length === 1
       ? `We left out ${ex[0]} (looks like a secret). It stays in your folder, untouched.`
       : `We left out ${andList(ex)} (they look like secrets). They stay in your folder, untouched.`,
     local: `${save} is a local safety branch. Don’t push it or merge it. To get your work back, run the go-back line.`,
-    hooks: secrets.hooks ? "These steps skip your repo’s commit hooks." : "",
+    hooks: "Your repo’s commit hooks are skipped for these steps so they can’t change files mid-way.",
+    beforeBack: `Commit or copy any new edits on ${use} before going back.`,
+    afterBack: `Going back deletes only the safety branch ${save}, after your work is back in your folder. The working version stays on ${use}${copyShown ? ` and in the copy at ${copyShown}` : ""}.`,
     blocked: made.offer ? "" : made.reason,
     onUse: `Your folder is on ${use}, the working version. Your broken work is on the branch ${save}.`,
     why: [
       "Hooks are off for these steps, so your project’s hooks can’t change files mid-way.",
       `git add -A saves your broken state on the safety branch${ex.length ? ", except the files we left out (they look like secrets)" : ""}.`,
-      "The safety commit is signed as “Time Machine <tm@localhost>” with signing off, so it never asks for your key and is clearly ours.",
+      "Runs without your repo’s commit hooks or signing; the save commit is authored by Time Machine.",
       "In the go-back line, git branch -D removes only the safety branch, after its changes are back in your folder.",
+      "-D, not -d: the safety branch was never merged, so -d would refuse.",
       `git update-ref -d deletes ${use} only while it still points at the working version, so any commits you made there are kept.`,
       "These are macOS and Linux shell commands (zsh, bash).",
     ],

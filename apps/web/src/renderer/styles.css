@@ -1412,3 +1412,4 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .lp-two .lp-list { min-height: 168px; }
 .uc-cmd .tk { white-space: nowrap; }
 @media (max-width: 480px) { .uc-cmd { font-size: 12px; padding: 10px; } }
+.uc-use .nb, .undo-card .nb { white-space: nowrap; }

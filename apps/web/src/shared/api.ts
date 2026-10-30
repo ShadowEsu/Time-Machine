@@ -353,8 +353,6 @@ export interface FolderState {
   forceAdd: string[];
   /** The folder's current branch, or null on a detached HEAD. */
   branch: string | null;
-  /** The repo has commit hooks: core.hooksPath, .git/hooks/pre-commit, .husky/pre-commit or .pre-commit-config.yaml. */
-  hooks: boolean;
 }
 
 export interface Bootstrap {
