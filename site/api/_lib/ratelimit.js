@@ -1,4 +1,4 @@
-// Per-client request limits for the sign-in, account, license and checkout functions. Pure: no Vercel.
+// Per-client request limits for the sign-in, account, license, checkout and feedback functions. Pure: no Vercel.
 // Best effort, per function instance: a cold start forgets it. Supabase and Stripe keep their own limits too.
 import { randomBytes } from "node:crypto";
 import { clientId } from "./waitlist.js";
@@ -7,8 +7,8 @@ const HOUR_MS = 60 * 60 * 1000;
 const TEN_MIN_MS = 10 * 60 * 1000;
 // license and checkout each call Stripe, so their limits keep one client from using up the Stripe
 // account's API rate limit for every buyer (Security L2).
-export const LIMITS = { send: 5, verify: 20, account: 60, license: 30, checkout: 10 };
-const WINDOWS_MS = { send: HOUR_MS, verify: HOUR_MS, account: HOUR_MS, license: TEN_MIN_MS, checkout: TEN_MIN_MS };
+export const LIMITS = { send: 5, verify: 20, account: 60, license: 30, checkout: 10, feedback: 10 };
+const WINDOWS_MS = { send: HOUR_MS, verify: HOUR_MS, account: HOUR_MS, license: TEN_MIN_MS, checkout: TEN_MIN_MS, feedback: HOUR_MS };
 // One map per bucket, so a flood of new clients on one endpoint never clears another endpoint's counts.
 const buckets = new Map();
 // Checkout and license have no shared secret meant for this, so their client codes use a key that lives

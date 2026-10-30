@@ -15,6 +15,10 @@ const CODE_RE = /^[a-z0-9]{10}$/;
 // as its value. Change it whenever those words or the privacy line under them change, on every page at once.
 export const WAITLIST_CONSENT_VERSION = "waitlist-2026-10-28";
 
+// The second, optional box: "You may email me to ask for feedback." Its own wording version, recorded only when it is ticked
+// (feedback_consent_text_version, see 0008_feedback.sql). Change it whenever those words change, on every page at once.
+export const FEEDBACK_CONSENT_VERSION = "feedback-2026-10-30";
+
 // Deliberately simple: one @, no spaces, a dot in the domain.
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@.][^\s@]*\.[^\s@]{2,}$/;
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -225,6 +229,9 @@ export async function handleWaitlist(req, deps) {
   if (data.consent !== true) return reply(400, { ok: false, error: "consent_required" });
   // Consent is to the words the box showed. A page from before they changed says so instead of saving.
   if (data.consentVersion !== WAITLIST_CONSENT_VERSION) return reply(400, { ok: false, error: "consent_outdated" });
+  // The feedback box is separate and optional. Unticked (false or missing) records nothing about it.
+  if (data.feedback !== undefined && typeof data.feedback !== "boolean") return reply(400, { ok: false, error: "bad_request" });
+  if (data.feedback === true && data.feedbackVersion !== FEEDBACK_CONSENT_VERSION) return reply(400, { ok: false, error: "consent_outdated" });
 
   if (!isConfigured(deps.env)) return reply(503, { ok: false, error: "not_configured" });
 
@@ -232,7 +239,14 @@ export async function handleWaitlist(req, deps) {
   const ref = typeof data.ref === "string" && CODE_RE.test(data.ref) ? data.ref : null;
   const rows = await callRpc(
     "waitlist_join_pending",
-    { p_email: email, p_consent_version: WAITLIST_CONSENT_VERSION, p_source: cleanSource(data.source), p_ref: ref, p_client: clientId(req.ip, deps.env.SUPABASE_KEY) },
+    {
+      p_email: email,
+      p_consent_version: WAITLIST_CONSENT_VERSION,
+      p_source: cleanSource(data.source),
+      p_ref: ref,
+      p_client: clientId(req.ip, deps.env.SUPABASE_KEY),
+      ...(data.feedback === true ? { p_feedback_version: FEEDBACK_CONSENT_VERSION } : {}),
+    },
     deps,
     log,
   );
