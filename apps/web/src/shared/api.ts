@@ -350,8 +350,8 @@ export interface Bootstrap {
   /** The one-time license on this computer. The free app lists a few projects; restores are never behind it. */
   license: LicenseStatus;
   storeDir: string;
-  /** The home folder, so paths under it can be shown as ~/…. The full path stays in Show in Finder and Copy. */
-  home?: string;
+  /** The server's home folder, as given and after realpath: the only prefixes the app shows as ~. Show in Finder and Copy keep the full path. */
+  homes: string[];
   preview: boolean;
 }
 
