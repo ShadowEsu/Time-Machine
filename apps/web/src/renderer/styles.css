@@ -334,13 +334,44 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
 .gone-done { font-size: 14px; color: var(--ink-2); }
-/* The demo's three steps: a quiet card under the answer, in the page's own neutrals. The current step is in ink. */
-.coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: var(--sunken); border: 1px solid var(--line); display: grid; gap: 10px; }
-.coach-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-/* Hide keeps its one word on a phone; the title wraps instead (it broke as "Hid" / "e" at 390). */
-.coach-h .btn { min-height: 40px; flex: none; white-space: nowrap; }
-/* The bead to find in step 1 wears a still ring in the Works colour. Nothing moves. */
-.rt-tk.aim::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--works); pointer-events: none; }
+/* Option C: History's recovery card. The heading and the way back in three numbered steps on one sunken tray; the step
+   that is current is the white ink sticker, a done step wears the Works check, and a later one is quiet but readable. */
+.gc { display: grid; justify-items: stretch; }
+.page h1.gc-h { margin: 12px 0 0; font-size: 40px; line-height: 1.04; }
+.gc-sub { margin-top: 8px; max-width: 62ch; font-size: 16.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.gc-steps { list-style: none; margin: 22px 0 0; padding: 8px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 22px; background: var(--sunken); }
+.gc-s { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; padding: 14px 18px 16px 14px; border-radius: 16px; border: 1.5px solid transparent; }
+.gc-s.now { background: var(--surface); border-color: var(--ink); box-shadow: var(--hard-sm); }
+.gc-n { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--ink-4); font: 650 15px/1 var(--font); color: var(--ink-3); }
+.gc-n svg { width: 16px; height: 16px; }
+.gc-s.now .gc-n { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.gc-s.done .gc-n { background: var(--works-bg); border-color: transparent; color: var(--works); }
+.gc-b { min-width: 0; display: grid; gap: 12px; justify-items: start; align-content: start; }
+.gc-t { font: 650 17px/32px var(--font); letter-spacing: -.01em; color: var(--ink); }
+.gc-s.later .gc-t { color: var(--ink-3); }
+.gc-p { max-width: 64ch; font-size: 15px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.gc-s.later > .gc-b > .gc-p:only-of-type { color: var(--ink-3); }
+.gc-go { max-width: 100%; }
+.gc-go > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gc-facts, .gc-where { margin: 0; width: 100%; display: grid; gap: 10px 28px; }
+.gc-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gc-facts > div, .gc-where > div { display: grid; gap: 3px; min-width: 0; align-content: start; }
+.gc-facts dt, .gc-where dt { font: 600 13px/1.3 var(--font); color: var(--ink-3); }
+.gc-facts dd, .gc-where dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+.gc-where .mono { color: var(--ink); }
+.gc-ok { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 15px; line-height: 1.45; color: var(--ink); }
+/* The two commands sit in the terminal panel the check's output uses: the same near-black in both themes. */
+.gc-cmd { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 10px 10px 10px 16px; border-radius: 14px; background: #161514; color: #ece9e2; }
+.gc-cmd pre { flex: 1; min-width: 0; margin: 0; padding-top: 4px; font: 400 13px/1.7 var(--mono); color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-cmd .btn.quiet { flex: none; min-height: 36px; padding: 0 14px; border-color: #57534c; background: transparent; color: #ece9e2; }
+.gc-cmd .btn.quiet:hover:not([disabled]) { border-color: #ece9e2; background: transparent; }
+/* A newest save point that works, or a kept bring back: one calm line, and the list leads. */
+.calm { display: grid; gap: 10px; }
+.calm-r { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 14px 12px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--sunken); }
+.page h1.calm-h { margin: 0; font: inherit; letter-spacing: normal; }
+.calm-h .vb { height: 30px; padding: 0 12px 0 9px; font-size: 15px; }
+.calm-p { flex: 1 1 280px; min-width: 0; font-size: 15px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+.calm-r .btn { min-height: 40px; }
 /* An empty list with direction: one line that says what to do and the button that does it, no illustration. */
 .empty-dir { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 18px 20px; border-radius: var(--r-lg); border: 1px dashed var(--line-2); background: var(--sunken); }
 .empty-dir p { flex: 1 1 260px; max-width: 60ch; font-size: 15px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
@@ -366,10 +397,10 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .sk-row:nth-child(2) .sk-l { width: 44%; }
 .sk-row:nth-child(3) .sk-l { width: 66%; }
 
-/* The ruler's well: a sunken tray, its header and legend, and the ruler itself. */
-.rwell { margin-top: 44px; padding: 18px 22px 10px; border-radius: 18px; background: var(--sunken); border: 1px solid var(--hair); }
-.rw-h { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--ink-3); }
-.rw-h b { color: var(--ink); font-weight: 600; }
+/* The ruler's well: one compact strip, 48 px tall at most, the count and then the beads. The list under it carries the words. */
+.rwell { margin-top: 24px; height: 48px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 20px 0 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--hair); }
+.rw-h { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font-size: 13.5px; color: var(--ink-3); white-space: nowrap; }
+.rw-h b { color: var(--ink-2); font-weight: 600; }
 .legend { margin-left: auto; display: flex; gap: 14px; }
 .legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .lg { width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%; }
@@ -379,17 +410,13 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .lg.b-none { background: var(--unk-bg); color: var(--unk); }
 /* The ruler: sessions on top, the last-works flag, the beads on their track, labels under. It is one control: the whole band
    is its target, and the beads are its marks. Pressing anywhere picks the nearest; a vertical swipe on a phone still scrolls the page. */
-.hruler { --b: 26px; --iy: 66px; position: relative; height: 106px; margin: 4px 4px 0; container-type: inline-size; cursor: pointer; touch-action: pan-y; border-radius: var(--r-md); }
-.hruler.d2 { --b: 20px; }
-.hruler.d3 { --b: 14px; }
+.hruler { --b: 18px; --iy: 23px; position: relative; height: 46px; margin: 0; container-type: inline-size; cursor: pointer; touch-action: pan-y; border-radius: var(--r-md); }
+.hruler.d2 { --b: 14px; }
+.hruler.d3 { --b: 10px; }
 .hruler:focus-visible { outline-offset: 4px; }
 /* Pressed, not tabbed to: the ruler keeps focus for the arrow keys, without a ring until a key is used. */
 .hruler.by-pointer:focus-visible { outline: none; }
 .hruler.scrubbing { cursor: grabbing; }
-.hruler .lane { position: absolute; left: 0; right: 0; top: 0; height: 20px; }
-.hruler .clip { position: absolute; top: 0; height: 20px; border-radius: 6px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font: 500 13px/20px var(--mono); color: var(--ink-3); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hruler .clip span { overflow: hidden; text-overflow: ellipsis; display: block; }
-.hruler .clip.clip-x { visibility: hidden; }
 .hruler .base { position: absolute; left: 0; right: 0; top: calc(var(--iy) - 2px); height: 4px; border-radius: 4px; background: var(--line); }
 /* A bead is placed by `translate` from --x (its place in percent; 1cqw is 1% of the ruler), so when a new save point
    arrives and the ruler re-spaces, every bead glides to its new place. `transform` stays free for its turn and its size. */
@@ -410,34 +437,20 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .rt-tk.on { box-shadow: 0 0 0 3px var(--sunken), 0 0 0 5px var(--ink); }
 .rt-tk.after { opacity: .45; }
 /* The way back: a sky halo on the last version that works. */
-.rt-tk.lw { box-shadow: 0 0 0 6px var(--sky), 0 0 0 7.5px var(--sky-line); }
-.rt-tk.lw.on { box-shadow: 0 0 0 6px var(--sky), 0 0 0 8px var(--ink); }
-/* Placed by transform like the playhead (--x the bead's place, --s how far it hangs left of it), so when the last version that
-   works changes, the flag glides to it. */
-.lwflag { position: absolute; left: 0; top: 26px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--sky); color: var(--sky-ink); border: 1.5px solid var(--ink); box-shadow: var(--hard-sm); font: 600 13.5px/23px var(--font); white-space: nowrap; pointer-events: none;
-  transform: translateX(calc(var(--x) * 1cqw)) translateX(var(--s, -50%)); transition: transform var(--t-glide) var(--ease), opacity var(--t-hover) var(--ease); }
-.hruler.d1 .lwflag { top: 22px; }
-.hruler.d3 .lwflag { top: 32px; }
-.hruler.scrubbing .lwflag, .hruler:focus-visible:not(.by-pointer) .lwflag { opacity: 0; }
+.rt-tk.lw { box-shadow: 0 0 0 4px var(--sky), 0 0 0 5.5px var(--sky-line); }
+.rt-tk.lw.on { box-shadow: 0 0 0 4px var(--sky), 0 0 0 6px var(--ink); }
 /* The playhead sits at the ruler's left edge and moves by transform: --x is the bead's place in percent, 1cqw is 1% of the ruler.
    At Now the Now pill marks the place, so the playhead steps aside. */
-.hruler .ph { position: absolute; left: 0; top: calc(var(--iy) - 26px); width: 2px; height: 52px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transform: translateX(calc(var(--x) * 1cqw)); transition: transform var(--t-glide) var(--ease), opacity var(--t-snap) var(--ease); }
+.hruler .ph { position: absolute; left: 0; top: calc(var(--iy) - 17px); width: 2px; height: 34px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transform: translateX(calc(var(--x) * 1cqw)); transition: transform var(--t-glide) var(--ease), opacity var(--t-snap) var(--ease); }
 /* Under a dragging finger the playhead keeps up; from the keys or a click it glides. */
 .hruler.scrubbing .ph { transition-duration: 90ms, var(--t-snap); }
 .hruler .ph::before { content: ""; position: absolute; left: -5px; top: -7px; border: 6px solid transparent; border-top: 7px solid var(--ink); }
 .hruler .ph.now { opacity: 0; }
-.rlab { position: absolute; top: calc(var(--iy) + 20px); font: 500 13px/1 var(--mono); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rlab.on { color: var(--ink); font-weight: 500; }
-.rlab.now { top: calc(var(--iy) + 16px); padding: 4px 10px; border-radius: 999px; background: var(--chip-ink); color: var(--chip-text); box-shadow: 0 0 0 1px var(--line-2); font: 600 13.5px/1.1 var(--font); }
-.rlab.now .rl-t { font-family: var(--mono); font-weight: 500; }
-/* Set after measuring, so two labels never touch: Now without its time, or a label that gives way. */
-.rlab.rl-c .rl-t { display: none; }
-.rlab.rl-hide { visibility: hidden; }
 /* The flag rides above the ruler while it is dragged or has keyboard focus: the save point under the playhead in the
    middle with its title, the ones either side quieter, like onion skins. It stays inside the ruler, and it goes when
    the pointer lets go. */
 .rflag { --fw: min(460px, 100cqw); --fx: clamp(0px, calc(var(--x) * 1cqw - var(--fw) / 2), calc(100cqw - var(--fw)));
-  position: absolute; left: 0; bottom: calc(100% - 18px); z-index: 4; width: var(--fw); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1fr); gap: 2px; padding: 5px;
+  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 4; width: var(--fw); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1fr); gap: 2px; padding: 5px;
   border-radius: var(--r-lg); background: var(--surface); border: 1.5px solid var(--ink); box-shadow: var(--hard); pointer-events: none;
   opacity: 0; visibility: hidden; transform: translateX(var(--fx)) translateY(4px);
   transition: transform var(--t-snap) var(--ease), opacity 120ms var(--ease), visibility 0s linear 120ms; }
@@ -1209,6 +1222,9 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 /* A confirm and Check it works open in the middle of the whole window, over the rail too. */
 .app > .scrim.confirm-scrim, .app > .scrim.ck-scrim { place-items: center; padding: 24px; }
 .sheet.confirm { width: min(460px, 100%); }
+/* The bring back's confirm lists what comes back and what does not, side by side on a sunken block. */
+.sheet.confirm.cf-wide { width: min(640px, 100%); max-height: calc(100dvh - 48px); overflow: auto; }
+.cf-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; padding: 14px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); }
 .sheet.confirm .row-btns { justify-content: flex-end; }
 .local-note { border-top: 1px solid var(--line); padding-top: 14px; width: 100%; }
 .path-form { display: grid; gap: 12px; }
@@ -1266,11 +1282,21 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   /* The main hero button: full width and 52 px, so the one action that matters is the easy one to hit. */
   .hero-acts .btn.big { min-height: 52px; font-size: 16px; }
   .hero-acts .sk-btn { width: auto; height: 52px; }
-  /* The ruler names Now, the last working save point and the selected one; fitRulerLabels keeps them apart. */
-  .rlab:not(.on):not(.now):not([data-lw]) { display: none; }
-  .rlab.now:not(.on) .rl-t { display: none; }
-  .rwell { margin-top: 36px; padding: 16px 14px 8px; }
-  .rw-hint { display: none; }
+  .rwell { margin-top: 20px; gap: 12px; padding: 0 14px 0 12px; }
+  /* The recovery card stacks: each step's buttons take the full width, one tap each, and the facts are one column. */
+  .page h1.gc-h { font-size: 32px; }
+  .gc-sub { font-size: 15.5px; }
+  .gc-steps { margin-top: 18px; padding: 6px; border-radius: 18px; }
+  .gc-s { grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 12px 12px 14px 10px; }
+  .gc-n { width: 28px; height: 28px; font-size: 14px; }
+  .gc-t { line-height: 28px; }
+  .gc-b { justify-items: stretch; }
+  .gc-facts { grid-template-columns: minmax(0, 1fr); }
+  .gc-go { width: 100%; }
+  .gc-b > .row-btns { flex-direction: column; align-items: stretch; }
+  .gc-b > .row-btns .btn { width: 100%; }
+  .calm-r .btn { width: 100%; }
+  .cf-lists { grid-template-columns: minmax(0, 1fr); }
   /* A phone's ruler is too narrow for three frames: the flag reads only the save point under the playhead, at a width
      that keeps its time on one line, and it stays inside the ruler (Design b3+4 F1). */
   .rflag { --fw: min(280px, 100cqw); grid-template-columns: minmax(0, 1fr); }
@@ -1360,7 +1386,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 @keyframes base-in { from { transform: scaleX(0); } }
 .rt-tk.tk-in { animation: tk-in .24s var(--ease) both; }
 @keyframes tk-in { from { opacity: 0; scale: .3; } }
-.lab-in { animation: fade .2s var(--ease) both; }
 /* The bead the playhead lands on settles into its ring. */
 .rt-tk.tk-sel { animation: tk-sel .22s var(--ease) both; }
 @keyframes tk-sel { from { scale: .8; } }

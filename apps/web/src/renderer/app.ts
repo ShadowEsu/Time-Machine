@@ -8,7 +8,7 @@ import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from 
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
-import { branchShift, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusButton, type StatusPoint } from "./status.js";
+import { branchShift, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type ProjectStatusView, type StatusButton, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
 import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
@@ -28,7 +28,7 @@ import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
 import { confirmButtons, type ConfirmCopy } from "./confirm.js";
 import { thinConfirm, thinReview, thinSummary } from "./thin-view.js";
-import { dialCandidates, fitRow, placeLabels, type Box } from "./label-fit.js";
+import { dialCandidates, placeLabels, type Box } from "./label-fit.js";
 import { tailHtml, type LogTailView } from "./log-tail.js";
 import { acceptRecord, checkBodyHtml } from "./check-record.js";
 import { overviewPage, saveState, type DigestPoint } from "./overview.js";
@@ -38,6 +38,7 @@ import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage,
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { changedLine, filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
+import { changedSince, guideStep, keepCommands, pathsLine, stepState } from "./recovery-card.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -196,8 +197,6 @@ interface State {
   thin: { projectId: string; working: boolean; preview: Results["thinPreview"] | null; review: boolean; removed: number | null } | null;
   hookSheet: { projectId: string; preview: HookPreview; done: string | null; error: string | null; working: boolean } | null;
   demoBusy: boolean;
-  /** The demo's three steps on History: drag to the save point that works, go back to it, then undo or keep it. */
-  coach: { projectId: string; target: string; went: boolean } | null;
   openResult: OpenResult | null;
   /** The last check result per save point in this session, for evidence lines (time taken, network). */
   verifyResults: Map<string, VerifyResult>;
@@ -217,11 +216,13 @@ interface State {
   changesFor: string;
   /** A confirm before removing a project, going back to a version without proof, or protecting a whole folder (with its path
    *  and what it is for, so either answer can carry on into the Add flow). */
-  confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget"; id: string | null; path?: string; purpose?: Purpose | null }) | null;
+  confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget" | "guide-recover"; id: string | null; path?: string; purpose?: Purpose | null; lists?: { comes: string[]; not: string[] } }) | null;
   /** A button that shows its pressed state because its shortcut just fired. */
   flash: { sel: string; until: number } | null;
   /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
   undo: { projectId: string; result: RecoverResult; working: boolean } | null;
+  /** History's recovery card after a bring back in this session: the copy opened or checked there, and Keep it pressed. */
+  guide: { projectId: string; id: string; opened: boolean; checking: boolean; check: VerifyResult | null; error: string | null; kept: boolean } | null;
   /** The license on this computer, the key being pasted in Settings, and the last save or remove error. */
   license: { status: LicenseStatus; draft: string; working: boolean; error: string | null };
   /** Sign in to get your key, on Plan. In memory only; the sign-in token itself stays in the server. */
@@ -938,10 +939,10 @@ function rulerWindow(all: TimelineEntry[]): TimelineEntry[] {
 }
 
 /**
- * The ruler on the project page, in its well: past on the left, now on the right, agent sessions above, each
- * save point a bead in its verdict's shape. It is one control. Press anywhere along it and drag, or focus it and
- * use the arrow keys: the playhead moves to each save point and a flag above it reads the verdict live, with the
- * save points either side. The last version that works wears a sky halo and its own flag.
+ * The ruler on the project page: one compact strip, 48 px at most, past on the left and now on the right, each save point
+ * a bead in its verdict's shape. The list under it carries the words, so the strip has no labels or legend. It is one
+ * control: press anywhere along it and drag, or focus it and use the arrow keys, and a flag above it reads the verdict live,
+ * with the save points either side. The last version that works wears a sky halo.
  */
 function homeRuler(all: TimelineEntry[]): string {
   const pts = rulerWindow(all);
@@ -952,40 +953,21 @@ function homeRuler(all: TimelineEntry[]): string {
   const c = pts[cur];
   const lw = lastWorking();
   const wayBack = lw && pts.at(-1)?.verdict !== "PASS" ? lw : null;
-  const clips = sessions(pts).map((s) => `<span class="clip" style="left:${homeX(s.from, n) - 1}%;width:${homeX(s.to, n) - homeX(s.from, n) + 2}%"><span>${esc(s.name)}</span></span>`).join("");
   const running = checkRunning();
   const newestId = points().at(-1)?.id;
   const ticks = pts
-    .map((p, i) => `<span class="rt-tk b-${verdictKey(p.verdict)}${i > cur ? " after" : ""}${i === cur ? " on" : ""}${p === wayBack ? " lw" : ""}${coachStep() === 1 && p.id === st.coach?.target ? " aim" : ""}${p.id === running || (running === "new" && p.id === newestId) ? " checking" : ""}${p.id === newestId ? " nowtk" : ""}" data-vid="${esc(p.id)}" data-v="${verdictKey(p.verdict)}" data-carry="tk:${esc(p.id)}" style="--x:${homeX(i, n)}" title="${esc(`${ptWhen(p)} · ${title(p)} · ${verdictWord(p.verdict)}`)}">${vIcon(p.verdict)}</span>`)
+    .map((p, i) => `<span class="rt-tk b-${verdictKey(p.verdict)}${i > cur ? " after" : ""}${i === cur ? " on" : ""}${p === wayBack ? " lw" : ""}${p.id === running || (running === "new" && p.id === newestId) ? " checking" : ""}${p.id === newestId ? " nowtk" : ""}" data-vid="${esc(p.id)}" data-v="${verdictKey(p.verdict)}" data-carry="tk:${esc(p.id)}" style="--x:${homeX(i, n)}" title="${esc(`${ptWhen(p)} · ${title(p)} · ${verdictWord(p.verdict)}`)}">${vIcon(p.verdict)}</span>`)
     .join("");
-  // Labels for Now, the last working, the selected and the first save point, in that order of importance.
-  // fitRulerLabels measures them after the draw: a less important one hides, the last working one moves.
-  const lwi = lw ? pts.indexOf(lw) : -1;
-  const marks = [...new Set([n - 1, lwi, cur, 0])].filter((i) => i >= 0);
-  const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
-  const labels = marks.map((i) => {
-    const p = pts[i];
-    const t = esc(p ? ptClock(p) : "");
-    const now = i === n - 1 && p?.id === points().at(-1)?.id;
-    return `<span class="rlab${i === cur ? " on" : ""}${now ? " now" : ""}" data-i="${i}"${i === lwi ? " data-lw" : ""} style="left:${homeX(i, n)}%;transform:translateX(${shift(i)}%)">${now ? `Now<span class="rl-t"> ${t}</span>` : t}</span>`;
-  }).join("");
-  const wbi = wayBack ? pts.indexOf(wayBack) : -1;
-  // Placed by transform from --x, like the playhead, so when the last version that works changes the flag glides to it.
-  const lwFlag = wbi >= 0 ? `<span class="lwflag" data-carry="lwf" style="--x:${homeX(wbi, n)};--s:${Math.max(-50, Math.min(-12, shift(wbi)))}%">Last version that works</span>` : "";
   const flag = `<div class="rflag" data-carry="flag" aria-hidden="true" style="--x:${homeX(cur, n)}">${flagFrame(pts[cur - 1], false)}${flagFrame(c, true)}${flagFrame(pts[cur + 1], false)}</div>`;
-  const today = pts.every((p) => dayLabel(p.createdAt) === "Today");
   const u = unitWords(project()?.purpose ?? "code");
-  const many = u.many.charAt(0).toUpperCase() + u.many.slice(1);
-  const head = all.length <= n ? (today ? `Today’s ${u.many}` : many) : start + n === all.length ? `The last ${n} ${u.many}` : `${many} ${start + 1} to ${start + n} of ${all.length}`;
+  const head = all.length <= n ? plural(n, u.one) : `${start + 1} to ${start + n} of ${all.length}`;
   const density = n <= 14 ? "d1" : n <= 28 ? "d2" : "d3";
-  // Every shape the ruler draws is named; a project with no check has one, Saved.
   const checks = checksOn(project());
-  const legend = legendItems(checks, pts.map((p) => p.verdict)).map((x) => `<span><span class="lg b-${verdictKey(x.v)}">${vIcon(x.v)}</span>${esc(x.word)}</span>`).join("");
   return `<div class="rwell">
-    <div class="rw-h"><b>${esc(head)}</b><span class="rw-hint">Drag along it, or use ← →</span><span class="legend" aria-hidden="true">${legend}</span></div>
+    <div class="rw-h"><b>${esc(head)}</b></div>
     <div class="hruler ${density}${historyScrub ? " scrubbing" : ""}${rulerByPointer ? " by-pointer" : ""}" role="slider" tabindex="0" aria-label="Save points, oldest on the left. Use the arrow keys, or drag along it." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${ptWhen(c)}, ${title(c)}, ${c.verdict === null && !checks ? "Saved" : verdictWord(c.verdict)}` : "")}">
-    <div class="lane">${clips}</div><div class="base"></div>${ticks}
-    <span class="ph${cur === n - 1 ? " now" : ""}" data-carry="hph" style="--x:${homeX(cur, n)}"></span>${labels}${lwFlag}${flag}</div></div>`;
+    <div class="base"></div>${ticks}
+    <span class="ph${cur === n - 1 ? " now" : ""}" data-carry="hph" style="--x:${homeX(cur, n)}"></span>${flag}</div></div>`;
 }
 
 /**
@@ -1063,14 +1045,22 @@ function history(): string {
     : "";
   // Git words (the branch) only for a project that is a Git repository; a plain folder's history lives in the store.
   const branch = p.kind !== "folder" && newest?.branch ? `${esc(newest.branch)} · ` : "";
-  const header = `<section class="hero" data-vid="hero" data-v="${esc(s.head)}">
-    <div class="hero-e"><span class="dot v-${verdictKey(s.v)}" aria-hidden="true"></span><span>${esc(p.name)}</span>${p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : ""}${command ? `<span class="hero-cmd">checks with <code class="mono">${esc(command)}</code></span>` : ""}${st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""}</div>
+  const eyebrow = `<div class="hero-e"><span class="dot v-${verdictKey(s.v)}" aria-hidden="true"></span><span>${esc(p.name)}</span>${p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : ""}${command ? `<span class="hero-cmd">checks with <code class="mono">${esc(command)}</code></span>` : ""}${st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""}</div>`;
+  // Option C: a bring back made in this session, or a broken newest with a version that works, leads with the recovery card;
+  // a newest that works, or a kept bring back, with one calm line. Everything else keeps the answer and its one main action.
+  const u = st.undo?.projectId === p.id ? st.undo : null;
+  const g = u && st.guide?.projectId === p.id && st.guide.id === u.result.id ? st.guide : null;
+  const guided = !gone && checksOn(p, pts) && newest?.verdict !== "PASS";
+  const card = guided && ((g && !g.kept) || (!g && s.v === "FAIL" && lw)) ? recoveryCard(eyebrow, s.voice, lw, g ? u : null, g) : "";
+  const calm = card || gone ? "" : newest?.verdict === "PASS" ? calmLine(eyebrow, s) : g?.kept && u ? keptLine(eyebrow, u.result) : "";
+  const header = card || calm || `<section class="hero" data-vid="hero" data-v="${esc(s.head)}">
+    ${eyebrow}
     <h1 class="hero-h"><span class="hh">${keepTimes(esc(s.head))}</span></h1>${s.voice ? `<p class="hero-when">${keepTimes(esc(s.voice))}</p>` : ""}
     <p class="hero-p">${keepTimes(esc(s.body))}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
     ${gone ? goneCard : `<div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>`}
   </section>`;
-  const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
-  const undoBar = u
+  // A bring back made from the Rewind with no card to show it (a project with no check) keeps its sky undo card.
+  const undoBar = u && !g && !card && !calm && st.screen === "history"
     ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. ${u.result.copyOnly ? "It is in a copy next to your folder" : `It is on a new branch${st.settings.showGitDetails ? `, <span class="mono">${esc(u.result.branch)}</span>,` : ""} and in a copy`}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
     : "";
   if (!pts.length) {
@@ -1116,36 +1106,104 @@ function history(): string {
   // Each day's header names it ("Today", "Monday", "14 Oct"), then its full date and how many it holds; it sticks to the top while its rows scroll.
   const journal = days.map((d) => `<div class="day"><h2>${esc(d.day)}</h2><span>${esc(d.date ? `${d.date} · ` : "")}${esc(unitCount(p.purpose, perDay.get(d.day) ?? 0))}</span></div><div class="list">${d.rows.join("")}</div>`).join("");
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
-  return `<div class="page proj"><div class="doc">${header}${undoBar}${coachView()}
-    ${homeRuler(pts)}
+  return `<div class="page proj"><div class="doc">${header}${undoBar}
     ${setupView(p, pts)}
+    ${homeRuler(pts)}
     <div class="jf-row">${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>
     <section class="journal" aria-label="History" id="list">${journal || (pinnedOnly ? noPinned(p.purpose) : "")}</section>
-    ${honest ? `<section class="know" aria-labelledby="know-h">${buddy()}<div><h2 id="know-h">Good to know</h2>${honest}</div></section>` : ""}
+    ${honest && !card ? `<section class="know" aria-labelledby="know-h">${buddy()}<div><h2 id="know-h">Good to know</h2>${honest}</div></section>` : ""}
     <div class="mount" data-mount="unlinked:${esc(p.id)}"></div>
   </div></div>`;
 }
 
-/** The demo's next step on this project, 1 to 3, or 0 when there is none. */
-function coachStep(): number {
-  const c = st.coach;
-  if (!c || c.projectId !== st.projectId) return 0;
-  if (c.went) return 3;
-  return st.selected === c.target || st.rewind?.target === c.target ? 2 : 1;
+/**
+ * History's recovery card (option C, Guided recovery): the way back in three steps, all three always in view. 1 Bring back
+ * the last version that works, 2 Try it in its copy, 3 Keep it with two Git commands or undo it. Each step changes in place
+ * when it is done, says where the working version is, and keeps a way back. `u` and `g` are the bring back made from it.
+ */
+function recoveryCard(eyebrow: string, voice: string, lw: TimelineEntry | null, u: State["undo"], g: State["guide"]): string {
+  const res = u?.result ?? null;
+  const target = res ? entry(res.id) : lw;
+  if (!target) return "";
+  const step = guideStep({ brought: !!res, tried: !!g && (g.opened || !!g.check), kept: !!g?.kept });
+  const n = named(target);
+  const all = points();
+  const bringing = st.busy === "Bringing it back";
+  const busy = st.busy ? "disabled" : "";
+  const row = (k: 1 | 2 | 3, name: string, body: string): string => {
+    const s = stepState(k, step);
+    const mark = s === "done" ? '<span class="gc-n" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.4l2.9 2.9L12.6 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : `<span class="gc-n" aria-hidden="true">${k}</span>`;
+    return `<li class="gc-s ${s}"${s === "now" ? ' aria-current="step"' : ""}>${mark}<div class="gc-b"><h2 class="gc-t">${s === "done" ? '<span class="sr-only">Done: </span>' : ""}${esc(name)}</h2>${body}</div></li>`;
+  };
+
+  // Step 1: the one main button, then when it was saved, its verdict, what changed since and what stays.
+  let one: string;
+  if (!res) {
+    const after = all.slice(all.findIndex((c) => c.id === target.id) + 1).map((c) => c.id);
+    const since = changedSince(st.changes, after);
+    const facts: [string, string][] = [
+      ["Saved", keepTimes(esc(`${dayLabel(target.createdAt)}, ${ptClock(target)}`))],
+      ["Verdict", `${badge(target.verdict)}<span>${esc(target.verdict === "PASS" ? "Passed its check in a copy" : sentenceStart(checkSummary(target) || verdictWord(target.verdict)))}</span>`],
+      ...(since.length ? [["Changed since", `<span>${esc(`${plural(since.length, "file")}: ${pathsLine(since)}`)}</span>`] as [string, string]] : []),
+      ["Stays", "<span>Every save point, the broken ones too. Your folder is not touched.</span>"],
+    ];
+    one = `<button class="btn dark big gc-go" data-act="guide-bring" data-id="${esc(target.id)}" title="${esc(`Bring back ${nameLine(n)}`)}" ${busy}><span>${bringing ? "Bringing it back…" : esc(`Bring back ${n.name}`)}</span>${bringing ? "" : `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>`}</button>
+      <dl class="gc-facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
+  } else {
+    one = `<p class="gc-ok">${badge(res.lastVerdict)}<span>${keepTimes(esc(`${sentenceStart(said(target))} is back, in a copy next to your folder.`))}</span></p>
+      <dl class="gc-where"><div><dt>Working version</dt><dd><span class="mono sel-text">${esc(res.copyDir)}</span></dd></div>${res.copyOnly ? "" : `<div><dt>New branch</dt><dd><span class="mono sel-text">${esc(res.branch)}</span> <span class="muted">local only</span></dd></div>`}<div><dt>Your folder</dt><dd>Not touched. What was there is saved first, as a save point.</dd></div></dl>`;
+  }
+
+  // Step 2: open the copy or run the check there. Ready once it is back.
+  let two: string;
+  if (!res || !g) two = '<p class="gc-p">Open the copy, or run your check there. Ready after step 1.</p>';
+  else {
+    const checking = g.checking ? '<p class="gc-ok"><span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Running your check on it in a copy. Your folder is not touched.</span></p>' : "";
+    const checked = g.check && !g.checking
+      ? `<p class="gc-ok">${badge(g.check.verdict, stampOnce(`guide:${g.check.at}`))}<span>${esc(g.check.verdict === "PASS" ? `Your check passed on it just now, in ${seconds(g.check.durationMs)}.` : `${sentenceStart(checkReason(g.check.reason))} Open the copy to look, or undo below.`)}</span></p>` : "";
+    const opened = g.opened ? `<p class="gc-ok"><span class="vb v-pass">${vIcon("PASS")}Opened</span><span>${esc(isMac() ? "The copy is open in Finder." : "The copy’s path is copied.")}</span></p>` : "";
+    const error = g.error ? `<div class="note bad">${esc(g.error)}</div>` : "";
+    const lead = step === 2 ? '<p class="gc-p">Open it in your editor, or run your check on it. Your folder is not touched.</p>' : "";
+    two = `${lead}${opened}${checked}${checking}${error}<div class="row-btns"><button class="btn${step === 2 ? " dark" : ""}" data-act="guide-open" data-path="${esc(res.copyDir)}" ${busy}>${isMac() ? "Open the copy" : "Copy the copy’s path"}</button><button class="btn${step === 2 ? "" : " quiet"}" data-act="guide-check" ${busy || (g.checking ? "disabled" : "")}>${g.check ? "Run your check again" : "Run your check on it"}</button></div>`;
+  }
+
+  // Step 3: the two Git commands that keep it, Keep it, and Undo. A plain folder copies files back instead.
+  let three: string;
+  if (!res) three = `<p class="gc-p">${esc(project()?.kind === "folder" ? "Copy back the files you want, or undo it. Every save point stays." : "Two Git commands keep it, or undo it. Every save point stays.")}</p>`;
+  else {
+    const cmds = res.copyOnly ? [] : keepCommands(res.branch, message(target));
+    const how = res.copyOnly
+      ? '<p class="gc-p">To keep it, copy the files you want from the copy into your folder.</p>'
+      : `<p class="gc-p">To keep it, run these in your folder, then save. They put every file back as the new branch has it, as one new commit.</p>
+        <div class="gc-cmd"><pre class="mono sel-text">${esc(cmds.join("\n"))}</pre><button class="btn quiet" data-act="copy" data-text="${esc(cmds.join("\n"))}">Copy</button></div>`;
+    three = `${how}<div class="row-btns"><button class="btn${step === 3 ? " dark" : ""}" data-act="guide-keep" ${busy}>Keep it</button>${undoButton("")}</div>${undoNote(res)}`;
+  }
+
+  const head = res ? "Back to a working version." : "Broken.";
+  const sub = res
+    ? `${sentenceStart(said(target))} works in its copy. Your folder still has the broken version, saved first.`
+    : `${voice} ${sentenceStart(said(target))} is the last version that works.`;
+  return `<section class="gc" aria-labelledby="gc-h" data-vid="hero" data-v="${res ? "back" : "broken"}">
+    ${eyebrow}
+    <h1 class="gc-h" id="gc-h" tabindex="-1">${esc(head)}</h1>
+    <p class="gc-sub">${keepTimes(esc(sub))}</p>
+    <ol class="gc-steps">${row(1, res ? "Brought back" : "Bring back", one)}${row(2, "Try it", two)}${row(3, "Keep it or undo", three)}</ol>
+  </section>`;
 }
 
-/** The demo's three steps in plain words. The first names the save point to find by its message. */
-function coachSteps(): string[] {
-  const t = st.coach ? entry(st.coach.target) : null;
-  return [t ? `Drag the ruler to ${said(t)}, the last green dot` : "Drag the ruler to the last green dot", "Go back to it", "Undo it, or keep it"];
+/** A newest save point that works: History's answer is one calm line, and the list leads. */
+function calmLine(eyebrow: string, s: ProjectStatusView): string {
+  return `<section class="calm" data-vid="hero" data-v="${esc(s.head)}">${eyebrow}
+    <div class="calm-r"><h1 class="calm-h" tabindex="-1">${badge(s.v)}</h1><p class="calm-p">${keepTimes(esc(s.voice))} It passed its check in a copy.</p>${statusButton(s.primary, false)}</div>
+  </section>`;
 }
 
-function coachView(): string {
-  const step = coachStep();
-  if (!step) return "";
-  return `<section class="coach" aria-label="Demo">
-    <div class="coach-h"><b>Bring back the version that works</b><button class="btn ghost" data-act="coach-hide">Hide</button></div>
-    ${steps(step, coachSteps())}</section>`;
+/** A bring back that was kept: one calm line that still says where the working version is, with Undo while it can. */
+function keptLine(eyebrow: string, res: RecoverResult): string {
+  const c = entry(res.id);
+  return `<section class="calm" data-vid="hero" data-v="kept">${eyebrow}
+    <div class="calm-r"><h1 class="calm-h" tabindex="-1"><span class="vb v-pass">${vIcon("PASS")}Kept</span></h1><p class="calm-p">${keepTimes(esc(`${c ? sentenceStart(said(c)) : res.id} is in ${res.copyDir}${res.copyOnly ? "" : `, on the branch ${res.branch}`}. Run the two commands in your folder to make it your folder’s.`))}</p>${undoButton("quiet", "Undo")}</div>
+  </section>`;
 }
 
 /** A save point named in a sentence by its id: "“Added dark mode” (8:16 PM)", or "the save point at 8:16 PM #3". Git details add the id. */
@@ -2377,9 +2435,11 @@ function hookSheet(): string {
 function confirmView(): string {
   const c = st.confirm;
   if (!c) return "";
-  return `<div class="scrim confirm-scrim ${once("scrim:confirm")}" data-leave="confirm"><div class="sheet confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+  // A bring back from History's card lists what comes back and what does not, where it is decided.
+  const lists = c.lists ? `<div class="cf-lists"><div class="kv"><span class="h">What comes back</span>${li(c.lists.comes, "Nothing listed")}</div><div class="kv no"><span class="h">What does not come back</span>${li(c.lists.not, "Nothing listed")}</div></div>` : "";
+  return `<div class="scrim confirm-scrim ${once("scrim:confirm")}" data-leave="confirm"><div class="sheet confirm${lists ? " cf-wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
     <h2 id="confirm-title">${keepTimes(esc(c.title))}</h2>
-    <p id="confirm-body">${esc(c.body)}</p>
+    <p id="confirm-body">${esc(c.body)}</p>${lists}
     <div class="row-btns">${c.act === "whole-folder" ? `<button class="btn dark" data-act="whole-pick">${st.boot.platform === "darwin" ? "Choose a folder…" : "Type a smaller folder"}</button><button class="btn" data-act="confirm-do">${esc(c.action)}</button>` : confirmButtons(c.action)}</div>
   </div></div>`;
 }
@@ -2887,10 +2947,9 @@ const shownVerdicts = new Map<string, string>();
 const verdictIn = new Map<string, number>();
 /** Where the last press landed (the middle of what was pressed), and when. */
 let lastPress = { x: 0, y: 0, at: -Infinity };
-/** A page's blocks rise over this long; the bead the playhead lands on and the ruler's labels settle over these. */
+/** A page's blocks rise over this long; the bead the playhead lands on settles over this. */
 const BLOCK_IN_MS = 300;
 const SEL_IN_MS = 220;
-const LABEL_IN_MS = 200;
 /** Projects whose History has been drawn: a save point new to one of them arrives with a landing, the first draw does not. */
 const verdictProjects = new Set<string>();
 
@@ -2962,8 +3021,6 @@ function applyEntrances(scene: boolean): void {
     const base = ruler.querySelector<HTMLElement>(".base");
     if (base) enter(base, "base-in", entranceDelay(0, t, BEAD_IN_MS + 160));
     beads.forEach((b, i) => enter(b, "tk-in", beadDelay(i, t)));
-    const labelsAt = beads.length ? (beadDelay(beads.length - 1, 0) ?? 0) + 80 : 0;
-    ruler.querySelectorAll<HTMLElement>(".rlab, .lwflag, .lane").forEach((el) => enter(el, "lab-in", entranceDelay(labelsAt, t, LABEL_IN_MS)));
     const on = ruler.querySelector<HTMLElement>(".rt-tk.on");
     if (on && selIn.at > since + 50) enter(on, "tk-sel", entranceDelay(0, now - selIn.at, SEL_IN_MS));
   }
@@ -3138,7 +3195,6 @@ function render(): void {
   if (page) page.scrollTop = pageScroll;
   placeMounts(mountFocus, scrolled);
   fitSessions();
-  fitRulerLabels();
   fitDialLabels();
   applyCarry();
   applyFlash();
@@ -3157,12 +3213,13 @@ function render(): void {
   const livePre = root.querySelector<HTMLElement>(".ck-live pre");
   if (livePre) livePre.scrollTop = livePre.scrollHeight;
   tickResendClock();
-  const coach = st.screen === "history" ? coachStep() : 0;
+  // On History the recovery card says its heading and the step that is current, so each step's change is heard.
+  const card = st.screen === "history" ? [...root.querySelectorAll(".gc .gc-h, .gc .gc-s.now .gc-t")].map((el) => el.textContent?.trim() ?? "").join(" Next: ") : "";
   const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${checkReason(st.check.result.reason)}`
       : st.check ? "Checking your project in a copy…"
         : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ")
-          : coach ? `Step ${coach} of 3: ${coachSteps()[coach - 1]}.` : "");
+          : card);
   if (announcer.textContent !== announcement) announcer.textContent = announcement;
   placeLeaving(leaving);
   // Kept for this tab on every draw, so a reload or Reconnect comes back here (route.ts).
@@ -3241,61 +3298,6 @@ function fitSessions(): void {
 function rectOf(el: Element): Box {
   const r = el.getBoundingClientRect();
   return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-}
-
-/**
- * Ruler labels never touch. In order (Now, the last working one, the selected one, the first) a label
- * that comes within 8 px of one already kept hides; the last working one moves left of its tick instead,
- * and Now drops its time if that is still not enough (the hero already names that time).
- */
-function fitRulerLabels(): void {
-  const ruler = document.querySelector<HTMLElement>(".hruler");
-  if (!ruler) return;
-  const labs = [...ruler.querySelectorAll<HTMLElement>(".rlab")];
-  for (const el of labs) {
-    el.style.marginLeft = "";
-    el.classList.remove("rl-c", "rl-hide");
-  }
-  // A session of one or two save points is narrower than its name: an empty sliver reads as a stray mark, so it goes.
-  ruler.querySelectorAll<HTMLElement>(".clip").forEach((el) => el.classList.toggle("clip-x", el.clientWidth < 48));
-  const shown = labs.filter((el) => el.getClientRects().length > 0);
-  const ticks = ruler.querySelectorAll(".rt-tk");
-  const row = shown.map((el) => {
-    const box = rectOf(el);
-    const tick = ticks[Number(el.dataset.i)];
-    const t = tick ? rectOf(tick) : box;
-    const now = el.classList.contains("now");
-    let short: Box | null = null;
-    if (now && el.querySelector(".rl-t")?.getClientRects().length) {
-      el.classList.add("rl-c");
-      short = rectOf(el);
-      el.classList.remove("rl-c");
-    }
-    return { box, tickX: (t.left + t.right) / 2, lastWorking: "lw" in el.dataset, now, short };
-  });
-  const fit = fitRow(row);
-  shown.forEach((el, i) => {
-    if (fit.hidden[i]) el.classList.add("rl-hide");
-    if (fit.dx[i]) el.style.marginLeft = `${fit.dx[i]}px`;
-    if (fit.nowShort && el.classList.contains("now")) el.classList.add("rl-c");
-  });
-  // The "Last version that works" flag hangs left of its bead, but near the right end of a narrow ruler it would still
-  // reach past the ruler (and give the page a sideways scroll): move it back in by what sticks out.
-  const lw = ruler.querySelector<HTMLElement>(".lwflag");
-  if (lw) {
-    lw.style.marginLeft = "";
-    const out = lw.getBoundingClientRect().right - ruler.getBoundingClientRect().right;
-    if (out > 0) lw.style.marginLeft = `${-Math.ceil(out)}px`;
-  }
-  // A session chip shows its whole name or not at all, and never touches the flag (dev#36): a cut "Claude…" says nothing.
-  const flag = lw?.getBoundingClientRect() ?? null;
-  ruler.querySelectorAll<HTMLElement>(".clip:not(.clip-x)").forEach((el) => {
-    const name = el.firstElementChild;
-    const cut = !!name && name.scrollWidth > name.clientWidth + 1;
-    const b = el.getBoundingClientRect();
-    const hits = !!flag && b.left < flag.right + 4 && b.right > flag.left - 4 && b.top < flag.bottom + 4 && b.bottom > flag.top - 4;
-    if (cut || hits) el.classList.add("clip-x");
-  });
 }
 
 /** Dial labels stay inside the card, off every dot, the card's own words and each other. A less important one hides first. */
@@ -3551,6 +3553,9 @@ function exitRewind(): void {
   const page = document.querySelector(".page");
   if (page) page.scrollTop = back.pageScroll;
   if (!finished) return;
+  // History's recovery card shows the bring back in place, with its next step in focus; a project with no check gets the undo card and a toast.
+  const next = root.querySelector<HTMLElement>('.gc [data-act="guide-open"]');
+  if (next) return next.focus({ preventScroll: true });
   root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
   toast(`Brought back ${pointName(finished.id)}. Your folder wasn’t touched. ${keys("Mod+Z")} undoes it.`, finished.lastVerdict);
 }
@@ -3703,7 +3708,8 @@ async function rewindDo(): Promise<void> {
   try {
     r.result = await api({ method: "recover", projectId: p.id, id: r.target });
     st.undo = { projectId: p.id, result: r.result, working: false };
-    if (st.coach?.projectId === p.id) st.coach.went = true;
+    st.guide = newGuide(p.id, r.result);
+    checkSavedFirst(p.id, r.result);
     r.step = "done";
   } catch (e) {
     r.error = msg(e);
@@ -3734,7 +3740,7 @@ async function undoRewind(): Promise<void> {
   try {
     const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.result.id, branch: u.result.branch, copyDir: u.result.copyDir });
     st.undo = null;
-    if (st.coach?.projectId === u.projectId) st.coach = null;
+    st.guide = null;
     st.busy = null;
     if (st.screen === "rewind" && st.rewind?.step === "done") {
       st.rewind = { ...st.rewind, result: null, step: "review" };
@@ -3753,6 +3759,98 @@ async function undoRewind(): Promise<void> {
     root.querySelector<HTMLElement>('.rw [data-act="undo-rewind"], .undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
   }
   void refreshStatuses().then(render);
+}
+
+/** A fresh recovery card for a bring back: nothing tried yet, not kept. */
+function newGuide(projectId: string, res: RecoverResult): NonNullable<State["guide"]> {
+  return { projectId, id: res.id, opened: false, checking: false, check: null, error: null, kept: false };
+}
+
+/** Step 1 of the recovery card, or a Bring back on History: the confirm, with what comes back and what does not. */
+function guideBring(id: string | undefined): void {
+  const c = id ? entry(id) : null;
+  if (!c || st.busy) return;
+  const folder = project()?.kind === "folder";
+  st.confirm = {
+    act: "guide-recover", id: c.id, action: "Bring it back",
+    title: `Bring back ${said(c)}?`,
+    body: folder
+      ? "We make a copy of it next to your folder. Your folder is not touched, and every save point stays."
+      : "We make a copy of it next to your folder, on a new branch. Your folder is not touched, and every save point stays.",
+    lists: {
+      comes: comesBackLines(c),
+      not: [...notSavedLines(c), `Changes after ${said(c)}. They stay saved in History.`],
+    },
+  };
+  render();
+}
+
+/** Brings the version back from the card: the copy and the branch, then step 2 in focus. The folder is saved first, and that
+ *  save point is checked in the background, so History never calls it "not checked" once the card is gone. */
+async function guideRecover(id: string): Promise<void> {
+  const p = project();
+  if (!p || st.busy) return;
+  st.busy = "Bringing it back";
+  st.drawer = false;
+  render();
+  let res: RecoverResult | null = null;
+  try {
+    res = await api({ method: "recover", projectId: p.id, id });
+    st.undo = { projectId: p.id, result: res, working: false };
+    st.guide = newGuide(p.id, res);
+  } catch (e) {
+    toast(msg(e));
+  }
+  st.busy = null;
+  await loadTimeline();
+  render();
+  root.querySelector<HTMLElement>(res ? '.gc [data-act="guide-open"]' : '.gc [data-act="guide-bring"]')?.focus({ preventScroll: true });
+  void refreshStatuses().then(render);
+  if (res) checkSavedFirst(p.id, res);
+}
+
+/** A bring back saves the folder first, as a save point with no verdict. It is checked for real in the background, like the
+ *  demo's, so History never says "not checked" about the folder once the recovery card is gone. */
+function checkSavedFirst(projectId: string, res: RecoverResult): void {
+  if (!res.savedBefore || !checksOn(project())) return;
+  void bridge.call({ method: "verify", projectId, id: res.savedBefore }).then(async () => {
+    if (st.projectId !== projectId) return;
+    await loadTimeline();
+    await refreshStatuses();
+    render();
+  });
+}
+
+/** Step 2: open the copy (Finder on a Mac; elsewhere its path is copied). */
+async function guideOpen(path: string | undefined): Promise<void> {
+  const g = st.guide;
+  if (!g || !path) return;
+  const r = isMac() ? await bridge.call({ method: "reveal", path }) : await bridge.call({ method: "copy", text: path });
+  g.opened = r.ok;
+  g.error = r.ok ? null : r.error.message;
+  render();
+}
+
+/** Step 2: run the project's check on the brought-back version, in a copy, and show the verdict on the card. */
+async function guideCheck(): Promise<void> {
+  const p = project();
+  const g = st.guide;
+  if (!p || !g || g.checking || st.busy) return;
+  g.checking = true;
+  g.error = null;
+  st.busy = "Checking";
+  render();
+  try {
+    const v = await api({ method: "verify", projectId: p.id, id: g.id });
+    if (!v.stopped) g.check = v;
+  } catch (e) {
+    g.error = msg(e);
+  }
+  g.checking = false;
+  st.busy = null;
+  await loadTimeline();
+  render();
+  root.querySelector<HTMLElement>('.gc [data-act="guide-keep"]')?.focus({ preventScroll: true });
 }
 
 async function openCompare(a?: string, b?: string): Promise<void> {
@@ -3825,13 +3923,10 @@ async function runDemo(): Promise<void> {
     st.demoBusy = false;
     await refreshStatuses();
     await selectProject(r.project.id);
-    // Land on History at Now, broken, with the three steps: drag back to the version find-good found,
-    // go back to it, then undo or keep it.
-    const found = r.result.findGood.found;
-    if (!found) return toast("Demo ready, but no working version was found.");
-    st.coach = { projectId: r.project.id, target: found, went: false };
+    // Land on History at Now, broken, with the recovery card's first step in focus.
+    if (!r.result.findGood.found) return toast("Demo ready, but no working version was found.");
     render();
-    root.querySelector<HTMLElement>(".hruler")?.focus({ preventScroll: true });
+    root.querySelector<HTMLElement>('.gc [data-act="guide-bring"]')?.focus({ preventScroll: true });
     // Recovery saves the broken state before it creates a branch. That new save point has no
     // verdict yet: check it for real without delaying History or guessing that it failed.
     const before = own.savedBefore;
@@ -4496,13 +4591,18 @@ async function onClick(el: HTMLElement): Promise<void> {
       return undoRewind();
     case "undo-dismiss":
       st.undo = null;
-      if (st.coach?.went) st.coach = null;
       render();
       return refocusRuler();
-    case "coach-hide":
-      st.coach = null;
+    case "guide-bring":
+      return guideBring(d.id);
+    case "guide-open":
+      return guideOpen(d.path);
+    case "guide-check":
+      return guideCheck();
+    case "guide-keep":
+      if (st.guide) st.guide.kept = true;
       render();
-      return refocusRuler();
+      return void root.querySelector<HTMLElement>(".calm h1")?.focus({ preventScroll: true });
     case "tv-go":
       return tvGo(d.id);
     case "tv-try":
@@ -4529,6 +4629,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       st.confirm = null;
       render();
       if (c?.act === "tv-use") return rewindDo();
+      if (c?.act === "guide-recover" && c.id) return guideRecover(c.id);
       if (c?.act === "remove" && c.id) return removeProject(c.id);
       if (c?.act === "forget" && c.id) return forgetProject(c.id);
       if (c?.act === "thin" && c.id) return thinApply(c.id);
@@ -4602,6 +4703,8 @@ async function onClick(el: HTMLElement): Promise<void> {
       return startRewind();
     case "rewind-to":
     case "use":
+      // On History a version that works comes back through the recovery card's confirm; anything unproven goes through the Rewind.
+      if (st.screen === "history" && d.id && entry(d.id)?.verdict === "PASS" && checksOn(project()) && !folderMissing(project())) return guideBring(d.id);
       return startRewind(d.id);
     case "rw-open":
       return rewindOpen();
@@ -4845,7 +4948,13 @@ function shortcut(action: ShortcutAction): void {
       if (inProject) void checkNow();
       return;
     case "rewind":
-      if (inProject && points().length) void startRewind();
+      if (!inProject || !points().length) return;
+      // On History with the recovery card at step 1, ⌘⇧R is its Bring back.
+      if (st.screen === "history" && root.querySelector('.gc [data-act="guide-bring"]')) {
+        flash('.gc [data-act="guide-bring"]');
+        return guideBring(root.querySelector<HTMLElement>('.gc [data-act="guide-bring"]')?.dataset.id);
+      }
+      void startRewind();
       return;
     case "compare":
       if (inProject && points().length) void openCompare();
@@ -5126,7 +5235,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, overview: new Map(), sources: null, labs: false, notes: new Map(), journalFilter: "all", noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
-    hookSheet: null, demoBusy: false, coach: null, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), passes: new Map(), changesFor: "", confirm: null, flash: null, undo: null,
+    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), passes: new Map(), changesFor: "", confirm: null, flash: null, undo: null, guide: null,
     license: { status: boot.data.license, draft: "", working: false, error: null },
     account: { ...SIGNED_OUT },
     copyMade: null,
@@ -5274,7 +5383,6 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   let layoutBand = window.innerWidth < RAIL_MIN ? 0 : window.innerWidth < 1100 ? 1 : 2;
   // Labels are measured; measure them again once the mono font is in, since its widths differ from the fallback's.
   void document.fonts?.ready.then(() => {
-    fitRulerLabels();
     fitDialLabels();
   });
   window.addEventListener("resize", () => {
@@ -5285,7 +5393,6 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
       render();
     } else {
       fitSessions();
-      fitRulerLabels();
       fitDialLabels();
     }
     const shown = toastHost.querySelector<HTMLElement>(".toast:not(.leave)");
