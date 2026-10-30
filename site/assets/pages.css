@@ -1,8 +1,58 @@
-/* Time Machine inner pages: How it works, Security, Company, Blog, legal.
-   Links after site.css and reuses its tokens, header, footer, buttons, tags and waitlist form.
-   Same language as the home page: Newsreader display, Inter body, Geist Mono labels,
-   warm dark paper, graphite instruments. Motion uses transform and opacity only.
-   Hover effects only apply to a fine pointer. */
+/* Time Machine inner pages: How it works, Security, Company, Blog, changelog, legal, account and thanks.
+   Links after site.css and reuses its header, footer, buttons, tags and waitlist form.
+   Same language as the home page: light paper and ink, Bricolage Grotesque headlines with an Instrument Serif
+   italic second line, Inter body, Geist Mono labels. Terminals and the graphite instruments stay dark.
+   Motion uses transform and opacity only. Hover effects only apply to a fine pointer. */
+
+/* ---------- tokens ---------- */
+/* Home's light paper (s5.css body.home), rebound here so site.css :root and the home page stay as they are.
+   Text on paper: ink 17.1:1, ink-2 11.4:1, ink-3 5.4:1 (6.0:1 on card, 4.8:1 on mist).
+   --edge rings controls (fields, outline buttons, toggles): 3.3:1 on paper, 3.5:1 on card. */
+body.pg, body.legal {
+  --paper: #f4f2ed;
+  --card: #ffffff;
+  --mist: #e9e6df;
+  --hairline: #e4e0d7;
+  --line: rgba(20, 20, 20, .12);
+  --line-2: rgba(20, 20, 20, .24);
+  --edge: rgba(20, 20, 20, .5);
+  --ink: #141414;
+  --ink-2: #3a3936;
+  --ink-3: #66635d;
+  --ink-4: #66635d;
+  --glass: rgba(244, 242, 237, .94);
+  --glass-line: rgba(20, 20, 20, .12);
+  --accent: #141414;
+  --accent-ink: #141414;
+  --accent-tint: #e7e3da;
+  --on-accent: #f4f2ed;
+  --works-fg: #17733e; --works-bg: #dff3e4; --works-dot: #17733e;
+  --broken-fg: #b3261e; --broken-bg: #fbe1db; --broken-dot: #b3261e;
+  --couldnt-fg: #7a5a00; --couldnt-bg: #f6edcf; --couldnt-dot: #a37800;
+  --shadow-card: 0 0 0 1px rgba(20, 20, 20, .07), 0 10px 30px -18px rgba(20, 20, 20, .3);
+  --shadow-lift: 0 0 0 1px rgba(20, 20, 20, .09), 0 22px 44px -20px rgba(20, 20, 20, .35);
+  --shadow-window: 0 0 0 1px rgba(20, 20, 20, .09), 0 34px 80px -30px rgba(20, 20, 20, .45);
+  color-scheme: light;
+}
+/* Dark panels: the graphite instruments and the author mark keep site.css's warm dark tokens inside them. */
+.pg :is(.mod, .by-m) {
+  --paper: #1a1918;
+  --card: #24231f;
+  --mist: #2e2d29;
+  --line: rgba(250, 249, 245, .1);
+  --line-2: rgba(250, 249, 245, .2);
+  --ink: #faf9f5;
+  --ink-2: #d6d3c8;
+  --ink-3: #a8a59a;
+  --ink-4: #918e86;
+  --accent: #faf9f5;
+  --works-fg: #4ade80; --broken-fg: #f87171;
+}
+/* The main action is ink with paper text; it darkens a step on hover and rings in ink on keyboard focus. */
+:is(.pg, .legal) .btn-primary:focus-visible { outline-color: var(--accent); }
+@media (hover: hover) and (pointer: fine) { :is(.pg, .legal) .btn-primary:hover { background: #2b2a27; } }
+/* Controls draw their edge with --line-2; on these pages it is the stronger --edge. */
+:is(.pg, .legal) :is(.btn-ghost, .wl input, .account-row input, .g-key) { --line-2: var(--edge); }
 
 .pg { overflow-x: clip; }
 .pg main { display: block; }
@@ -245,13 +295,13 @@
 .slip-w { display: grid; place-items: center; padding: 10px 0 20px; }
 .slip {
   position: relative; width: min(100%, 420px); padding: 28px 28px 32px; color: var(--ink);
-  background: linear-gradient(180deg, #2c2b27, #262521);
+  background: linear-gradient(180deg, #ffffff, #faf8f3);
   font: 400 13px/1.55 var(--font-mono); font-variant-ligatures: none;
   -webkit-mask: radial-gradient(circle at 6px 0, transparent 5px, #000 5.5px) 0 0 / 12px 51% repeat-x, radial-gradient(circle at 6px 100%, transparent 5px, #000 5.5px) 0 100% / 12px 51% repeat-x;
   mask: radial-gradient(circle at 6px 0, transparent 5px, #000 5.5px) 0 0 / 12px 51% repeat-x, radial-gradient(circle at 6px 100%, transparent 5px, #000 5.5px) 0 100% / 12px 51% repeat-x;
   transform: rotate(-2.2deg); transition: transform 1s var(--ease-out);
 }
-.slip-sh { filter: drop-shadow(0 30px 34px rgba(0, 0, 0, .6)) drop-shadow(0 4px 6px rgba(0, 0, 0, .35)); }
+.slip-sh { filter: drop-shadow(0 26px 30px rgba(20, 20, 20, .16)) drop-shadow(0 3px 5px rgba(20, 20, 20, .12)); }
 @media (hover: hover) and (pointer: fine) { .slip-w:hover .slip { transform: rotate(-.6deg) translateY(-4px); } }
 .slip p { margin: 0; }
 .slip .h { font-weight: 650; font-size: 13px; }

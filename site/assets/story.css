@@ -1,7 +1,8 @@
 /* Time Machine story page: "Instrument".
    One graphite device, built in CSS 3D, carries a nine act scroll story.
-   Links after site.css and reuses its tokens, header, footer, buttons, tags and waitlist form.
-   Motion uses transform and opacity only. Green and red mean verdicts. Clay is the main action.
+   Links after site.css and reuses its header, footer, buttons, tags and waitlist form.
+   Light paper like the home page; the device, the terminal and the rewind act's night stay dark.
+   Motion uses transform and opacity only. Green and red mean verdicts.
    No filter blur and no backdrop-filter: they made 35 to 38 compositor surfaces per frame. */
 
 /* ---------- page tokens ---------- */
@@ -14,11 +15,65 @@
   --gr-1: #2a2925; --gr-2: #23221f; --gr-3: #1c1b19; --gr-4: #141311;
   --gr-edge: rgba(250, 249, 245, .14);
   --engrave: #c4c0b4;
-  /* The rewind act: a deeper night and a cooler accent for links and focus. */
   --night-paper: #121110;
+}
+/* Home's light paper (s5.css body.home), rebound here so site.css :root and the home page stay as they are.
+   The receipt that prints out of the device is paper too. Text on paper: ink 17.1:1, ink-2 11.4:1, ink-3 5.4:1. */
+body.story, .story .dev .paper {
+  --paper: #f4f2ed;
+  --card: #ffffff;
+  --mist: #e9e6df;
+  --hairline: #e4e0d7;
+  --line: rgba(20, 20, 20, .12);
+  --line-2: rgba(20, 20, 20, .24);
+  --edge: rgba(20, 20, 20, .5);
+  --ink: #141414;
+  --ink-2: #3a3936;
+  --ink-3: #66635d;
+  --ink-4: #66635d;
+  --glass: rgba(244, 242, 237, .94);
+  --glass-line: rgba(20, 20, 20, .12);
+  --accent: #141414;
+  --accent-ink: #141414;
+  --accent-tint: #e7e3da;
+  --on-accent: #f4f2ed;
+  --works-fg: #17733e; --works-bg: #dff3e4; --works-dot: #17733e;
+  --broken-fg: #b3261e; --broken-bg: #fbe1db; --broken-dot: #b3261e;
+  --shadow-card: 0 0 0 1px rgba(20, 20, 20, .07), 0 10px 30px -18px rgba(20, 20, 20, .3);
+  --shadow-window: 0 0 0 1px rgba(20, 20, 20, .09), 0 34px 80px -30px rgba(20, 20, 20, .45);
+  /* Off the night (no script), the rewind act reads like the rest of the page. */
+  --night-accent: #141414;
+  --night-ink-2: #3a3936;
+  color-scheme: light;
+}
+/* Dark: the device and the tests plate, and everything over the night while the rewind act plays. */
+.story .dev, .story .tests, body.story.is-night :is(.top, .hud, main) {
+  --paper: #1a1918;
+  --card: #24231f;
+  --mist: #2e2d29;
+  --line: rgba(250, 249, 245, .1);
+  --line-2: rgba(250, 249, 245, .2);
+  --edge: rgba(250, 249, 245, .45);
+  --ink: #faf9f5;
+  --ink-2: #d6d3c8;
+  --ink-3: #a8a59a;
+  --ink-4: #918e86;
+  --glass: rgba(26, 25, 24, .94);
+  --glass-line: rgba(250, 249, 245, .12);
+  --accent: #faf9f5;
+  --accent-tint: #33312b;
+  --works-fg: #4ade80; --works-bg: #12261a; --works-dot: #22c55e;
+  --broken-fg: #f87171; --broken-bg: #2e1513; --broken-dot: #ef4444;
+  /* The rewind act: a deeper night and a cooler accent for links and focus. */
   --night-accent: #b8c2f0;
   --night-ink-2: rgba(250, 249, 245, .74);
+  color: var(--ink);
 }
+/* The main action is ink with paper text; it darkens a step on hover and rings in the accent on keyboard focus. */
+.story .btn-primary:focus-visible { outline-color: var(--accent); }
+@media (hover: hover) and (pointer: fine) { .story .btn-primary:hover { background: color-mix(in srgb, var(--ink) 86%, var(--paper)); } }
+/* Controls draw their edge with --line-2; on this page it is the stronger --edge. */
+.story :is(.btn-ghost, .wl input) { --line-2: var(--edge); }
 
 .story { overflow-x: clip; }
 .story code { font-size: max(.88em, 13px); background: color-mix(in srgb, var(--ink) 7%, transparent); padding: .08em .38em; border-radius: 5px; }
@@ -26,7 +81,7 @@
 
 /* ---------- header on this page: floats over the story ---------- */
 .story .top { position: fixed; left: 0; right: 0; top: 0; transition: background-color .4s, box-shadow .4s; }
-body.is-night .top { --paper: var(--night-paper); --mist: #22201d; --accent: var(--night-accent); }
+body.story.is-night .top { --paper: var(--night-paper); --mist: #22201d; --accent: var(--night-accent); }
 @media (max-width: 860px) {
   .story .top { position: absolute; }
 }
@@ -50,7 +105,7 @@ body.is-night .top { --paper: var(--night-paper); --mist: #22201d; --accent: var
 .snd-sw { position: relative; width: 26px; height: 14px; border-radius: 9px; background: color-mix(in srgb, var(--ink) 16%, transparent); }
 .snd-sw i { position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: currentColor; transition: transform .2s var(--ease-out); }
 .snd[aria-pressed="true"] .snd-sw i { transform: translateX(12px); }
-body.is-night .hud { --glass: rgba(18, 17, 16, .94); }
+body.story.is-night .hud { --glass: rgba(18, 17, 16, .94); }
 body.is-night .hud :focus-visible, .a-rewind :focus-visible { outline-color: var(--night-accent); }
 body.is-end .hud { opacity: 0; pointer-events: none; }
 body.is-end .hud > * { pointer-events: none; }
@@ -134,7 +189,7 @@ main { position: relative; }
 .clock .dg { position: relative; display: inline-block; width: .6em; height: 1em; overflow: hidden; }
 .clock .strip { display: block; will-change: transform; }
 .clock .strip i { display: block; height: 1em; font-style: normal; text-align: center; }
-.clock .colon { width: .3em; text-align: center; transform: translateY(-.06em); color: rgba(250, 249, 245, .5); }
+.clock .colon { width: .3em; text-align: center; transform: translateY(-.06em); color: color-mix(in srgb, var(--ink) 50%, transparent); }
 .rw-turn { margin: 2vh 0 0; font-size: clamp(48px, 6vw, 96px); }
 .rw-bot { position: absolute; left: 0; right: 0; bottom: max(72px, 8vh); display: grid; justify-items: center; padding: 0 var(--gut); text-align: center; }
 .rw-bot > * { grid-area: 1 / 1; }
@@ -200,7 +255,7 @@ main { position: relative; }
 .vs-k { margin: 0; font-weight: 600; line-height: 1.25; }
 .vs-k span { display: block; font: 400 13px/1.4 var(--mono); color: var(--ink-3); }
 .vs-bar { position: relative; display: flex; align-items: center; height: 54px; padding: 0 18px; overflow: hidden; border-radius: 12px; background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.vs-bar i { position: absolute; inset: 0; background: #4a4743; transform-origin: 0 50%; transform: scaleX(var(--w)); transition: transform 1.2s var(--ease-out); }
+.vs-bar i { position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 18%, var(--paper)); transform-origin: 0 50%; transform: scaleX(var(--w)); transition: transform 1.2s var(--ease-out); }
 .js .vs:not(.in) .vs-bar i { transform: scaleX(0); }
 .vs-bar span { position: relative; font: 13px/1.3 var(--mono); color: var(--ink); }
 .vs-row:first-child .vs-bar span { margin-left: calc(36% - 4px); }
@@ -269,7 +324,7 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
 .f-l { transform: rotateY(-90deg) translateZ(230px); background: linear-gradient(180deg, var(--gr-2), var(--gr-3)); box-shadow: inset 0 1px 0 rgba(250, 249, 245, .1); }
 .f-r { transform: rotateY(90deg) translateZ(230px); background: linear-gradient(180deg, var(--gr-3), var(--gr-4)); box-shadow: inset 0 1px 0 rgba(250, 249, 245, .08); }
 /* a soft shadow on the table: a radial gradient, so no blur is redrawn per frame */
-.dev::before { content: ""; position: absolute; left: -4%; right: -4%; top: 4%; bottom: -14%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .55), rgba(0, 0, 0, .25) 60%, transparent); transform: translateZ(-30px); }
+.dev::before { content: ""; position: absolute; left: -4%; right: -4%; top: 4%; bottom: -14%; border-radius: 50%; background: radial-gradient(closest-side, rgba(20, 20, 20, .4), rgba(20, 20, 20, .16) 60%, transparent); transform: translateZ(-30px); }
 
 /* Engraved labels, the screen and the receipt: sentence case. The device is drawn at 460 x 300 and scaled by
    story.js; its smallest desktop pose at 1440 is about .96, so 14 px here still lands at 13 px or more on screen.
@@ -447,7 +502,7 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
   .a-report .kick { display: none; }
   .a-report .hx { font-size: 38px; margin-bottom: 12px; }
   .rp-d, .a-report .fine-s { display: none; }
-  .rcpt { position: relative; display: block; padding: 14px 14px 12px; border-radius: 4px 4px 10px 10px; background: var(--card); color: var(--ink); font: 13px/1.45 var(--mono); box-shadow: 0 0 0 1px var(--line), 0 18px 40px -20px rgba(0, 0, 0, .8); }
+  .rcpt { position: relative; display: block; padding: 14px 14px 12px; border-radius: 4px 4px 10px 10px; background: var(--card); color: var(--ink); font: 13px/1.45 var(--mono); box-shadow: 0 0 0 1px var(--line), 0 18px 40px -20px rgba(20, 20, 20, .35); }
   .rcpt::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 6px; background: linear-gradient(-45deg, transparent 4px, var(--card) 0) 0 0 / 8px 6px, linear-gradient(45deg, transparent 4px, var(--card) 0) 0 0 / 8px 6px; }
   .rcpt p { margin: 0 0 6px; }
   .rc-cmd { font-weight: 650; }
