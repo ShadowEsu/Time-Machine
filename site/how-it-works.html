@@ -405,7 +405,7 @@ Saved first cp-0007
               <li>The store, <code translate="no">~/.timemachine</code>, sits outside your project.</li>
               <li><code translate="no">tm ui</code> listens on <code translate="no">127.0.0.1</code> only. Your browser gets a random 32-byte token in the URL fragment, and the server checks Host and Origin.</li>
               <li>Optional: Ask sends a short history summary to the AI service whose key you add, Google Gemini or Anthropic’s Claude API, never file contents or logs. Vercel deploy lookups only read.</li>
-              <li>This website is separate: Vercel functions and a Supabase database for the waitlist and sign-in. The engine and the CLI never call it. The web app calls it only from its Plan page, to see whether sign-in is open and to list the license keys you bought. A key is checked offline.</li>
+              <li>This website is separate: Vercel functions and a Supabase database for the waitlist and sign-in. The engine and the CLI never call it. The web app calls it only from its Plan page: to see whether sign-in is open and, if you sign in with your email, to list the license keys you bought. A key is checked offline.</li>
             </ol>
             <dl class="bp-tb"><div><dt>Source</dt><dd><code translate="no">packages/cli/src/ui/server.ts</code>, <code translate="no">core/src/hooks.ts</code></dd></div><div><dt>Backend</dt><dd><code translate="no">site/api/</code>, Supabase <code translate="no">tm_waitlist</code></dd></div></dl>
           </div>
