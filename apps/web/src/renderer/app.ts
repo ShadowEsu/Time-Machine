@@ -1086,13 +1086,13 @@ function history(): string {
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
   const rec = u ? null : lastRecovery(p.id);
   const where = (branch: string, copyDir: string): string =>
-    `${branch ? `the branch <span class="mono sel-text">${esc(branch)}</span>${copyDir ? " and in " : ""}` : ""}${copyDir ? `a copy at <span class="mono sel-text">${esc(copyDir)}</span>` : ""}`;
+    `${branch ? `the branch <span class="mono sel-text">${esc(branch)}</span>${copyDir ? " and in " : ""}` : ""}${copyDir ? `a copy at <span class="mono sel-text" title="${esc(copyDir)}">${esc(shownPath(copyDir))}</span>` : ""}`;
   const reveal = (copyDir: string): string => (copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(copyDir)}">${revealLabel()}</button>` : "");
-  const copyBranch = (branch: string): string => (branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(branch)}" aria-label="Copy the branch name ${esc(branch)}">Copy branch name</button>` : "");
+  const copyBranch = (branch: string): string => (branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(branch)}" aria-label="Copy branch name ${esc(branch)}">Copy branch name</button>` : "");
   const undoBar = u
-    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. It is on ${where(u.result.copyOnly ? "" : u.result.branch, u.result.copyDir)}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}${reveal(u.result.copyDir)}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
+    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(recoveredName(u.result.id))}. It is on ${where(u.result.copyOnly ? "" : u.result.branch, u.result.copyDir)}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}${reveal(u.result.copyDir)}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
     : rec
-      ? `<div class="undo-card kept"><p>${esc(sentenceStart(pointName(rec.id)))} was brought back to ${where(rec.branch, rec.copyDir)}.${rec.copyDir ? "" : " Its copy is not there anymore."} Your folder was not touched.</p><div class="row-btns">${reveal(rec.copyDir)}${copyBranch(rec.branch)}</div></div>`
+      ? `<div class="undo-card kept"><p>${esc(sentenceStart(recoveredName(rec.id)))} was brought back to ${where(rec.branch, rec.copyDir)}.${rec.copyDir ? "" : " Its copy is not there anymore."} Your folder was not touched.</p><div class="row-btns">${reveal(rec.copyDir)}${copyBranch(rec.branch)}</div></div>`
       : "";
   if (!pts.length) {
     return `<div class="page proj"><div class="doc">${header}${gone ? "" : `<div class="empty-dir journal-empty"><p>${esc(checksOn(p) ? "Save now to make your first save point, then check that it works in a copy." : "Save now to keep the first version of this folder.")}</p><button class="btn" data-act="save">Save now</button></div>`}</div></div>`;
@@ -1204,15 +1204,25 @@ function statusButton(b: StatusButton, primary: boolean): string {
 }
 
 /**
- * A hero action, unless it would bring back a save point that already has a recovery on disk: then it shows that
- * recovery instead of offering to make a second one of the same version.
+ * A hero action, unless it would bring back a save point that already has a recovery on disk: the card under the hero
+ * says where that recovery is and opens it, so the hero does not offer to make a second one of the same version.
  */
 function heroButton(projectId: string, b: StatusButton, primary: boolean): string {
-  const done = b.act === "rewind-to" && b.id ? st.recoveries.get(projectId)?.filter((r) => r.id === b.id).at(-1) : undefined;
-  if (!done) return statusButton(b, primary);
-  const cls = `btn ${primary ? "big dark" : "link"}`;
-  if (done.copyDir) return `<button class="${cls}" data-act="reveal-dir" data-path="${esc(done.copyDir)}"><span>${esc(isMac() ? "Show the recovered copy in Finder" : "Copy the recovered copy’s path")}</span></button>`;
-  return done.branch ? `<button class="${cls}" data-act="copy" data-text="${esc(done.branch)}"><span>Copy the recovery branch name</span></button>` : statusButton(b, primary);
+  const done = b.act === "rewind-to" && b.id ? st.recoveries.get(projectId)?.some((r) => r.id === b.id) : false;
+  return done ? "" : statusButton(b, primary);
+}
+
+/** A recovered save point by its message, then its time: “Added dark mode” (5:47:24 AM). Falls back to the usual name. */
+function recoveredName(id: string): string {
+  const c = entry(id);
+  const t = c ? title(c).trim() : "";
+  return c && t ? `“${t}” (${ptTime(c)})` : pointName(id);
+}
+
+/** A path under the home folder said as ~/…, so a screen or screenshot never shows the account name. Show in Finder and Copy keep the full path. */
+function shownPath(path: string): string {
+  const home = st.boot.home?.replace(/\/+$/, "");
+  return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path;
 }
 
 /** One plain sentence on what a verdict means for this save point. Isolation names only with Git details. */

@@ -324,7 +324,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .doc > .undo-card { margin: 28px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--sky); border: 1.5px solid var(--sky-line); color: var(--sky-ink); font-size: 15px; line-height: 1.5; }
 .undo-card > .g { flex: none; width: 10px; height: 10px; }
 .undo-card > p { flex: 1 1 300px; min-width: 0; overflow-wrap: anywhere; }
-.undo-card .row-btns { flex: none; }
+.undo-card .row-btns { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; }
+@media (max-width: 480px) {
+  .undo-card .row-btns { flex: 1 1 100%; }
+  .undo-card .row-btns > .btn { flex: 1 1 100%; justify-content: center; }
+}
 /* A folder that is gone: its notice and the two ways out sit where the main action was. */
 .hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
