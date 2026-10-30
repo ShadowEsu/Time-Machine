@@ -1,4 +1,4 @@
--- Survey answers from the app, and the waitlist's second, optional box ("You may email me to ask for feedback.").
+-- Survey answers from the app, and the waitlist's second, optional box ("Email me to ask for feedback.").
 -- Apply after 0007, before deploying the site API that calls feedback_add or sends p_feedback_version. Safe to run twice.
 -- One transaction: a failure leaves 0007 in place. Needs pg_cron enabled first (section 6): it refuses to apply without it.
 --
@@ -22,7 +22,7 @@ alter table tm_waitlist.waitlist add constraint waitlist_feedback_consent_shape 
   (feedback_consent = false and feedback_consent_text_version is null and feedback_consent_at is null)
   or (feedback_consent = true and feedback_consent_text_version ~ '^feedback-[0-9]{4}-[0-9]{2}-[0-9]{2}$' and feedback_consent_at is not null));
 comment on column tm_waitlist.waitlist.feedback_consent is
-  'True only when the person ticked the separate box "You may email me to ask for feedback." Rows saved before 0008: false.';
+  'True only when the person ticked the separate box "Email me to ask for feedback." Rows saved before 0008: false.';
 comment on column tm_waitlist.waitlist.feedback_consent_text_version is
   'The version of the feedback box words this person ticked, as the site sent it. Null when the box was not ticked.';
 comment on column tm_waitlist.waitlist.feedback_consent_at is 'When the feedback box was ticked. Null when it was not.';

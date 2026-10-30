@@ -13,9 +13,14 @@ const CODE_RE = /^[a-z0-9]{10}$/;
 
 // The wording by every waitlist box, by date (consent_text_version, see 0007_consent_text_version.sql). Each box sends it
 // as its value. Change it whenever those words or the privacy line under them change, on every page at once.
-export const WAITLIST_CONSENT_VERSION = "waitlist-2026-10-28";
+// waitlist-2026-10-30: "Email me when the CLI is on npm."
+export const WAITLIST_CONSENT_VERSION = "waitlist-2026-10-30";
 
-// The second, optional box: "You may email me to ask for feedback." Its own wording version, recorded only when it is ticked
+// Earlier wordings a cached page may still show; a tick on one is recorded with the version that page sent.
+// waitlist-2026-10-28: "Email me when the CLI is on npm. Nothing else."
+export const WAITLIST_CONSENT_EARLIER = ["waitlist-2026-10-28"];
+
+// The second, optional box: "Email me to ask for feedback." Its own wording version, recorded only when it is ticked
 // (feedback_consent_text_version, see 0008_feedback.sql). Change it whenever those words change, on every page at once.
 export const FEEDBACK_CONSENT_VERSION = "feedback-2026-10-30";
 
@@ -227,8 +232,10 @@ export async function handleWaitlist(req, deps) {
   const email = normalizeEmail(data.email);
   if (!isValidEmail(email)) return reply(400, { ok: false, error: "invalid_email" });
   if (data.consent !== true) return reply(400, { ok: false, error: "consent_required" });
-  // Consent is to the words the box showed. A page from before they changed says so instead of saving.
-  if (data.consentVersion !== WAITLIST_CONSENT_VERSION) return reply(400, { ok: false, error: "consent_outdated" });
+  // Consent is to the words the box showed: the current ones, or an earlier wording a cached page still shows. Any
+  // other version says so instead of saving.
+  const consentVersion = data.consentVersion;
+  if (consentVersion !== WAITLIST_CONSENT_VERSION && !WAITLIST_CONSENT_EARLIER.includes(consentVersion)) return reply(400, { ok: false, error: "consent_outdated" });
   // The feedback box is separate and optional. Unticked (false or missing) records nothing about it.
   if (data.feedback !== undefined && typeof data.feedback !== "boolean") return reply(400, { ok: false, error: "bad_request" });
   if (data.feedback === true && data.feedbackVersion !== FEEDBACK_CONSENT_VERSION) return reply(400, { ok: false, error: "consent_outdated" });
@@ -241,7 +248,7 @@ export async function handleWaitlist(req, deps) {
     "waitlist_join_pending",
     {
       p_email: email,
-      p_consent_version: WAITLIST_CONSENT_VERSION,
+      p_consent_version: consentVersion,
       p_source: cleanSource(data.source),
       p_ref: ref,
       p_client: clientId(req.ip, deps.env.SUPABASE_KEY),

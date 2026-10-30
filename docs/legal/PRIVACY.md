@@ -21,7 +21,7 @@ The `tm` tool and the web app keep everything locally: save points, Git bundles,
 | Website visits | You visit the site | Cookieless, aggregate page counts. No ad tracking |
 | Support messages | You contact us | To help you |
 | Survey answers: your four answers, the app version and a random survey ID | You press Send on the four-question survey in the web app | To decide what to build. Kept 12 months. To have them deleted sooner, email us your survey ID |
-| Consent to a feedback email | You tick "You may email me to ask for feedback." when you join the waitlist. It is a separate, optional box; unticked, nothing about it is stored | To email you a feedback request, at most twice. We keep that you ticked it, which wording of the box you saw, and when |
+| Consent to a feedback email | You tick "Email me to ask for feedback." when you join the waitlist. It is a separate, optional box; unticked, nothing about it is stored | To email you a feedback request, at most twice. We keep that you ticked it, which wording of the box you saw, and when |
 
 **No telemetry.** The `tm` tool and the web app send no usage events. The four-question survey in the web app sends only your answers, the app version and a random survey ID made for your computer (not taken from your hardware, your name or your folders), and only when you press Send. How often you used Ask and when you first opened the app stay on your computer; they only decide when the survey shows. If you close it or choose No thanks, nothing is sent. The app shows your survey ID after you press Send, and in Settings.
 

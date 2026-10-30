@@ -35,7 +35,7 @@ describe("waitlist forms", () => {
     expect(box).not.toMatch(/\bchecked\b/);
     // The value is the wording's version the server accepts, so a tick is recorded against these words (T2).
     expect(box).toContain(`value="${WAITLIST_CONSENT_VERSION}"`);
-    expect(body).toMatch(/<label class="wl-consent"><input\b[^>]*name="consent"[^>]*><span>Email me when the CLI is on npm\. Nothing else\.<\/span><\/label>/);
+    expect(body).toMatch(/<label class="wl-consent"><input\b[^>]*name="consent"[^>]*><span>Email me when the CLI is on npm\.<\/span><\/label>/);
   });
 
   it.each(forms.map((f) => [f.page, f.body]))("%s has a second, separate, unticked and optional feedback box after the npm box", (_page, body) => {
@@ -46,7 +46,7 @@ describe("waitlist forms", () => {
     expect(box).not.toMatch(/\brequired\b/);
     expect(box).not.toMatch(/\bchecked\b/);
     expect(box).toContain(`value="${FEEDBACK_CONSENT_VERSION}"`);
-    const label = /<label class="wl-consent"><input\b[^>]*name="feedback"[^>]*><span>You may email me to ask for feedback\.<\/span><\/label>/;
+    const label = /<label class="wl-consent"><input\b[^>]*name="feedback"[^>]*><span>Email me to ask for feedback\.<\/span><\/label>/;
     expect(body).toMatch(label);
     // Its own label, after the npm box's, never inside it.
     expect(body.search(label)).toBeGreaterThan(body.indexOf('name="consent"'));

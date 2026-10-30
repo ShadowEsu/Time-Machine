@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "../waitlist.js";
-import { clientId, clientIp, FEEDBACK_CONSENT_VERSION, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody, WAITLIST_CONSENT_VERSION } from "./waitlist.js";
+import { clientId, clientIp, FEEDBACK_CONSENT_VERSION, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody, WAITLIST_CONSENT_EARLIER, WAITLIST_CONSENT_VERSION } from "./waitlist.js";
 
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
@@ -108,13 +108,21 @@ describe("waitlist handler", () => {
   });
 
   it("refuses a tick on other words than the current box's: an old page, a missing or forged version (Security T2)", async () => {
-    for (const consentVersion of [undefined, "on", "waitlist-2026-01-01", null, ["waitlist-2026-10-28"]]) {
+    for (const consentVersion of [undefined, "on", "waitlist-2026-01-01", "waitlist-2026-10-29", null, ["waitlist-2026-10-28"]]) {
       const { fetch, deps } = setup();
       const res = await handleWaitlist(request({ ...good, consentVersion }), deps);
       expect(res.status).toBe(400);
       expect(res.body).toEqual({ ok: false, error: "consent_outdated" });
       expect(fetch).not.toHaveBeenCalled();
     }
+  });
+
+  it("still accepts a tick on the earlier npm wording from a cached page, and records that page's version", async () => {
+    expect(WAITLIST_CONSENT_VERSION).toBe("waitlist-2026-10-30");
+    expect(WAITLIST_CONSENT_EARLIER).toEqual(["waitlist-2026-10-28"]);
+    const { fetch, deps } = setup();
+    expect((await handleWaitlist(request({ ...good, consentVersion: "waitlist-2026-10-28" }), deps)).body).toEqual({ ok: true, pending: true });
+    expect(JSON.parse(fetch.mock.calls[0][1].body).p_consent_version).toBe("waitlist-2026-10-28");
   });
 
   it("records the separate feedback box, with its own version, only when it is ticked (ledger 299)", async () => {

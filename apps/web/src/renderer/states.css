@@ -571,10 +571,15 @@ section > .b9-lede { margin: -2px 0 16px; }
 .pmf-form { display: grid; gap: 18px; }
 .pmf-q { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .pmf-l { font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink); }
-.pmf-l .muted { font-weight: 400; font-size: 13px; }
+/* "Optional" sits on its own line under each question, so it is in the same place however the question wraps. */
+.pmf-l .muted { display: block; font-weight: 400; font-size: 13px; }
 .pmf-opts { display: grid; gap: 6px; }
 .sheet.pmf textarea.field { height: auto; min-height: 76px; padding: 8px 10px; resize: vertical; font: 400 15px/1.5 var(--font); }
 .pmf-consent { margin: 0; line-height: 1.5; color: var(--ink-2); }
+/* The consent line, any error and Send stay in view at the bottom of the sheet while the questions scroll under them.
+   The negative bottom and margin cover the sheet's own bottom padding, so nothing shows through below. */
+.pmf-foot { position: sticky; bottom: -24px; z-index: 1; display: grid; gap: 12px; margin: 0 0 -24px; padding: 14px 0 24px; border-top: 1px solid var(--line); background: var(--surface); }
 @media (max-width: 640px) {
   .pmf-card { align-items: stretch; }
+  .pmf-foot { bottom: -20px; margin-bottom: -20px; padding-bottom: 20px; }
 }

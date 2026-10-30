@@ -60,8 +60,10 @@ export function pmfSheetHtml(v: PmfView, enter: string, surveyId: string | undef
     <form class="pmf-form" data-form="pmf" novalidate>
       <fieldset class="pmf-q"><legend class="pmf-l">1. ${esc(PMF_Q1)}</legend><div class="pmf-opts">${radios}</div></fieldset>
       ${text(2, PMF_Q2)}${text(3, PMF_Q3)}${text(4, PMF_Q4)}
-      <p class="pmf-consent small" id="pmf-consent">${esc(PMF_SENDS)} <button type="button" class="btn link" data-act="pmf-privacy">Privacy Policy (draft)</button></p>
-      ${v.error ? `<div class="note bad" role="alert">${esc(v.error)}</div>` : ""}
-      <div class="row-btns"><button type="button" class="btn quiet" data-act="pmf-close"${busy}>Cancel</button><button type="submit" class="btn dark" aria-describedby="pmf-consent"${busy}>${v.sending ? "Sending…" : "Send"}</button></div>
+      <div class="pmf-foot">
+        <p class="pmf-consent small" id="pmf-consent">${esc(PMF_SENDS)} <button type="button" class="btn link" data-act="pmf-privacy">Privacy Policy (draft)</button></p>
+        ${v.error ? `<div class="note bad" role="alert">${esc(v.error)}</div>` : ""}
+        <div class="row-btns"><button type="button" class="btn quiet" data-act="pmf-close"${busy}>Cancel</button><button type="submit" class="btn dark" aria-describedby="pmf-consent"${busy}>${v.sending ? "Sending…" : "Send"}</button></div>
+      </div>
     </form></div></div>`;
 }
