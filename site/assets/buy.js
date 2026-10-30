@@ -1,6 +1,8 @@
-/* The Pay once button. Reads /api/health first (the request checkout.js already made): while checkout
-   is closed the button is disabled and says so, and nothing is for sale. A click asks /api/checkout for
-   a Stripe URL and goes there. No price, key or card detail ever passes through this page.
+/* The Pay once button. Reads /api/health first (the request checkout.js already made). While checkout is closed the
+   page shows what is free today and a working "Install it free" link ([data-buy-closed], in the HTML so no-JS visitors
+   see it too), and the Buy button stays hidden: nothing is for sale. Once checkout can open, the closed note goes and
+   the button shows. A click asks /api/checkout for a Stripe URL and goes there. No price, key or card detail ever
+   passes through this page.
    Before Buy sits an unticked Terms and Privacy box, added here so it shows only while checkout can open. Nothing is
    sent until it is ticked; then /api/checkout gets the versions it names, and Stripe keeps them with the session. */
 (function () {
@@ -12,7 +14,6 @@
   var PRIVACY_VERSION = "privacy-2026-10-28b";
   var BOX_VERSION = "agree-box-2026-10-29";
   var MSG = {
-    soon: "The price is set. Checkout is not open yet, so nothing is for sale today.",
     starting: "Opening checkout…",
     failed: "We couldn't start checkout just now. Try again in a minute, or email " + CONTACT + ".",
     network: "We couldn't reach the server. Check your connection and try again.",
@@ -23,7 +24,7 @@
   var button = document.querySelector("button[data-buy]");
   var status = document.querySelector("[data-buy-status]");
   if (!button || !status) return;
-  var label = button.textContent;
+  var shut = Array.prototype.slice.call(document.querySelectorAll("[data-buy-closed]"));
   var script = document.currentScript || document.querySelector('script[src*="buy.js"]');
   var api = function (path) { return new URL("../api/" + path, script ? script.src : location.href).href; };
   var page = function (path) { return new URL("../" + path, script ? script.src : location.href).href; };
@@ -72,17 +73,17 @@
 
   function closed() {
     agree.hidden = true;
+    button.hidden = true;
     button.disabled = true;
-    button.setAttribute("aria-disabled", "true");
-    button.textContent = "Checkout opens soon";
-    say(MSG.soon);
+    shut.forEach(function (el) { el.hidden = false; });
+    say("");
   }
 
   function open() {
+    shut.forEach(function (el) { el.hidden = true; });
     agree.hidden = false;
+    button.hidden = false;
     button.disabled = false;
-    button.removeAttribute("aria-disabled");
-    button.textContent = label;
   }
 
   function fail(text) {
