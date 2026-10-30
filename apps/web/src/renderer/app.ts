@@ -1086,7 +1086,7 @@ function history(): string {
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
   const rec = u ? null : lastRecovery(p.id);
   const where = (branch: string, copyDir: string): string =>
-    `${branch ? `the branch <span class="mono sel-text">${esc(branch)}</span>${copyDir ? " and in " : ""}` : ""}${copyDir ? `a copy at <span class="mono sel-text" title="${esc(copyDir)}">${esc(shownPath(copyDir))}</span>` : ""}`;
+    `${branch ? `the branch <span class="mono sel-text">${esc(branch)}</span>${copyDir ? " and in " : ""}` : ""}${copyDir ? `a copy at <span class="mono sel-text">${esc(shownPath(copyDir))}</span>` : ""}`;
   const reveal = (copyDir: string): string => (copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(copyDir)}">${revealLabel()}</button>` : "");
   const copyBranch = (branch: string): string => (branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(branch)}" aria-label="Copy branch name ${esc(branch)}">Copy branch name</button>` : "");
   const undoBar = u
