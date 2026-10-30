@@ -79,10 +79,33 @@ export class AppState {
     return found;
   }
 
+  /** settings.json as it is on disk now, so a change another window or the CLI made is kept. */
+  readSettings(): Settings {
+    return (this.settings = readJson(this.settingsPath, SettingsSchema, this.settings));
+  }
+
   updateSettings(patch: Partial<Settings>): Settings {
     const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
-    const current = readJson(this.settingsPath, SettingsSchema, this.settings);
-    const next = SettingsSchema.parse({ ...current, ...defined });
+    const current = this.readSettings();
+    // The survey marks merge, so marking it shown never drops the ID or the send time.
+    const pmf = patch.pmf ? { pmf: { ...current.pmf, ...Object.fromEntries(Object.entries(patch.pmf).filter(([, v]) => v !== undefined)) } } : {};
+    return this.writeSettings({ ...current, ...defined, ...pmf });
+  }
+
+  /** Sets firstUseAt the first time the app starts with these settings; later starts keep it. */
+  markFirstUse(now: Date): Settings {
+    const current = this.readSettings();
+    return current.firstUseAt ? current : this.writeSettings({ ...current, firstUseAt: now.toISOString() });
+  }
+
+  /** One more successful Ask, counted on the file as it is now. */
+  countAsk(): Settings {
+    const current = this.readSettings();
+    return this.writeSettings({ ...current, askCount: current.askCount + 1 });
+  }
+
+  private writeSettings(value: Settings): Settings {
+    const next = SettingsSchema.parse(value);
     writeJson(this.settingsPath, next);
     this.settings = next;
     return this.settings;

@@ -33,4 +33,5 @@ export { cleanStore, type CleanStoreOptions, type CleanStoreResult } from "./sto
 export { detectSandbox } from "./sandbox.js";
 export { checkRuns, secretScreen } from "./history.js";
 export { clipSafe } from "./secrets.js";
+export { looksSecret } from "./secret-patterns.js";
 export { FREE_PROJECT_LIMIT, LICENSE_PUBLIC_KEY, activateLicense, licensePublicKeyFromEnv, licenseStatus, parseLicenseKey, removeLicense, signLicense, type LicensePayload, type LicenseStatus } from "./license.js";

@@ -316,6 +316,39 @@ describe("the engine", () => {
     await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "ask", enabled: true } });
     expect(new AppState(appDir).find(entry.id)?.features.askConsent).toMatchObject({ version: ASK_CONSENT_VERSION, provider: "anthropic" });
   });
+
+  test("only an answered Ask counts toward the survey, on the server, and the window hears the new count", async () => {
+    const { dir, ctx, entry } = await seeded();
+    const appDir = join(tempDir("app"), "data");
+    const state = new AppState(appDir);
+    state.updateProjects((list) => [...list, { ...entry, features: { ask: false, vercel: null, autoSave: "off" } }]);
+    let fail = true;
+    const { fetch } = fakeFetch(() => (fail ? new Response("{}", { status: 500 }) : answer("It worked at 10:42.", ["cp-0003"])));
+    const engine = new Engine(state, { candidates: ["false"], version: "9.9.9" }, { credentials: new Credentials(join(dir, "..", "credentials.json"), noCipher, { GEMINI_API_KEY: KEY }), fetch });
+    const counts: number[] = [];
+    engine.onEvent((e) => {
+      if (e.type === "settings") counts.push(e.settings.askCount);
+    });
+    const before = process.env.TM_HOME;
+    process.env.TM_HOME = ctx.tmHome;
+    try {
+      // Refused while off, then failed upstream: neither counts.
+      expect((await engine.run({ method: "ask", projectId: entry.id, question: "When?" })).ok).toBe(false);
+      await engine.run({ method: "setFeature", projectId: entry.id, change: { feature: "ask", enabled: true } });
+      expect((await engine.run({ method: "ask", projectId: entry.id, question: "When?" })).ok).toBe(false);
+      expect(new AppState(appDir).settings.askCount).toBe(0);
+      fail = false;
+      expect((await engine.run({ method: "ask", projectId: entry.id, question: "When?" })).ok).toBe(true);
+      expect((await engine.run({ method: "ask", projectId: entry.id, question: "And before?" })).ok).toBe(true);
+      expect(new AppState(appDir).settings.askCount).toBe(2);
+      expect(counts).toEqual([1, 2]);
+      // The window can't set the count itself.
+      expect(CallSchema.safeParse({ method: "setSettings", patch: { askCount: 99 } }).success).toBe(false);
+    } finally {
+      if (before === undefined) delete process.env.TM_HOME;
+      else process.env.TM_HOME = before;
+    }
+  });
 });
 
 describe("keys", () => {

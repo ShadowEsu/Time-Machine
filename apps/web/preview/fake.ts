@@ -284,7 +284,8 @@ export class FakeEngine implements TmBridge {
   private added = true;
   private seed: Point | null = null;
   private stopping = false;
-  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [], reduceMotion: false };
+  /** First used now and never asked, so the survey card does not come up in a preview visit (it sends nothing here either). */
+  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [], reduceMotion: false, firstUseAt: new Date().toISOString(), askCount: 0, pmf: {} };
   /** No key in the preview: the free app, as the real engine reports it (core FREE_PROJECT_LIMIT is 3). */
   private readonly license: LicenseStatus = { active: false, id: null, issued: null, problem: null, freeProjectLimit: 3 };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
@@ -672,6 +673,8 @@ export class FakeEngine implements TmBridge {
       case "signOut":
         this.signedIn = null;
         return { ok: true };
+      case "sendFeedback":
+        throw new Error("The preview sends nothing. Answer in the app on your computer.");
       case "accountLicenses":
         // One made-up key for the screens. It is not signed, so no app accepts it.
         return this.signedIn
@@ -857,7 +860,7 @@ export class FakeEngine implements TmBridge {
       case "isolation":
         return { mode: "host", networkSandbox: "sandbox-exec" };
       case "setSettings":
-        this.settings = { ...this.settings, ...call.patch };
+        this.settings = { ...this.settings, ...call.patch, pmf: { ...this.settings.pmf, ...call.patch.pmf } };
         return this.settings;
       case "readReport":
         if (!this.lastRecover) throw new Error("No report yet.");
