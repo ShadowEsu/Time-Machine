@@ -1237,13 +1237,18 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
    hollow one, so the shape reads without the colour. The last version that works has a ring; the selected one a bar under it.
    It has its own row under the list's title, count and filter, so it has room at every width. */
 .spark { order: 3; flex: 1 1 100%; min-width: 0; height: 30px; display: flex; align-items: center; gap: 4px; padding: 0 2px 4px; }
-.spk { position: relative; flex: 0 1 12px; min-width: 4px; height: 10px; border-radius: 2px; background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
-.spk.v-pass { height: 22px; background: var(--works); box-shadow: none; }
-.spk.v-fail { height: 22px; background: repeating-linear-gradient(135deg, var(--broken) 0 3px, color-mix(in srgb, var(--broken) 45%, var(--surface)) 3px 5px); box-shadow: none; }
-.spk.v-incomplete, .spk.v-blocked { height: 16px; background: var(--amber-dot); box-shadow: none; }
-.spk.v-error { height: 16px; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+/* r5: the History strip uses Overview's shapes (a filled circle for Works, a diamond for Broken, a hollow circle for Not
+   checked yet), each with its glyph, so the two rulers read the same. */
+.spk { position: relative; flex: 0 0 16px; width: 16px; height: 16px; display: inline-grid; place-items: center; box-sizing: border-box; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink-2); }
+.spk .vi { width: 10px; height: 10px; color: #fff; }
+.spk.v-pass { background: var(--works); border-color: var(--works); }
+.spk.v-fail { background: var(--broken); border-color: var(--broken); border-radius: 3px; transform: rotate(45deg) scale(.88); }
+.spk.v-fail .vi { transform: rotate(-45deg); }
+.spk.v-incomplete, .spk.v-blocked { background: var(--amber-dot); border-color: var(--amber-dot); }
+.spk.v-error { border-color: var(--ink-3); }
 .spk.lw { outline: 2px solid var(--works); outline-offset: 2px; }
-.spk.on::after { content: ""; position: absolute; left: -1px; right: -1px; bottom: -6px; height: 2.5px; border-radius: 2px; background: var(--ink); }
+.spk.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.spark { overflow: hidden; }
 /* The list: a listbox. Focus stays on it and the selected row carries the ring, so focus is always seen. */
 .lp-list { position: relative; outline: none; }
 .lp-two .lp-list { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
@@ -1362,9 +1367,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .undo-card .uc-ch small { font-size: 13px; line-height: 1.4; color: var(--ink-3); }
 @media (max-width: 480px) { .undo-card .uc-ch .btn { width: 100%; white-space: normal; height: auto; min-height: 44px; } .undo-card .uc-ch > div { justify-items: stretch; } }
 /* Round 4: the verdict strip carries its glyph (check, cross; a hollow ring is Not checked yet), so it reads without colour. */
-.spk { display: inline-grid; place-items: center; flex-basis: 14px; }
-.spk .vi { width: 10px; height: 10px; color: #fff; }
-.spk.v-fail .vi { background: var(--broken); border-radius: 2px; }
 .lp-ttl { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
 /* Round 4: the broken version's link starts its own line; Claude Code's row is name over state, Connect under it; the
    preview's links wrap inside the pane. */
@@ -1377,3 +1379,5 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .uc-use summary { cursor: pointer; font-weight: 600; color: var(--ink); }
 .uc-use > * + * { margin-top: 8px; }
 .uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+/* r5: at desktop width Keep it sits right next to Undo. */
+.undo-card .uc-ch > div { flex: 0 1 300px; }

@@ -688,7 +688,7 @@ function sidebar(mobile = false): string {
       const shown = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
       // After a bring back the folder is still broken, and a working copy is ready: the row says both, and opens History,
       // where the banner says where the copy is.
-      const ready = st.undo?.projectId === p.id && v === "FAIL" ? " · working copy ready" : "";
+      const ready = st.undo?.projectId === p.id && v === "FAIL" ? " · copy ready" : "";
       const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : checks ? `${verdictWord(v)}${ready}` : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest);
       const age = s?.newest && !s.problem ? `<span class="pj-age" data-at="${esc(s.newest.createdAt)}" title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(railAge(s.newest.createdAt))}</span>` : "";
       const on = p.id === st.projectId && inProject;
@@ -1078,7 +1078,8 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   // The broken version's own pane speaks of your folder (where it still is), apart from where the working copy went.
   const here = isSafety && back ? `<div class="lp-here" role="note"><p><b>This is your broken version. It is still in your folder</b>, untouched, and this save point keeps it too.</p>
       <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(p.path)}">Open your folder</button></div>
-      <p>${esc(`The working version, ${backTo ? named(backTo).name : "the one you brought back"}, is ${back.result.copyOnly ? "in a copy" : `on the branch ${back.result.branch} and in a copy`}; the banner above has its folder.`)}</p></div>`
+      <p>${esc(`The working version, ${backTo ? named(backTo).name : "the one you brought back"}, is ${back.result.copyOnly ? "in a copy at" : `on the branch ${back.result.branch} and in a copy at`}`)} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
+      <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(back.result.copyDir)}">${esc(revealLabel().replace("Show", "Show the working copy"))}</button></div></div>`
     : isBack && back ? `<div class="lp-here" role="note"><p><b>This is the version you brought back.</b> ${back.result.copyOnly ? "It is in a copy at" : `It is on the branch <span class="mono sel-text">${esc(back.result.branch)}</span> and in a copy at`} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
       <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(back.result.copyDir)}">${revealLabel()}</button>${back.result.copyOnly ? "" : `<button class="btn quiet" data-act="copy" data-text="${esc(back.result.branch)}">Copy branch name</button>`}</div></div>` : "";
   const acts = damaged || isBack ? ""
