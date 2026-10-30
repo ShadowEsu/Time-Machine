@@ -87,7 +87,7 @@ body.story, .story .dev .paper {
   --works-fg: #17733e; --works-bg: #dff3e4; --works-dot: #17733e;
   --broken-fg: #b3261e; --broken-bg: #fbe1db; --broken-dot: #b3261e;
   --shadow-card: 0 0 0 1px rgba(20, 20, 20, .07), 0 10px 30px -18px rgba(20, 20, 20, .3);
-  --shadow-window: 0 0 0 1px rgba(20, 20, 20, .09), 0 34px 80px -30px rgba(20, 20, 20, .45);
+  --shadow-window: 0 0 0 1px rgba(20, 20, 20, .09), 0 18px 36px -24px rgba(20, 20, 20, .3);
   /* Off the night (no script), the rewind act reads like the rest of the page. */
   --night-accent: #141414;
   --night-ink-2: #3a3936;
@@ -96,6 +96,8 @@ body.story, .story .dev .paper {
   --font-display: var(--display);
   color-scheme: light;
 }
+/* The viewport (scrollbars, overscroll) follows the root's scheme, which site.css sets to dark. */
+:root:has(> body.story) { color-scheme: light; }
 /* Dark: the device and the tests plate, and everything over the night while the rewind act plays. */
 .story .dev, .story .tests, body.story.is-night :is(.top, .hud, main) {
   --paper: #1a1918;
@@ -111,6 +113,7 @@ body.story, .story .dev .paper {
   --glass: rgba(26, 25, 24, .94);
   --glass-line: rgba(250, 249, 245, .12);
   --accent: #faf9f5;
+  --accent-ink: #ffffff;
   --accent-tint: #33312b;
   --works-fg: #4ade80; --works-bg: #12261a; --works-dot: #22c55e;
   --broken-fg: #f87171; --broken-bg: #2e1513; --broken-dot: #ef4444;
@@ -475,7 +478,7 @@ form[data-state="ok"] input[type="email"] { border-color: var(--works-dot); }
 .stamp-p { position: absolute; right: 0; top: 6px; padding: 2px 7px; border: 2.2px solid currentColor; border-radius: 5px; font: 800 var(--dev-t)/1.2 var(--sans); font-style: normal; letter-spacing: .02em; opacity: 0; transform: rotate(-9deg) scale(1.7); transition: transform .22s cubic-bezier(.2, 1.5, .5, 1), opacity .12s; }
 .s-bad { color: var(--broken-fg); background: var(--broken-bg); }
 .s-good { color: var(--works-fg); background: var(--works-bg); font-size: 15px; }
-.pp-row.on .stamp-p { opacity: .92; transform: rotate(-9deg) scale(1); }
+.pp-row.on .stamp-p { opacity: 1; transform: rotate(-9deg) scale(1); }
 .pp-sum { margin-top: 9px !important; font-weight: 650; }
 .pp-cut { overflow: hidden; white-space: nowrap; letter-spacing: .05em; color: var(--ink-4); }
 .pp-k { margin: 12px 0 3px !important; padding-top: 5px; border-top: 1px solid var(--line-2); font-weight: 650; }

@@ -78,12 +78,14 @@ body.pg, body.legal {
   --couldnt-fg: #7a5a00; --couldnt-bg: #f6edcf; --couldnt-dot: #a37800;
   --shadow-card: 0 0 0 1px rgba(20, 20, 20, .07), 0 10px 30px -18px rgba(20, 20, 20, .3);
   --shadow-lift: 0 0 0 1px rgba(20, 20, 20, .09), 0 22px 44px -20px rgba(20, 20, 20, .35);
-  --shadow-window: 0 0 0 1px rgba(20, 20, 20, .09), 0 34px 80px -30px rgba(20, 20, 20, .45);
+  --shadow-window: 0 0 0 1px rgba(20, 20, 20, .09), 0 18px 36px -24px rgba(20, 20, 20, .3);
   --display: "Bricolage Grotesque", "Bricolage fallback", system-ui, sans-serif;
   --voice: "Instrument Serif", "Instrument fallback", "Instrument fallback 2", Georgia, serif;
   --font-display: var(--display);
   color-scheme: light;
 }
+/* The viewport (scrollbars, overscroll) follows the root's scheme, which site.css sets to dark. */
+:root:has(> body.pg, > body.legal) { color-scheme: light; }
 /* Dark panels: the graphite instruments and the author mark keep site.css's warm dark tokens inside them. */
 .pg :is(.mod, .by-m) {
   --paper: #1a1918;
@@ -180,7 +182,7 @@ body.pg, body.legal {
     radial-gradient(140% 90% at 20% 0%, rgba(255, 255, 255, .07), transparent 55%),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, .012) 0 1px, rgba(0, 0, 0, .05) 1px 2px, transparent 2px 4px),
     linear-gradient(170deg, #2a2925 0%, #242320 52%, #1c1b19 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -1px 0 rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .04), 0 7px 0 -1px #121110, 0 8px 0 -1px #0b0a09, 0 40px 70px -30px rgba(0, 0, 0, .95), 0 12px 24px -14px rgba(0, 0, 0, .6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -1px 0 rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .04), 0 7px 0 -1px #121110, 0 8px 0 -1px #0b0a09, 0 22px 30px -22px rgba(20, 20, 20, .4), 0 10px 16px -12px rgba(20, 20, 20, .25);
   transform-style: preserve-3d;
 }
 .mod.tilt { transform: rotateX(var(--rx, 9deg)) rotateY(var(--ry, -11deg)); transition: transform 1.1s var(--ease-out); }
@@ -353,7 +355,7 @@ body.pg, body.legal {
   mask: radial-gradient(circle at 6px 0, transparent 5px, #000 5.5px) 0 0 / 12px 51% repeat-x, radial-gradient(circle at 6px 100%, transparent 5px, #000 5.5px) 0 100% / 12px 51% repeat-x;
   transform: rotate(-2.2deg); transition: transform 1s var(--ease-out);
 }
-.slip-sh { filter: drop-shadow(0 26px 30px rgba(20, 20, 20, .16)) drop-shadow(0 3px 5px rgba(20, 20, 20, .12)); }
+.slip-sh { filter: drop-shadow(0 16px 20px rgba(20, 20, 20, .13)) drop-shadow(0 3px 5px rgba(20, 20, 20, .1)); }
 @media (hover: hover) and (pointer: fine) { .slip-w:hover .slip { transform: rotate(-.6deg) translateY(-4px); } }
 .slip p { margin: 0; }
 .slip .h { font-weight: 650; font-size: 13px; }
