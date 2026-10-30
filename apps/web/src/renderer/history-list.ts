@@ -112,3 +112,11 @@ export function shellWord(path: string): string {
 export function folderCommands(folder: string, branch: string, id: string): string[] {
   return [`cd ${shellWord(folder)}`, `git stash push --include-untracked -m "before using ${id}"`, `git switch -c use-${id} ${shellWord(branch)}`];
 }
+
+/**
+ * How to undo the folder commands: back to the branch the folder was on (from the safety save made just before the bring
+ * back), then the stash. From a detached HEAD, `git switch -` refuses a commit, so it is `git switch --detach -`.
+ */
+export function folderGoBack(oldBranch: string | null): string {
+  return `To go back: ${oldBranch ? `git switch ${shellWord(oldBranch)}` : "git switch --detach -"}, then git stash pop.`;
+}

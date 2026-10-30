@@ -37,7 +37,7 @@ import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage,
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
-import { brokeAt, folderCommands, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
+import { brokeAt, folderCommands, folderGoBack, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -1035,6 +1035,7 @@ function useInFolder(res: RecoverResult, p: ProjectEntry): string {
   return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${lines.length} commands, your broken version stays saved</summary>
     <pre class="mono sel-text uc-cmd">${esc(cmds)}</pre>
     <p>Your broken changes are kept in the stash and in the saved broken version.</p>
+    <p class="mono sel-text uc-back">${esc(folderGoBack(res.savedBefore ? entry(res.savedBefore)?.branch ?? null : null))}</p>
     <p>Run them in a terminal: they put your folder’s changes in the stash, then switch it to a new branch made from the working version. Or <button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">open the copy</button>.</p></details>
     <button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy commands</button></div>`;
 }
