@@ -140,7 +140,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
     switch (call.method) {
       case "bootstrap": {
         const localBrandMarks = env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
-        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
+        const data: Bootstrap = { localBrandMarks, platform: process.platform, homes: homeRoots(), settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
         return { ok: true, data };
       }
       case "setCredential":
@@ -332,4 +332,16 @@ export async function runUi(io: Io, options: { port?: number; open: boolean }): 
     process.removeListener("SIGTERM", stop);
     await server.close();
   }
+}
+
+/** The home folder as given and after realpath (/var and /private/var on a Mac), so the app shortens either to ~. */
+function homeRoots(): string[] {
+  const h = homedir();
+  let real = h;
+  try {
+    real = realpathSync(h);
+  } catch {
+    // A home that cannot be resolved is shortened as given.
+  }
+  return [...new Set([h, real])];
 }

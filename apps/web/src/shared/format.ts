@@ -159,10 +159,22 @@ export function sentenceStart(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** A path as the app shows it: the home folder as ~, so no username ever shows ("/Users/ana/app" reads "~/app"). */
-const HOME_DIR = /(?:\/Users|\/home)\/(?!Shared(?=[/"'\s<]|$))[^/\s"'`<>&;:]+(?=[/\s"'`<>&;:),.]|$)|\b[A-Za-z]:\\Users\\[^\\\s"'<>&]+/g;
+/** Another user's home, said by its usual shape: /Users/<name>, /home/<name> or C:\\Users\\<name>. Used when the server's own home is not known. */
+const OTHER_HOME = String.raw`(?:\/Users|\/home)\/(?!Shared(?=[/"'\s<]|$))[^/\s"'\`<>&;:]+|\b[A-Za-z]:\\Users\\[^\\\s"'<>&]+`;
+/** The home folders the server reported (as given and after realpath, so /var and /private/var both match), longest first. */
+let homes: string[] = [];
+const reEsc = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Set once from the bootstrap: the server's home folder, as given and after realpath. */
+export function setHomes(paths: readonly string[]): void {
+  homes = [...new Set(paths.map((x) => x.replace(/[/\\]+$/, "")).filter((x) => x.length > 1))].sort((a, b) => b.length - a.length);
+}
+/** A home folder only where a path starts (start of text, after a space, a quote, a bracket, =, : or ;) and only up to a "/" or the path's end. Never in the middle of a path. */
+function homeSource(): string {
+  return `(?<![^\\s"'\`(<>=:;,])(?:${[...homes.map(reEsc), OTHER_HOME].join("|")})(?=[/\\\\\\s"'\`<>&;:),.]|$)`;
+}
+/** A path under the home folder, said with ~ ("~/code/tips"). A home name inside another path stays as it is. */
 export function homePath(text: string): string {
-  return text.replace(HOME_DIR, "~");
+  return text.replace(new RegExp(homeSource(), "g"), "~");
 }
 
 /**
@@ -170,9 +182,9 @@ export function homePath(text: string): string {
  * What a button acts on (data-path, data-text), what someone typed (a field's value, a textarea) and an example in a
  * placeholder keep the real path.
  */
-const HOME_HTML = new RegExp(`(<textarea\\b[\\s\\S]*?</textarea>|\\b(?:data-path|data-text|value|placeholder)="[^"]*")|${HOME_DIR.source}`, "g");
 export function homeHtml(html: string): string {
-  return html.replace(HOME_HTML, (_m, keep: string | undefined) => keep ?? "~");
+  const re = new RegExp(`(<textarea\\b[\\s\\S]*?</textarea>|\\b(?:data-path|data-text|value|placeholder)="[^"]*")|${homeSource()}`, "g");
+  return html.replace(re, (_m, keep: string | undefined) => keep ?? "~");
 }
 
 /** Where a picked check came from, in plain words. `created` is false when timemachine.yml already existed. */

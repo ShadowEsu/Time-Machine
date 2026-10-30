@@ -7,7 +7,7 @@ import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
+import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, setHomes, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
 import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
@@ -926,10 +926,10 @@ function history(): string {
   // and Keep it or Undo. No Git commands.
   const saved = u ? newestByTime(pts.filter((c) => c.trigger === "recover" && c.note === `Before recovering ${u.result.id}`))[0] ?? null : null;
   const undoBar = u
-    ? `<div class="undo-card" role="status">${glyph(u.result.lastVerdict)}<div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
-      ${saved ? `<p>Your broken version is still in your folder, and saved as <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button>.</p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
+    ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
+      ${saved ? `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
-      <div class="uc-ch"><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div></div></div>`
+      <div class="uc-ch"><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div></div></div>`
     : "";
   const two = twoPane();
   if (!pts.length) {
@@ -5077,6 +5077,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   toastHost.setAttribute("role", "status");
   document.body.append(toastHost);
   const boot = await b.call({ method: "bootstrap" });
+  if (boot.ok) setHomes(boot.data.homes ?? []);
   if (!boot.ok) {
     // The splash would otherwise fade out over the error for most of a second; the error is the screen now.
     document.getElementById("splash")?.remove();

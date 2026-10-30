@@ -343,6 +343,8 @@ export interface Bootstrap {
   /** True only for a private local preview that bundled the provider marks. Public builds never set it. */
   localBrandMarks?: boolean;
   platform: string;
+  /** The server's home folder, as given and after realpath: the only prefixes the app shortens to ~. */
+  homes?: string[];
   settings: Settings;
   projects: ProjectEntry[];
   /** The one-time license on this computer. The free app lists a few projects; restores are never behind it. */

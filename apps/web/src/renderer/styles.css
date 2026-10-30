@@ -1366,3 +1366,10 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .spk .vi { width: 10px; height: 10px; color: #fff; }
 .spk.v-fail .vi { background: var(--broken); border-radius: 2px; }
 .lp-ttl { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+/* Round 4: the broken version's link starts its own line; Claude Code's row is name over state, Connect under it; the
+   preview's links wrap inside the pane. */
+.uc-saved { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.uc-saved .btn.link { text-align: left; }
+.ag-row .it.ag { flex: 1 1 100%; }
+.ag-row .it.ag .nm, .ag-row .it.ag .nm > span, .ag-row .it.ag .nm small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }

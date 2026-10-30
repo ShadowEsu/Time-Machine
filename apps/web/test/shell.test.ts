@@ -228,6 +228,23 @@ describe("project status", () => {
     expect(out).toContain("&quot;~/x&quot;");
   });
 
+  test("~ only where a path starts with the home folder, at a / boundary; /var and /private/var both count (L364 r4)", async () => {
+    const { setHomes } = await import("../src/shared/format.ts");
+    setHomes(["/var/folders/94/x/T/tm-l364b-dX/home", "/private/var/folders/94/x/T/tm-l364b-dX/home"]);
+    try {
+      // A prefix match.
+      expect(homePath("/var/folders/94/x/T/tm-l364b-dX/home/tmp/tips-recovered-cp-0003")).toBe("~/tmp/tips-recovered-cp-0003");
+      // The same home after realpath.
+      expect(homePath("at /private/var/folders/94/x/T/tm-l364b-dX/home/tmp/tips.")).toBe("at ~/tmp/tips.");
+      // The home's name inside another path stays as it is.
+      expect(homePath("/private/var/folders/94/x/T/tm-l364b-dX/homework/tips")).toBe("/private/var/folders/94/x/T/tm-l364b-dX/homework/tips");
+      expect(homePath("/opt/data/home/ana/tips")).toBe("/opt/data/home/ana/tips");
+      expect(homePath("/srv/var/folders/94/x/T/tm-l364b-dX/home/tips")).toBe("/srv/var/folders/94/x/T/tm-l364b-dX/home/tips");
+    } finally {
+      setHomes([]);
+    }
+  });
+
   test("a save point names its agent once: dropped beside an author line, kept without one", () => {
     const stop = { note: "After agent turn", trigger: "claude-code:stop", agent: { name: "Claude Code", prompt: "add dark mode" } };
     expect(pointTitle(stop)).toBe("Claude Code: add dark mode");
