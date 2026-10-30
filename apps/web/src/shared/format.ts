@@ -108,59 +108,71 @@ export function pointWhen(c: Stamped, peers: readonly Stamped[], now = new Date(
   return `${shortDay(d)} ${time}`;
 }
 
-const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+/** Notes a save point gets from how it was made, not from what it holds. They never name it; its time and number do. */
+const MADE_NOTES: Record<string, true> = { "Auto save": true, "Saved by you": true, "After agent turn": true, "Saved before a check": true, "Saved to compare with now": true, "Saved when the app started": true, "First save point": true };
 
-/** For a save point that shares its second with another (a twin): which one it is, oldest first ("second", "12th"). "" otherwise. */
-export function twinOrdinal(c: Stamped, peers: readonly Stamped[]): string {
-  const n = distinctClocks(peers).get(c.id)?.nth ?? 0;
-  if (!n) return "";
-  return ORDINALS[n - 1] ?? `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
-}
+/** A message is quoted whole up to this many characters, then clipped, so a button or a heading keeps one line. */
+const MESSAGE_MAX = 40;
 
 /**
- * A twin said in a sentence, its order before its time, so "second" can only mean the later of two beads with one time:
- * "the second save at 8:16:05 PM", "the second save on Mon 14 Oct at 8:16:05 PM" (Design 24 Oct P2-1). "" for a save point
- * that shares its second with none. Never "#N" in a sentence.
+ * What a save point is named by: the name someone gave it (`given`), else the agent's prompt, else a note a person or an
+ * agent wrote, else the commit's subject. "" when it has none: a safety save's command, an auto save, a save the app made.
  */
-function twinPhrase(c: Stamped, peers: readonly Stamped[], now: Date): string {
-  const nth = twinOrdinal(c, peers);
-  if (!nth) return "";
+export function pointMessage(c: Titled & { subject?: string | null }, given = ""): string {
+  if (given.trim()) return given.trim();
+  if (c.trigger === "claude-code:pre-bash") return "";
+  const prompt = c.agent?.prompt?.trim();
+  if (prompt) return prompt.charAt(0).toUpperCase() + prompt.slice(1);
+  const note = c.note.trim();
+  if (note && !MADE_NOTES[note] && !/^Before recovering /.test(note)) return note;
+  return c.subject?.trim() ?? "";
+}
+
+/** A save point's name, in two parts: its message in quotes and, secondary, its time ("“Added dark mode”", "2:58:48 AM").
+ *  With no message, the time and its number name it ("2:58:48 AM #3") and `time` is "". Times carry the day when not today. */
+export interface PointName {
+  name: string;
+  time: string;
+}
+
+export function namePoint(c: Stamped, peers: readonly Stamped[], message: string, now = new Date()): PointName {
   const d = new Date(c.createdAt);
-  const time = pointTime(c, peers);
-  return d.toDateString() === now.toDateString() ? `the ${nth} save at ${time}` : `the ${nth} save on ${shortDay(d)} at ${time}`;
+  const time = Number.isNaN(d.getTime()) ? "" : d.toDateString() === now.toDateString() ? pointTime(c, peers) : `${shortDay(d)} ${pointTime(c, peers)}`;
+  const m = message.trim();
+  if (m) return { name: `“${m.length > MESSAGE_MAX ? `${m.slice(0, MESSAGE_MAX - 1).trimEnd()}…` : m}”`, time };
+  const n = /(\d+)$/.exec(c.id)?.[1];
+  return { name: [time || "Unknown time", n ? `#${Number(n)}` : ""].filter(Boolean).join(" "), time: "" };
 }
 
-/** When a save point was made, said inside a sentence: "8:16 PM" (the day in front when not today), or a twin's `twinPhrase`. */
-export function pointAt(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || pointWhen(c, peers, now);
+/** The name on one line, for a label, a title or a heading: "“Added dark mode” · 2:58:48 AM", or "2:58:48 AM #3". */
+export function nameLine(n: PointName): string {
+  return n.time ? `${n.name} · ${n.time}` : n.name;
 }
 
-/** A version named in a sentence: "the 8:16 PM version", or a twin's "the second save at 8:16:05 PM". */
-export function versionPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || `the ${pointWhen(c, peers, now)} version`;
+/** The name inside a sentence: "“Added dark mode” (2:58:48 AM)", or "the save point at 2:58:48 AM #3". */
+export function namePhrase(n: PointName): string {
+  return n.time ? `${n.name} (${n.time})` : `the save point at ${n.name}`;
 }
 
-/** A version named by its time alone, for a heading whose title and meta line tell twins apart: "the 8:16:05 PM version". */
-export function versionTimePhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  const d = new Date(c.createdAt);
-  if (Number.isNaN(d.getTime())) return `the ${pointWhen(c, peers, now)} version`;
-  const time = pointTime(c, peers);
-  return `the ${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} version`;
-}
-
-/** A save point named in a sentence: "the save point from 8:16 PM", or a twin's "the second save at 8:16:05 PM". */
-export function savePointPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || `the save point from ${pointWhen(c, peers, now)}`;
-}
-
-/** A phrase made to start a sentence: "the 8:16 PM version" becomes "The 8:16 PM version". */
+/** A phrase made to start a sentence: "the save point at 8:16 PM #3" becomes "The save point at 8:16 PM #3". */
 export function sentenceStart(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** A heading's time for a save point, without "#N", and for a twin the line under it that says which one: "The second save at 8:16:05 PM". */
-export function sameSecondLine(c: Stamped, peers: readonly Stamped[], now = new Date()): { time: string; line: string } {
-  return { time: pointTime(c, peers), line: sentenceStart(twinPhrase(c, peers, now)) };
+/** A path as the app shows it: the home folder as ~, so no username ever shows ("/Users/ana/app" reads "~/app"). */
+const HOME_DIR = /(?:\/Users|\/home)\/(?!Shared(?=[/"'\s<]|$))[^/\s"'`<>&;:]+(?=[/\s"'`<>&;:),.]|$)|\b[A-Za-z]:\\Users\\[^\\\s"'<>&]+/g;
+export function homePath(text: string): string {
+  return text.replace(HOME_DIR, "~");
+}
+
+/**
+ * `homePath` over a page's HTML before it is drawn, so every path on screen, in a tooltip or in the Inspector reads ~.
+ * What a button acts on (data-path, data-text), what someone typed (a field's value, a textarea) and an example in a
+ * placeholder keep the real path.
+ */
+const HOME_HTML = new RegExp(`(<textarea\\b[\\s\\S]*?</textarea>|\\b(?:data-path|data-text|value|placeholder)="[^"]*")|${HOME_DIR.source}`, "g");
+export function homeHtml(html: string): string {
+  return html.replace(HOME_HTML, (_m, keep: string | undefined) => keep ?? "~");
 }
 
 /** Where a picked check came from, in plain words. `created` is false when timemachine.yml already existed. */

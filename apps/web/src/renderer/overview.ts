@@ -224,7 +224,7 @@ export function overviewPage(input: OverviewInput): string {
   // with two private-use characters, escaped with the rest of the line, then wrapped.
   const headline = esc(reportLine(rows, DIGEST_HOURS, (name) => `\u{E000}${name}\u{E001}`, unread)).replace(/\u{E000}(.*?)\u{E001}/gu, '<span class="ov-nm">$1</span>');
   return `<div class="page b9-page ov-page" id="overview-page" tabindex="-1" role="region" aria-label="Overview"><div class="b9">
-    <header class="b9-head"><h1>Overview</h1><p class="voice b9-voice">${esc(`${plural(n, "thing")} protected on this computer.`)}</p></header>
+    <header class="b9-head"><h1>Overview</h1><p class="b9-voice">${esc(`${plural(n, "thing")} protected on this computer.`)}</p></header>
     <section class="ov-report" aria-labelledby="ov-r-h"><div class="b9-day"><h2 id="ov-r-h">Since you last looked</h2><span>${esc(`The last ${DIGEST_HOURS} hours, from your local history`)}</span></div>
       ${reading ? '<p class="ov-big ov-big-sk" aria-busy="true"><span class="sr-only">Reading your history…</span><i class="sk" aria-hidden="true"></i><i class="sk" aria-hidden="true"></i></p>' : `<p class="ov-big">${headline}</p>`}</section>
     <section aria-labelledby="ov-p-h"><div class="b9-day"><h2 id="ov-p-h">Protected</h2>${plan}</div>

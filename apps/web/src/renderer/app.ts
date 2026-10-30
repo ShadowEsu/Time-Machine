@@ -7,15 +7,15 @@ import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, checkSource, clock, dayLabel, esc, plural, pointAt, pointClock, pointTime, pointTitle, pointWhen, sameSecondLine, savePointPhrase, seconds, sentenceStart, shortTitle, triggerLabel, triggerSentence, twinOrdinal, verdictKey, verdictWord, versionPhrase, versionTimePhrase, when } from "../shared/format.js";
-import { branchShift, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, goBackShort, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusButton } from "./status.js";
+import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
+import { branchShift, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusButton, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
 import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
 import { crossings, homeX, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
 import { verdictWas } from "./journal.js";
 import { resetProjectCaches } from "./project-caches.js";
-import { claudeChannel, PLANNED_AGENTS, type Channel } from "./channels.js";
+import { claudeChannel, type Channel } from "./channels.js";
 import { renderAskPanel } from "./ask-panel.js";
 import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
@@ -311,8 +311,12 @@ const ptClock = (c: TimelineEntry): string => pointClock(c, points());
 const ptWhen = (c: TimelineEntry): string => pointWhen(c, points());
 /** `ptClock` without the "#N", for a heading or readout that says which twin elsewhere. */
 const ptTime = (c: TimelineEntry): string => pointTime(c, points());
-/** When a save point was made, for a sentence: "8:16 PM", or "the second save at 8:16:05 PM" for one of two in a second. */
-const ptAt = (c: TimelineEntry): string => pointAt(c, points());
+/** What names a save point: the name someone gave it, else its own message (agent prompt, note, commit subject). */
+const message = (c: StatusPoint): string => pointMessage(c, st.notes.get(c.id)?.title ?? "");
+/** A save point's name: its message in quotes with the time secondary, or, with no message, its time and number. */
+const named = (c: TimelineEntry): PointName => namePoint(c, points(), message(c));
+/** A save point inside a sentence: "“Added dark mode” (2:58:48 AM)", or "the save point at 2:58:48 AM #3". */
+const said = (c: TimelineEntry): string => namePhrase(named(c));
 
 /** The check sheet's quiet Done beside a main action. At <= 360 px it hides and the sheet's head shows a text Done. */
 const QUIET_DONE = '<button class="btn quiet ck-dq" data-act="close-check">Done</button>';
@@ -483,7 +487,7 @@ function toast(text: string, verdict?: Verdict | null, opts: { undo?: () => void
   const action = opts.undo ? { label: "Undo", run: opts.undo } : opts.action;
   const card = document.createElement("div");
   card.className = "toast enter";
-  card.innerHTML = `${verdict !== undefined ? glyph(verdict) : ""}<span class="toast-t">${esc(text)}</span>${action ? `<button type="button" class="toast-undo">${esc(action.label)}</button>` : ""}<button type="button" class="btn link toast-x">Dismiss</button>`;
+  card.innerHTML = `${verdict !== undefined ? glyph(verdict) : ""}<span class="toast-t">${esc(homePath(text))}</span>${action ? `<button type="button" class="toast-undo">${esc(action.label)}</button>` : ""}<button type="button" class="btn link toast-x">Dismiss</button>`;
   card.addEventListener("pointerenter", () => toastTimer.hold("hover"));
   card.addEventListener("pointerleave", () => toastTimer.release("hover"));
   card.addEventListener("focusin", () => toastTimer.hold("focus"));
@@ -697,10 +701,11 @@ function sidebar(mobile = false): string {
     })
     .join("");
   const claude = claudeChannel(st.agents ?? [], st.lastTurn);
+  // Claude Code carries its one action: Connect, while it is not connected, to the open project first. The row opens Agents.
+  const unhooked = (st.agents ?? []).filter((a) => a.claudeCode === "not-connected");
+  const hookTo = unhooked.find((a) => a.projectId === st.projectId) ?? unhooked[0];
   const agent = (ch: Channel): string =>
-    `<button class="it ag" data-act="agents" title="${esc(`${ch.name}: ${ch.line}`)}">${agentMark(ch.name)}<span class="nm"><span>${esc(ch.name)}</span><small>${esc(ch.short)}</small></span>${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}</button>`;
-  // Codex and Gemini each get their own quiet row, marked Planned: they are not connected and do nothing yet.
-  const planned = PLANNED_AGENTS.map((a) => `<button class="it ag off" data-act="agents" title="${esc(`${a.name}: planned, not connected`)}">${agentMark(a.name)}<span class="nm"><span>${esc(a.name)}</span><small>Planned</small></span></button>`).join("");
+    `<div class="ag-row"><button class="it ag" data-act="agents" title="${esc(`${ch.name}: ${ch.line}`)}">${agentMark(ch.name)}<span class="nm"><span>${esc(ch.name)}</span><small>${esc(ch.short)}</small></span>${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}</button>${ch.state === "not-connected" && hookTo ? `<button class="btn quiet ag-go" data-act="hook" data-id="${esc(hookTo.projectId)}" aria-label="${esc(`Connect Claude Code to ${hookTo.name}`)}">Connect</button>` : ""}</div>`;
   const total = st.storage?.storeBytes;
   const lic = st.license.status;
   const used = st.projects.length;
@@ -725,7 +730,7 @@ function sidebar(mobile = false): string {
     <button class="it nav-it${st.screen === "sources" ? " on" : ""}" data-act="sources"${st.screen === "sources" ? ' aria-current="page"' : ""}>${navIcon("sources")}<span class="nm">Sources</span></button>
     <button class="group group-b${st.screen === "agents" ? " on" : ""}" data-act="agents">Agents</button>
     ${st.agents ? agent(claude) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
-    ${planned}
+    <p class="ag-more">More agents coming</p>
     <div class="side-foot">
       <div class="stored">${esc(`History is saved on ${device()}${askWords}`)}</div>
       ${plan}
@@ -782,8 +787,10 @@ function authorOf(c: TimelineEntry): string {
   return c.agent?.name ?? triggerLabel(c.trigger);
 }
 
-/** An author chip carries a mark only for an agent (its supplied official mark, or its initials); You, Demo and Before rewind are words. */
+/** An author chip carries a mark only for an agent (its supplied official mark, or its initials); You and Before rewind are
+ *  words. Demo has none: the demo project says so once, at the top of its page. */
 function authorChip(name: string): string {
+  if (name === "Demo") return "";
   const agent = /claude|codex|openai|gemini|cursor|agent/i.test(name);
   return `<span class="chip${agent ? "" : " plain"}">${agent ? agentMark(name) : ""}${esc(name)}</span>`;
 }
@@ -879,11 +886,11 @@ function journalEntry(c: TimelineEntry, lastGood: boolean, was: TimelineEntry | 
   const p = project();
   const kind = p?.kind ?? "git";
   const damaged = damagedReason(c);
-  // One action per row, in words: bring back the way out, check what is not checked, open the rest. A folder that is gone
-  // or a damaged save point has nothing to run: the row only opens.
+  // One action per row: bring back the way out, check what is not checked. Both act, so both are the one quiet row button;
+  // the rest only open, and "Open" stays a word. A folder that is gone or a damaged save point has nothing to run.
   const act = damaged || folderMissing(p) ? '<span class="go" aria-hidden="true">Open</span>'
-    : lastGood ? `<button class="go" data-act="rewind-to" data-id="${esc(c.id)}" aria-label="${esc(goBackLabel(c, points()))}" ${busy}>Bring back</button>`
-    : c.verdict === null && checksOn(p) ? `<button class="go${checking ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" aria-label="${esc(`Check ${versionPhrase(c, points())}`)}" ${busy}>Check</button>`
+    : lastGood ? `<button class="go" data-act="rewind-to" data-id="${esc(c.id)}" aria-label="${esc(goBackLabel(c, points(), message))}" ${busy}>Bring back</button>`
+    : c.verdict === null && checksOn(p) ? `<button class="go${checking ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" aria-label="${esc(`Check ${nameLine(named(c))}`)}" ${busy}>Check</button>`
       : '<span class="go" aria-hidden="true">Open</span>';
   // While its check runs, the row says Checking where its verdict goes; the verdict lands there when the check ends.
   // A project with no check has no verdict to show, so its rows carry none. A damaged save point says so, never "crashed".
@@ -896,7 +903,7 @@ function journalEntry(c: TimelineEntry, lastGood: boolean, was: TimelineEntry | 
     <div class="when">${timeParts(ptClock(c))}</div>
     <div class="body">
       <h3><button class="e-t" data-act="open" data-id="${esc(c.id)}">${esc(shown)}</button>${st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : ""}${lastGood ? '<span class="wayback">Last version that works</span>' : ""}</h3>
-      <div class="meta">${authorChip(author)}${verdict}${shift ? `<span class="chip br-chip">${esc(shift)}</span>` : ""}${damaged ? (damaged === shown ? "" : `<span class="dmg">${esc(damaged)}</span>`) : what}${was ? `<span class="was">${keepTimes(esc(`Before it: ${verdictWord(was.verdict)}, ${ptAt(was)}`))}</span>` : ""}${facts && !damaged ? `<span>${esc(facts)}</span>` : ""}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(kind === "folder" ? c.id : `${c.id} · ${gitLine(c, kind)}`)}</span>` : ""}</div>
+      <div class="meta">${authorChip(author)}${verdict}${shift ? `<span class="chip br-chip">${esc(shift)}</span>` : ""}${damaged ? (damaged === shown ? "" : `<span class="dmg">${esc(damaged)}</span>`) : what}${was ? `<span class="was">${keepTimes(esc(`Before it: ${verdictWord(was.verdict)}, ${named(was).name}`))}</span>` : ""}${facts && !damaged ? `<span>${esc(facts)}</span>` : ""}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(kind === "folder" ? c.id : `${c.id} · ${gitLine(c, kind)}`)}</span>` : ""}</div>
     </div>${act}</article>`;
 }
 
@@ -1039,14 +1046,14 @@ function history(): string {
   const pts = points();
   const newest = pts.at(-1);
   const checked = newest ? st.verifyResults.get(newest.id) : undefined;
-  const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null, checksOn(p, pts));
+  const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null, checksOn(p, pts), message);
   const lw = lastWorking();
   const working = st.agents?.some((a) => a.projectId === p.id && a.working);
   const command = checked?.command ?? st.agents?.find((a) => a.projectId === p.id)?.check ?? null;
   const facts = (rows: [string, string[]][]): string =>
     `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${keepTimes(v.map(esc).join(" · "))}</dd>`).join("")}</dl>`;
   const honest =
-    s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${ptAt(lw)}, unless you redo them. They stay saved in History.`]]])
+    s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${said(lw)}, unless you redo them. They stay saved in History.`]]])
       : newest ? facts([["Saved", savedLines(newest)], ["Not saved", notSavedLines(newest)]]) : "";
   // A folder that is gone shows its history read only: the notice and its two ways out take the place of the main action.
   const goneCard = gone
@@ -1057,7 +1064,7 @@ function history(): string {
   // Git words (the branch) only for a project that is a Git repository; a plain folder's history lives in the store.
   const branch = p.kind !== "folder" && newest?.branch ? `${esc(newest.branch)} · ` : "";
   const header = `<section class="hero" data-vid="hero" data-v="${esc(s.head)}">
-    <div class="hero-e"><span class="dot v-${verdictKey(s.v)}" aria-hidden="true"></span><span>${esc(p.name)}</span>${command ? `<span class="hero-cmd">checks with <code class="mono">${esc(command)}</code></span>` : ""}${st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""}</div>
+    <div class="hero-e"><span class="dot v-${verdictKey(s.v)}" aria-hidden="true"></span><span>${esc(p.name)}</span>${p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : ""}${command ? `<span class="hero-cmd">checks with <code class="mono">${esc(command)}</code></span>` : ""}${st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""}</div>
     <h1 class="hero-h"><span class="hh">${keepTimes(esc(s.head))}</span></h1>${s.voice ? `<p class="hero-when">${keepTimes(esc(s.voice))}</p>` : ""}
     <p class="hero-p">${keepTimes(esc(s.body))}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
     ${gone ? goneCard : `<div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>`}
@@ -1100,7 +1107,7 @@ function history(): string {
     rows.push(journalEntry(c, c.id === lw?.id && newest?.verdict !== "PASS", was.get(c.id)));
     const older = newestFirst[i + 1];
     // Only say "broke here" when two neighbouring checks prove it.
-    if (!pinnedOnly && older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span>${keepTimes(esc(`Broke here: ${ptAt(older)} works, ${ptAt(c)} is broken`))}</span></div>`);
+    if (!pinnedOnly && older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span>${keepTimes(esc(`Broke here: ${named(older).name} works, ${named(c).name} is broken`))}</span></div>`);
   }
   if (unreadable.length) {
     days.push({ day: "Damaged", date: "", rows: [...unreadable].reverse().map((c) => journalEntry(c, false, undefined)) });
@@ -1127,10 +1134,10 @@ function coachStep(): number {
   return st.selected === c.target || st.rewind?.target === c.target ? 2 : 1;
 }
 
-/** The demo's three steps in plain words. The first names the save point to find by its time. */
+/** The demo's three steps in plain words. The first names the save point to find by its message. */
 function coachSteps(): string[] {
   const t = st.coach ? entry(st.coach.target) : null;
-  return [t ? `Drag the ruler to ${ptAt(t)}, the last green dot` : "Drag the ruler to the last green dot", "Go back to it", "Undo it, or keep it"];
+  return [t ? `Drag the ruler to ${said(t)}, the last green dot` : "Drag the ruler to the last green dot", "Go back to it", "Undo it, or keep it"];
 }
 
 function coachView(): string {
@@ -1141,28 +1148,30 @@ function coachView(): string {
     ${steps(step, coachSteps())}</section>`;
 }
 
-/**
- * A save point named the way people say it in a sentence: "the 8:16 PM version", or "the second save at 8:16:05 PM"
- * when it shares its second. `at` says just when ("8:16 PM"). Git details add the id. `sentenceStart` capitalises it.
- */
-function pointName(id: string, form: "version" | "at" = "version"): string {
+/** A save point named in a sentence by its id: "“Added dark mode” (8:16 PM)", or "the save point at 8:16 PM #3". Git details add the id. */
+function pointName(id: string): string {
   const c = entry(id);
   if (!c) return id;
-  const said = form === "at" ? ptAt(c) : versionPhrase(c, points());
-  return st.settings.showGitDetails ? `${said} (${c.id})` : said;
+  return st.settings.showGitDetails ? `${said(c)} (${c.id})` : said(c);
 }
 
-/** A version named in a heading by its time alone ("the 8:16:05 PM version"); the line under it says which twin. Git details add the id. */
+/** A save point named in a heading: "“Added dark mode” · 8:16 PM", or "8:16 PM #3". Git details add the id. */
 function headName(id: string): string {
   const c = entry(id);
   if (!c) return id;
-  const said = versionTimePhrase(c, points());
-  return st.settings.showGitDetails ? `${said} (${c.id})` : said;
+  const line = nameLine(named(c));
+  return st.settings.showGitDetails ? `${line} (${c.id})` : line;
 }
 
 /** A save point in a list or a mono field, where "#N" may tell twins apart. Git details add the id. */
 function pointLabel(c: TimelineEntry): string {
   return st.settings.showGitDetails ? `${ptWhen(c)} (${c.id})` : ptWhen(c);
+}
+
+/** A Bring back button outside the hero: named by the save point's message, its time quieter beside it, the whole name in its title. */
+function bringBackButton(c: TimelineEntry, cls: string, extra = ""): string {
+  const n = named(c);
+  return `<button class="${cls}" data-act="rewind-to" data-id="${esc(c.id)}" title="${esc(`Bring back ${nameLine(n)}`)}" ${extra}><span>${esc(`Bring back ${n.name}`)}${n.time ? ` <span class="b-sub">${keepTimes(esc(n.time))}</span>` : ""}</span></button>`;
 }
 
 /** A project screen action from the status rule: the main one filled, the other a quiet link. Shortcuts sit inside, so they are learned by seeing them. */
@@ -1172,7 +1181,7 @@ function statusButton(b: StatusButton, primary: boolean): string {
   // The main Check it works shows the check running in it (seen through the scrim) until the verdict lands. It checks the newest.
   const runningOn = checkRunning();
   const running = primary && b.act === "check" && (runningOn === "new" || runningOn === points().at(-1)?.id);
-  return `<button class="btn ${primary ? "big dark" : "link"}${running ? " running" : ""}" data-act="${b.act}"${data}${b.title ? ` title="${esc(b.title)}"` : ""} ${st.busy ? "disabled" : ""}><span>${keepTimes(esc(b.label))}</span>${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
+  return `<button class="btn ${primary ? "big dark" : "link"}${running ? " running" : ""}" data-act="${b.act}"${data}${b.title ? ` title="${esc(b.title)}"` : ""} ${st.busy ? "disabled" : ""}><span>${keepTimes(esc(b.label))}${b.sub ? ` <span class="b-sub">${keepTimes(esc(b.sub))}</span>` : ""}</span>${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
 }
 
 /** One plain sentence on what a verdict means for this save point. Isolation names only with Git details. */
@@ -1298,7 +1307,7 @@ async function putBack(id: string, paths: string[]): Promise<void> {
     if (st.screen === "compare") await runDiff();
     const before = r.savedBefore ? entry(r.savedBefore) : null;
     const what = r.restored.length === 1 ? `${r.restored[0]} is back` : r.restored.length ? `${r.restored.length} files are back` : "Nothing needed to change";
-    const saved = before ? ` What was there is saved as ${ptAt(before)}.` : "";
+    const saved = before ? ` What was there is saved as ${said(before)}.` : "";
     const skipped = r.skipped.length ? ` Left alone: ${r.skipped.slice(0, 2).map(restoreSkip).join("; ")}${r.skipped.length > 2 ? ` and ${r.skipped.length - 2} more` : ""}.` : "";
     const note = r.note ? ` ${r.note}` : "";
     toast(`${what}.${saved}${skipped}${note}`);
@@ -1324,8 +1333,9 @@ function detail(): string {
   if (!c || !p) return "";
   const busy = st.busy ? "disabled" : "";
   const author = authorOf(c);
-  // Two save points in one second: the heading keeps the time, the line under it says which one (Design b3+4, ruling 4).
-  const twin = sameSecondLine(c, points());
+  // The heading is the save point's message, in the record's face; its time sits under it. With no message, its time and number.
+  const words = message(c);
+  const n = named(c);
   const pts = points();
   const isNewest = pts.at(-1)?.id === c.id;
   const vr = st.verifyResults.get(c.id);
@@ -1346,7 +1356,7 @@ function detail(): string {
   // the folder may have changed since (writer#11). Nothing compares with a folder that is gone.
   const compare = damaged || gone ? ""
     : c.verdict === "FAIL" && lw && lw.id !== c.id
-    ? `<button class="btn link" data-act="compare" data-a="${lw.id}" data-b="${c.id}">${esc(`What changed since ${ptAt(lw)}`)}</button>`
+    ? `<button class="btn link" data-act="compare" data-a="${lw.id}" data-b="${c.id}">${esc(`What changed since ${named(lw).name}`)}</button>`
     : `<button class="btn link" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button>`;
   const opened = st.openResult && st.openResult.id === c.id
     ? `<div class="note">A copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal-dir" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div><div class="mono muted sel-text" style="margin-top:6px">${esc(st.openResult.dir)}</div></div>`
@@ -1358,13 +1368,13 @@ function detail(): string {
     : "";
   const dmgNote = damaged ? `<div class="note bad"><p>${esc(`This save point is damaged: ${damaged}`)}</p><p>Time Machine won’t check it or bring it back.</p></div>` : "";
   const tag = window.innerWidth < 1100 ? "div" : "aside";
-  return `<${tag} class="rcol detail ${once("detail")}" ${tag === "div" ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(sentenceStart(savePointPhrase(c, points())))}">
-    <header class="rc-top"><span class="eyebrow">${esc(`${dayLabel(c.createdAt)} · ${author}`)}</span>
+  return `<${tag} class="rcol detail ${once("detail")}" ${tag === "div" ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(nameLine(n))}">
+    <header class="rc-top"><span class="eyebrow">${esc(c.trigger === "demo" ? dayLabel(c.createdAt) : `${dayLabel(c.createdAt)} · ${author}`)}</span>
       <button class="btn quiet" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
     <div class="rc-body">
-      <h2 class="sp-h"><span class="sp-t">${esc(twin.time)}</span><span class="voice">${esc(title(c, author))}</span></h2>
+      <h2 class="sp-h">${esc(words || n.name)}</h2>
+      <p class="sp-when">${keepTimes(esc([n.time, words ? "" : title(c, author)].filter(Boolean).join(" · ")))}</p>
       ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
-      ${twin.line ? `<p class="sp-twin">${esc(twin.line)}</p>` : ""}
       <div class="meta">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}${authorChip(author)}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span></div>
       ${damaged ? dmgNote : `<p class="sp-v">${esc(c.verdict === null && !checks ? "Kept on this computer, outside the folder. Compare it or bring it back as a copy." : verdictSentence(c))}</p>`}
       ${noteBlock(c.id, st.notes.get(c.id), st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: st.notes.get(c.id)?.title ?? "", note: st.notes.get(c.id)?.note ?? "" }, p.purpose, st.noteSaving)}
@@ -1429,7 +1439,7 @@ function checkSheet(): string {
     .join("")}</div>${took}`;
   const lw = lastWorking();
   const target = c.cp ? entry(c.cp) : null;
-  const about = `<div class="ck-e">${esc(p.name)}${target ? ` · ${esc(versionPhrase(target, points()))}` : ""}</div>`;
+  const about = `<div class="ck-e">${esc(p.name)}${target ? ` · ${esc(nameLine(named(target)))}` : ""}</div>`;
   let body = "";
   let acts = "";
   if (!done) {
@@ -1451,7 +1461,7 @@ function checkSheet(): string {
     };
     const extra =
       broken ? " Time Machine won’t check it or bring it back. Pick another save point."
-      : r.verdict === "FAIL" ? (lw ? ` The last version that works is ${savePointPhrase(lw, points())}: ${shortTitle(lw)}.` : " No earlier save point has passed yet.")
+      : r.verdict === "FAIL" ? (lw ? ` The last version that works is ${said(lw)}.` : " No earlier save point has passed yet.")
         : r.verdict === "ERROR" ? " This is a problem with the check, not necessarily your project."
           : r.verdict === "PASS" ? ` Checked in a copy on ${device()}. The network was ${r.network.policy === "deny" ? "off" : "on"} during the check.` : "";
     const v = r.stopped ? "none" : verdictKey(r.verdict);
@@ -1465,7 +1475,7 @@ function checkSheet(): string {
     const log = r.log && (r.verdict === "PASS" || r.stopped) ? `<button class="btn link" data-act="reveal" data-path="${esc(r.log)}">Copy the log’s path</button>` : "";
     const goBack = r.verdict === "FAIL" && !r.stopped && lw ? lw : null;
     const again = !r.stopped && !broken && (r.verdict === "INCOMPLETE" || r.verdict === "BLOCKED" || r.verdict === "ERROR");
-    acts = goBack ? `${log}${QUIET_DONE}<button class="btn dark" data-act="rewind-to" data-id="${goBack.id}" title="${esc(goBackLabel(goBack, points()))}" data-autofocus>${esc(goBackShort(goBack, points()))}</button>`
+    acts = goBack ? `${log}${QUIET_DONE}${bringBackButton(goBack, "btn dark", "data-autofocus")}`
       : again ? `${log}${QUIET_DONE}<button class="btn dark" data-act="verify-one" data-id="${esc(r.checkpoint)}" data-autofocus>Check it again</button>`
         : `${log}<button class="btn dark" data-act="close-check" data-autofocus>Done</button>`;
   }
@@ -1611,9 +1621,9 @@ function tvAlt(act: string, label: string, key: string, keyLabel: string, disabl
   return `<button class="btn link" data-act="${act}" data-key="${key}" ${disabled ? "disabled" : ""}>${esc(label)}${keyLabel ? `<kbd>${esc(keyLabel)}</kbd>` : ""}</button>`;
 }
 
-/** A version, said the way people say it: the time in the display face (never "#N"; the meta line says which twin), its title in the voice. The verdict is the pill under it. */
-function versionHead(c: TimelineEntry, lead = `${sentenceStart(headName(c.id))}.`): string {
-  return `${keepTimes(esc(lead))} <span class="voice">${esc(title(c, authorOf(c)))}</span>`;
+/** A version in the Rewind's heading: its message, or its time and number when it has none, in the record's face. The meta line under it gives the time. */
+function versionHead(c: TimelineEntry, lead = ""): string {
+  return keepTimes(esc(lead || message(c) || named(c).name));
 }
 
 /**
@@ -1627,8 +1637,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   const mainKey = keys("Mod+Enter");
   const cols = (a: string, b: string, yes: string[], no: string[]): string =>
     `<div class="tv-cols"><div class="kv"><span class="h">${esc(a)}</span>${li(yes, "Nothing listed")}</div><div class="kv no"><span class="h">${esc(b)}</span>${li(no, "Nothing listed")}</div></div>`;
-  const nth = twinOrdinal(c, points());
-  const meta = `<p class="rw-meta">${keepTimes(esc(`${dayLabel(c.createdAt)} ${nth ? `· the ${nth} save at ${ptTime(c)}` : ptTime(c)} · ${authorOf(c)}`))}</p>`;
+  const meta = `<p class="rw-meta">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : authorOf(c)].filter(Boolean).join(" · ")))}</p>`;
   const error = r.error ? `<div class="note bad">${esc(r.error)}</div>` : "";
 
   if (r.step === "done" && r.result) {
@@ -1636,7 +1645,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     const loc = (label: string, value: string, button: string): string =>
       `<div class="rw-loc"><span class="k">${esc(label)}</span><span class="mono sel-text v">${esc(value)}</span>${button}</div>`;
     return {
-      read: `<h2 class="tv-head ${stampOnce(`done:${res.branch || res.copyDir}`)}">${keepTimes(esc(`${sentenceStart(headName(res.id))} is back.`))} <span class="voice">Your folder wasn’t touched.</span></h2>
+      read: `<h2 class="tv-head ${stampOnce(`done:${res.branch || res.copyDir}`)}">${keepTimes(esc(`${sentenceStart(pointName(res.id))} is back.`))} <span class="voice">Your folder wasn’t touched.</span></h2>
       ${checksOn(project()) ? `<div class="rw-proof">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a copy on ${device()}.` : "Not checked yet. Run Check it works before you rely on it."}</span></div>` : ""}
       <p class="rw-lede">${res.copyOnly ? "It is in a copy next to your folder. This folder has no Git repo, so no branch was made. Copy back the files you want to keep." : "It is on a new branch, with a copy next to your project. Your folder was not touched, so switching is your call."}</p>
       <div class="rw-where">
@@ -1935,9 +1944,9 @@ function compare(): string {
     body = (parts.length
       ? `<div class="cmp-result"><div class="cmp-rh">${buddy()}<p class="cmp-sum">${esc(`From ${from} to ${to}: ${parts.join(", ")}.`)}</p></div>${changed.map(sec).join("")}${still.length && project()?.purpose === "code" ? `<p class="cmp-none">${esc(`No change: ${still.join(" · ")}`)}</p>` : ""}${putAll.length > 1 && putAll.length <= 200 ? `<div class="row-btns"><button class="btn" data-act="put-back" data-id="${esc(fromId ?? "")}" data-paths="${esc(JSON.stringify(putAll))}">${esc(`Put all ${putAll.length} back from ${from}`)}</button></div>` : ""}</div>`
       : `<div class="cmp-result cmp-same">${emptyState({ line: same })}</div>`) +
-      (ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns"><button class="btn big dark" data-act="rewind-to" data-id="${ea.id}" title="${esc(goBackLabel(ea, points()))}">${esc(goBackShort(ea, points()))}</button><span class="small muted">${esc(`That version passed its check. ${c.b === "now" ? "Now" : sentenceStart(pointName(d.b))} ${eb?.verdict ? `is ${verdictWord(eb.verdict)}` : "has not been checked"}.`)}</span></div>` : "");
+      (ea?.verdict === "PASS" && eb?.verdict !== "PASS" ? `<div class="row-btns">${bringBackButton(ea, "btn big dark")}<span class="small muted">${esc(`That version passed its check. ${c.b === "now" ? "Now" : sentenceStart(pointName(d.b))} ${eb?.verdict ? `is ${verdictWord(eb.verdict)}` : "has not been checked"}.`)}</span></div>` : "");
   }
-  const heading = c.a && c.a !== "now" && c.b === "now" ? `What changed since ${pointName(c.a, "at")}` : "Compare";
+  const heading = c.a && c.a !== "now" && c.b === "now" ? `What changed since ${pointName(c.a)}` : "Compare";
   return `<div class="page"><div class="col">
     <div class="cmp-intro"><h1>${esc(heading)}</h1><p class="lede">What changed between a save point and now, or between any two save points.</p></div>
     <div class="cmp-head">${picker("From", "cmp-a", c.a)}${picker("To", "cmp-b", c.b)}<button class="btn quiet cmp-swap" data-act="cmp-swap">Swap</button></div>
@@ -1993,20 +2002,17 @@ function agentsScreen(): string {
     const path = st.settings.showGitDetails && a.settingsPath ? `<p class="mono b9-path sel-text">${esc(a.settingsPath)}</p>` : "";
     return `<div class="b9-row"><div class="b9-main"><p class="b9-t">${esc(a.name)}</p><p class="b9-sub">Claude Code: ${esc(words)}</p>${approve}${working}${path}</div>${btn}</div>`;
   });
-  const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Idle", partial: "Partly connected", "not-connected": "Not connected", planned: "Planned" };
-  // A planned agent's row is its mark, its name and the Planned pill; the section's one line says what Planned means.
+  const stateWord: { [K in Channel["state"]]: string } = { working: "Working", idle: "Idle", partial: "Partly connected", "not-connected": "Not connected" };
   const channel = (ch: Channel): string =>
     `<div class="b9-row b9-ch is-${ch.state}">${agentMark(ch.name)}<div class="b9-main"><p class="b9-t">${esc(ch.name)}</p>${ch.line ? `<p class="b9-sub">${esc(ch.line)}</p>` : ""}</div><span class="b9-pill">${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}${esc(stateWord[ch.state])}</span></div>`;
-  const channels = st.agents
-    ? `<div class="b9-list">${[claudeChannel(st.agents, st.lastTurn), ...PLANNED_AGENTS.map((a): Channel => ({ ...a, state: "planned", line: "", short: "Planned" }))].map(channel).join("")}</div>`
-    : listLoading(1 + PLANNED_AGENTS.length);
+  const channels = st.agents ? `<div class="b9-list">${channel(claudeChannel(st.agents, st.lastTurn))}</div>` : listLoading(1);
   const projects = !st.agents ? listLoading(3) : rows.length ? `<div class="b9-list">${rows.join("")}</div>` : NO_PROJECTS;
   // With every agent connected the page has no buttons, so the scroller itself takes focus: the keys can scroll it. Its id
   // lets focusKey() keep that focus when the lists arrive and the page is drawn again.
   return `<div class="page b9-page" id="agents-page" tabindex="0" role="region" aria-label="Agents"><div class="b9">
     <header class="b9-head"><h1>Agents</h1><p class="voice b9-voice">Connections and activity come from local hook events, never from your screen.</p></header>
     <section aria-labelledby="b9-agents-h"><div class="b9-day"><h2 id="b9-agents-h">Agent channels</h2></div>
-      <p class="b9-lede">${esc(`Claude Code is built and connects through hooks. ${new Intl.ListFormat("en", { type: "conjunction" }).format(PLANNED_AGENTS.map((a) => a.name))} are planned: not built or connected yet.`)}</p>${channels}</section>
+      <p class="b9-lede">Claude Code connects through hooks. More agents coming.</p>${channels}</section>
     <section aria-labelledby="b9-cc-h"><div class="b9-day"><h2 id="b9-cc-h">Claude Code in each project</h2></div>
       <p class="b9-lede">Claude Code can save before each prompt and before risky commands, and check after each turn. We show the exact lines before we add them.</p>${projects}</section>
     <section class="b9-know" aria-labelledby="b9-know-h">${buddy()}<div><h2 id="b9-know-h">Good to know</h2><p>What an agent says about its own tests is never shown as a check. We run your check ourselves, in a copy.</p></div></section>
@@ -2055,7 +2061,7 @@ function storageScreen(): string {
   // On phones the page is the scroller, and while the list reads nothing in it can take focus: like Agents, the page
   // itself is a named region that can, so the keys can still scroll it.
   return `<div class="page b9-page" id="storage-page" tabindex="0" role="region" aria-label="Storage"><div class="b9">
-    <header class="b9-head"><h1>Storage</h1>${voice ? `<p class="voice b9-voice">${esc(voice)}</p>` : '<p class="b9-voice b9-voice-sk" aria-hidden="true"><i class="sk"></i></p>'}
+    <header class="b9-head"><h1>Storage</h1>${voice ? `<p class="b9-voice">${esc(voice)}</p>` : '<p class="b9-voice b9-voice-sk" aria-hidden="true"><i class="sk"></i></p>'}
       <p class="b9-lede">Save points are stored on ${device()}, outside your project folders, so deleting a project does not delete its history. This is not a full computer backup.</p>${st.storage?.note ? `<p class="b9-lede">${esc(st.storage.note)}</p>` : ""}</header>
     ${list}
     ${kept}
@@ -2629,7 +2635,8 @@ function toolbar(): string {
     '<button class="mn-phone" data-act="keys">Keyboard shortcuts</button>',
   ];
   const more = menuButton("tools", "More actions", [...phoneOnly, ...tools], tools.length ? "" : "mn-phone-only");
-  const ask = inProject ? `<button class="btn quiet ask-t${st.askOpen ? " on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}"><span>Ask</span><kbd class="kc">${esc(keys("Mod+J"))}</kbd></button>` : "";
+  // Ask is a quiet icon with its shortcut; Check it works stays the routine action beside it.
+  const ask = inProject ? `<button class="btn ghost ask-t${st.askOpen ? " on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}" aria-label="Ask" title="${esc(`Ask ${keys("Mod+J")}`)}"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z"/></svg><kbd class="kc">${esc(keys("Mod+J"))}</kbd></button>` : "";
   // The toolbar's Check it works steps aside when it is already the page's main button, and while a save point's detail
   // is open: the detail has its own Check it again, and the breadcrumb keeps its room. It stays in ⋯.
   const ready = inProject && !!newest && !folderMissing(p) && st.screen === "history" && !st.drawer;
@@ -2656,9 +2663,9 @@ function paletteItems(): PaletteItem[] {
   if (p && newest) {
     items.push({ group: "Actions", label: "Save now", hint: keys("Mod+S"), keycap: true, act: "save" });
     if (checksOn(p)) items.push({ group: "Actions", label: "Check it works", hint: keys("Mod+Enter"), keycap: true, act: "check" });
-    if (lw && newest.verdict !== "PASS") items.push({ group: "Actions", label: goBackLabel(lw, points()), hint: "last working version", act: "rewind-to", id: lw.id });
+    if (lw && newest.verdict !== "PASS") items.push({ group: "Actions", label: goBackLabel(lw, points(), message), hint: "last working version", act: "rewind-to", id: lw.id });
     if (checksOn(p)) items.push({ group: "Actions", label: "Find the last working version", hint: "", act: "find" });
-    items.push({ group: "Actions", label: lw ? `Compare ${versionPhrase(lw, points())} with now` : "Compare with now", hint: keys("Mod+Shift+C"), keycap: true, act: "compare", ...(lw ? { a: lw.id, b: "now" } : {}) });
+    items.push({ group: "Actions", label: lw ? `Compare ${named(lw).name} with now` : "Compare with now", hint: keys("Mod+Shift+C"), keycap: true, act: "compare", ...(lw ? { a: lw.id, b: "now" } : {}) });
   }
   items.push(
     { group: "Actions", label: "Overview", hint: "everything protected", act: "overview" },
@@ -2715,7 +2722,7 @@ function paletteActive(): string | null {
  *  arrows reach while focus stays in the field (the WAI-ARIA combobox pattern). */
 function drawPaletteList(): void {
   const list = root.querySelector(".pal-list");
-  if (list) list.innerHTML = paletteList();
+  if (list) list.innerHTML = homeHtml(paletteList());
   const q = root.querySelector<HTMLInputElement>(".pal-q");
   if (!q) return;
   const active = paletteActive();
@@ -3114,9 +3121,10 @@ function render(): void {
   // destination exists once, in the sheet, and nothing finds a copy that cannot be seen or pressed.
   const rail = window.innerWidth < RAIL_MIN ? "" : scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar();
   // The first Tab stop skips the rail and the bar to the page itself (writer#26). A button, not a #link: the URL's hash is the bridge's.
-  root.innerHTML = `<div class="shell"><button class="skip" data-act="skip">Skip to the page</button>
+  // Every path on screen reads ~ for the home folder (homeHtml): no username shows in the app, a still or a screenshot.
+  root.innerHTML = homeHtml(`<div class="shell"><button class="skip" data-act="skip">Skip to the page</button>
     ${opts.preview ? `<aside class="banner" aria-label="Preview"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</aside>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`;
+    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
   // The toast sits over the work area: past the rail, and short of a right column when one is open.
   toastHost.dataset.right = appCls;
   seenOnce = drawOnce;
@@ -3358,7 +3366,8 @@ async function saveNow(): Promise<void> {
     // A folder that only saves versions is never told "Not checked yet"; files left out are said every time, plainly.
     const missing = r.checkpoint.coverage.missing;
     const left = missing.length ? ` Left out: ${shortSkip(missing[0] ?? "")}${missing.length > 1 ? ` and ${missing.length - 1} more` : ""}.` : "";
-    toast(`Saved ${saved ? `${twinOrdinal(saved, points()) ? "as " : ""}${ptAt(saved)}` : when(r.checkpoint.createdAt)}.${checksOn(p) ? " Not checked yet." : ""}${left}`, null, missing.length ? { action: { label: "See what", run: () => void openSavePoint(p.id, r.checkpoint.id) } } : {});
+    const n = saved ? named(saved) : null;
+    toast(`${n ? (n.time ? `Saved ${n.name} at ${n.time}` : `Saved at ${n.name}`) : `Saved ${when(r.checkpoint.createdAt)}`}.${checksOn(p) ? " Not checked yet." : ""}${left}`, null, missing.length ? { action: { label: "See what", run: () => void openSavePoint(p.id, r.checkpoint.id) } } : {});
   } catch (e) {
     st.busy = null;
     toast(msg(e));

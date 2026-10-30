@@ -3,7 +3,7 @@
 // Planned connectors (Codex, Gemini, Google Docs, Notion, Gmail, Slack) show only under Labs preview, each with sample
 // data and "Planned, not connected". Nothing here signs in, asks for a key or calls the network.
 import type { ProjectEntry, Purpose, SourceId, SourceRow } from "../shared/api.js";
-import { esc, plural } from "../shared/format.js";
+import { esc, homePath, plural } from "../shared/format.js";
 import type { Channel } from "./channels.js";
 
 /** The Labs preview switch, kept in this browser only. */
@@ -16,9 +16,9 @@ export const SOURCE_PURPOSE: { [K in SourceId]: Purpose | null } = {
 };
 
 /** A path as Finder names it: iCloud's storage folder as iCloud Drive (writer#31), the home folder as ~. The page wraps it
- *  anywhere when the line is short; the full path is in the title. */
+ *  anywhere when the line is short. */
 export const shownPath = (path: string): string =>
-  path.replace(/^.*\/Library\/Mobile Documents\/com~apple~CloudDocs(?=\/|$)/, "iCloud Drive").replace(/^(\/Users|\/home)\/[^/]+(?=\/|$)/, "~");
+  homePath(path.replace(/^.*\/Library\/Mobile Documents\/com~apple~CloudDocs(?=\/|$)/, "iCloud Drive"));
 
 /** Found folders that hold everything of a kind: protecting one saves all of it, so the app first offers a smaller folder (writer#31). */
 export const WHOLE_FOLDER: { [K in SourceId]: boolean } = { icloud: true, dropbox: true, gdrive: true, onedrive: true, documents: true, desktop: true, obsidian: false };

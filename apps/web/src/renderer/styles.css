@@ -147,7 +147,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .search svg { width: 16px; height: 16px; flex: none; }
 .search span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .search:hover { border-color: var(--line-2); color: var(--ink); }
-.group { margin: 12px 0 2px; padding: 0 10px; font: italic 400 21px/1.2 var(--voice); color: var(--ink-3); }
+/* Section labels are labels, not headings: the record's face, small and quiet. The voice is kept for page-level lines. */
+.group { margin: 14px 0 2px; padding: 0 10px; font: 600 12.5px/1.2 var(--font); letter-spacing: .02em; color: var(--ink-3); }
 .group-b { border: 0; background: none; text-align: left; cursor: pointer; border-radius: var(--r-sm); min-height: 40px; align-self: start; padding-right: 10px; }
 .group-b:hover, .group-b.on { color: var(--ink); }
 .side-empty { padding: 4px 10px; color: var(--ink-3); font-size: 14px; }
@@ -171,7 +172,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .it.on .pj-ic .dot:not(.v-pass):not(.v-fail) { background-color: var(--surface); }
 .it.add { color: var(--ink-3); }
 .it.ag { min-height: 54px; color: var(--ink-2); }
-.it.ag.off { color: var(--ink-3); }
+/* Claude Code's row carries its one action beside it; "More agents coming" is one quiet line, never a row per agent. */
+.ag-row { display: flex; align-items: center; gap: 6px; }
+.ag-row .it.ag { flex: 1; min-width: 0; }
+.btn.ag-go { flex: none; min-height: 36px; padding: 0 12px; font-size: 13.5px; }
+.ag-more { padding: 2px 10px 0; font-size: 13px; color: var(--ink-3); }
 .dot { width: 10px; height: 10px; flex: none; border-radius: 50%; margin: 0 3px; box-shadow: inset 0 0 0 2px var(--ink-4); }
 .dot.v-pass { background: var(--works); box-shadow: none; }
 .dot.v-fail { background: var(--broken); box-shadow: none; border-radius: 2px; transform: rotate(45deg); width: 9px; height: 9px; }
@@ -231,7 +236,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .rcol.enter { animation: slide var(--t-enter) var(--ease); }
 .rc-top { flex: none; height: 68px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 22px; border-bottom: 1px solid var(--hair); }
 .rc-top .eyebrow { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ask-h { font: italic 400 24px/1 var(--voice); }
+.ask-h { font: 650 20px/1 var(--font); }
 .ask-about { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ask-mount { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .rc-body { flex: 1; min-height: 0; overflow: auto; padding: 22px 24px 32px; display: grid; gap: 16px; align-content: start; }
@@ -329,8 +334,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
 .gone-done { font-size: 14px; color: var(--ink-2); }
-/* The demo's three steps: a sky card under the answer. The current step is in ink. */
-.coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--sky) 40%, var(--surface)); border: 1px solid var(--sky-line); display: grid; gap: 10px; }
+/* The demo's three steps: a quiet card under the answer, in the page's own neutrals. The current step is in ink. */
+.coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: var(--sunken); border: 1px solid var(--line); display: grid; gap: 10px; }
 .coach-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
 /* Hide keeps its one word on a phone; the title wraps instead (it broke as "Hid" / "e" at 390). */
 .coach-h .btn { min-height: 40px; flex: none; white-space: nowrap; }
@@ -464,11 +469,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .s3.now .n { background: var(--sky); border-color: var(--sky-ink); color: var(--sky-ink); }
 .s3 .btn { justify-self: start; align-self: end; margin-top: 6px; }
 
-/* The journal: the day in the voice, its save points in one white card. The day's header sticks to the top of the page
+/* The journal: the day as a plain heading, its save points in one white card. The day's header sticks to the top of the page
    while its rows scroll under it, on the page's own surface so nothing shows through. */
 .journal { padding-bottom: 8px; }
 .day { position: sticky; top: 0; z-index: 3; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 36px 0 4px; padding: 12px 0 10px; background: var(--surface); }
-.day h2 { font: italic 400 34px/1 var(--voice); color: var(--ink); }
+.day h2 { font: 650 18px/1.1 var(--font); color: var(--ink); }
 .day span { font-size: 14px; color: var(--ink-3); }
 .list { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface); }
 .entry { position: relative; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 20px; border-top: 1px solid var(--hair); cursor: pointer; }
@@ -511,18 +516,18 @@ summary { padding-block: 12px; margin-block: -12px; }
 .chip.plain { padding: 0 10px; }
 .chip-slot { min-width: 0; max-width: 100%; }
 .chip-slot:empty { display: none; }
-/* A row's one action, in words, with a thick sky underline. */
-.go { align-self: center; min-height: 40px; display: inline-flex; align-items: center; padding: 0 2px; border: 0; background: none; font: 600 14px/1 var(--font); color: var(--ink); text-decoration: underline; text-decoration-color: var(--sky-line); text-decoration-thickness: 3px; text-underline-offset: 5px; cursor: pointer; white-space: nowrap; }
-span.go { color: var(--ink-3); text-decoration-color: var(--line-2); opacity: 0; transition: opacity var(--t-hover) var(--ease); }
+/* A row's one action. Buttons act (Bring back, Check): one quiet outlined button. "Open" only navigates: a word that shows on hover. */
+.go { align-self: center; min-height: 36px; display: inline-flex; align-items: center; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); font: 600 13.5px/1 var(--font); color: var(--ink); cursor: pointer; white-space: nowrap; }
+span.go { padding: 0 2px; border: 0; background: none; color: var(--ink-3); opacity: 0; transition: opacity var(--t-hover) var(--ease); }
 .entry:hover span.go, .fold:hover span.go { opacity: 1; }
-button.go:hover { text-decoration-color: var(--focus); }
+button.go:hover:not([disabled]) { border-color: var(--ink); }
 button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .said { margin-top: 10px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; font-size: 14px; border-left: 3px solid var(--line); padding: 4px 0 4px 12px; color: var(--ink-2); }
 .said b { font: 600 13.5px/20px var(--font); color: var(--ink-3); white-space: nowrap; }
 .said.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .said.two > div { display: grid; gap: 2px; align-content: start; }
 .said.two > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
-.said .nr { color: var(--ink-3); font-family: var(--voice); font-style: italic; font-size: 16px; }
+.said .nr { color: var(--ink-3); font-size: 14px; }
 .fold { width: 100%; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 20px; border: 0; border-top: 1px solid var(--hair); background: var(--sunken); color: var(--ink-3); font-size: 14px; text-align: left; cursor: pointer; }
 .fold:hover { color: var(--ink); background: var(--paper-2); }
 /* Where it broke: one quiet line between the two rows, lined up with the titles, small red text after a 2 px red bar. */
@@ -531,21 +536,29 @@ button.go[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* Good to know: what does not come back, below the record, said by the buddy. */
 .know { margin-top: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 18px 20px; border-radius: 18px; background: var(--sunken); border: 1px dashed var(--line-2); font-size: 14.5px; color: var(--ink-2); }
-.know h2 { font: italic 400 24px/1.1 var(--voice); color: var(--ink); margin-bottom: 6px; }
+.know h2 { font: 650 16px/1.2 var(--font); color: var(--ink); margin-bottom: 6px; }
 .know .honest { display: grid; gap: 4px; margin: 0; }
 .know .honest dt { font-weight: 600; color: var(--ink); font-size: 14px; }
 .know .honest dt:not(:first-child) { margin-top: 8px; }
 .know .honest dd { margin: 0; text-wrap: pretty; }
 
-/* The save point detail: the right column, or a full sheet when narrow. The time in the display face, the message
-   in the voice, then what the check said, one ink action and the record of what is kept. */
+/* The save point detail: the right column, or a full sheet when narrow. Its message as the heading in the display face (data,
+   never the voice), the time under it, then what the check said, one ink action and the record of what is kept. */
 .rcol.detail .rc-body { gap: 18px; padding-bottom: 40px; }
-.sp-h { display: grid; gap: 4px; font-size: 40px; line-height: 1.04; }
-.sp-h .sp-t { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sp-h .voice { font-size: 28px; line-height: 1.14; color: var(--ink-2); overflow-wrap: anywhere; text-wrap: pretty; }
-/* Which of two save points in one second this is, under the heading that shows only the time. */
+.sp-h { font-size: 28px; line-height: 1.12; overflow-wrap: anywhere; text-wrap: pretty; }
+.sp-when { margin-top: -10px; font-size: 14.5px; line-height: 1.4; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sp-when:empty { display: none; }
+/* The name the save point was made with, under a name someone gave it. */
 .sp-twin { margin-top: -8px; font-size: 14px; line-height: 1.4; color: var(--ink-3); }
 .sp-v { color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+/* A save point's time beside the message a button names it by: the same line, quieter. */
+.b-sub { font-weight: 500; opacity: .72; font-variant-numeric: tabular-nums; }
+/* The demo project says so once, beside its name at the top of the page. */
+.demo-chip { height: 22px; font-size: 12.5px; color: var(--ink-3); }
+/* Ask in the toolbar: a quiet icon and its shortcut, a step below Check it works. */
+.btn.ask-t { gap: 6px; padding: 0 10px; color: var(--ink-3); }
+.btn.ask-t svg { width: 18px; height: 18px; flex: none; }
+.btn.ask-t.on, .btn.ask-t:hover:not([disabled]) { color: var(--ink); }
 .sp-acts { display: grid; gap: 10px; justify-items: start; }
 .sp-acts > .btn.big { width: 100%; }
 .sp-links { display: flex; flex-wrap: wrap; gap: 0 22px; }
@@ -757,7 +770,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 
 /* Check it works. While it runs the buddy's screen blinks (steps, so it is a blink, not a fade) and the clock runs
    in mono. Then the verdict as one card in its colour; the words of the check sit inside a broken one. */
-.ck-e { font: italic 400 18px/1.25 var(--voice); color: var(--ink-2); }
+.ck-e { font: 500 14.5px/1.3 var(--font); color: var(--ink-3); }
 .ck-run { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; }
 .ck-run h2 { margin-top: 2px; }
 .ck-run p { margin-top: 4px; color: var(--ink-2); }
@@ -845,7 +858,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .pal-q { flex: 1; min-width: 0; height: 52px; border: 0; background: none; padding: 0 10px; font: 400 17px/1.3 var(--font); color: var(--ink); user-select: text; }
 .pal-q::placeholder { color: var(--ink-4); }
 .pal-list { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 8px; }
-.pal-g { padding: 12px 14px 6px; font: italic 400 19px/1.1 var(--voice); color: var(--ink-3); }
+.pal-g { padding: 12px 14px 6px; font: 600 12.5px/1.1 var(--font); letter-spacing: .02em; color: var(--ink-3); }
 .pal-i { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 44px; padding: 0 10px 0 14px; border: 0; border-radius: 12px; background: none; text-align: left; cursor: pointer; color: var(--ink); font-size: 15px; }
 .pal-i:hover { background: var(--sel); }
 .pal-i:active { background: var(--press); }
@@ -876,7 +889,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 /* Keyboard shortcuts (?): the sheet, two columns on a wide window and one below 860 px, every key a sky keycap. */
 .ks { width: min(800px, 100%); }
 .ks-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
-.ks-h { margin: 18px 0 6px; font: italic 400 22px/1.15 var(--voice); color: var(--ink-2); }
+.ks-h { margin: 18px 0 6px; font: 650 15px/1.2 var(--font); color: var(--ink-2); }
 .ks-cols > div > .ks-h:first-child { margin-top: 0; }
 .ks-r { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: center; min-height: 40px; padding: 6px 0; border-top: 1px solid var(--hair); font-size: 14.5px; line-height: 1.4; color: var(--ink-2); }
 .ks-k { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -958,7 +971,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .rw .steps .n { width: 24px; height: 24px; font-size: 13.5px; }
 .rw .steps .bar { width: 20px; }
 .tv-read { display: grid; gap: 18px; align-content: start; padding: 22px 0 30px; }
-.rw-kicker { font: italic 400 24px/1.1 var(--voice); color: var(--ink-3); margin-bottom: -10px; }
+.rw-kicker { font: 500 15px/1.2 var(--font); color: var(--ink-3); margin-bottom: -12px; }
 .rw .tv-head { font-size: 44px; line-height: 1.02; }
 .rw .tv-head .voice { display: block; margin-top: 2px; line-height: 1.1; color: var(--ink-2); }
 .rw-meta { margin-top: -8px; font-size: 14px; color: var(--ink-3); }
@@ -990,7 +1003,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .rw-loc .v { grid-column: 1; font: 400 13px/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
 .rw-loc .btn { grid-column: 2; grid-row: 1 / span 2; }
 .report { display: grid; gap: 14px; padding: 18px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
-.report h3 { font: italic 400 26px/1.15 var(--voice); }
+.report h3 { font: 650 17px/1.2 var(--font); }
 .report .tv-cols { border-top: 0; padding-top: 0; }
 .endline { padding-top: 12px; border-top: 1px solid var(--hair); font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
 .rw-undo-note { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
@@ -1157,7 +1170,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .hero-acts .btn { white-space: normal; height: auto; min-height: 52px; padding: 10px 18px; }
   .hero-acts .btn.link { align-self: center; min-height: 44px; }
   .day { flex-wrap: wrap; gap: 4px 8px; margin-top: 36px; }
-  .day h2 { font-size: 30px; }
+  .day h2 { font-size: 17px; }
   .said.two { grid-template-columns: minmax(0, 1fr); }
   .said.two > div + div { padding-left: 0; padding-top: 8px; border-left: 0; border-top: 1px solid var(--line); }
   .page { padding: 24px 20px 40px; }

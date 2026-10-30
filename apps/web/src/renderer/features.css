@@ -74,13 +74,13 @@ button.ft-deploy:hover { color: var(--ink); border-color: var(--ink-3); }
 .chip-slot .ft-deploy + .ft-deploy { margin-left: 6px; }
 
 .ft-unlinked { margin-top: 18px; padding: 14px 16px; border-radius: 12px; border: 1px dashed var(--line-2); display: grid; gap: 8px; font-size: 12.5px; }
-.ft-unlinked h3 { font: 400 17px/1.2 var(--serif); color: var(--ink); }
+.ft-unlinked h3 { font: 650 16px/1.2 var(--font); color: var(--ink); }
 .ft-unlinked ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ft-unlinked li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
 /* Settings > Features. */
 .ft-settings { display: grid; }
-.ft-sec { font: 400 17px/1.2 var(--serif); color: var(--ink); padding: 14px 0 4px; }
+.ft-sec { font: 650 16px/1.2 var(--font); color: var(--ink); padding: 14px 0 4px; }
 .ft-sec:first-child { padding-top: 0; }
 .ft-ro-note { font-size: 12.5px; color: var(--ink-2); padding-bottom: 6px; }
 .ft-stack { display: grid; gap: 8px; min-width: 0; }
