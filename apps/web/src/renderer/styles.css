@@ -1356,3 +1356,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .undo-card, .lp-status { scroll-margin-top: 16px; }
 @media (max-width: 860px) { .undo-card, .lp-status { scroll-margin-top: 140px; } }
 @media (max-width: 480px) { .undo-card .row-btns { flex-direction: column; align-items: stretch; } .undo-card .row-btns .btn { width: 100%; } }
+/* Keep it and Undo each say what they do, in a line under the button. */
+.undo-card .uc-ch { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.undo-card .uc-ch > div { display: grid; gap: 4px; justify-items: start; flex: 1 1 220px; }
+.undo-card .uc-ch small { font-size: 13px; line-height: 1.4; color: var(--ink-3); }
+@media (max-width: 480px) { .undo-card .uc-ch .btn { width: 100%; white-space: normal; height: auto; min-height: 44px; } .undo-card .uc-ch > div { justify-items: stretch; } }

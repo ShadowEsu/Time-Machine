@@ -924,7 +924,7 @@ function history(): string {
     ? `<div class="undo-card" role="status">${glyph(u.result.lastVerdict)}<div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
       ${saved ? `<p>Your broken version is still in your folder, and saved as <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button>.</p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
-      <div class="row-btns"><button class="btn quiet" data-act="undo-dismiss">Keep it</button>${undoButton("")}</div></div>`
+      <div class="uc-ch"><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div></div></div>`
     : "";
   const two = twoPane();
   if (!pts.length) {
@@ -972,7 +972,7 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
   const p = project();
   const damaged = damagedReason(c);
   const running = checkRunning();
-  const checking = c.id === running || (running === "new" && c.id === points().at(-1)?.id);
+  const checking = c.id === running || c.id === bgChecking || (running === "new" && c.id === points().at(-1)?.id);
   const v = damaged ? '<span class="lp-v v-damaged"><i class="g" aria-hidden="true"></i>Damaged</span>'
     : checking ? '<span class="lp-v v-checking"><i class="g" aria-hidden="true"></i>Checking</span>'
     : c.verdict === null && !checksOn(p) ? '<span class="lp-v v-none">Saved</span>'
@@ -1008,6 +1008,9 @@ function bringTarget(c: TimelineEntry): TimelineEntry | null {
   // The version just brought back is already back: offering it again would make a second branch and copy of the same thing.
   return to && justBack()?.result.id === to.id ? null : to;
 }
+
+/** The save point a background check is running on (the broken version saved before a bring back), or null. */
+let bgChecking: string | null = null;
 
 /** The bring back this project has just finished, while its Undo is still offered. */
 function justBack(): State["undo"] {
@@ -1058,7 +1061,14 @@ function preview(c: TimelineEntry, sheet: boolean): string {
     : `${check(true)}${bring(false, "Bring back anyway")}${notNow}`;
   // A broken one's Check it again is a quiet link with the other links, so the main button and Not now keep one line.
   const recheck = target && target.id !== c.id && checks ? check(false) : "";
+  // The broken version, saved before going back, is your folder as it is now: one state, from evidence. Broken once its own
+  // check (run in the background) says so, or while it runs, when the version just before it failed and nothing changed.
+  const prior = isSafety ? pts[pts.findIndex((x) => x.id === c.id) - 1] : undefined;
+  const folderNow = !isSafety ? ""
+    : c.verdict === "FAIL" || (c.verdict === null && prior?.verdict === "FAIL" && st.changes.get(c.id)?.length === 0) ? "Your folder now · broken version, kept."
+      : c.verdict === null ? "Your folder now · not checked." : `Your folder now · ${verdictWord(c.verdict).toLowerCase()}.`;
   const lead = damaged ? `This save point is damaged: ${damaged} Time Machine won’t check it or bring it back.`
+    : folderNow ? folderNow
     : c.id === lw?.id && !isNewest ? `The last version that works. ${verdictSentence(c)}`
     : isNewest ? (c.verdict === null && !checks ? "Where you are now." : `Where you are now. ${verdictSentence(c)}`)
     : c.verdict === null && !checks ? "Kept on this computer, outside the folder." : verdictSentence(c);
@@ -1089,7 +1099,7 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   const head = `<p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : author].filter(Boolean).join(" · ")))}</p>
     <h2 class="lp-ph" id="prev-h">${esc(title(c, author))}</h2>
     ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
-    <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : checkRunning() === c.id ? '<span class="vb vb-lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(checkRunning() === c.id ? "Checking it in a copy now. The verdict lands here when it ends." : lead)}</p></div>${here}`;
+    <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : isSafety && c.verdict === null ? "" : checkRunning() === c.id || bgChecking === c.id ? '<span class="vb vb-lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(checkRunning() === c.id ? "Checking it in a copy now. The verdict lands here when it ends." : lead)}</p></div>${here}`;
   const body = `${files}${opened}
     ${damaged ? "" : checkWords(same, c.verdict)}
     ${c.agent ? provenance(c) : ""}
@@ -3391,7 +3401,12 @@ async function bringDo(id: string): Promise<void> {
   // The save made first holds your broken version: check it for real in the background, so its row says Broken from
   // evidence instead of "Not checked yet".
   const before = st.undo?.projectId === p.id ? st.undo.result.savedBefore : null;
+  if (before && checksOn(p)) {
+    bgChecking = before;
+    render();
+  }
   if (before && checksOn(p)) void bridge.call({ method: "verify", projectId: p.id, id: before }).then(async () => {
+    bgChecking = null;
     if (st.projectId !== p.id) return;
     await loadTimeline();
     render();
