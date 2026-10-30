@@ -105,18 +105,16 @@ export function shellWord(path: string): string {
 }
 
 /**
- * The commands that put a brought-back version into your folder, for you to run (the app never writes the folder).
- * The copy is a Git worktree that already has the recovery branch checked out, so the folder cannot switch to that branch
- * itself: it makes its own branch from it, `use-<id>`, after stashing the folder's changes.
+ * Everything the "Use it in your folder" panel says, in one place: the commands to run (the app never writes the folder),
+ * the line on where the broken changes are kept, and how to go back. The copy is a Git worktree that already has the
+ * recovery branch checked out, so the folder makes its own branch from it, `use-<id>`, after stashing its changes. From a
+ * detached HEAD, `git switch -` refuses a commit, so going back is `git switch --detach -`.
+ * Not part of the default design until it passes the five scratch-repo checks; the panel is off unless turned on.
  */
-export function folderCommands(folder: string, branch: string, id: string): string[] {
-  return [`cd ${shellWord(folder)}`, `git stash push --include-untracked -m "before using ${id}"`, `git switch -c use-${id} ${shellWord(branch)}`];
-}
-
-/**
- * How to undo the folder commands: back to the branch the folder was on (from the safety save made just before the bring
- * back), then the stash. From a detached HEAD, `git switch -` refuses a commit, so it is `git switch --detach -`.
- */
-export function folderGoBack(oldBranch: string | null): string {
-  return `To go back: ${oldBranch ? `git switch ${shellWord(oldBranch)}` : "git switch --detach -"}, then git stash pop.`;
+export function folderSteps(folder: string, branch: string, id: string, oldBranch: string | null): { commands: string[]; kept: string; back: string } {
+  return {
+    commands: [`cd ${shellWord(folder)}`, `git stash push --include-untracked -m "before using ${id}"`, `git switch -c use-${id} ${shellWord(branch)}`],
+    kept: "Your broken changes are kept in the stash and in the saved broken version.",
+    back: `To go back: ${oldBranch ? `git switch ${shellWord(oldBranch)}` : "git switch --detach -"}, then git stash pop.`,
+  };
 }

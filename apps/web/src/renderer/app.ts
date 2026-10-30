@@ -37,7 +37,7 @@ import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage,
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
-import { brokeAt, folderCommands, folderGoBack, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
+import { brokeAt, folderSteps, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -932,7 +932,7 @@ function history(): string {
     ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
       ${saved ? `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
-      ${useInFolder(u.result, p)}
+      ${folderCommandsOn() ? useInFolder(u.result, p) : ""}
       <div class="uc-ch"><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div></div></div>`
     : "";
   const two = twoPane();
@@ -1027,17 +1027,27 @@ let bgChecking: string | null = null;
  * folder's own changes first, so a switch never refuses or overwrites them).
  */
 function useInFolder(res: RecoverResult, p: ProjectEntry): string {
-  const lines = res.copyOnly || !res.branch ? [] : folderCommands(p.path, res.branch, res.id);
+  const steps = res.copyOnly || !res.branch ? null : folderSteps(p.path, res.branch, res.id, res.savedBefore ? entry(res.savedBefore)?.branch ?? null : null);
+  const lines = steps?.commands ?? [];
   if (!lines.length) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
   const cmds = lines.join("\n");
   // The list opens by itself once Check it works there has passed; before that it is one line that expands.
   const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
   return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${lines.length} commands, your broken version stays saved</summary>
     <pre class="mono sel-text uc-cmd">${esc(cmds)}</pre>
-    <p>Your broken changes are kept in the stash and in the saved broken version.</p>
-    <p class="mono sel-text uc-back">${esc(folderGoBack(res.savedBefore ? entry(res.savedBefore)?.branch ?? null : null))}</p>
+    <p>${esc(steps?.kept ?? "")}</p>
+    <p class="mono sel-text uc-back">${esc(steps?.back ?? "")}</p>
     <p>Run them in a terminal: they put your folder’s changes in the stash, then switch it to a new branch made from the working version. Or <button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">open the copy</button>.</p></details>
     <button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy commands</button></div>`;
+}
+
+/** The folder commands panel is off by default: it shows only when turned on for this browser (tm.folderCommands = "1"). */
+function folderCommandsOn(): boolean {
+  try {
+    return localStorage.getItem("tm.folderCommands") === "1";
+  } catch {
+    return false;
+  }
 }
 
 /** The save point a "Check it works there" ran on, after a bring back: once it passes, the folder commands open. */

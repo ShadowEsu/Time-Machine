@@ -1,7 +1,7 @@
 // History as a list and a preview: what is selected first, what the status line says, where the keys go and what
 // changed since a save point.
 import { describe, expect, test } from "vitest";
-import { brokeAt, changedSince, defaultPick, folderCommands, folderGoBack, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, changedSince, defaultPick, folderSteps, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -106,15 +106,18 @@ describe("a save point with no message", () => {
 });
 
 describe("folder commands after a bring back (L364 r5)", () => {
-  test("stash, then a new branch from the recovery branch: the copy's worktree already has that branch checked out", () => {
-    expect(folderCommands("/Users/ana/code/marigold-tips", "tm/recover/cp-0003", "cp-0003")).toEqual([
+  test("stash, then a new branch from the recovery branch (the copy's worktree already has it), and how to go back", () => {
+    const f = folderSteps("/Users/ana/code/marigold-tips", "tm/recover/cp-0003", "cp-0003", "main");
+    expect(f.commands).toEqual([
       "cd /Users/ana/code/marigold-tips",
       'git stash push --include-untracked -m "before using cp-0003"',
       "git switch -c use-cp-0003 tm/recover/cp-0003",
     ]);
-    expect(folderCommands("/Users/ana/my tips", "tm/recover/cp-0003-2", "cp-0003")[0]).toBe("cd '/Users/ana/my tips'");
-    expect(folderCommands("/Users/ana/my tips", "tm/recover/cp-0003-2", "cp-0003")[2]).toBe("git switch -c use-cp-0003 tm/recover/cp-0003-2");
-    expect(folderGoBack("main")).toBe("To go back: git switch main, then git stash pop.");
-    expect(folderGoBack(null)).toBe("To go back: git switch --detach -, then git stash pop.");
+    expect(f.kept).toBe("Your broken changes are kept in the stash and in the saved broken version.");
+    expect(f.back).toBe("To go back: git switch main, then git stash pop.");
+    const g = folderSteps("/Users/ana/my tips", "tm/recover/cp-0003-2", "cp-0003", null);
+    expect(g.commands[0]).toBe("cd '/Users/ana/my tips'");
+    expect(g.commands[2]).toBe("git switch -c use-cp-0003 tm/recover/cp-0003-2");
+    expect(g.back).toBe("To go back: git switch --detach -, then git stash pop.");
   });
 });
