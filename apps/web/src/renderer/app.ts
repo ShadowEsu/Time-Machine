@@ -37,7 +37,7 @@ import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage,
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
-import { brokeAt, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
+import { brokeAt, folderCommands, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -1027,24 +1027,20 @@ let bgChecking: string | null = null;
  * folder's own changes first, so a switch never refuses or overwrites them).
  */
 function useInFolder(res: RecoverResult, p: ProjectEntry): string {
-  const lines = res.copyOnly || !res.branch ? [] : [`cd ${shellWord(p.path)}`, `git stash push --include-untracked -m "before ${res.branch}"`, `git switch ${res.branch}`];
+  const lines = res.copyOnly || !res.branch ? [] : folderCommands(p.path, res.branch, res.id);
   if (!lines.length) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
   const cmds = lines.join("\n");
   // The list opens by itself once Check it works there has passed; before that it is one line that expands.
   const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
   return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${lines.length} commands, your broken version stays saved</summary>
     <pre class="mono sel-text uc-cmd">${esc(cmds)}</pre>
-    <p>Run them in a terminal. They stash your folder’s changes, then switch it to the branch. Or <button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">open the copy</button>.</p></details>
+    <p>Your broken changes are kept in the stash and in the saved broken version.</p>
+    <p>Run them in a terminal: they put your folder’s changes in the stash, then switch it to a new branch made from the working version. Or <button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">open the copy</button>.</p></details>
     <button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy commands</button></div>`;
 }
 
 /** The save point a "Check it works there" ran on, after a bring back: once it passes, the folder commands open. */
 let thereChecked: string | null = null;
-
-/** A path as one word for a shell: quoted when it has anything a shell would split or expand. */
-function shellWord(path: string): string {
-  return /^[\w@%+=:,./~-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`;
-}
 
 /** The bring back this project has just finished, while its Undo is still offered. */
 function justBack(): State["undo"] {

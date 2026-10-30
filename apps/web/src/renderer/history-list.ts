@@ -98,3 +98,17 @@ export function foldRepeats<T extends { id: string }>(rows: readonly T[], key: (
   }
   return out;
 }
+
+/** A path as one word for a shell: quoted when it has anything a shell would split or expand. */
+export function shellWord(path: string): string {
+  return /^[\w@%+=:,./~-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`;
+}
+
+/**
+ * The commands that put a brought-back version into your folder, for you to run (the app never writes the folder).
+ * The copy is a Git worktree that already has the recovery branch checked out, so the folder cannot switch to that branch
+ * itself: it makes its own branch from it, `use-<id>`, after stashing the folder's changes.
+ */
+export function folderCommands(folder: string, branch: string, id: string): string[] {
+  return [`cd ${shellWord(folder)}`, `git stash push --include-untracked -m "before using ${id}"`, `git switch -c use-${id} ${shellWord(branch)}`];
+}
