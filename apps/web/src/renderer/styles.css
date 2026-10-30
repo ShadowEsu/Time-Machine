@@ -1352,3 +1352,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .ag-row { flex-wrap: wrap; }
 .ag-row .it.ag .nm, .ag-row .it.ag .nm > span, .ag-row .it.ag .nm small { white-space: normal; overflow: visible; text-overflow: clip; }
 .ag-row .it.ag { flex: 1 1 140px; }
+/* The page scrolls the after-state into view below the sticky toolbar, never under it. */
+.undo-card, .lp-status { scroll-margin-top: 16px; }
+@media (max-width: 860px) { .undo-card, .lp-status { scroll-margin-top: 140px; } }
+@media (max-width: 480px) { .undo-card .row-btns { flex-direction: column; align-items: stretch; } .undo-card .row-btns .btn { width: 100%; } }

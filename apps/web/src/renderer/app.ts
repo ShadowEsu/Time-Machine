@@ -597,7 +597,7 @@ function short(sha: string): string {
 /** What a save point was made as, before anyone named it. `author` is the author line shown beside it, if any, so the agent is named once. */
 function madeTitle(c: TimelineEntry, author: string | null = null): string {
   // The engine names the save it makes before a rewind by save point id. Say what it is: your work from before going back.
-  if (c.trigger === "recover" && /^Before recovering \S+$/.test(c.note)) return `Your broken version, saved before going back · ${ptTime(c)}`;
+  if (c.trigger === "recover" && /^Before recovering \S+$/.test(c.note)) return "Your broken version, saved before going back";
   const made = pointTitle(c, author);
   // An untitled save is named by what it did ("309 files deleted"), once its diff is read.
   return (made.trim() ? "" : changeWords(c)) || rowTitle(made, c.trigger, st.changes.get(c.id));
@@ -922,7 +922,7 @@ function history(): string {
   const saved = u ? newestByTime(pts.filter((c) => c.trigger === "recover" && c.note === `Before recovering ${u.result.id}`))[0] ?? null : null;
   const undoBar = u
     ? `<div class="undo-card" role="status">${glyph(u.result.lastVerdict)}<div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
-      ${saved ? `<p>Your broken version is saved here: <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
+      ${saved ? `<p>Your broken version is still in your folder, and saved as <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button>.</p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
       <div class="row-btns"><button class="btn quiet" data-act="undo-dismiss">Keep it</button>${undoButton("")}</div></div>`
     : "";
@@ -1044,9 +1044,11 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   // The save made just before it: your broken version. Its preview says so, and where the working version went.
   const isSafety = !!back && c.trigger === "recover" && c.note === `Before recovering ${back.result.id}`;
   const backTo = back ? entry(back.result.id) : null;
-  // The version just brought back, and the broken version saved before it, each say where the working version is now and
-  // how to reach it, instead of offering it again.
-  const here = (isBack || isSafety) && back ? `<div class="lp-here" role="note"><p><b>${esc(isBack ? "This is the version you brought back." : `This is your broken version, saved before going back to ${backTo ? named(backTo).name : "the version that works"}.`)}</b> ${esc(isBack ? "It is" : "The working version is")} ${back.result.copyOnly ? "in a copy at" : `on the branch <span class="mono sel-text">${esc(back.result.branch)}</span> and in a copy at`} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
+  // The broken version's own pane speaks of your folder (where it still is), apart from where the working copy went.
+  const here = isSafety && back ? `<div class="lp-here" role="note"><p><b>This is your broken version. It is still in your folder</b>, untouched, and this save point keeps it too.</p>
+      <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(p.path)}">Open your folder</button></div>
+      <p>${esc(`The working version, ${backTo ? named(backTo).name : "the one you brought back"}, is ${back.result.copyOnly ? "in a copy" : `on the branch ${back.result.branch} and in a copy`}; the banner above has its folder.`)}</p></div>`
+    : isBack && back ? `<div class="lp-here" role="note"><p><b>This is the version you brought back.</b> ${back.result.copyOnly ? "It is in a copy at" : `It is on the branch <span class="mono sel-text">${esc(back.result.branch)}</span> and in a copy at`} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
       <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(back.result.copyDir)}">${revealLabel()}</button>${back.result.copyOnly ? "" : `<button class="btn quiet" data-act="copy" data-text="${esc(back.result.branch)}">Copy branch name</button>`}</div></div>` : "";
   const acts = damaged || isBack ? ""
     : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${esc(c.id)}" ${busy}>Bring back a copy…</button>${notNow}`
@@ -3382,8 +3384,18 @@ async function bringDo(id: string): Promise<void> {
   await loadTimeline();
   st.selected = st.undo?.projectId === p.id ? st.undo.result.id : st.selected;
   render();
+  // The answer lands at the top of the page, below the sticky toolbar (scroll-margin-top), with focus on Undo.
+  root.querySelector<HTMLElement>(".lp-status")?.scrollIntoView({ block: "start" });
   root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
   void refreshStatuses().then(render);
+  // The save made first holds your broken version: check it for real in the background, so its row says Broken from
+  // evidence instead of "Not checked yet".
+  const before = st.undo?.projectId === p.id ? st.undo.result.savedBefore : null;
+  if (before && checksOn(p)) void bridge.call({ method: "verify", projectId: p.id, id: before }).then(async () => {
+    if (st.projectId !== p.id) return;
+    await loadTimeline();
+    render();
+  });
 }
 
 /** `search` runs find-good even when a working version is already known. */
