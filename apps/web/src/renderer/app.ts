@@ -1027,13 +1027,19 @@ let bgChecking: string | null = null;
  * folder's own changes first, so a switch never refuses or overwrites them).
  */
 function useInFolder(res: RecoverResult, p: ProjectEntry): string {
-  const cmds = res.copyOnly || !res.branch ? "" : [`cd ${shellWord(p.path)}`, `git stash push --include-untracked -m "before ${res.branch}"`, `git switch ${res.branch}`].join("\n");
-  return `<details class="uc-use"><summary>Use it in your folder</summary>
-    <p>Your broken version stays saved either way.</p>
-    <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Open the copy</button></div>
-    ${cmds ? `<p>Or switch your folder to it in a terminal:</p><pre class="mono sel-text uc-cmd">${esc(cmds)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy the commands</button></div>` : "<p>This folder has no Git repo: copy the files you want from the copy into it.</p>"}
-  </details>`;
+  const lines = res.copyOnly || !res.branch ? [] : [`cd ${shellWord(p.path)}`, `git stash push --include-untracked -m "before ${res.branch}"`, `git switch ${res.branch}`];
+  if (!lines.length) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
+  const cmds = lines.join("\n");
+  // The list opens by itself once Check it works there has passed; before that it is one line that expands.
+  const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
+  return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${lines.length} commands, your broken version stays saved</summary>
+    <pre class="mono sel-text uc-cmd">${esc(cmds)}</pre>
+    <p>Run them in a terminal. They stash your folder’s changes, then switch it to the branch. Or <button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">open the copy</button>.</p></details>
+    <button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy commands</button></div>`;
 }
+
+/** The save point a "Check it works there" ran on, after a bring back: once it passes, the folder commands open. */
+let thereChecked: string | null = null;
 
 /** A path as one word for a shell: quoted when it has anything a shell would split or expand. */
 function shellWord(path: string): string {
@@ -4569,6 +4575,7 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "check":
       return checkNow();
     case "verify-one":
+      if (d.id && d.id === justBack()?.result.id) thereChecked = d.id;
       return checkNow(d.id);
     case "stop-check": {
       const p = project();
