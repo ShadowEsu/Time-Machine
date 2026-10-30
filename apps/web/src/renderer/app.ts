@@ -688,8 +688,10 @@ function sidebar(mobile = false): string {
       const shown = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
       // After a bring back the folder is still broken, and a working copy is ready: the row says both, and opens History,
       // where the banner says where the copy is.
+      // Once you ran the folder commands, the row says where the folder is instead.
+      const onUse = st.undo?.projectId === p.id && st.undo && folderOnUse(st.undo.result, p) ? `On use-${st.undo.result.id} · the working version` : "";
       const ready = st.undo?.projectId === p.id && v === "FAIL" ? " · copy ready" : "";
-      const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : checks ? `${verdictWord(v)}${ready}` : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest);
+      const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : onUse ? onUse : checks ? `${verdictWord(v)}${ready}` : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest);
       const age = s?.newest && !s.problem ? `<span class="pj-age" data-at="${esc(s.newest.createdAt)}" title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(railAge(s.newest.createdAt))}</span>` : "";
       const on = p.id === st.projectId && inProject;
       // The purpose icon carries the status dot on its corner. The name gets the whole first line; the status and the age
@@ -933,14 +935,14 @@ function history(): string {
   const useSteps = onUse && u ? folderPlan(u.result, p)?.steps ?? null : null;
   const savedLine = !saved ? ""
     : onUse && useSteps ? `<p class="uc-saved"><span>${esc(useSteps.onUse)} It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>
-      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${esc(useSteps.back)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.locked)}</p><p class="uc-local">${esc(useSteps.local)}</p>`
+      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${esc(shownLines(useSteps.back))}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.locked)}</p><p class="uc-local">${esc(useSteps.local)}</p>`
     : `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>`;
   const undoBar = u
     ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>.${onUse ? "" : " Your folder was not touched."}</p>
       ${savedLine}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
       ${folderPanelOn() && !onUse ? useInFolder(u.result, p) : ""}
-      <div class="uc-ch"><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div></div></div>`
+      <div class="uc-ch"><div>${undoButton("")}<small>${esc(onUse && u ? `Removes the copy and the branch ${u.result.branch}; your folder stays on use-${u.result.id}.` : "Removes the working copy and branch; nothing else changes.")}</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>${esc(onUse && u ? `Keeps the copy and the branch ${u.result.branch}; your folder stays on use-${u.result.id}.` : "Keeps the working copy and branch; your folder stays as it is.")}</small></div></div></div>`
     : "";
   const two = twoPane();
   if (!pts.length) {
@@ -1079,6 +1081,14 @@ function folderOnUse(res: RecoverResult, p: ProjectEntry): boolean {
 }
 /** On a phone the commands stay behind Show commands; Copy works without opening them. */
 let folderCmdsShown = false;
+/** The panel and its Why these flags, kept open across redraws once you open them. */
+let folderPanelOpen = false;
+let folderWhyOpen = false;
+
+/** The go-back line as shown: a line break after each &&, so every step is in view. Copy keeps folderCommands()' text. */
+function shownLines(line: string): string {
+  return line.replace(/ && /g, " &&\n");
+}
 
 function useInFolder(res: RecoverResult, p: ProjectEntry): string {
   const plan = folderPlan(res, p);
@@ -1090,7 +1100,7 @@ function useInFolder(res: RecoverResult, p: ProjectEntry): string {
   const n = steps.commands.split("\n").length;
   // The list opens by itself once Check it works there has passed; before that it is one line that expands.
   const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
-  return `<div class="uc-use${folderCmdsShown ? " shown" : ""}"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands, your broken version stays saved</summary>
+  return `<div class="uc-use${folderCmdsShown ? " shown" : ""}"><details class="uc-panel"${passed || folderPanelOpen ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands, your broken version stays saved</summary>
     <p>${esc(steps.intro)}</p>
     <p class="uc-end">${esc(steps.end)}</p>
     ${steps.left ? `<p class="uc-left">${esc(steps.left)}</p>` : ""}
@@ -1099,10 +1109,10 @@ function useInFolder(res: RecoverResult, p: ProjectEntry): string {
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="commands">Copy commands</button><button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Or open the copy</button></div>
     <p class="uc-local">${esc(steps.local)}</p>${steps.hooks ? `<p>${esc(steps.hooks)}</p>` : ""}
     <p><b>To go back</b></p>
-    <pre class="mono sel-text uc-cmd" tabindex="0">${esc(steps.back)}</pre>
+    <pre class="mono sel-text uc-cmd" tabindex="0">${esc(shownLines(steps.back))}</pre>
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div>
     <p>${esc(steps.backNote)} ${esc(steps.locked)}</p>
-    <details class="uc-why"><summary>Why these flags</summary><ul>${steps.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details></details></div>`;
+    <details class="uc-why"${folderWhyOpen ? " open" : ""}><summary>Why these flags</summary><ul>${steps.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details></details></div>`;
 }
 
 /** The folder commands panel is off by default: it shows only when turned on for this browser (tm.folderCommands = "1"). */
@@ -1205,7 +1215,7 @@ function preview(c: TimelineEntry, sheet: boolean): string {
     ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div>${p.kind === "folder" ? "" : `<div><span class="k">your code</span> ${esc(gitLine(c, p.kind))}</div><div><span class="k">snapshot</span> ${esc(short(c.commit))} (made by Time Machine)</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div>`}<div><span class="k">trigger</span> ${esc(c.trigger)}</div></div>`
     : "";
   const putBack = filesChanged(c);
-  const head = `<p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : author].filter(Boolean).join(" · ")))}</p>
+  const head = `<p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" || c.trigger === "recover" ? "" : author].filter(Boolean).join(" · ")))}</p>
     <div class="lp-ttl"><h2 class="lp-ph" id="prev-h">${esc(title(c, author))}</h2><button class="btn link small" data-act="rename" data-id="${esc(c.id)}">Rename</button></div>
     ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
     <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : isSafety && c.verdict === null ? "" : checkRunning() === c.id || bgChecking === c.id ? '<span class="vb vb-lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(checkRunning() === c.id ? "Checking it in a copy now. The verdict lands here when it ends." : lead)}</p></div>${here}`;
@@ -4715,6 +4725,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       return;
     case "show-cmds":
       folderCmdsShown = !folderCmdsShown;
+      folderPanelOpen = true;
       return render();
     case "copy-folder": {
       // The text is built when Copy is pressed, from the same function the screen uses.
@@ -5462,6 +5473,12 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     if (!document.hidden && !st.busy && st.connection?.state !== "disconnected") void pollStatuses();
   }, 5000);
   window.setInterval(tickAges, 30_000);
+  // The folder panel's disclosures stay as you left them when the page redraws.
+  document.addEventListener("toggle", (e) => {
+    const el = e.target as HTMLDetailsElement;
+    if (el.classList?.contains("uc-panel")) folderPanelOpen = el.open;
+    else if (el.classList?.contains("uc-why")) folderWhyOpen = el.open;
+  }, true);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) tickAges();
     // You may have run the folder commands in a terminal: read the folder again.

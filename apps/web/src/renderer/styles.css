@@ -1380,7 +1380,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .uc-use summary { cursor: pointer; color: var(--ink); line-height: 1.5; }
 .uc-use details > * + * { margin-top: 8px; }
 .uc-use-line { flex: 1 1 100%; font-size: 14px; }
-.uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre; overflow-x: auto; max-width: 100%; font-size: 13px; }
+.uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: normal; word-break: normal; overflow-x: auto; max-width: 100%; font-size: 13px; }
 /* r5: at desktop width Keep it sits right next to Undo. */
 .undo-card .uc-ch > div { flex: 0 1 300px; }
 /* r5: the sidebar status may take two lines ("Broken · copy ready"), never cut. */
@@ -1393,6 +1393,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
    stay behind Show commands, and Copy works without opening them. */
 .uc-use, .uc-use details, .undo-card .uc-t { min-width: 0; max-width: 100%; }
 .undo-card { min-width: 0; overflow-wrap: anywhere; }
+.undo-card .uc-cmd { overflow-wrap: normal; word-break: normal; }
 .uc-show { display: none; }
 .uc-why { margin-top: 8px; }
 .uc-why summary { cursor: pointer; color: var(--ink); }
@@ -1404,3 +1405,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 }
 /* r6: on a phone the preview sheet's content scrolls clear of its action bar. */
 .lp-sheet .lp-sb { padding-bottom: 120px; scroll-padding-bottom: 120px; }
+/* r7: the history strip's marks are 24 px; the list keeps room for rows under a tall card. */
+.spk { flex: 0 0 24px; width: 24px; height: 24px; }
+.spk .vi { width: 14px; height: 14px; }
+.spark { height: 36px; gap: 6px; }
+.lp-two .lp-list { min-height: 168px; }
