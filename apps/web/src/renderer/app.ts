@@ -13,7 +13,7 @@ import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from
 import { dialAngle, dialIndex } from "./dial.js";
 import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
 import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
-import { brokeAt, defaultPick, listMove, rowVerdict, rulerMarks, statusLine } from "./history-list.js";
+import { brokeAt, defaultPick, foldRuns, listMove, rowVerdict, rulerMarks, statusLine, type ListItem } from "./history-list.js";
 import { resetProjectCaches } from "./project-caches.js";
 import { claudeChannel, type Channel } from "./channels.js";
 import { renderAskPanel } from "./ask-panel.js";
@@ -183,6 +183,9 @@ interface State {
   notes: Map<string, RunNote>;
   /** History's list shows every save point, or only the ones that work, are named or are pinned. */
   journalFilter: JournalFilter;
+  /** History's opened folds of quiet save points, by the fold's newest id, and the fold the list's keys are on (null: the selected row). */
+  folds: Set<string>;
+  foldAt: string | null;
   /** The name and note being typed in the open detail, and whether they are being saved. */
   noteDraft: NoteDraft | null;
   noteSaving: boolean;
@@ -857,11 +860,18 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
   const damaged = damagedReason(c);
   const v = rowVerdict(c.verdict, { checks: checksOn(project()), checking, damaged: !!damaged });
   const mark = v.icon === "verdict" ? vIcon(c.verdict) : v.icon === "glyph" ? '<i class="g" aria-hidden="true"></i>' : "";
-  const on = c.id === st.selected;
+  const on = !st.foldAt && c.id === st.selected;
   const tag = c.id === lw?.id ? '<span class="lp-tag lw">Last version that works</span>' : c.id === broke?.id ? '<span class="lp-tag br">Broke here</span>' : "";
   const pin = st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : "";
   return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(c.verdict)}"${damaged ? ` title="${esc(damaged)}"` : ""}>
     <span class="lp-t"><span class="lp-tt">${esc(title(c, authorOf(c)))}</span>${pin}</span><span class="lp-when">${esc(ptClock(c))}</span><span class="lp-m"><span class="lp-v v-${v.key}">${mark}<span>${esc(v.word)}</span></span>${tag}</span></div>`;
+}
+
+/** A fold of quiet save points in History's list: one option that says how many, opened by a press, Enter or →. */
+function foldRow(key: string, rows: readonly TimelineEntry[], checks: boolean, units: { many: string }): string {
+  const on = st.foldAt === key;
+  return `<div role="option" id="opt-fold-${esc(key)}" class="lp-row lp-fold${on ? " on" : ""}" aria-selected="${on}" data-act="unfold" data-fold="${esc(key)}" data-v="none">
+    <span class="lp-t"><span class="lp-tt">${esc(`${rows.length} more ${units.many}${checks ? " · not checked" : ""}`)}</span></span><span class="lp-when" aria-hidden="true">›</span></div>`;
 }
 
 /**
@@ -1009,15 +1019,23 @@ function history(): string {
   const rows = [...newestByTime(filtered(readable, st.notes, filter)), ...unreadable];
   const dayOf = (c: TimelineEntry): string => (unreadable.includes(c) ? "Damaged" : dayLabel(c.createdAt));
   const days = [...new Set(rows.map(dayOf))];
+  const units = unitWords(p.purpose);
+  // A long run of quiet save points (never checked, no name, no pin, not selected, not being checked) folds into one row,
+  // so the last version that works stays in sight. Works, Broken and every other verdict always show.
+  const running = checkRunning();
+  const quiet = (c: TimelineEntry): boolean => c.verdict === null && !damagedReason(c) && c.id !== st.selected && c.id !== running && !st.notes.get(c.id)?.title?.trim() && !st.notes.get(c.id)?.pinned;
+  const groups = days.map((d) => ({ d, items: foldRuns(rows.filter((c) => dayOf(c) === d), quiet, st.folds) }));
+  if (st.foldAt && !groups.some((g) => g.items.some((x) => "fold" in x && x.fold === st.foldAt))) st.foldAt = null;
+  const itemsHtml = (items: ListItem<TimelineEntry>[]): string => items.map((x) => ("fold" in x ? foldRow(x.fold, x.rows, checks, units) : listRow(x.row, behind, broke))).join("");
   // One day needs no groups: the list's header names it. More days group under their names.
   const options = days.length <= 1
-    ? rows.map((c) => listRow(c, behind, broke)).join("")
-    : days.map((d, i) => `<div role="group" aria-labelledby="lp-g${i}"><div class="lp-day" id="lp-g${i}">${esc(d)}</div>${rows.filter((c) => dayOf(c) === d).map((c) => listRow(c, behind, broke)).join("")}</div>`).join("");
+    ? itemsHtml(groups[0]?.items ?? [])
+    : groups.map((g, i) => `<div role="group" aria-labelledby="lp-g${i}"><div class="lp-day" id="lp-g${i}">${esc(g.d)}</div>${itemsHtml(g.items)}</div>`).join("");
   const sel = entry(st.selected);
-  const units = unitWords(p.purpose);
+  const active = st.foldAt ? `opt-fold-${st.foldAt}` : sel && rows.includes(sel) ? `opt-${sel.id}` : "";
   const listbox = rows.length
-    ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys"${sel && rows.includes(sel) ? ` aria-activedescendant="opt-${esc(sel.id)}"` : ""}>${options}</div>
-      <p class="sr-only" id="lp-keys">Newest first. Up and Down choose, Enter opens it.</p>`
+    ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys"${active ? ` aria-activedescendant="${esc(active)}"` : ""}>${options}</div>
+      <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}.</p>`
     : `<div class="lp-list lp-empty">${filter === "all" ? "" : noneShown(filter, p.purpose)}</div>`;
   const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${filterBar(filter, filterCounts(readable, st.notes, checks), p.purpose)}${rulerStrip(pts, behind)}</div>`;
   return `<div class="page proj lp"><div class="doc lp-doc">${status}${undoBar}
@@ -1221,16 +1239,16 @@ function detail(besideList: boolean): string {
   const gone = folderMissing(p);
   const damaged = damagedReason(c);
   const primary = damaged ? ""
-    : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${c.id}" ${busy}>Bring back a copy…</button>`
+    : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${esc(c.id)}" ${busy}>Bring back a copy…</button>`
     : (c.verdict === "PASS" || !checks) && !isNewest
-    ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>Bring back this version${st.screen === "history" && bringTarget(c)?.id === c.id ? `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>` : ""}</button>`
-    : checks ? `<button class="btn big dark${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>` : "";
+    ? `<button class="btn big dark" data-act="use" data-id="${esc(c.id)}" ${busy}>Bring back this version${st.screen === "history" && bringTarget(c)?.id === c.id ? `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>` : ""}</button>`
+    : checks ? `<button class="btn big dark${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>` : "";
   // A broken save point compares with the last version that works: that is what broke it. The newest compares with now too:
   // the folder may have changed since (writer#11). Nothing compares with a folder that is gone.
   const compare = damaged || gone ? ""
     : c.verdict === "FAIL" && lw && lw.id !== c.id
-    ? `<button class="btn link" data-act="compare" data-a="${lw.id}" data-b="${c.id}">${esc(`What changed since ${said(lw)}`)}</button>`
-    : `<button class="btn link" data-act="compare" data-a="${c.id}" data-b="now">Compare with now</button>`;
+    ? `<button class="btn link" data-act="compare" data-a="${esc(lw.id)}" data-b="${esc(c.id)}">${esc(`What changed since ${said(lw)}`)}</button>`
+    : `<button class="btn link" data-act="compare" data-a="${esc(c.id)}" data-b="now">Compare with now</button>`;
   const opened = st.openResult && st.openResult.id === c.id
     ? `<div class="note">A copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal-dir" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div><div class="mono muted sel-text" style="margin-top:6px">${esc(st.openResult.dir)}</div></div>`
     : "";
@@ -1250,7 +1268,7 @@ function detail(besideList: boolean): string {
       ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
       <div class="meta">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}${authorChip(author)}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span></div>
       ${damaged ? dmgNote : `<p class="sp-v">${esc(c.verdict === null && !checks ? "Kept on this computer, outside the folder. Compare it or bring it back as a copy." : verdictSentence(c))}</p>`}
-      ${damaged ? "" : `<div class="sp-acts">${primary}<div class="sp-links"><button class="btn link" data-act="try" data-id="${c.id}" ${busy}>Open a copy</button>${compare}</div></div>
+      ${damaged ? "" : `<div class="sp-acts">${primary}<div class="sp-links"><button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button>${compare}</div></div>
       <p class="sp-note">A copy is a separate folder with this version in it. Your project is not touched.</p>`}
       ${noteBlock(c.id, st.notes.get(c.id), st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: st.notes.get(c.id)?.title ?? "", note: st.notes.get(c.id)?.note ?? "" }, p.purpose, st.noteSaving)}
       ${damaged ? "" : checkWords(same ?? null, c.verdict)}
@@ -2286,9 +2304,23 @@ function pick(id: string | null, open: boolean): void {
   if (!id || !entry(id)) return;
   if (st.selected !== id) st.openResult = null;
   st.selected = id;
+  st.foldAt = null;
   if (open && !detailBeside()) st.drawer = true;
   render();
   root.querySelector(".lp-row.on")?.scrollIntoView({ block: "nearest" });
+}
+
+/** Puts the list's keys on a fold of quiet save points; the selected save point and its detail stay as they are. */
+function keyFold(key: string): void {
+  st.foldAt = key;
+  render();
+  root.querySelector(".lp-fold.on")?.scrollIntoView({ block: "nearest" });
+}
+
+/** Opens a fold: its save points show as rows, and the newest of them is selected. */
+function openFold(key: string): void {
+  st.folds.add(key);
+  pick(key, false);
 }
 
 function inspector(): string {
@@ -4329,6 +4361,10 @@ async function onClick(el: HTMLElement): Promise<void> {
       pick(d.id ?? null, true);
       if (detailBeside()) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
       return;
+    case "unfold":
+      if (d.fold) openFold(d.fold);
+      root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+      return;
     case "close-drawer":
       return closeDrawer();
     case "ask-toggle":
@@ -4778,22 +4814,37 @@ function onKey(e: KeyboardEvent): void {
   if (t instanceof HTMLButtonElement && (k === "enter" || k === " ")) return;
   // History's list is a listbox: focus stays on it and the arrows move the selection along the rows shown, newest first.
   // Away from any control the arrows still move it; Home, End and the Page keys only on the list, so the page can scroll.
+  // Shift with an arrow jumps to where the verdict changed, past save points never checked, as the Rewind's dial steps.
+  // A fold of quiet save points takes the keys like a row; Enter or → opens it.
   const onList = t instanceof HTMLElement && t.id === "list";
   const loose = !(t instanceof HTMLElement) || t === document.body || t.matches("main h1, .page");
   if (!onList && !loose) return;
-  const ids = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')].map((el) => el.dataset.id ?? "");
-  const at = ids.indexOf(st.selected ?? "");
+  const opts = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')];
+  const ids = opts.map((el) => el.dataset.id ?? `fold:${el.dataset.fold ?? ""}`);
+  const at = Math.max(0, ids.indexOf(st.foldAt ? `fold:${st.foldAt}` : (st.selected ?? "")));
   const key = k === "j" ? "ArrowDown" : k === "k" ? "ArrowUp" : e.key;
-  const move = onList || key === "ArrowDown" || key === "ArrowUp" ? listMove(ids.length, at < 0 ? 0 : at, key) : null;
+  const vertical = key === "ArrowDown" || key === "ArrowUp";
+  let move: number | null = null;
+  if (e.shiftKey && vertical && opts.length) {
+    // stepIndex counts oldest first; the list shows newest first.
+    const verdicts = opts.map((el) => el.dataset.v ?? "none").reverse();
+    const last = verdicts.length - 1;
+    move = last - stepIndex(verdicts, last - at, key === "ArrowDown" ? "prevChange" : "nextChange");
+  } else if (onList || vertical) move = listMove(ids.length, at, key);
   if (move !== null) {
     e.preventDefault();
-    pick(ids[move] ?? null, false);
+    const id = ids[move] ?? "";
+    if (id.startsWith("fold:")) keyFold(id.slice(5));
+    else pick(id, false);
+  } else if ((k === "enter" || k === "arrowright") && onList && st.foldAt) {
+    e.preventDefault();
+    openFold(st.foldAt);
   } else if (k === "enter" && onList && st.selected) {
     // Enter opens the selected save point: beside the list focus goes into its detail; a narrow window opens it as a sheet.
     e.preventDefault();
     if (!detailBeside()) pick(st.selected, true);
     root.querySelector<HTMLElement>(`.rcol.detail ${detailBeside() ? ".rc-body button" : '[data-act="close-drawer"]'}`)?.focus({ preventScroll: true });
-  } else if (k === " " && onList && st.selected) {
+  } else if (k === " " && onList && st.selected && !st.foldAt) {
     e.preventDefault();
     void startRewind(st.selected);
   } else if (k === "c" && st.selected) {
@@ -4883,7 +4934,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
     askOpen: false, lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
-    agents: null, overview: new Map(), sources: null, notes: new Map(), journalFilter: "all", noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
+    agents: null, overview: new Map(), sources: null, notes: new Map(), journalFilter: "all", folds: new Set(), foldAt: null, noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
     hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), changesFor: "", confirm: null, flash: null, undo: null, recoveries: new Map(),
     license: { status: boot.data.license, draft: "", working: false, error: null },
     account: { ...SIGNED_OUT },

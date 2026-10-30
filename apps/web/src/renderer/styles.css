@@ -400,6 +400,12 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .lp-tag.lw { color: var(--works); }
 .lp-tag.br { color: var(--broken); }
 .lp-day { position: sticky; top: 0; z-index: 2; padding: 10px 20px 6px; background: var(--surface); font: 600 13px/1.2 var(--font); color: var(--ink-3); border-bottom: 1px solid var(--hair); }
+/* A fold of quiet save points: one quieter row that says how many; the chevron says it opens. */
+.lp-row.lp-fold { grid-template-areas: "t w"; align-items: center; background: var(--sunken); }
+.lp-fold .lp-tt { font-weight: 500; color: var(--ink-2); }
+.lp-fold .lp-when { padding: 0; font: 600 18px/1 var(--font); color: var(--ink-3); }
+.lp-row.lp-fold:hover { background: var(--paper-2); }
+.lp-row.lp-fold.on { background: var(--paper-2); }
 .lp-empty { padding: 12px; }
 .lp-empty .jf-empty { margin-top: 0; }
 

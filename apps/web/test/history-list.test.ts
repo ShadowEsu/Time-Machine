@@ -1,7 +1,7 @@
 // History as a list: what is selected first, what the status line says, what each row and each mark of the mini-ruler
-// shows, and where the keys go.
+// shows, where the keys go, and which quiet save points fold.
 import { describe, expect, test } from "vitest";
-import { brokeAt, defaultPick, listMove, rowVerdict, RULER_MARKS, rulerMarks, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, defaultPick, foldRuns, listMove, rowVerdict, RULER_MARKS, rulerMarks, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -100,5 +100,33 @@ describe("keys in the list", () => {
   test("other keys and an empty list do nothing", () => {
     expect(listMove(7, 3, "Enter")).toBeNull();
     expect(listMove(0, 0, "ArrowDown")).toBeNull();
+  });
+});
+
+describe("folding a run of quiet save points", () => {
+  type Row = ListPoint & { named?: boolean; pinned?: boolean };
+  const quiet = (c: Row): boolean => c.verdict === null && !c.named && !c.pinned;
+  const run = (n: number, from = 1): Row[] => Array.from({ length: n }, (_, i) => ({ id: `q-${from + i}`, verdict: null }));
+  const shape = (rows: Row[]): string[] => foldRuns(rows, quiet, new Set()).map((x) => ("fold" in x ? `fold ${x.fold} x${x.rows.length}` : x.row.id));
+
+  test("three in a row stay as rows; four fold into one, keyed by the newest", () => {
+    expect(shape(run(3))).toEqual(["q-1", "q-2", "q-3"]);
+    expect(shape(run(4))).toEqual(["fold q-1 x4"]);
+  });
+  test("a named row breaks a run", () => {
+    expect(shape([...run(2), { id: "n", verdict: null, named: true }, ...run(2, 3)])).toEqual(["q-1", "q-2", "n", "q-3", "q-4"]);
+    expect(shape([...run(4), { id: "n", verdict: null, named: true }, ...run(3, 5)])).toEqual(["fold q-1 x4", "n", "q-5", "q-6", "q-7"]);
+  });
+  test("a pinned row breaks a run", () => {
+    expect(shape([...run(3), { id: "p", verdict: null, pinned: true }, ...run(3, 4)])).toEqual(["q-1", "q-2", "q-3", "p", "q-4", "q-5", "q-6"]);
+  });
+  test("a row with a verdict breaks a run and is never folded: Works, Broken (where it broke) or any other", () => {
+    for (const verdict of ["PASS", "FAIL", "ERROR"] as const) {
+      expect(shape([...run(2), { id: "v", verdict }, ...run(2, 3)])).toEqual(["q-1", "q-2", "v", "q-3", "q-4"]);
+    }
+    expect(shape([{ id: "lw", verdict: "PASS" }, ...run(5), { id: "br", verdict: "FAIL" }])).toEqual(["lw", "fold q-1 x5", "br"]);
+  });
+  test("an opened fold stays open as rows", () => {
+    expect(foldRuns(run(5), quiet, new Set(["q-1"])).every((x) => "row" in x)).toBe(true);
   });
 });

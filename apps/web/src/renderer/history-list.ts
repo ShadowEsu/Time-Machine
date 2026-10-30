@@ -83,3 +83,35 @@ export const RULER_MARKS = 60;
 export function rulerMarks(pts: readonly ListPoint[], selected: string | null, lw: string | null): { id: string; v: Verdict | null; key: string; glyph: boolean; on: boolean; lw: boolean }[] {
   return pts.slice(-RULER_MARKS).reverse().map((p) => ({ id: p.id, v: p.verdict, key: verdictKey(p.verdict), glyph: p.verdict === "PASS" || p.verdict === "FAIL", on: p.id === selected, lw: p.id === lw }));
 }
+
+/** The shortest run of quiet save points that folds into one row. */
+export const FOLD_MIN = 4;
+
+/** One item of History's list: a save point's row, or a fold of quiet ones keyed by its first (newest) id. */
+export type ListItem<T> = { row: T } | { fold: string; rows: T[] };
+
+/**
+ * Folds every run of `FOLD_MIN` or more save points next to each other that `quiet` says may fold (in the app:
+ * unnamed, unpinned, never checked, not selected) into one item, so a long session of automatic saves does not push the
+ * last version that works out of sight. A row that may not fold ends a run. A fold that was opened (`open` has its key)
+ * stays as rows.
+ */
+export function foldRuns<T extends { id: string }>(rows: readonly T[], quiet: (c: T) => boolean, open: ReadonlySet<string>): ListItem<T>[] {
+  const out: ListItem<T>[] = [];
+  let run: T[] = [];
+  const flush = (): void => {
+    const key = run[0]?.id;
+    if (key && run.length >= FOLD_MIN && !open.has(key)) out.push({ fold: key, rows: run });
+    else for (const c of run) out.push({ row: c });
+    run = [];
+  };
+  for (const c of rows) {
+    if (quiet(c)) run.push(c);
+    else {
+      flush();
+      out.push({ row: c });
+    }
+  }
+  flush();
+  return out;
+}

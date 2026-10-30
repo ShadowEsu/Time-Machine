@@ -14,6 +14,8 @@ function filled(projectId: string): ProjectCaches {
     deployChips: new Map([["cp-0002", "<span>Ready</span>"]]),
     notes: new Map([["cp-0002", { title: "Pricing", note: "", pinned: true, updated: "2026-10-25T07:00:00Z" }]]),
     journalFilter: "pinned",
+    folds: new Set(["cp-0002"]),
+    foldAt: "cp-0002",
     noteDraft: { id: "cp-0002", title: "x", note: "" },
     changesFor: "a:cp-0002",
   };
@@ -27,7 +29,8 @@ describe("switching projects", () => {
     expect(s.timeline).toBeNull();
     expect(s.selected).toBeNull();
     expect(s.drawer).toBe(false);
-    for (const m of [s.changes, s.storedChecks, s.notes, s.deployChips]) expect(m.size).toBe(0);
+    for (const m of [s.changes, s.storedChecks, s.notes, s.deployChips, s.folds]) expect(m.size).toBe(0);
+    expect(s.foldAt).toBeNull();
     expect(s.changesFor).toBe("");
     expect(s.journalFilter).toBe("all");
     expect(s.noteDraft).toBeNull();

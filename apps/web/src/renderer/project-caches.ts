@@ -15,6 +15,9 @@ export interface ProjectCaches {
   deployChips: Map<string, string>;
   notes: Map<string, RunNote>;
   journalFilter: JournalFilter;
+  /** History's opened folds of quiet save points, by the fold's newest id, and the fold the list's keys are on (null: the selected row). */
+  folds: Set<string>;
+  foldAt: string | null;
   noteDraft: NoteDraft | null;
   /** The project and newest save point whose changes were last read, so a read is not repeated. */
   changesFor: string;
@@ -32,6 +35,8 @@ export function resetProjectCaches(s: ProjectCaches, id: string | null): boolean
   s.deployChips = new Map();
   s.notes = new Map();
   s.journalFilter = "all";
+  s.folds = new Set();
+  s.foldAt = null;
   s.noteDraft = null;
   s.changesFor = "";
   return true;
