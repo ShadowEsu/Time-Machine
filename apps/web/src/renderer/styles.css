@@ -334,13 +334,18 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
 .gone-done { font-size: 14px; color: var(--ink-2); }
-/* The demo's three steps: a quiet card under the answer, in the page's own neutrals. The current step is in ink. */
-.coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: var(--sunken); border: 1px solid var(--line); display: grid; gap: 10px; }
-.coach-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-/* Hide keeps its one word on a phone; the title wraps instead (it broke as "Hid" / "e" at 390). */
-.coach-h .btn { min-height: 40px; flex: none; white-space: nowrap; }
-/* The bead to find in step 1 wears a still ring in the Works colour. Nothing moves. */
-.rt-tk.aim::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--works); pointer-events: none; }
+/* The demo's first run, until Bring back is used: one quiet line under the answer, never a box. */
+.coach-line { margin-top: 14px; font-size: 14.5px; line-height: 1.5; color: var(--ink-3); }
+.coach-line .btn.link { min-height: 32px; margin-left: 4px; font-size: 14px; }
+/* The ruler, compact under the answer: about 48 px of beads and the playhead, no legend, no labels. */
+.rwell.compact { margin-top: 24px; padding: 0 14px; border-radius: 14px; }
+.rwell.compact .hruler { --iy: 24px; height: 48px; margin: 0; }
+.rwell.compact .hruler.d1 { --b: 22px; }
+.rwell.compact .hruler .ph { top: calc(var(--iy) - 17px); height: 34px; }
+.rwell.compact .hruler .ph.now { opacity: 1; }
+.rwell.compact .hruler .ph::before { display: none; }
+.rwell.compact .rt-tk.lw { box-shadow: 0 0 0 4px var(--sky), 0 0 0 5.5px var(--sky-line); }
+.rwell.compact .rt-tk.lw.on { box-shadow: 0 0 0 4px var(--sky), 0 0 0 6px var(--ink); }
 /* An empty list with direction: one line that says what to do and the button that does it, no illustration. */
 .empty-dir { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 18px 20px; border-radius: var(--r-lg); border: 1px dashed var(--line-2); background: var(--sunken); }
 .empty-dir p { flex: 1 1 260px; max-width: 60ch; font-size: 15px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
@@ -352,12 +357,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .sk-head { position: relative; justify-self: stretch; }
 .sk-head::before { content: ""; position: absolute; left: 0; top: 14%; bottom: 14%; width: min(520px, 82%); border-radius: 10px; }
 .sk-btn { width: 300px; height: 52px; border-radius: 999px; }
-.sk-honest { justify-self: stretch; margin-top: 20px; }
-.sk-dt, .sk-dd { height: 10px; margin: 6px 0; }
-.sk-dt { width: 150px; }
-.sk-dd { width: 92%; }
-.sk-dd + .sk-dd { width: 64%; }
-.sk-ruler { height: 150px; margin: 44px 0 0; border-radius: 18px; background: var(--sunken); border: 1px solid var(--hair); }
+.sk-ruler { height: 48px; margin: 24px 0 0; border-radius: 14px; background: var(--sunken); border: 1px solid var(--hair); }
 .sk-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 18px 20px; }
 .sk-t { width: 44px; height: 11px; margin-top: 4px; }
 .sk-g { display: none; }
@@ -534,14 +534,20 @@ button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .broke-rule { padding: 4px 20px 10px 128px; }
 .broke-rule > span { display: inline-block; padding: 1px 0 1px 10px; border-left: 2px solid var(--broken); color: var(--broken); font: 500 13.5px/1.4 var(--font); }
 
-/* Good to know: what does not come back, below the record, said by the buddy. */
-.know { margin-top: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 18px 20px; border-radius: 18px; background: var(--sunken); border: 1px dashed var(--line-2); font-size: 14.5px; color: var(--ink-2); }
-.know h2 { font: 650 16px/1.2 var(--font); color: var(--ink); margin-bottom: 6px; }
-.know .honest { display: grid; gap: 4px; margin: 0; }
-.know .honest dt { font-weight: 600; color: var(--ink); font-size: 14px; }
-.know .honest dt:not(:first-child) { margin-top: 8px; }
-.know .honest dd { margin: 0; text-wrap: pretty; }
-
+/* The pane's one action at its top, named for its outcome, with Not now beside it. */
+.sp-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sp-top > .btn.big { flex: 1 1 auto; }
+/* What the check said, while its record reads: the block's shape, never a false "check it again". */
+.cw-sk { display: grid; gap: 8px; }
+.cw-sk .sk { height: 12px; width: 72%; border-radius: 6px; }
+.cw-sk .sk + .sk { width: 46%; }
+/* What does not come back: on Review before going back and on Done after, where the decision is. */
+.nb { display: grid; gap: 8px; padding: 14px 16px 16px; border-radius: 14px; background: var(--sunken); border: 1px solid var(--line); }
+.nb h3 { font: 650 15px/1.2 var(--font); color: var(--ink); }
+.nb ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+/* Opening a save point never moves History: while no right column is open, the page keeps that column's room, so the
+   detail lands in space that was already there and nothing under it shifts. */
+@media (min-width: 1100px) { .app:not(.has-detail):not(.has-ask) .page.proj { padding-right: 380px; } }
 /* The save point detail: the right column, or a full sheet when narrow. Its message as the heading in the display face (data,
    never the voice), the time under it, then what the check said, one ink action and the record of what is kept. */
 .rcol.detail .rc-body { gap: 18px; padding-bottom: 40px; }
@@ -560,7 +566,6 @@ button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .btn.ask-t svg { width: 18px; height: 18px; flex: none; }
 .btn.ask-t.on, .btn.ask-t:hover:not([disabled]) { color: var(--ink); }
 .sp-acts { display: grid; gap: 10px; justify-items: start; }
-.sp-acts > .btn.big { width: 100%; }
 .sp-links { display: flex; flex-wrap: wrap; gap: 0 22px; }
 .sp-note { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
 .sp-cols { display: grid; gap: 16px; padding-top: 16px; border-top: 1px solid var(--hair); }
@@ -1286,7 +1291,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .entry h3 { font-size: 15.5px; }
   .meta { gap: 6px 8px; font-size: 13.5px; }
   .broke-rule { padding: 4px 16px 10px; }
-  .know { padding: 16px; gap: 12px; }
   .empty-dir { padding: 16px; }
   .cmdrow { grid-template-columns: minmax(0, 1fr); }
   .cmdrow .btn { justify-self: start; }

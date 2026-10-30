@@ -36,7 +36,7 @@ import { hasCheck, PURPOSES, purposeIcon, unitCount } from "./purpose.js";
 import { ADD_FULL, ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathLede, pathProblem, pathSetupNote, purposeCards, savedOnlyToast, skipNote, type AddStep } from "./add-flow.js";
 import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage, type AccountView } from "./plan.js";
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
-import { changedLine, filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
+import { changedLine, filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
 
 export interface StartOptions {
@@ -196,8 +196,8 @@ interface State {
   thin: { projectId: string; working: boolean; preview: Results["thinPreview"] | null; review: boolean; removed: number | null } | null;
   hookSheet: { projectId: string; preview: HookPreview; done: string | null; error: string | null; working: boolean } | null;
   demoBusy: boolean;
-  /** The demo's three steps on History: drag to the save point that works, go back to it, then undo or keep it. */
-  coach: { projectId: string; target: string; went: boolean } | null;
+  /** The demo's first run on History: one line on what Bring back does, until it is used (went) or hidden. */
+  coach: { projectId: string; went: boolean } | null;
   openResult: OpenResult | null;
   /** The last check result per save point in this session, for evidence lines (time taken, network). */
   verifyResults: Map<string, VerifyResult>;
@@ -938,54 +938,30 @@ function rulerWindow(all: TimelineEntry[]): TimelineEntry[] {
 }
 
 /**
- * The ruler on the project page, in its well: past on the left, now on the right, agent sessions above, each
- * save point a bead in its verdict's shape. It is one control. Press anywhere along it and drag, or focus it and
- * use the arrow keys: the playhead moves to each save point and a flag above it reads the verdict live, with the
- * save points either side. The last version that works wears a sky halo and its own flag.
+ * The ruler on the project page, compact under the answer (about 48 px): past on the left, now on the right, each save point
+ * a bead in its verdict's shape. The list's badges name the shapes, so it has no legend and no time labels to collide. It is
+ * one control: press anywhere along it and drag, or focus it and use the arrow keys; a flag reads the save point under the
+ * playhead while you do. The last version that works wears its halo.
  */
 function homeRuler(all: TimelineEntry[]): string {
   const pts = rulerWindow(all);
-  const start = pts[0] ? all.indexOf(pts[0]) : 0;
   const n = pts.length;
   const sel = pts.findIndex((c) => c.id === st.selected);
   const cur = sel < 0 ? n - 1 : sel;
   const c = pts[cur];
   const lw = lastWorking();
   const wayBack = lw && pts.at(-1)?.verdict !== "PASS" ? lw : null;
-  const clips = sessions(pts).map((s) => `<span class="clip" style="left:${homeX(s.from, n) - 1}%;width:${homeX(s.to, n) - homeX(s.from, n) + 2}%"><span>${esc(s.name)}</span></span>`).join("");
   const running = checkRunning();
   const newestId = points().at(-1)?.id;
-  const ticks = pts
-    .map((p, i) => `<span class="rt-tk b-${verdictKey(p.verdict)}${i > cur ? " after" : ""}${i === cur ? " on" : ""}${p === wayBack ? " lw" : ""}${coachStep() === 1 && p.id === st.coach?.target ? " aim" : ""}${p.id === running || (running === "new" && p.id === newestId) ? " checking" : ""}${p.id === newestId ? " nowtk" : ""}" data-vid="${esc(p.id)}" data-v="${verdictKey(p.verdict)}" data-carry="tk:${esc(p.id)}" style="--x:${homeX(i, n)}" title="${esc(`${ptWhen(p)} · ${title(p)} · ${verdictWord(p.verdict)}`)}">${vIcon(p.verdict)}</span>`)
-    .join("");
-  // Labels for Now, the last working, the selected and the first save point, in that order of importance.
-  // fitRulerLabels measures them after the draw: a less important one hides, the last working one moves.
-  const lwi = lw ? pts.indexOf(lw) : -1;
-  const marks = [...new Set([n - 1, lwi, cur, 0])].filter((i) => i >= 0);
-  const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
-  const labels = marks.map((i) => {
-    const p = pts[i];
-    const t = esc(p ? ptClock(p) : "");
-    const now = i === n - 1 && p?.id === points().at(-1)?.id;
-    return `<span class="rlab${i === cur ? " on" : ""}${now ? " now" : ""}" data-i="${i}"${i === lwi ? " data-lw" : ""} style="left:${homeX(i, n)}%;transform:translateX(${shift(i)}%)">${now ? `Now<span class="rl-t"> ${t}</span>` : t}</span>`;
-  }).join("");
-  const wbi = wayBack ? pts.indexOf(wayBack) : -1;
-  // Placed by transform from --x, like the playhead, so when the last version that works changes the flag glides to it.
-  const lwFlag = wbi >= 0 ? `<span class="lwflag" data-carry="lwf" style="--x:${homeX(wbi, n)};--s:${Math.max(-50, Math.min(-12, shift(wbi)))}%">Last version that works</span>` : "";
-  const flag = `<div class="rflag" data-carry="flag" aria-hidden="true" style="--x:${homeX(cur, n)}">${flagFrame(pts[cur - 1], false)}${flagFrame(c, true)}${flagFrame(pts[cur + 1], false)}</div>`;
-  const today = pts.every((p) => dayLabel(p.createdAt) === "Today");
-  const u = unitWords(project()?.purpose ?? "code");
-  const many = u.many.charAt(0).toUpperCase() + u.many.slice(1);
-  const head = all.length <= n ? (today ? `Today’s ${u.many}` : many) : start + n === all.length ? `The last ${n} ${u.many}` : `${many} ${start + 1} to ${start + n} of ${all.length}`;
-  const density = n <= 14 ? "d1" : n <= 28 ? "d2" : "d3";
-  // Every shape the ruler draws is named; a project with no check has one, Saved.
   const checks = checksOn(project());
-  const legend = legendItems(checks, pts.map((p) => p.verdict)).map((x) => `<span><span class="lg b-${verdictKey(x.v)}">${vIcon(x.v)}</span>${esc(x.word)}</span>`).join("");
-  return `<div class="rwell">
-    <div class="rw-h"><b>${esc(head)}</b><span class="rw-hint">Drag along it, or use ← →</span><span class="legend" aria-hidden="true">${legend}</span></div>
-    <div class="hruler ${density}${historyScrub ? " scrubbing" : ""}${rulerByPointer ? " by-pointer" : ""}" role="slider" tabindex="0" aria-label="Save points, oldest on the left. Use the arrow keys, or drag along it." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${ptWhen(c)}, ${title(c)}, ${c.verdict === null && !checks ? "Saved" : verdictWord(c.verdict)}` : "")}">
-    <div class="lane">${clips}</div><div class="base"></div>${ticks}
-    <span class="ph${cur === n - 1 ? " now" : ""}" data-carry="hph" style="--x:${homeX(cur, n)}"></span>${labels}${lwFlag}${flag}</div></div>`;
+  const ticks = pts
+    .map((p, i) => `<span class="rt-tk b-${verdictKey(p.verdict)}${i > cur ? " after" : ""}${i === cur ? " on" : ""}${p === wayBack ? " lw" : ""}${p.id === running || (running === "new" && p.id === newestId) ? " checking" : ""}${p.id === newestId ? " nowtk" : ""}" data-vid="${esc(p.id)}" data-v="${verdictKey(p.verdict)}" data-carry="tk:${esc(p.id)}" style="--x:${homeX(i, n)}" title="${esc(`${nameLine(named(p))} · ${p.verdict === null && !checks ? "Saved" : verdictWord(p.verdict)}`)}">${vIcon(p.verdict)}</span>`)
+    .join("");
+  const flag = `<div class="rflag" data-carry="flag" aria-hidden="true" style="--x:${homeX(cur, n)}">${flagFrame(pts[cur - 1], false)}${flagFrame(c, true)}${flagFrame(pts[cur + 1], false)}</div>`;
+  const density = n <= 14 ? "d1" : n <= 28 ? "d2" : "d3";
+  return `<div class="rwell compact">
+    <div class="hruler ${density}${historyScrub ? " scrubbing" : ""}${rulerByPointer ? " by-pointer" : ""}" role="slider" tabindex="0" aria-label="Save points, oldest on the left. Use the arrow keys, or drag along it." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${nameLine(named(c))}, ${c.verdict === null && !checks ? "Saved" : verdictWord(c.verdict)}` : "")}">
+    <div class="base"></div>${ticks}<span class="ph${cur === n - 1 ? " now" : ""}" data-carry="hph" style="--x:${homeX(cur, n)}"></span>${flag}</div></div>`;
 }
 
 /**
@@ -1026,8 +1002,7 @@ function history(): string {
     // On a phone the placeholder page is taller than the window and holds no control, so the scroller itself takes focus.
     return `<div class="page proj" tabindex="0" role="region" aria-label="${esc(`Reading ${p.name}`)}"><div class="doc" role="status">
       <section class="hero"><div class="eyebrow hero-e"><span>${esc(p.name)}</span></div><h1 class="hero-h sk-head"><span class="sr-only">Reading ${esc(p.name)}</span><span aria-hidden="true">&nbsp;</span></h1>
-        <p class="hero-p">Loading saved versions from your local history.</p><div class="hero-acts" aria-hidden="true"><i class="sk sk-btn"></i></div>
-        <div class="honest sk-honest" aria-hidden="true"><i class="sk sk-dt"></i><i class="sk sk-dd"></i><i class="sk sk-dd"></i></div></section>
+        <p class="hero-p">Loading saved versions from your local history.</p><div class="hero-acts" aria-hidden="true"><i class="sk sk-btn"></i></div></section>
       <div class="sk-ruler" aria-hidden="true"></div><div aria-hidden="true">${row.repeat(3)}</div>
     </div></div>`;
   }
@@ -1050,11 +1025,6 @@ function history(): string {
   const lw = lastWorking();
   const working = st.agents?.some((a) => a.projectId === p.id && a.working);
   const command = checked?.command ?? st.agents?.find((a) => a.projectId === p.id)?.check ?? null;
-  const facts = (rows: [string, string[]][]): string =>
-    `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${keepTimes(v.map(esc).join(" · "))}</dd>`).join("")}</dl>`;
-  const honest =
-    s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${said(lw)}, unless you redo them. They stay saved in History.`]]])
-      : newest ? facts([["Saved", savedLines(newest)], ["Not saved", notSavedLines(newest)]]) : "";
   // A folder that is gone shows its history read only: the notice and its two ways out take the place of the main action.
   const goneCard = gone
     ? `<div class="note bad gone-card" role="status"><p>${esc(`Can’t find ${p.name} at ${p.path}. If it moved, choose it; if it is gone, bring a version back as a copy somewhere else.`)}</p>
@@ -1116,36 +1086,20 @@ function history(): string {
   // Each day's header names it ("Today", "Monday", "14 Oct"), then its full date and how many it holds; it sticks to the top while its rows scroll.
   const journal = days.map((d) => `<div class="day"><h2>${esc(d.day)}</h2><span>${esc(d.date ? `${d.date} · ` : "")}${esc(unitCount(p.purpose, perDay.get(d.day) ?? 0))}</span></div><div class="list">${d.rows.join("")}</div>`).join("");
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
-  return `<div class="page proj"><div class="doc">${header}${undoBar}${coachView()}
+  return `<div class="page proj"><div class="doc">${header}${undoBar}${coachLine()}
     ${homeRuler(pts)}
     ${setupView(p, pts)}
     <div class="jf-row">${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>
     <section class="journal" aria-label="History" id="list">${journal || (pinnedOnly ? noPinned(p.purpose) : "")}</section>
-    ${honest ? `<section class="know" aria-labelledby="know-h">${buddy()}<div><h2 id="know-h">Good to know</h2>${honest}</div></section>` : ""}
     <div class="mount" data-mount="unlinked:${esc(p.id)}"></div>
   </div></div>`;
 }
 
-/** The demo's next step on this project, 1 to 3, or 0 when there is none. */
-function coachStep(): number {
+/** The demo's first run, until its Bring back is used: one line under the answer on what pressing it does. Never a box. */
+function coachLine(): string {
   const c = st.coach;
-  if (!c || c.projectId !== st.projectId) return 0;
-  if (c.went) return 3;
-  return st.selected === c.target || st.rewind?.target === c.target ? 2 : 1;
-}
-
-/** The demo's three steps in plain words. The first names the save point to find by its message. */
-function coachSteps(): string[] {
-  const t = st.coach ? entry(st.coach.target) : null;
-  return [t ? `Drag the ruler to ${said(t)}, the last green dot` : "Drag the ruler to the last green dot", "Go back to it", "Undo it, or keep it"];
-}
-
-function coachView(): string {
-  const step = coachStep();
-  if (!step) return "";
-  return `<section class="coach" aria-label="Demo">
-    <div class="coach-h"><b>Bring back the version that works</b><button class="btn ghost" data-act="coach-hide">Hide</button></div>
-    ${steps(step, coachSteps())}</section>`;
+  if (!c || c.projectId !== st.projectId || c.went || !lastWorking()) return "";
+  return '<p class="coach-line">First time here? Press Bring back to try it. Undo puts everything back. <button class="btn link" data-act="coach-hide">Hide</button></p>';
 }
 
 /** A save point named in a sentence by its id: "“Added dark mode” (8:16 PM)", or "the save point at 8:16 PM #3". Git details add the id. */
@@ -1238,6 +1192,9 @@ async function loadLogTail(projectId: string, vr: VerdictRecord): Promise<void> 
 /** A save point and the verdict the timeline shows for it: a verdict that changes (a hook's check) is read again. */
 const storedKey = (c: TimelineEntry): string => `${c.id} ${c.verdict}`;
 
+/** Stored check records being read now, by storedKey. While one reads, the detail shows the block's shape, never "check it again". */
+const storedReading = new Set<string>();
+const CHECK_WORDS_LOADING = '<div class="cw cw-sk" role="status" aria-label="Reading what the check said"><b>What the check said</b><i class="sk"></i><i class="sk"></i></div>';
 /**
  * Reads a save point's newest sealed check record once per verdict, for a verdict this session did not check, then
  * redraws. Called directly on the bridge, so it is never recorded into the Inspector's records. Used only when it is this
@@ -1246,9 +1203,11 @@ const storedKey = (c: TimelineEntry): string => `${c.id} ${c.verdict}`;
 async function loadStoredCheck(projectId: string, c: TimelineEntry): Promise<void> {
   const key = storedKey(c);
   st.storedChecks.set(key, null);
+  storedReading.add(key);
   const record = acceptRecord(await bridge.call({ method: "checkRecord", projectId, id: c.id }), c);
-  if (!record || st.projectId !== projectId) return;
-  st.storedChecks.set(key, record);
+  storedReading.delete(key);
+  if (st.projectId !== projectId) return;
+  if (record) st.storedChecks.set(key, record);
   render();
 }
 
@@ -1326,6 +1285,14 @@ async function putBack(id: string, paths: string[]): Promise<void> {
   });
 }
 
+/** A save point the detail's main button brings back (⌘⇧R): one that passed its check, or any in a folder with no check; never
+ *  the newest, a damaged one, or one of a folder that is gone. */
+function canBringBack(c: TimelineEntry): boolean {
+  const p = project();
+  const pts = points();
+  return !!p && !folderMissing(p) && !damagedReason(c) && (c.verdict === "PASS" || !checksOn(p, pts)) && pts.at(-1)?.id !== c.id;
+}
+
 /** The entry detail: the right column when the window is wide, a full sheet when it is narrow. Esc closes it. */
 function detail(): string {
   const c = st.drawer ? entry(st.selected) : null;
@@ -1337,13 +1304,13 @@ function detail(): string {
   const words = message(c);
   const n = named(c);
   const pts = points();
-  const isNewest = pts.at(-1)?.id === c.id;
   const vr = st.verifyResults.get(c.id);
   const same = (vr && vr.verdict === c.verdict ? vr : null) ?? st.storedChecks.get(storedKey(c)) ?? null;
   if (!same && c.verdict !== null && !st.storedChecks.has(storedKey(c))) void loadStoredCheck(p.id, c);
   const lw = lastWorking();
-  // One ink button: bring back a version that works, otherwise check it. A folder without a check brings back any version as a copy.
-  // A folder that is gone brings a version back as a copy somewhere else; a damaged save point offers nothing to run.
+  // One ink button at the top, named for its outcome: bring back a version that works (⌘⇧R), otherwise check it. A folder
+  // without a check brings back any version as a copy; a folder that is gone brings one back somewhere else; a damaged save
+  // point offers nothing to run. Not now closes the pane, beside it.
   const checks = checksOn(p, pts);
   const gone = folderMissing(p);
   const damaged = damagedReason(c);
@@ -1352,8 +1319,8 @@ function detail(): string {
   const wayOut = c.verdict === "FAIL" && lw && lw.id !== c.id && !gone && !damaged ? lw : null;
   const primary = damaged ? ""
     : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${c.id}" ${busy}>Bring back a copy…</button>`
-    : (c.verdict === "PASS" || !checks) && !isNewest
-    ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>Bring back this version</button>`
+    : canBringBack(c)
+    ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}><span>Bring back this version</span><kbd>${esc(keys("Mod+Shift+R"))}</kbd></button>`
     : wayOut ? bringBackButton(wayOut, "btn big dark", busy)
     : checks ? `<button class="btn big dark${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>` : "";
   const recheck = wayOut && checks ? `<button class="btn link" data-act="verify-one" data-id="${c.id}" ${busy}>Check it again</button>` : "";
@@ -1374,18 +1341,18 @@ function detail(): string {
   const dmgNote = damaged ? `<div class="note bad"><p>${esc(`This save point is damaged: ${damaged}`)}</p><p>Time Machine won’t check it or bring it back.</p></div>` : "";
   const tag = window.innerWidth < 1100 ? "div" : "aside";
   return `<${tag} class="rcol detail ${once("detail")}" ${tag === "div" ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(nameLine(n))}">
-    <header class="rc-top"><span class="eyebrow">${esc(c.trigger === "demo" ? dayLabel(c.createdAt) : `${dayLabel(c.createdAt)} · ${author}`)}</span>
-      <button class="btn quiet" data-act="close-drawer">Close<kbd>Esc</kbd></button></header>
+    <header class="rc-top"><span class="eyebrow">${esc(c.trigger === "demo" ? dayLabel(c.createdAt) : `${dayLabel(c.createdAt)} · ${author}`)}</span></header>
     <div class="rc-body">
       <h2 class="sp-h">${esc(words || n.name)}</h2>
       <p class="sp-when">${keepTimes(esc([n.time, words ? "" : title(c, author)].filter(Boolean).join(" · ")))}</p>
       ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
       <div class="meta">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}${authorChip(author)}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span></div>
       ${damaged ? dmgNote : `<p class="sp-v">${esc(c.verdict === null && !checks ? "Kept on this computer, outside the folder. Compare it or bring it back as a copy." : verdictSentence(c))}</p>`}
+      <div class="sp-top">${primary}<button class="btn quiet" data-act="close-drawer">Not now<kbd>Esc</kbd></button></div>
       ${noteBlock(c.id, st.notes.get(c.id), st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: st.notes.get(c.id)?.title ?? "", note: st.notes.get(c.id)?.note ?? "" }, p.purpose, st.noteSaving)}
-      ${damaged ? "" : checkWords(same ?? null, c.verdict)}
+      ${damaged ? "" : storedReading.has(storedKey(c)) && !same ? CHECK_WORDS_LOADING : checkWords(same ?? null, c.verdict)}
       ${c.agent ? provenance(c) : ""}
-      ${damaged ? "" : `<div class="sp-acts">${primary}<div class="sp-links">${recheck}<button class="btn link" data-act="try" data-id="${c.id}" ${busy}>Open a copy</button>${compare}</div></div>
+      ${damaged ? "" : `<div class="sp-acts"><div class="sp-links">${recheck}<button class="btn link" data-act="try" data-id="${c.id}" ${busy}>Open a copy</button>${compare}</div></div>
       <p class="sp-note">A copy is a separate folder with this version in it. Your project is not touched.</p>`}
       ${opened}
       ${filesChanged(c)}
@@ -1657,8 +1624,9 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
         ${res.copyOnly ? "" : loc("New branch, local only", res.branch, `<button class="btn quiet" data-act="copy" data-text="${esc(res.branch)}" aria-label="Copy the branch name">Copy</button>`)}
         ${loc("Open this folder", res.copyDir, `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">${revealLabel()}</button>`)}
       </div>
+      ${notBack(res.notRestored.map((line) => plainNotSaved(line, project()?.purpose === "code")), entry(res.id))}
       <section class="report" aria-labelledby="rw-report-h"><h3 id="rw-report-h">What came back</h3>
-        ${cols("Brought back", "Not brought back", res.restored.map((line) => plainRestored(line, entry(res.id)?.dirty ?? false)), res.notRestored.map((line) => plainNotSaved(line, project()?.purpose === "code")))}
+        <div class="kv"><span class="h">Brought back</span>${li(res.restored.map((line) => plainRestored(line, entry(res.id)?.dirty ?? false)), "Nothing listed")}</div>
         <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
         <p class="endline">${res.copyOnly ? "Your current version was saved first. Nothing was deleted." : "Your current version was saved first. Nothing was pushed, merged, deployed or deleted."}</p>
         <div class="row-btns"><button class="btn link" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy the report as text</button></div>
@@ -1727,12 +1695,22 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
       ${ev ? `<div class="rw-proof">${ev}</div>` : ""}
       ${r.find?.found === c.id ? `<p class="rw-found">We checked ${esc(plural(r.find.tried.length, "save point"))}, newest first, each in a copy. This is the newest one that passed.</p>` : ""}
     ${error}${warn}${opened}
+    ${notBack(notSavedLines(c), c)}
     ${rwFiles(c, prev)}
     ${goBackSteps({ folder: project()?.kind === "folder", id: c.id, gitDetails: st.settings.showGitDetails })}
-    ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
+    <div class="kv"><span class="h">Comes back</span>${li(comesBackLines(c), "Nothing listed")}</div>`,
     key,
     alts,
   };
+}
+
+/**
+ * What does not come back, said where it is needed: on Review before going back, and on Done after. The values of secrets,
+ * databases and deployed versions, from the engine's coverage report, then the changes made after this save point.
+ */
+function notBack(lines: string[], c: TimelineEntry | null): string {
+  const all = [...lines, ...(c ? [`Changes made after ${said(c)}, unless you redo them. They stay saved in History.`] : [])];
+  return `<section class="nb" aria-labelledby="nb-h"><h3 id="nb-h">What does not come back</h3><ul>${all.map((x) => `<li>${keepTimes(esc(x))}</li>`).join("")}</ul></section>`;
 }
 
 function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
@@ -3157,12 +3135,10 @@ function render(): void {
   const livePre = root.querySelector<HTMLElement>(".ck-live pre");
   if (livePre) livePre.scrollTop = livePre.scrollHeight;
   tickResendClock();
-  const coach = st.screen === "history" ? coachStep() : 0;
   const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${checkReason(st.check.result.reason)}`
       : st.check ? "Checking your project in a copy…"
-        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ")
-          : coach ? `Step ${coach} of 3: ${coachSteps()[coach - 1]}.` : "");
+        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : "");
   if (announcer.textContent !== announcement) announcer.textContent = announcement;
   placeLeaving(leaving);
   // Kept for this tab on every draw, so a reload or Reconnect comes back here (route.ts).
@@ -3825,11 +3801,9 @@ async function runDemo(): Promise<void> {
     st.demoBusy = false;
     await refreshStatuses();
     await selectProject(r.project.id);
-    // Land on History at Now, broken, with the three steps: drag back to the version find-good found,
-    // go back to it, then undo or keep it.
-    const found = r.result.findGood.found;
-    if (!found) return toast("Demo ready, but no working version was found.");
-    st.coach = { projectId: r.project.id, target: found, went: false };
+    // Land on History at Now, broken, with the one-line hint until Bring back is used. Find-good found the version that works.
+    if (!r.result.findGood.found) return toast("Demo ready, but no working version was found.");
+    st.coach = { projectId: r.project.id, went: false };
     render();
     root.querySelector<HTMLElement>(".hruler")?.focus({ preventScroll: true });
     // Recovery saves the broken state before it creates a branch. That new save point has no
@@ -4845,7 +4819,11 @@ function shortcut(action: ShortcutAction): void {
       if (inProject) void checkNow();
       return;
     case "rewind":
-      if (inProject && points().length) void startRewind();
+      // With a save point open that its pane would bring back, ⌘⇧R brings back that one; else the last version that works.
+      if (inProject && points().length) {
+        const open = st.drawer ? entry(st.selected) : null;
+        void startRewind(open && canBringBack(open) ? open.id : undefined);
+      }
       return;
     case "compare":
       if (inProject && points().length) void openCompare();
