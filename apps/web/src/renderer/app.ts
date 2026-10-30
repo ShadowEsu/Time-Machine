@@ -1027,18 +1027,22 @@ let bgChecking: string | null = null;
  * folder's own changes first, so a switch never refuses or overwrites them).
  */
 function useInFolder(res: RecoverResult, p: ProjectEntry): string {
-  const steps = res.copyOnly || !res.branch ? null : folderSteps(p.path, res.branch, res.id, res.savedBefore ? entry(res.savedBefore)?.branch ?? null : null);
-  const lines = steps?.commands ?? [];
-  if (!lines.length) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
-  const cmds = lines.join("\n");
+  const before = res.savedBefore ? entry(res.savedBefore) : null;
+  const sha = entry(res.id)?.commit;
+  const steps = res.copyOnly || !res.branch || !sha || !before?.head ? null
+    : folderSteps(homePath(p.path), res.branch, sha, res.id, { branch: before.branch, sha: before.head });
+  if (!steps) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
+  const n = steps.commands.split("\n").length;
   // The list opens by itself once Check it works there has passed; before that it is one line that expands.
   const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
-  return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${lines.length} commands, your broken version stays saved</summary>
-    <pre class="mono sel-text uc-cmd">${esc(cmds)}</pre>
-    <p>${esc(steps?.kept ?? "")}</p>
-    <p class="mono sel-text uc-back">${esc(steps?.back ?? "")}</p>
-    <p>Run them in a terminal: they put your folder’s changes in the stash, then switch it to a new branch made from the working version. Or <button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">open the copy</button>.</p></details>
-    <button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy commands</button></div>`;
+  return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands, your broken version stays saved</summary>
+    <p>${esc(steps.intro)}</p>
+    <pre class="mono sel-text uc-cmd">${esc(steps.commands)}</pre>
+    <div class="row-btns"><button class="btn quiet" data-act="copy" data-text="${esc(steps.commands)}">Copy commands</button><button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Or open the copy</button></div>
+    <p><b>To go back</b></p>
+    <pre class="mono sel-text uc-cmd">${esc(steps.back)}</pre>
+    <div class="row-btns"><button class="btn quiet" data-act="copy" data-text="${esc(steps.back)}">Copy</button></div>
+    <p>${esc(steps.backNote)}</p></details></div>`;
 }
 
 /** The folder commands panel is off by default: it shows only when turned on for this browser (tm.folderCommands = "1"). */

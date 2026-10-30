@@ -99,22 +99,47 @@ export function foldRepeats<T extends { id: string }>(rows: readonly T[], key: (
   return out;
 }
 
-/** A path as one word for a shell: quoted when it has anything a shell would split or expand. */
-export function shellWord(path: string): string {
-  return /^[\w@%+=:,./~-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`;
+/** A word quoted for bash and zsh: inside single quotes, a ' written as '\''. */
+function quote(word: string): string {
+  return `'${word.replace(/'/g, "'\\''")}'`;
+}
+
+/** A folder for a shell: under home as ~/'rest' (the tilde outside the quotes, so the shell expands it), else quoted whole. */
+export function folderWord(shown: string): string {
+  return shown === "~" ? "~" : shown.startsWith("~/") ? `~/${quote(shown.slice(2))}` : quote(shown);
+}
+
+/** What the folder was on before the bring back: its branch, or a detached HEAD at a commit. */
+export interface FolderWas {
+  branch: string | null;
+  sha: string;
 }
 
 /**
- * Everything the "Use it in your folder" panel says, in one place: the commands to run (the app never writes the folder),
- * the line on where the broken changes are kept, and how to go back. The copy is a Git worktree that already has the
- * recovery branch checked out, so the folder makes its own branch from it, `use-<id>`, after stashing its changes. From a
- * detached HEAD, `git switch -` refuses a commit, so going back is `git switch --detach -`.
- * Not part of the default design until it passes the five scratch-repo checks; the panel is off unless turned on.
+ * Everything the "Use it in your folder" panel says, in one place (the app never writes the folder). Proven in scratch
+ * repos (sequence S3: the folder's state is committed on its own side branch, no stash): the working version gets its own
+ * branch, use-<id>, because the copy's worktree already has the recovery branch checked out; the folder as it was is kept
+ * on tm/folder-before/<id>. Go back works after success or after any failed step. The names are not checked for
+ * collisions here: the engine must pick unused names before this ships. The panel is off unless turned on.
+ * `shown` is the folder as the app shows it (~ for home), the same text on screen and in the copied block.
  */
-export function folderSteps(folder: string, branch: string, id: string, oldBranch: string | null): { commands: string[]; kept: string; back: string } {
+export function folderSteps(shown: string, recoveryBranch: string, recoverySha: string, id: string, was: FolderWas): { intro: string; commands: string; back: string; backNote: string } {
+  const dir = folderWord(shown);
+  const use = `use-${id}`;
+  const save = `tm/folder-before/${id}`;
+  const quiet = "git -c core.hooksPath=/dev/null";
+  const orig = was.branch ?? was.sha;
   return {
-    commands: [`cd ${shellWord(folder)}`, `git stash push --include-untracked -m "before using ${id}"`, `git switch -c use-${id} ${shellWord(branch)}`],
-    kept: "Your broken changes are kept in the stash and in the saved broken version.",
-    back: `To go back: ${oldBranch ? `git switch ${shellWord(oldBranch)}` : "git switch --detach -"}, then git stash pop.`,
+    intro: "Run these in a terminal. They save your folder’s current state on its own branch, then switch the folder to a new branch made from the working version. Nothing is deleted.",
+    commands: [
+      `cd ${dir} &&`,
+      `git branch ${use} ${recoveryBranch} &&`,
+      `${quiet} switch -c ${save} &&`,
+      "git add -A &&",
+      `${quiet} -c commit.gpgsign=false -c user.name="Time Machine" -c user.email=tm@localhost commit -q --allow-empty -m "tm: folder before using ${id}" &&`,
+      `${quiet} switch ${use}`,
+    ].join("\n"),
+    back: `cd ${dir} && ${quiet} switch ${save} && git reset -q --soft ${orig} && ${quiet} switch ${was.branch ? was.branch : `--detach ${was.sha}`} && git reset -q && git branch -D ${save} && git update-ref -d refs/heads/${use} ${recoverySha}`,
+    backNote: `This works after the commands above, or after any of them failed. If it stops at “invalid reference: ${save}”, your folder was never changed.`,
   };
 }

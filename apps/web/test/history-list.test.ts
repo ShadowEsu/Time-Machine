@@ -1,7 +1,7 @@
 // History as a list and a preview: what is selected first, what the status line says, where the keys go and what
 // changed since a save point.
 import { describe, expect, test } from "vitest";
-import { brokeAt, changedSince, defaultPick, folderSteps, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, changedSince, defaultPick, folderSteps, folderWord, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -105,19 +105,25 @@ describe("a save point with no message", () => {
   });
 });
 
-describe("folder commands after a bring back (L364 r5)", () => {
-  test("stash, then a new branch from the recovery branch (the copy's worktree already has it), and how to go back", () => {
-    const f = folderSteps("/Users/ana/code/marigold-tips", "tm/recover/cp-0003", "cp-0003", "main");
-    expect(f.commands).toEqual([
-      "cd /Users/ana/code/marigold-tips",
-      'git stash push --include-untracked -m "before using cp-0003"',
-      "git switch -c use-cp-0003 tm/recover/cp-0003",
-    ]);
-    expect(f.kept).toBe("Your broken changes are kept in the stash and in the saved broken version.");
-    expect(f.back).toBe("To go back: git switch main, then git stash pop.");
-    const g = folderSteps("/Users/ana/my tips", "tm/recover/cp-0003-2", "cp-0003", null);
-    expect(g.commands[0]).toBe("cd '/Users/ana/my tips'");
-    expect(g.commands[2]).toBe("git switch -c use-cp-0003 tm/recover/cp-0003-2");
-    expect(g.back).toBe("To go back: git switch --detach -, then git stash pop.");
+describe("folder commands after a bring back (L364 r5, sequence S3)", () => {
+  test("a side-branch commit, no stash; the same text on screen and copied; going back from a branch or a detached HEAD", () => {
+    const f = folderSteps("~/code/marigold-tips", "tm/recover/cp-0003", "abc123", "cp-0003", { branch: "main", sha: "def456" });
+    expect(f.commands).toBe([
+      "cd ~/'code/marigold-tips' &&",
+      "git branch use-cp-0003 tm/recover/cp-0003 &&",
+      "git -c core.hooksPath=/dev/null switch -c tm/folder-before/cp-0003 &&",
+      "git add -A &&",
+      'git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name="Time Machine" -c user.email=tm@localhost commit -q --allow-empty -m "tm: folder before using cp-0003" &&',
+      "git -c core.hooksPath=/dev/null switch use-cp-0003",
+    ].join("\n"));
+    expect(f.back).toBe("cd ~/'code/marigold-tips' && git -c core.hooksPath=/dev/null switch tm/folder-before/cp-0003 && git reset -q --soft main && git -c core.hooksPath=/dev/null switch main && git reset -q && git branch -D tm/folder-before/cp-0003 && git update-ref -d refs/heads/use-cp-0003 abc123");
+    const g = folderSteps("/opt/it's here", "tm/recover/cp-0003-2", "abc123", "cp-0003", { branch: null, sha: "def456" });
+    expect(g.commands.split("\n")[0]).toBe("cd '/opt/it'\\''s here' &&");
+    expect(g.commands.split("\n")[1]).toBe("git branch use-cp-0003 tm/recover/cp-0003-2 &&");
+    expect(g.back).toContain("git reset -q --soft def456 && git -c core.hooksPath=/dev/null switch --detach def456 &&");
+  });
+  test("a folder under home keeps the tilde outside the quotes; elsewhere the whole path is quoted", () => {
+    expect(folderWord("~/my tips")).toBe("~/'my tips'");
+    expect(folderWord("/Volumes/work/tips")).toBe("'/Volumes/work/tips'");
   });
 });
