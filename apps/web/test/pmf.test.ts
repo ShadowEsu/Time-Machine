@@ -250,6 +250,37 @@ describe("what Send posts", () => {
     }
   });
 
+  test("No thanks and marking the card shown make 0 site calls of any kind", async () => {
+    const { fetch, state, engine, restore } = setup(() => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const global = vi.spyOn(globalThis, "fetch");
+    try {
+      // The window's only calls for the card are setSettings with shownAt, then with closedAt; tm ui's server answers
+      // them with state.updateSettings (packages/cli/src/ui/server.ts), which writes a local file and nothing else.
+      state.updateSettings({ pmf: { shownAt: new Date().toISOString() } });
+      state.updateSettings({ pmf: { closedAt: new Date().toISOString() } });
+      await engine.run({ method: "statuses" });
+      expect(state.readSettings().pmf.closedAt).toBeDefined();
+      // Neither the site client's fetch nor the process's fetch saw any request, to any path.
+      expect(fetch).toHaveBeenCalledTimes(0);
+      expect(global).toHaveBeenCalledTimes(0);
+    } finally {
+      global.mockRestore();
+      restore();
+    }
+  });
+
+  test("closing the sheet (Cancel or Close, Esc, a click outside) makes no call at all, so 0 site calls", () => {
+    const app = readFileSync(new URL("../src/renderer/app.ts", import.meta.url), "utf8");
+    const close = app.slice(app.indexOf('case "pmf-close":'), app.indexOf('case "pmf-q1":'));
+    const esc = app.slice(app.indexOf("else if (st.pmf.open) {"), app.indexOf("else if (st.check && (st.check.phase"));
+    const scrimAt = app.indexOf('if (target.classList.contains("scrim") && st.pmf.open) {');
+    const scrim = app.slice(scrimAt, app.indexOf("return;\n    }", scrimAt));
+    for (const block of [close, esc, scrim]) {
+      expect(block).toContain("st.pmf.open = false;");
+      expect(block).not.toMatch(/\b(?:call|setSetting|sendPmf|fetch|bridge)\s*\(/);
+    }
+  });
+
   test("the preview sends nothing", async () => {
     const r = await new FakeEngine().call({ method: "sendFeedback", answers });
     expect(r).toMatchObject({ ok: false });

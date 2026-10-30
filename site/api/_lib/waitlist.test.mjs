@@ -119,7 +119,13 @@ describe("waitlist handler", () => {
 
   it("still accepts a tick on the earlier npm wording from a cached page, and records that page's version", async () => {
     expect(WAITLIST_CONSENT_VERSION).toBe("waitlist-2026-10-30");
-    expect(WAITLIST_CONSENT_EARLIER).toEqual(["waitlist-2026-10-28"]);
+    // Exactly two npm wordings are accepted: the current one and the one before it. Nothing else.
+    expect([WAITLIST_CONSENT_VERSION, ...WAITLIST_CONSENT_EARLIER]).toEqual(["waitlist-2026-10-30", "waitlist-2026-10-28"]);
+    for (const consentVersion of ["waitlist-2026-10-29", "waitlist-2026-10-31", "waitlist-2026-10-27", "feedback-2026-10-30", "waitlist-2026-10-30 ", "WAITLIST-2026-10-30"]) {
+      const { fetch, deps } = setup();
+      expect((await handleWaitlist(request({ ...good, consentVersion }), deps)).body).toEqual({ ok: false, error: "consent_outdated" });
+      expect(fetch).not.toHaveBeenCalled();
+    }
     const { fetch, deps } = setup();
     expect((await handleWaitlist(request({ ...good, consentVersion: "waitlist-2026-10-28" }), deps)).body).toEqual({ ok: true, pending: true });
     expect(JSON.parse(fetch.mock.calls[0][1].body).p_consent_version).toBe("waitlist-2026-10-28");
