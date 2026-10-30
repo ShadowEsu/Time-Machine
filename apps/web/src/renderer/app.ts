@@ -8,7 +8,7 @@ import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from 
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
-import { branchShift, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type ProjectStatusView, type StatusButton, type StatusPoint } from "./status.js";
+import { branchShift, brokenSince, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type ProjectStatusView, type StatusButton, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
 import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
@@ -1051,7 +1051,7 @@ function history(): string {
   const u = st.undo?.projectId === p.id ? st.undo : null;
   const g = u && st.guide?.projectId === p.id && st.guide.id === u.result.id ? st.guide : null;
   const guided = !gone && checksOn(p, pts) && newest?.verdict !== "PASS";
-  const card = guided && ((g && !g.kept) || (!g && s.v === "FAIL" && lw)) ? recoveryCard(eyebrow, s.voice, lw, g ? u : null, g) : "";
+  const card = guided && ((g && !g.kept) || (!g && s.v === "FAIL" && lw)) ? recoveryCard(eyebrow, lw, g ? u : null, g) : "";
   const calm = card || gone ? "" : newest?.verdict === "PASS" ? calmLine(eyebrow, s) : g?.kept && u ? keptLine(eyebrow, u.result) : "";
   const header = card || calm || `<section class="hero" data-vid="hero" data-v="${esc(s.head)}">
     ${eyebrow}
@@ -1108,8 +1108,7 @@ function history(): string {
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
   return `<div class="page proj"><div class="doc">${header}${undoBar}
     ${setupView(p, pts)}
-    ${homeRuler(pts)}
-    <div class="jf-row">${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>
+    <div class="jf-row">${homeRuler(pts)}${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>
     <section class="journal" aria-label="History" id="list">${journal || (pinnedOnly ? noPinned(p.purpose) : "")}</section>
     ${honest && !card ? `<section class="know" aria-labelledby="know-h">${buddy()}<div><h2 id="know-h">Good to know</h2>${honest}</div></section>` : ""}
     <div class="mount" data-mount="unlinked:${esc(p.id)}"></div>
@@ -1121,7 +1120,7 @@ function history(): string {
  * the last version that works, 2 Try it in its copy, 3 Keep it with two Git commands or undo it. Each step changes in place
  * when it is done, says where the working version is, and keeps a way back. `u` and `g` are the bring back made from it.
  */
-function recoveryCard(eyebrow: string, voice: string, lw: TimelineEntry | null, u: State["undo"], g: State["guide"]): string {
+function recoveryCard(eyebrow: string, lw: TimelineEntry | null, u: State["undo"], g: State["guide"]): string {
   const res = u?.result ?? null;
   const target = res ? entry(res.id) : lw;
   if (!target) return "";
@@ -1130,10 +1129,11 @@ function recoveryCard(eyebrow: string, voice: string, lw: TimelineEntry | null, 
   const all = points();
   const bringing = st.busy === "Bringing it back";
   const busy = st.busy ? "disabled" : "";
-  const row = (k: 1 | 2 | 3, name: string, body: string): string => {
+  // A step that waits for an earlier one is one line: its name, then what it will do.
+  const row = (k: 1 | 2 | 3, name: string, body: string, brief = false): string => {
     const s = stepState(k, step);
     const mark = s === "done" ? '<span class="gc-n" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.4l2.9 2.9L12.6 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : `<span class="gc-n" aria-hidden="true">${k}</span>`;
-    return `<li class="gc-s ${s}"${s === "now" ? ' aria-current="step"' : ""}>${mark}<div class="gc-b"><h2 class="gc-t">${s === "done" ? '<span class="sr-only">Done: </span>' : ""}${esc(name)}</h2>${body}</div></li>`;
+    return `<li class="gc-s ${s}${brief ? " brief" : ""}"${s === "now" ? ' aria-current="step"' : ""}>${mark}<div class="gc-b"><h2 class="gc-t">${s === "done" ? '<span class="sr-only">Done: </span>' : ""}${esc(name)}</h2>${body}</div></li>`;
   };
 
   // Step 1: the one main button, then when it was saved, its verdict, what changed since and what stays.
@@ -1142,7 +1142,7 @@ function recoveryCard(eyebrow: string, voice: string, lw: TimelineEntry | null, 
     const after = all.slice(all.findIndex((c) => c.id === target.id) + 1).map((c) => c.id);
     const since = changedSince(st.changes, after);
     const facts: [string, string][] = [
-      ["Saved", keepTimes(esc(`${dayLabel(target.createdAt)}, ${ptClock(target)}`))],
+      ["Saved", keepTimes(esc(`${dayLabel(target.createdAt)}, ${ptTime(target)}`))],
       ["Verdict", `${badge(target.verdict)}<span>${esc(target.verdict === "PASS" ? "Passed its check in a copy" : sentenceStart(checkSummary(target) || verdictWord(target.verdict)))}</span>`],
       ...(since.length ? [["Changed since", `<span>${esc(`${plural(since.length, "file")}: ${pathsLine(since)}`)}</span>`] as [string, string]] : []),
       ["Stays", "<span>Every save point, the broken ones too. Your folder is not touched.</span>"],
@@ -1150,21 +1150,25 @@ function recoveryCard(eyebrow: string, voice: string, lw: TimelineEntry | null, 
     one = `<button class="btn dark big gc-go" data-act="guide-bring" data-id="${esc(target.id)}" title="${esc(`Bring back ${nameLine(n)}`)}" ${busy}><span>${bringing ? "Bringing it back…" : esc(`Bring back ${n.name}`)}</span>${bringing ? "" : `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>`}</button>
       <dl class="gc-facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
   } else {
-    one = `<p class="gc-ok">${badge(res.lastVerdict)}<span>${keepTimes(esc(`${sentenceStart(said(target))} is back, in a copy next to your folder.`))}</span></p>
-      <dl class="gc-where"><div><dt>Working version</dt><dd><span class="mono sel-text">${esc(res.copyDir)}</span></dd></div>${res.copyOnly ? "" : `<div><dt>New branch</dt><dd><span class="mono sel-text">${esc(res.branch)}</span> <span class="muted">local only</span></dd></div>`}<div><dt>Your folder</dt><dd>Not touched. What was there is saved first, as a save point.</dd></div></dl>`;
+    one = `<p class="gc-ok">${badge(res.lastVerdict)}<span>${keepTimes(esc(`${sentenceStart(said(target))} is back, in a copy next to your folder${res.copyOnly ? "" : ", on a new branch"}.`))}</span></p>
+      <dl class="gc-where"><div><dt>Working version</dt><dd><span class="mono sel-text">${esc(res.copyDir)}</span></dd></div>${res.copyOnly ? "" : `<div><dt>New branch, local only</dt><dd><span class="mono sel-text">${esc(res.branch)}</span></dd></div>`}</dl>`;
   }
 
-  // Step 2: open the copy or run the check there. Ready once it is back.
+  // Step 2: open the copy or run the check there. Ready once it is back; once tried, its result and a way to try again.
   let two: string;
   if (!res || !g) two = '<p class="gc-p">Open the copy, or run your check there. Ready after step 1.</p>';
   else {
-    const checking = g.checking ? '<p class="gc-ok"><span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Running your check on it in a copy. Your folder is not touched.</span></p>' : "";
-    const checked = g.check && !g.checking
-      ? `<p class="gc-ok">${badge(g.check.verdict, stampOnce(`guide:${g.check.at}`))}<span>${esc(g.check.verdict === "PASS" ? `Your check passed on it just now, in ${seconds(g.check.durationMs)}.` : `${sentenceStart(checkReason(g.check.reason))} Open the copy to look, or undo below.`)}</span></p>` : "";
-    const opened = g.opened ? `<p class="gc-ok"><span class="vb v-pass">${vIcon("PASS")}Opened</span><span>${esc(isMac() ? "The copy is open in Finder." : "The copy’s path is copied.")}</span></p>` : "";
+    const open = (cls: string): string => `<button class="btn ${cls}" data-act="guide-open" data-path="${esc(res.copyDir)}" ${busy}>${isMac() ? "Open the copy" : "Copy the copy’s path"}</button>`;
+    const check = (cls: string, label: string): string => `<button class="btn ${cls}" data-act="guide-check" ${busy || (g.checking ? "disabled" : "")}>${label}</button>`;
     const error = g.error ? `<div class="note bad">${esc(g.error)}</div>` : "";
-    const lead = step === 2 ? '<p class="gc-p">Open it in your editor, or run your check on it. Your folder is not touched.</p>' : "";
-    two = `${lead}${opened}${checked}${checking}${error}<div class="row-btns"><button class="btn${step === 2 ? " dark" : ""}" data-act="guide-open" data-path="${esc(res.copyDir)}" ${busy}>${isMac() ? "Open the copy" : "Copy the copy’s path"}</button><button class="btn${step === 2 ? "" : " quiet"}" data-act="guide-check" ${busy || (g.checking ? "disabled" : "")}>${g.check ? "Run your check again" : "Run your check on it"}</button></div>`;
+    if (g.checking) two = `<p class="gc-ok"><span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Running your check on it in a copy. Your folder is not touched.</span></p>`;
+    else if (step === 2) two = `<p class="gc-p">Open it in your editor, or run your check on it. Your folder is not touched.</p>${error}<div class="row-btns">${open("dark")}${check("", "Run your check on it")}</div>`;
+    else {
+      const said2 = g.check
+        ? `${badge(g.check.verdict, stampOnce(`guide:${g.check.at}`))}<span>${esc(g.check.verdict === "PASS" ? `Your check passed on it just now, in ${seconds(g.check.durationMs)}.` : `${sentenceStart(checkReason(g.check.reason))} Open the copy to look, or undo it.`)}</span>`
+        : `<span class="vb v-pass">${vIcon("PASS")}Opened</span><span>${esc(isMac() ? "The copy is open in Finder." : "The copy’s path is copied.")}</span>`;
+      two = `<div class="gc-ok">${said2}<span class="gc-again">${g.check ? open("quiet") : ""}${check("quiet", g.check ? "Run it again" : "Run your check on it")}</span></div>${error}`;
+    }
   }
 
   // Step 3: the two Git commands that keep it, Keep it, and Undo. A plain folder copies files back instead.
@@ -1174,20 +1178,21 @@ function recoveryCard(eyebrow: string, voice: string, lw: TimelineEntry | null, 
     const cmds = res.copyOnly ? [] : keepCommands(res.branch, message(target));
     const how = res.copyOnly
       ? '<p class="gc-p">To keep it, copy the files you want from the copy into your folder.</p>'
-      : `<p class="gc-p">To keep it, run these in your folder, then save. They put every file back as the new branch has it, as one new commit.</p>
+      : `<p class="gc-p">To keep it, run these in your folder, then save. Every file comes back as the new branch has it, in one new commit.</p>
         <div class="gc-cmd"><pre class="mono sel-text">${esc(cmds.join("\n"))}</pre><button class="btn quiet" data-act="copy" data-text="${esc(cmds.join("\n"))}">Copy</button></div>`;
     three = `${how}<div class="row-btns"><button class="btn${step === 3 ? " dark" : ""}" data-act="guide-keep" ${busy}>Keep it</button>${undoButton("")}</div>${undoNote(res)}`;
   }
 
+  const since = brokenSince(all);
   const head = res ? "Back to a working version." : "Broken.";
   const sub = res
-    ? `${sentenceStart(said(target))} works in its copy. Your folder still has the broken version, saved first.`
-    : `${voice} ${sentenceStart(said(target))} is the last version that works.`;
+    ? `${sentenceStart(said(target))} is in a copy. Your folder is as you left it, saved first as a save point.`
+    : `${since ? `Since ${said(since)}. ` : ""}${sentenceStart(said(target))} is the last version that works.`;
   return `<section class="gc" aria-labelledby="gc-h" data-vid="hero" data-v="${res ? "back" : "broken"}">
     ${eyebrow}
     <h1 class="gc-h" id="gc-h" tabindex="-1">${esc(head)}</h1>
     <p class="gc-sub">${keepTimes(esc(sub))}</p>
-    <ol class="gc-steps">${row(1, res ? "Brought back" : "Bring back", one)}${row(2, "Try it", two)}${row(3, "Keep it or undo", three)}</ol>
+    <ol class="gc-steps">${row(1, res ? "Brought back" : "Bring back", one)}${row(2, "Try it", two, !res || !g)}${row(3, "Keep it or undo", three, !res)}</ol>
   </section>`;
 }
 
@@ -3554,8 +3559,7 @@ function exitRewind(): void {
   if (page) page.scrollTop = back.pageScroll;
   if (!finished) return;
   // History's recovery card shows the bring back in place, with its next step in focus; a project with no check gets the undo card and a toast.
-  const next = root.querySelector<HTMLElement>('.gc [data-act="guide-open"]');
-  if (next) return next.focus({ preventScroll: true });
+  if (root.querySelector('.gc [data-act="guide-open"]')) return focusCard('.gc [data-act="guide-open"]');
   root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
   toast(`Brought back ${pointName(finished.id)}. Your folder wasn’t touched. ${keys("Mod+Z")} undoes it.`, finished.lastVerdict);
 }
@@ -3804,7 +3808,7 @@ async function guideRecover(id: string): Promise<void> {
   st.busy = null;
   await loadTimeline();
   render();
-  root.querySelector<HTMLElement>(res ? '.gc [data-act="guide-open"]' : '.gc [data-act="guide-bring"]')?.focus({ preventScroll: true });
+  focusCard(res ? '.gc [data-act="guide-open"]' : '.gc [data-act="guide-bring"]');
   void refreshStatuses().then(render);
   if (res) checkSavedFirst(p.id, res);
 }
@@ -3850,7 +3854,13 @@ async function guideCheck(): Promise<void> {
   st.busy = null;
   await loadTimeline();
   render();
-  root.querySelector<HTMLElement>('.gc [data-act="guide-keep"]')?.focus({ preventScroll: true });
+  focusCard('.gc [data-act="guide-keep"]');
+}
+
+/** After a step of the recovery card changes, the step that is now current comes into view and `sel` takes focus. */
+function focusCard(sel: string): void {
+  root.querySelector(".gc-s.now")?.scrollIntoView({ block: "nearest" });
+  root.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true });
 }
 
 async function openCompare(a?: string, b?: string): Promise<void> {
@@ -4602,7 +4612,8 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "guide-keep":
       if (st.guide) st.guide.kept = true;
       render();
-      return void root.querySelector<HTMLElement>(".calm h1")?.focus({ preventScroll: true });
+      // Keep it ends the card: the page goes back up to the one calm line that says what happened.
+      return void root.querySelector<HTMLElement>(".calm h1")?.focus();
     case "tv-go":
       return tvGo(d.id);
     case "tv-try":

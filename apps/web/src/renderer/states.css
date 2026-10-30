@@ -516,7 +516,8 @@ section > .b9-lede { margin: -2px 0 16px; }
 
 /* Runs: All / Pinned above the journal as the Settings pill, a pin beside a pinned row's title, and the detail's name, note
    and pin in a quiet sunken card. Text fields here are the app's sans at 14 px, not the mono of a path field. */
-.jf-row { margin-top: 36px; display: flex; justify-content: flex-end; }
+/* The ruler's strip and the All / Pinned filter share one row above the list; on a phone the filter goes under it. */
+.jf-row { margin-top: 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 14px; }
 .jf { display: inline-flex; gap: 2px; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--surface); font-size: 14.5px; }
 .jf button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font-weight: 500; cursor: pointer; transition: background-color var(--t-hover) var(--ease), color var(--t-hover) var(--ease); }
 .jf button:hover:not(.on) { background: var(--sel); color: var(--ink); }
