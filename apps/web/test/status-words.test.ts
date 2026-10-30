@@ -1,6 +1,6 @@
 // Pure helpers the project screens read: damaged save points, change summaries, Git rows and day groups.
 import { describe, expect, test } from "vitest";
-import { branchShift, changeSummary, checkReason, damagedReason, gitLine, isDamagedReason, newestByTime } from "../src/renderer/status.ts";
+import { changeSummary, checkReason, damagedReason, gitLine, isDamagedReason, newestByTime } from "../src/renderer/status.ts";
 
 describe("a damaged save point", () => {
   test("is told from a check that crashed by the engine's integrity words", () => {
@@ -79,13 +79,5 @@ describe("Git rows", () => {
 
   test("a plain folder shows only its id, never a branch or a commit", () => {
     expect(gitLine({ ...c, branch: "master" }, "folder")).toBe("cp-0003");
-    expect(branchShift({ branch: "master", head: "x" }, { branch: null, head: "y" }, "folder")).toBe("");
-  });
-
-  test("a branch chip only where the branch changes", () => {
-    expect(branchShift({ branch: "feature/x", head: "abc1234" }, { branch: "main", head: "abc1234" }, "git")).toBe("on feature/x");
-    expect(branchShift({ branch: "main", head: "abc1234" }, { branch: "main", head: "def" }, "git")).toBe("");
-    expect(branchShift({ branch: null, head: "e5dd44b9" }, { branch: "main", head: "x" }, "git")).toBe("detached at e5dd44b");
-    expect(branchShift({ branch: "main", head: "x" }, undefined, "git")).toBe("");
   });
 });

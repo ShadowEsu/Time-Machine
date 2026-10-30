@@ -15,12 +15,6 @@ export function legendItems(checks: boolean, shown: readonly (Verdict | null)[])
   return [...(["PASS", "FAIL", null] as const), ...extra].map((v) => ({ v, word: verdictWord(v) }));
 }
 
-/** A journal time, "2:43:36 AM #3", as the time that stays whole and the same-second ordinal that may sit below it. */
-export function clockParts(t: string): { time: string; ord: string } {
-  const m = /^(.*?)(?:\s+(#\d+))?$/.exec(t.trim());
-  return { time: m?.[1] ?? t, ord: m?.[2] ?? "" };
-}
-
 /** How long ago, in the rail's plain words: "just now", "3 min", "2 h" (today), "Yesterday", "4 days", then the date. */
 export function railAge(iso: string, now = Date.now()): string {
   const at = new Date(iso);
@@ -158,20 +152,6 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
   }
 }
 
-/**
- * How many checks in a row passed for each save point, newest last, from the audit log's "verify" lines
- * (oldest first). A check that did not pass starts the count again; a stopped check proves nothing and
- * leaves it as it was. "3 checks passed" is only said when the last three checks all passed.
- */
-export function passStreaks(entries: readonly { action: string; target: string | null; result: string }[]): Map<string, number> {
-  const streaks = new Map<string, number>();
-  for (const e of entries) {
-    if (e.action !== "verify" || !e.target) continue;
-    streaks.set(e.target, e.result === "PASS" ? (streaks.get(e.target) ?? 0) + 1 : 0);
-  }
-  return streaks;
-}
-
 /** True for an engine reason that says a save point failed its integrity check: it is damaged, not a check that crashed. */
 export function isDamagedReason(reason: string): boolean {
   return /failed its integrity check|is missing from this repository|gone from the store/i.test(reason);
@@ -271,10 +251,4 @@ export function gitLine(c: GitPoint, kind: "git" | "folder"): string {
   const where = c.branch ? `${c.branch} · ${sha}` : `detached at ${sha}`;
   const n = uncommittedCount(c);
   return `${where}${c.subject ? ` ${c.subject}` : ""}${n ? ` + ${n} uncommitted` : ""}`;
-}
-
-/** The branch a row was saved on, when it differs from the save point before it: "on feature/x", "detached at e5dd44b". Else "". */
-export function branchShift(c: Pick<TimelineEntry, "branch" | "head">, before: Pick<TimelineEntry, "branch" | "head"> | undefined, kind: "git" | "folder"): string {
-  if (kind === "folder" || !before || !c.head || c.branch === before.branch) return "";
-  return c.branch ? `on ${c.branch}` : `detached at ${c.head.slice(0, 7)}`;
 }

@@ -100,9 +100,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .pill kbd, .btn.dark kbd { border-color: transparent; background: color-mix(in srgb, currentColor 16%, transparent); color: inherit; }
 .btn kbd { margin-left: 2px; }
 /* Display headings: Bricolage 750, tight. The voice line after one is Instrument Serif italic. */
-.hero-h, .page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--display); font-weight: 750; letter-spacing: -.035em; }
+.page h1, .sheet h2, .sp-h, .tv-head, .cd-title, .welcome h1, .big-verdict { font-family: var(--display); font-weight: 750; letter-spacing: -.035em; }
 .voice { font-family: var(--voice); font-style: italic; font-weight: 400; letter-spacing: -.005em; }
-.hero-h em, .tv-head em, .page h1 em { font-family: var(--voice); font-style: italic; font-weight: 400; }
+.tv-head em, .page h1 em { font-family: var(--voice); font-style: italic; font-weight: 400; }
 
 /* A brief launch on paper: the name in the display face, a bar that shows work, never a fabricated percentage. */
 .splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: var(--paper); color: var(--ink); transition: opacity 220ms var(--ease); cursor: default; }
@@ -303,22 +303,23 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .ck-card.stamp { animation: ck-in var(--t-enter) var(--ease); }
 @keyframes ck-in { from { transform: translateY(10px); opacity: 0 } to { transform: none; opacity: 1 } }
 
-/* History: the answer first. A status line, the status and the way out, the lead, one ink button. */
+/* History: one status line with its mark, the way back under it, then the save points as a list. */
 .page.proj { padding: 0 0 80px; }
 .doc { max-width: 860px; margin: 0 auto; padding: 52px 48px 0; }
 .eyebrow { font: 500 13.5px/1.3 var(--font); color: var(--ink-3); }
-.hero { display: grid; justify-items: start; }
-.hero-e { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; max-width: 100%; font-size: 14px; color: var(--ink-3); }
-.hero-e .dot { margin: 0; width: 9px; height: 9px; }
-.hero-e > span:nth-child(2) { color: var(--ink-2); font-weight: 500; }
-.hero-cmd code { color: var(--ink-2); }
-.hero-e .path { font-family: var(--mono); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-/* One status line in the display face; the time it holds for sits under it as quiet text, not a second headline. */
-.hero-h { margin: 14px 0 0; font-size: 46px; line-height: 1.04; }
-.hero-h .hh { display: block; }
-.hero-when { margin-top: 8px; font: 500 16px/1.4 var(--font); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.hero-p { margin-top: 18px; max-width: 58ch; font-size: 17px; line-height: 1.6; color: var(--ink-2); }
-.hero-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; margin-top: 28px; }
+.lp-doc { padding-top: 36px; }
+.lp-status { display: grid; gap: 8px; }
+.page.lp .lp-h { display: flex; align-items: flex-start; gap: 12px; margin: 0; font: 700 26px/1.25 var(--display); letter-spacing: -.02em; color: var(--ink); text-wrap: pretty; }
+.lp-mark { flex: none; width: 30px; height: 30px; margin-top: 1px; display: grid; place-items: center; border-radius: 50%; background: var(--unk-bg); color: var(--unk); }
+.lp-mark .vi { width: 16px; height: 16px; }
+.lp-mark.v-pass { background: var(--works-bg); color: var(--works); }
+.lp-mark.v-fail { background: var(--broken-bg); color: var(--broken); border-radius: 9px; }
+.lp-sub { margin: 0 0 0 42px; font-size: 14.5px; line-height: 1.5; color: var(--ink-3); }
+.lp-sub code { color: var(--ink-2); }
+.lp-sub .path { font-family: var(--mono); font-size: 13px; }
+/* The way back sits right under the status: the one action that matters, with its shortcut. */
+.lp-go { margin: 10px 0 0 42px; }
+.lp-go .btn { white-space: normal; height: auto; min-height: 52px; padding-block: 10px; text-align: left; }
 /* The undo card after a bring back: a sky card with the way back in it. */
 .doc > .undo-card { margin: 28px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--sky); border: 1.5px solid var(--sky-line); color: var(--sky-ink); font-size: 15px; line-height: 1.5; }
 .undo-card > .g { flex: none; width: 10px; height: 10px; }
@@ -329,16 +330,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
   .undo-card .row-btns > .btn { flex: 1 1 100%; justify-content: center; }
 }
 /* A folder that is gone: its notice and the two ways out sit where the main action was. */
-.hero .gone-card { display: grid; gap: 12px; margin-top: 4px; }
+.lp-status .gone-card { display: grid; gap: 12px; margin: 8px 0 0 42px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
 .gone-done { font-size: 14px; color: var(--ink-2); }
-/* The demo's three steps: a sky card under the answer. The current step is in ink. */
-.coach { margin: 28px 0 0; padding: 14px 18px 16px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--sky) 40%, var(--surface)); border: 1px solid var(--sky-line); display: grid; gap: 10px; }
-.coach-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-/* Hide keeps its one word on a phone; the title wraps instead (it broke as "Hid" / "e" at 390). */
-.coach-h .btn { min-height: 40px; flex: none; white-space: nowrap; }
-/* The bead to find in step 1 wears a still ring in the Works colour. Nothing moves. */
-.rt-tk.aim::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--works); pointer-events: none; }
 /* An empty list with direction: one line that says what to do and the button that does it, no illustration. */
 .empty-dir { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 18px 20px; border-radius: var(--r-lg); border: 1px dashed var(--line-2); background: var(--sunken); }
 .empty-dir p { flex: 1 1 260px; max-width: 60ch; font-size: 15px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
@@ -349,13 +343,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 /* The headline placeholder is the page's own h1 holding one empty line, so it is exactly the height of the headline that replaces it. */
 .sk-head { position: relative; justify-self: stretch; }
 .sk-head::before { content: ""; position: absolute; left: 0; top: 14%; bottom: 14%; width: min(520px, 82%); border-radius: 10px; }
-.sk-btn { width: 300px; height: 52px; border-radius: 999px; }
-.sk-honest { justify-self: stretch; margin-top: 20px; }
-.sk-dt, .sk-dd { height: 10px; margin: 6px 0; }
-.sk-dt { width: 150px; }
-.sk-dd { width: 92%; }
-.sk-dd + .sk-dd { width: 64%; }
-.sk-ruler { height: 150px; margin: 44px 0 0; border-radius: 18px; background: var(--sunken); border: 1px solid var(--hair); }
 .sk-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 18px 20px; }
 .sk-t { width: 44px; height: 11px; margin-top: 4px; }
 .sk-g { display: none; }
@@ -364,96 +351,59 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .sk-row:nth-child(2) .sk-l { width: 44%; }
 .sk-row:nth-child(3) .sk-l { width: 66%; }
 
-/* The ruler's well: a sunken tray, its header and legend, and the ruler itself. */
-.rwell { margin-top: 44px; padding: 18px 22px 10px; border-radius: 18px; background: var(--sunken); border: 1px solid var(--hair); }
-.rw-h { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--ink-3); }
-.rw-h b { color: var(--ink); font-weight: 600; }
-.legend { margin-left: auto; display: flex; gap: 14px; }
-.legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.lg { width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%; }
-.lg .vi { width: 12px; height: 12px; }
-.lg.b-pass { background: var(--works-bg); color: var(--works); }
-.lg.b-fail { background: var(--broken-bg); color: var(--broken); }
-.lg.b-none { background: var(--unk-bg); color: var(--unk); }
-/* The ruler: sessions on top, the last-works flag, the beads on their track, labels under. It is one control: the whole band
-   is its target, and the beads are its marks. Pressing anywhere picks the nearest; a vertical swipe on a phone still scrolls the page. */
-.hruler { --b: 26px; --iy: 66px; position: relative; height: 106px; margin: 4px 4px 0; container-type: inline-size; cursor: pointer; touch-action: pan-y; border-radius: var(--r-md); }
-.hruler.d2 { --b: 20px; }
-.hruler.d3 { --b: 14px; }
-.hruler:focus-visible { outline-offset: 4px; }
-/* Pressed, not tabbed to: the ruler keeps focus for the arrow keys, without a ring until a key is used. */
-.hruler.by-pointer:focus-visible { outline: none; }
-.hruler.scrubbing { cursor: grabbing; }
-.hruler .lane { position: absolute; left: 0; right: 0; top: 0; height: 20px; }
-.hruler .clip { position: absolute; top: 0; height: 20px; border-radius: 6px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font: 500 13px/20px var(--mono); color: var(--ink-3); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hruler .clip span { overflow: hidden; text-overflow: ellipsis; display: block; }
-.hruler .clip.clip-x { visibility: hidden; }
-.hruler .base { position: absolute; left: 0; right: 0; top: calc(var(--iy) - 2px); height: 4px; border-radius: 4px; background: var(--line); }
-/* A bead is placed by `translate` from --x (its place in percent; 1cqw is 1% of the ruler), so when a new save point
-   arrives and the ruler re-spaces, every bead glides to its new place. `transform` stays free for its turn and its size. */
-.rt-tk { position: absolute; left: 0; top: calc(var(--iy) - var(--b) / 2); width: var(--b); height: var(--b); margin-left: calc(var(--b) / -2); display: grid; place-items: center; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink-4); color: var(--ink-3);
-  translate: calc(var(--x) * 1cqw) 0; transition: transform var(--t-hover) var(--ease), opacity var(--t-hover) var(--ease), translate var(--t-glide) var(--ease); }
-.rt-tk .vi { width: calc(var(--b) * .54); height: calc(var(--b) * .54); }
-.hruler.d3 .rt-tk .vi { display: none; }
-.rt-tk.b-none .vi { display: none; }
-.rt-tk.b-pass { background: var(--works); border-color: var(--works); color: #fff; }
-.rt-tk.b-fail { background: var(--broken); border-color: var(--broken); color: #fff; border-radius: 28%; transform: rotate(45deg); }
-.rt-tk.b-fail .vi { transform: rotate(-45deg); }
-.rt-tk.b-incomplete, .rt-tk.b-blocked { background: var(--amber-bg); border-color: var(--amber-dot); color: var(--amber); }
-.rt-tk.b-error { background: var(--unk-bg); border-color: var(--ink-3); color: var(--ink-2); }
-:root[data-theme="dark"] .rt-tk.b-pass, :root[data-theme="dark"] .rt-tk.b-fail { color: #141414; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rt-tk.b-pass, :root:not([data-theme="light"]) .rt-tk.b-fail { color: #141414; } }
-.rt-tk:hover, .rt-tk.on { transform: scale(1.12); }
-.rt-tk.b-fail:hover, .rt-tk.b-fail.on { transform: rotate(45deg) scale(1.12); }
-.rt-tk.on { box-shadow: 0 0 0 3px var(--sunken), 0 0 0 5px var(--ink); }
-.rt-tk.after { opacity: .45; }
-/* The way back: a sky halo on the last version that works. */
-.rt-tk.lw { box-shadow: 0 0 0 6px var(--sky), 0 0 0 7.5px var(--sky-line); }
-.rt-tk.lw.on { box-shadow: 0 0 0 6px var(--sky), 0 0 0 8px var(--ink); }
-/* Placed by transform like the playhead (--x the bead's place, --s how far it hangs left of it), so when the last version that
-   works changes, the flag glides to it. */
-.lwflag { position: absolute; left: 0; top: 26px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--sky); color: var(--sky-ink); border: 1.5px solid var(--ink); box-shadow: var(--hard-sm); font: 600 13.5px/23px var(--font); white-space: nowrap; pointer-events: none;
-  transform: translateX(calc(var(--x) * 1cqw)) translateX(var(--s, -50%)); transition: transform var(--t-glide) var(--ease), opacity var(--t-hover) var(--ease); }
-.hruler.d1 .lwflag { top: 22px; }
-.hruler.d3 .lwflag { top: 32px; }
-.hruler.scrubbing .lwflag, .hruler:focus-visible:not(.by-pointer) .lwflag { opacity: 0; }
-/* The playhead sits at the ruler's left edge and moves by transform: --x is the bead's place in percent, 1cqw is 1% of the ruler.
-   At Now the Now pill marks the place, so the playhead steps aside. */
-.hruler .ph { position: absolute; left: 0; top: calc(var(--iy) - 26px); width: 2px; height: 52px; margin-left: -1px; background: var(--ink); border-radius: 1px; pointer-events: none; transform: translateX(calc(var(--x) * 1cqw)); transition: transform var(--t-glide) var(--ease), opacity var(--t-snap) var(--ease); }
-/* Under a dragging finger the playhead keeps up; from the keys or a click it glides. */
-.hruler.scrubbing .ph { transition-duration: 90ms, var(--t-snap); }
-.hruler .ph::before { content: ""; position: absolute; left: -5px; top: -7px; border: 6px solid transparent; border-top: 7px solid var(--ink); }
-.hruler .ph.now { opacity: 0; }
-.rlab { position: absolute; top: calc(var(--iy) + 20px); font: 500 13px/1 var(--mono); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rlab.on { color: var(--ink); font-weight: 500; }
-.rlab.now { top: calc(var(--iy) + 16px); padding: 4px 10px; border-radius: 999px; background: var(--chip-ink); color: var(--chip-text); box-shadow: 0 0 0 1px var(--line-2); font: 600 13.5px/1.1 var(--font); }
-.rlab.now .rl-t { font-family: var(--mono); font-weight: 500; }
-/* Set after measuring, so two labels never touch: Now without its time, or a label that gives way. */
-.rlab.rl-c .rl-t { display: none; }
-.rlab.rl-hide { visibility: hidden; }
-/* The flag rides above the ruler while it is dragged or has keyboard focus: the save point under the playhead in the
-   middle with its title, the ones either side quieter, like onion skins. It stays inside the ruler, and it goes when
-   the pointer lets go. */
-.rflag { --fw: min(460px, 100cqw); --fx: clamp(0px, calc(var(--x) * 1cqw - var(--fw) / 2), calc(100cqw - var(--fw)));
-  position: absolute; left: 0; bottom: calc(100% - 18px); z-index: 4; width: var(--fw); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1fr); gap: 2px; padding: 5px;
-  border-radius: var(--r-lg); background: var(--surface); border: 1.5px solid var(--ink); box-shadow: var(--hard); pointer-events: none;
-  opacity: 0; visibility: hidden; transform: translateX(var(--fx)) translateY(4px);
-  transition: transform var(--t-snap) var(--ease), opacity 120ms var(--ease), visibility 0s linear 120ms; }
-.hruler.scrubbing .rflag, .hruler:focus-visible:not(.by-pointer) .rflag { opacity: 1; visibility: visible; transform: translateX(var(--fx)); transition: transform var(--t-snap) var(--ease), opacity var(--t-hover) var(--ease), visibility 0s; }
-/* Each frame keeps its words inside it: one column that can shrink, and the time and the verdict wrap between words
-   instead of running past the ruler (Design b3+4 F1). The frame clips only as a last resort. */
-.rf { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 4px; min-width: 0; padding: 8px 9px; border-radius: 11px; overflow: hidden; overflow-wrap: normal; }
-.rf.on { background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); }
-.rf-t { font: 500 13px/1.2 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.rf.on .rf-t { color: var(--ink); }
-.rf-v { display: flex; align-items: flex-start; gap: 6px; min-width: 0; font-size: 13.5px; line-height: 1.25; color: var(--ink-3); }
-.rf-v .g { margin-top: 4px; }
-.rf-v span { min-width: 0; }
-.rf .vb { justify-self: start; max-width: 100%; height: auto; min-height: 26px; padding-block: 4px; white-space: normal; line-height: 1.2; }
-/* The save point the flag is about gets its whole message, on up to two lines; the neighbours keep one. */
-.rf-n { font-size: 13.5px; line-height: 1.3; color: var(--ink-2); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
+/* The list's card: its header holds the name and count, All / Works / Named / Pinned, and the mini-ruler on a row of its own. */
+.lp-col { margin-top: 24px; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.lp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-height: 48px; padding: 8px 10px 6px 16px; border-bottom: 1px solid var(--hair); background: var(--sunken); }
+.lp-ht { margin: 0; font: 600 15px/1.2 var(--font); letter-spacing: 0; color: var(--ink); white-space: nowrap; }
+.lp-n { font: 500 13px/1 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lp-head .jf { margin-left: auto; font-size: 13.5px; border-width: 1px; }
+.lp-head .jf button { min-height: 32px; padding: 0 11px; }
+/* The mini-ruler: one 24 px mark per save point, oldest on the left, the newest on the right, in Overview's shapes. Works is a
+   filled circle with a check, Broken a diamond with a cross, Not checked yet a hollow ring, so the shape and the glyph read
+   without the colour. The glyph takes the card's surface colour, so it keeps 3:1 on the marks in both themes. The marks come
+   newest first and lay out from the right: when they outgrow the row, the oldest are the ones cut. */
+.spark { flex: 1 1 100%; min-width: 0; height: 40px; display: flex; flex-direction: row-reverse; justify-content: safe flex-end; align-items: center; gap: 6px; padding: 0 6px; overflow: hidden; }
+.spk { position: relative; flex: 0 0 24px; width: 24px; height: 24px; display: inline-grid; place-items: center; box-sizing: border-box; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink-2); }
+.spk .vi { width: 14px; height: 14px; color: var(--surface); }
+.spk.v-pass { background: var(--works); border-color: var(--works); }
+.spk.v-fail { background: var(--broken); border-color: var(--broken); border-radius: 4px; transform: rotate(45deg) scale(.88); }
+.spk.v-fail .vi { transform: rotate(-45deg); }
+.spk.v-incomplete, .spk.v-blocked { background: var(--amber-dot); border-color: var(--amber-dot); }
+.spk.v-error { border-color: var(--ink-3); }
+.spk.lw { outline: 2px solid var(--works); outline-offset: 2px; }
+.spk.on { box-shadow: 0 0 0 2px var(--sunken), 0 0 0 4px var(--ink); }
+/* The list is a listbox: focus stays on it and the selected row carries the ring, so focus is always seen. */
+.lp-list { position: relative; outline: none; }
+.lp-list:focus-visible { box-shadow: inset 0 0 0 1px var(--ink-4); }
+.lp-list:focus-visible .lp-row.on { outline: 3px solid var(--ring); outline-offset: -3px; z-index: 1; }
+.lp-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t w" "m m"; gap: 6px 12px; align-items: start; padding: 12px 16px 12px 20px; border-top: 1px solid var(--hair); cursor: pointer; }
+.lp-list > .lp-row:first-child, .lp-day + .lp-row { border-top: 0; }
+.lp-row:hover { background: var(--sunken); }
+.lp-row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--row-accent, transparent); pointer-events: none; }
+.lp-row.lw { background: color-mix(in srgb, var(--works-bg) 50%, var(--surface)); --row-accent: var(--works); }
+.lp-row.on { background: var(--paper-2); --row-accent: var(--ink); }
+.lp-row.lit { box-shadow: inset 0 0 0 2px var(--ink-4); }
+.lp-row.checking { background: var(--sunken); }
+.lp-t { grid-area: t; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
+.lp-tt { min-width: 0; font: 600 15.5px/1.35 var(--font); color: var(--ink); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lp-when { grid-area: w; padding-top: 2px; font: 500 13px/1.35 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lp-m { grid-area: m; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+/* The verdict: an icon, a word and a colour, never the colour alone. */
+.lp-v { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px 0 8px; border-radius: 999px; background: var(--unk-bg); color: var(--unk); font: 600 13.5px/1 var(--font); white-space: nowrap; }
+.lp-v .vi { width: 13px; height: 13px; flex: none; }
+.lp-v.v-pass { background: var(--works-bg); color: var(--works); }
+.lp-v.v-fail { background: var(--broken-bg); color: var(--broken); }
+.lp-v.v-incomplete, .lp-v.v-blocked { background: var(--amber-bg); color: var(--amber); }
+.lp-v.v-error { color: var(--ink-2); }
+.lp-v.v-damaged { background: var(--surface); color: var(--broken); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--broken) 55%, transparent); }
+.lp-tag { font: 600 13.5px/1.2 var(--font); }
+.lp-tag.lw { color: var(--works); }
+.lp-tag.br { color: var(--broken); }
+.lp-day { position: sticky; top: 0; z-index: 2; padding: 10px 20px 6px; background: var(--surface); font: 600 13px/1.2 var(--font); color: var(--ink-3); border-bottom: 1px solid var(--hair); }
+.lp-empty { padding: 12px; }
+.lp-empty .jf-empty { margin-top: 0; }
 
-/* Setup: one card above the journal, the same three steps. */
+/* Setup: one card above the list, the same three steps. */
 .setup { margin-top: 28px; padding: 18px 20px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); display: grid; gap: 14px; }
 .setup-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .setup-h h2 { font: 700 18px/1.25 var(--display); letter-spacing: -.02em; }
@@ -467,78 +417,23 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .s3.now .n { background: var(--sky); border-color: var(--sky-ink); color: var(--sky-ink); }
 .s3 .btn { justify-self: start; align-self: end; margin-top: 6px; }
 
-/* The journal: the day in the voice, its save points in one white card. The day's header sticks to the top of the page
-   while its rows scroll under it, on the page's own surface so nothing shows through. */
-.journal { padding-bottom: 8px; }
-.day { position: sticky; top: 0; z-index: 3; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 36px 0 4px; padding: 12px 0 10px; background: var(--surface); }
-.day h2 { font: italic 400 34px/1 var(--voice); color: var(--ink); }
-.day span { font-size: 14px; color: var(--ink-3); }
-.list { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface); }
-.entry { position: relative; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 20px; border-top: 1px solid var(--hair); cursor: pointer; }
-.list > :first-child { border-top: 0; }
-/* A journal row with keyboard focus wears the buttons' ring round the whole row, inside the card so the card's corners
-   do not clip it. ↑/↓ move it between rows. */
-.entry:has(.e-t:focus-visible), .list > .fold:focus-visible { outline: 3px solid var(--ring); outline-offset: -3px; z-index: 2; }
-.entry .e-t:focus-visible { outline: none; }
-/* Hover lifts the row a pixel onto a soft shadow; a press settles it back. The accent on the left says which row is open,
-   picked on the ruler, or the way back, and stays put while the row lifts. */
-.entry:hover { z-index: 1; background: var(--sunken); translate: 0 -1px; box-shadow: 0 6px 16px -10px rgb(0 0 0 / .28); }
-.entry:active { background: var(--paper-2); translate: none; box-shadow: none; transition-duration: .08s; }
-.entry::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--row-accent, transparent); pointer-events: none; }
-.entry.lw { background: color-mix(in srgb, var(--sky) 38%, var(--surface)); --row-accent: var(--sky-ink); }
-.entry.sel { background: var(--sunken); --row-accent: var(--ink-2); }
-.entry.on { background: var(--paper-2); --row-accent: var(--ink); }
-.entry.lit { background: var(--sky); }
-/* What a save point changed: a page icon and the names, in the body font. */
-.e-files { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: var(--ink-2); }
-.e-files > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.e-fi { flex: none; width: 14px; height: 14px; color: var(--ink-3); }
-/* A time and its AM/PM each stay whole, so "2:08:06" never breaks inside; "AM" goes beside it or under it. Mono and tabular,
-   like the ruler above, so the column of times lines up. */
-.entry .when, .fold .when { font: 500 13px/1.35 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; align-self: start; padding-top: 2px; }
-.entry .when span { display: inline-block; white-space: nowrap; margin-right: .35em; }
 .nw { white-space: nowrap; }
-.entry .body { min-width: 0; }
-.entry h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 600 16px/1.35 var(--font); letter-spacing: -.01em; }
-.e-t { border: 0; background: none; text-align: left; font: inherit; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; border-radius: 4px; }
-/* Text controls keep their line, with a 40 px tall hit area: the padding is taken back by the margin. */
-.e-t { padding: 10px 0; margin-block: -10px; }
+.e-fi { flex: none; width: 14px; height: 14px; color: var(--ink-3); }
 summary { padding-block: 12px; margin-block: -12px; }
-.wayback { font: 600 13.5px/1.2 var(--font); color: var(--sky-ink); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; color: var(--ink-3); font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .meta .mono { font-size: 13px; }
-.meta .was { color: var(--ink-3); }
 .chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 5px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font: 500 13.5px/1 var(--font); color: var(--ink-2); white-space: nowrap; }
 .chip .amark { width: 18px; height: 18px; font-size: 13px; border-radius: 5px; }
 .chip .amark:not([class*="am-"]) { box-shadow: inset 0 0 0 1px var(--line-2); }
 .chip.plain { padding: 0 10px; }
 .chip-slot { min-width: 0; max-width: 100%; }
 .chip-slot:empty { display: none; }
-/* A row's one action, in words, with a thick sky underline. */
-.go { align-self: center; min-height: 40px; display: inline-flex; align-items: center; padding: 0 2px; border: 0; background: none; font: 600 14px/1 var(--font); color: var(--ink); text-decoration: underline; text-decoration-color: var(--sky-line); text-decoration-thickness: 3px; text-underline-offset: 5px; cursor: pointer; white-space: nowrap; }
-span.go { color: var(--ink-3); text-decoration-color: var(--line-2); opacity: 0; transition: opacity var(--t-hover) var(--ease); }
-.entry:hover span.go, .fold:hover span.go { opacity: 1; }
-button.go:hover { text-decoration-color: var(--focus); }
-button.go[disabled] { opacity: .45; cursor: not-allowed; }
 .said { margin-top: 10px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; font-size: 14px; border-left: 3px solid var(--line); padding: 4px 0 4px 12px; color: var(--ink-2); }
 .said b { font: 600 13.5px/20px var(--font); color: var(--ink-3); white-space: nowrap; }
 .said.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .said.two > div { display: grid; gap: 2px; align-content: start; }
 .said.two > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
 .said .nr { color: var(--ink-3); font-family: var(--voice); font-style: italic; font-size: 16px; }
-.fold { width: 100%; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 20px; border: 0; border-top: 1px solid var(--hair); background: var(--sunken); color: var(--ink-3); font-size: 14px; text-align: left; cursor: pointer; }
-.fold:hover { color: var(--ink); background: var(--paper-2); }
-/* Where it broke: one quiet line between the two rows, lined up with the titles, small red text after a 2 px red bar. */
-.broke-rule { padding: 4px 20px 10px 128px; }
-.broke-rule > span { display: inline-block; padding: 1px 0 1px 10px; border-left: 2px solid var(--broken); color: var(--broken); font: 500 13.5px/1.4 var(--font); }
-
-/* Good to know: what does not come back, below the record, said by the buddy. */
-.know { margin-top: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 18px 20px; border-radius: 18px; background: var(--sunken); border: 1px dashed var(--line-2); font-size: 14.5px; color: var(--ink-2); }
-.know h2 { font: italic 400 24px/1.1 var(--voice); color: var(--ink); margin-bottom: 6px; }
-.know .honest { display: grid; gap: 4px; margin: 0; }
-.know .honest dt { font-weight: 600; color: var(--ink); font-size: 14px; }
-.know .honest dt:not(:first-child) { margin-top: 8px; }
-.know .honest dd { margin: 0; text-wrap: pretty; }
 
 /* The save point detail: the right column, or a full sheet when narrow. Its message as the heading in the display face, the
    time under it, then what the check said, one ink action and the record of what is kept. */
@@ -1024,7 +919,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .dl { position: absolute; left: 0; top: 0; visibility: hidden; padding: 1px 4px; border-radius: 4px; background: var(--sunken); font: 500 13px/15px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dl.on { color: var(--ink); }
 /* Placed by measuring, so a move must land at once, even under Reduce motion's near-zero transitions. */
-.dl, .rlab { transition: none !important; }
+.dl { transition: none !important; }
 .knob { position: absolute; z-index: 1; left: 36px; top: 36px; width: 164px; height: 164px; border-radius: 50%; transition: transform .16s var(--ease); }
 /* The groove pointer from the rim toward the middle, and the sky dot at its end. */
 .knob::after { content: ""; position: absolute; left: 50%; top: 12px; width: 7px; height: 58px; margin-left: -3.5px; border-radius: 6px; background: linear-gradient(90deg, #cfcabf, #e8e4dc); box-shadow: inset 1px 1px 2px rgba(0, 0, 0, .22); }
@@ -1154,14 +1049,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 @media (max-width: 600px) {
   .toolbar kbd, .btn kbd, .it kbd, .pill kbd, .mn-l kbd, .search kbd { display: none; }
   .doc { padding: 26px 20px 0; }
-  .hero-h { font-size: 36px; line-height: 1.06; }
-  .hero-when { font-size: 15px; }
-  .hero-p { font-size: 16px; }
-  .hero-acts { align-items: stretch; flex-direction: column; gap: 12px; width: 100%; }
-  .hero-acts .btn { white-space: normal; height: auto; min-height: 52px; padding: 10px 18px; }
-  .hero-acts .btn.link { align-self: center; min-height: 44px; }
-  .day { flex-wrap: wrap; gap: 4px 8px; margin-top: 36px; }
-  .day h2 { font-size: 30px; }
   .said.two { grid-template-columns: minmax(0, 1fr); }
   .said.two > div + div { padding-left: 0; padding-top: 8px; border-left: 0; border-top: 1px solid var(--line); }
   .page { padding: 24px 20px 40px; }
@@ -1185,7 +1072,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 /* Jump to's field has focus while it is open: a 3 px bar in the ring's orange under the field says so, inside the card's edge. */
 .pal-q:focus-visible { outline: none; }
 .pal-top:has(.pal-q:focus-visible) { box-shadow: inset 0 -3px 0 var(--ring); }
-.meta, .day span, .pal-h, .tv-clock { font-variant-numeric: tabular-nums; }
+.meta, .pal-h, .tv-clock { font-variant-numeric: tabular-nums; }
 
 /* The record is the reading surface; the rail carries project and agent context. */
 .project-it { min-height: 58px; align-items: center; }
@@ -1254,30 +1141,20 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .mn.mn-phone-only { display: inline; }
   .page { padding: 24px 16px 40px; }
   .page h1 { font-size: 34px; }
-  /* The main hero button: full width and 52 px, so the one action that matters is the easy one to hit. */
-  .hero-acts .btn.big { min-height: 52px; font-size: 16px; }
-  .hero-acts .sk-btn { width: auto; height: 52px; }
-  /* The ruler names Now, the last working save point and the selected one; fitRulerLabels keeps them apart. */
-  .rlab:not(.on):not(.now):not([data-lw]) { display: none; }
-  .rlab.now:not(.on) .rl-t { display: none; }
-  .rwell { margin-top: 36px; padding: 16px 14px 8px; }
-  .rw-hint { display: none; }
-  /* A phone's ruler is too narrow for three frames: the flag reads only the save point under the playhead, at a width
-     that keeps its time on one line, and it stays inside the ruler (Design b3+4 F1). */
-  .rflag { --fw: min(280px, 100cqw); grid-template-columns: minmax(0, 1fr); }
-  .rf:not(.on) { display: none; }
-  .legend { margin-left: 0; flex-wrap: wrap; gap: 6px 14px; }
+  /* History on a phone: the status and its way back fill the width, so the one action that matters is the easy one to hit. */
+  .page.lp .lp-h { gap: 10px; font-size: 21px; }
+  .lp-mark { width: 26px; height: 26px; }
+  .lp-mark .vi { width: 14px; height: 14px; }
+  .lp-sub, .lp-go, .lp-status .gone-card { margin-left: 0; }
+  .lp-go .btn { width: 100%; justify-content: center; text-align: center; font-size: 16px; }
+  .lp-col { margin-inline: -4px; }
+  .lp-head { padding-left: 12px; }
+  .lp-head .jf button { min-height: 40px; }
+  .lp-row { min-height: 64px; padding: 12px 12px 12px 16px; }
   .steps3 { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }
   .setrow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .panel { padding: 16px; }
-  .entry { grid-template-columns: 64px minmax(0, 1fr); gap: 2px 12px; padding: 14px 16px; }
-  .entry button.go { grid-column: 2; justify-self: start; min-height: 44px; }
-  .entry span.go { display: none; }
-  .fold { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; padding: 12px 16px; }
-  .entry h3 { font-size: 15.5px; }
   .meta { gap: 6px 8px; font-size: 13.5px; }
-  .broke-rule { padding: 4px 16px 10px; }
-  .know { padding: 16px; gap: 12px; }
   .empty-dir { padding: 16px; }
   .cmdrow { grid-template-columns: minmax(0, 1fr); }
   .cmdrow .btn { justify-self: start; }
@@ -1314,7 +1191,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   /* Every control is at least 44 px tall on a phone. */
   .btn, .btn.link, .it, .pill, .cr-p, .seg button, .sec-b, .tv-x { min-height: 44px; }
   .cr-p, .setup-hide { min-width: 44px; }
-  .e-t { padding-block: 12px; margin-block: -12px; }
   summary { padding-block: 14px; margin-block: -14px; }
   .field, .path-form .field { height: 44px; }
   .switch { border-width: 11px; }
@@ -1346,75 +1222,45 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .nav-scrim.enter > .side { animation: nav-in .24s var(--ease) both; }
 @keyframes nav-in { from { opacity: 0; transform: translateX(-28px); } }
 
-/* The History ruler: on first sight the line draws left to right and the beads pop in after it, then the labels. */
-.hruler .base.base-in { transform-origin: left center; animation: base-in .4s var(--ease) both; }
-@keyframes base-in { from { transform: scaleX(0); } }
-.rt-tk.tk-in { animation: tk-in .24s var(--ease) both; }
-@keyframes tk-in { from { opacity: 0; scale: .3; } }
-.lab-in { animation: fade .2s var(--ease) both; }
-/* The bead the playhead lands on settles into its ring. */
-.rt-tk.tk-sel { animation: tk-sel .22s var(--ease) both; }
-@keyframes tk-sel { from { scale: .8; } }
-/* From the keys the flag glides with the playhead, like the playhead itself. */
-.hruler:focus-visible:not(.by-pointer):not(.scrubbing) .rflag { transition: transform var(--t-glide) var(--ease), opacity var(--t-hover) var(--ease), visibility 0s; }
-
-/* A verdict that changed lands once: the bead grows into its new shape with a ring in its colour, the row's pill and the
-   status settle in. A fact, not a celebration: no overshoot. */
-.rt-tk { --ring: var(--ink-4); }
-.rt-tk.b-pass { --ring: var(--works); }
-.rt-tk.b-fail { --ring: var(--broken); }
-.rt-tk.v-land { animation: v-bead .32s var(--ease) var(--vd, 0ms) both; }
-@keyframes v-bead { from { opacity: .4; scale: .55; } }
-.rt-tk.v-land::before { content: ""; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 2px var(--ring); opacity: 0; pointer-events: none; animation: v-ring .32s var(--ease) var(--vd, 0ms); }
-@keyframes v-ring { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(1.9); } }
-.entry.v-land .meta > .vb { animation: v-badge .32s var(--ease) var(--vd, 0ms) both; }
+/* A verdict that changed lands once: the row's verdict and the status settle in. A fact, not a celebration: no overshoot. */
+.lp-row.v-land .lp-v { animation: v-badge .32s var(--ease) var(--vd, 0ms) both; }
 @keyframes v-badge { from { opacity: 0; transform: scale(.86); } }
-.hero.v-land .hero-h, .hero.v-land .hero-when, .hero.v-land .hero-e .dot { animation: v-hero .32s var(--ease) var(--vd, 0ms) both; }
+.lp-status.v-land .lp-h { animation: v-hero .32s var(--ease) var(--vd, 0ms) both; }
 @keyframes v-hero { from { opacity: 0; transform: translateY(8px); } }
 
-/* A check that runs shows it in four places: the sheet's bar, the main button, its row and its bead. Each indeterminate, as
-   the check gives no percentage; each stops when the check ends. */
+/* A check that runs shows it in three places: the sheet's bar, the main button and its row. Each indeterminate, as the
+   check gives no percentage; each stops when the check ends. */
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(280%); } }
 .ck-bar { position: relative; height: 4px; margin: 4px 0 14px; border-radius: 4px; background: var(--paper-2); overflow: hidden; }
 .ck-bar i { position: absolute; top: 0; bottom: 0; left: 0; width: 36%; border-radius: inherit; background: var(--sky-ink); animation: sweep 1.3s var(--ease-io) infinite; }
 .btn.running { position: relative; overflow: hidden; }
 .btn.dark.running[disabled] { background: var(--action); border-color: var(--ink); color: var(--action-ink); }
 .btn.running::after { content: ""; position: absolute; left: 0; bottom: 0; width: 36%; height: 3px; border-radius: 3px; background: currentColor; opacity: .7; animation: sweep 1.3s var(--ease-io) infinite; }
-.entry.checking { background: var(--sunken); }
-.entry.checking::after { content: ""; position: absolute; left: 0; bottom: 0; width: 36%; height: 2px; background: var(--sky-ink); animation: sweep 1.3s var(--ease-io) infinite; pointer-events: none; }
-button.go.running[disabled] { opacity: 1; }
-.rt-tk.checking::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--ink); border-right-color: var(--ink); pointer-events: none; animation: spin .9s linear infinite; }
+.lp-row.checking::after { content: ""; position: absolute; left: 0; bottom: 0; width: 36%; height: 2px; background: var(--sky-ink); animation: sweep 1.3s var(--ease-io) infinite; pointer-events: none; }
 
 /* Presses: every control gives a little under the finger (the sticker buttons also drop into their shadow). */
 .btn:active:not([disabled]), .btn.kf, .pill:active, .it:active, .search:active, .plan:active, .icon-b:active, .cr-p:active, .nav-toggle:active,
-.go:active:not([disabled]), .e-t:active, .fold:active, .mn-l button:active, .pal-i:active, .set-it:active:not(.on), .set-page .seg button:active, .wl-demo:active, .toast-undo:active, .chip:active { scale: .97; }
-.entry:active { scale: .99; }
+.mn-l button:active, .pal-i:active, .set-it:active:not(.on), .set-page .seg button:active, .wl-demo:active, .toast-undo:active, .chip:active { scale: .97; }
 /* Presses and lifts move only: scale, transform and opacity. Colours and shadows change at once, never animated. */
-.search, .plan, .icon-b, .cr-p, .nav-toggle, .go, .e-t, .fold, .mn-l button, .pal-i, .set-page .seg button, .wl-demo { transition-property: scale, transform, opacity; transition-duration: var(--t-press), var(--t-press), var(--t-hover); transition-timing-function: var(--press-ease), var(--press-ease), var(--ease); }
-.entry { transition-property: scale, translate; transition-duration: var(--t-press), var(--t-hover); transition-timing-function: var(--press-ease), var(--ease); }
-@media (prefers-reduced-motion: reduce) { .entry:hover, .entry:active { translate: none; scale: none; } }
+.search, .plan, .icon-b, .cr-p, .nav-toggle, .mn-l button, .pal-i, .set-page .seg button, .wl-demo { transition-property: scale, transform, opacity; transition-duration: var(--t-press), var(--t-press), var(--t-hover); transition-timing-function: var(--press-ease), var(--press-ease), var(--ease); }
 .pill { transition: transform var(--t-press) var(--press-ease), scale var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
 .pill:active, .pill.kf { transform: none; }
 
-/* Idle, low and slow: the rail's dot breathes, Now pulses. Settings > Appearance > Reduce motion (the .calm class) rests
-   both on their still frame, and so does every other loop that runs on its own (Claude Code's working dot, loading shapes),
-   just as the computer's own Reduce motion does; a check you started keeps showing its progress. */
+/* Idle, low and slow: the rail's dot breathes. Settings > Appearance > Reduce motion (the .calm class) rests it on its
+   still frame, and so does every other loop that runs on its own (Claude Code's working dot, loading shapes), just as the
+   computer's own Reduce motion does; a check you started keeps showing its progress. */
 .stored::before { animation: idle-breath 3.2s ease-in-out infinite; }
 @keyframes idle-breath { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .6; transform: scale(.78); } }
-.rt-tk.nowtk::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 2px var(--ink-4); opacity: 0; pointer-events: none; animation: now-pulse 3s var(--ease) 1.2s infinite; }
-@keyframes now-pulse { 0% { opacity: .55; transform: scale(1); } 55%, 100% { opacity: 0; transform: scale(1.75); } }
-.calm .stored::before, .calm .rt-tk.nowtk::after, .calm .breath, .calm .sk, .calm .sk-head::before, .calm .b9-sk i { animation: none; }
+.calm .stored::before, .calm .breath, .calm .sk, .calm .sk-head::before, .calm .b9-sk i { animation: none; }
 /* Reduce motion stills the rest too: an entrance (sheets, Jump to, the toast, the check's verdict) is a fade, presses and
    lifts happen at once, and every other animation lands on its end frame. */
 .calm .scrim.enter .sheet, .calm .scrim.enter .pal, .calm .toast.enter, .calm .ck-card.stamp { animation-name: fade; }
-.calm .entry, .calm .theme-tile, .calm .search, .calm .plan, .calm .icon-b, .calm .cr-p, .calm .nav-toggle, .calm .go, .calm .e-t, .calm .fold, .calm .mn-l button, .calm .pal-i, .calm .set-page .seg button, .calm .wl-demo { transition: none; }
-.calm .entry:hover, .calm .entry:active { translate: none; scale: none; }
+.calm .theme-tile, .calm .search, .calm .plan, .calm .icon-b, .calm .cr-p, .calm .nav-toggle, .calm .mn-l button, .calm .pal-i, .calm .set-page .seg button, .calm .wl-demo { transition: none; }
 .calm *, .calm *::before, .calm *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
-.calm .rt-tk.checking::before { animation: none; }
-.calm .ck-bar i, .calm .btn.running::after, .calm .entry.checking::after { animation: none; width: 100%; opacity: .35; }
+.calm .ck-bar i, .calm .btn.running::after, .calm .lp-row.checking::after { animation: none; width: 100%; opacity: .35; }
 
 @media (prefers-reduced-motion: reduce) {
   /* Nothing idles and progress is a still bar: the end frames, at once. */
-  .stored::before, .rt-tk.nowtk::after, .rt-tk.checking::before { animation: none; }
-  .ck-bar i, .btn.running::after, .entry.checking::after { animation: none; width: 100%; opacity: .35; }
+  .stored::before { animation: none; }
+  .ck-bar i, .btn.running::after, .lp-row.checking::after { animation: none; width: 100%; opacity: .35; }
 }

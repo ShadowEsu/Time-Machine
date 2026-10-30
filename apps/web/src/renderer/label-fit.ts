@@ -33,46 +33,6 @@ export function placeLabels(labels: readonly (readonly Box[])[], frame: Box, obs
   });
 }
 
-/** A ruler label as drawn: its box, where its tick is, and for Now, its box without the time. */
-export interface RowLabel {
-  box: Box;
-  tickX: number;
-  lastWorking: boolean;
-  now: boolean;
-  /** Now's box when it shows only "Now", or null when it already does. */
-  short: Box | null;
-}
-
-/**
- * Ruler labels in priority order: Now, the last working one, the selected one, the first. A label that
- * comes within `gap` of one already kept hides, except the last working one, which never drops: it moves
- * to the left of its tick (its right edge 6 px before it), and if it still touches Now, Now drops its time.
- * Returns how far each label moves, which ones hide, and whether Now goes short.
- */
-export function fitRow(labels: readonly RowLabel[], gap = 8): { dx: number[]; hidden: boolean[]; nowShort: boolean } {
-  const kept = new Map<number, Box>();
-  const clear = (b: Box): boolean => [...kept.values()].every((k) => !overlaps(b, k, gap));
-  const dx = labels.map(() => 0);
-  const hidden = labels.map(() => false);
-  let nowShort = false;
-  labels.forEach((l, i) => {
-    if (clear(l.box)) return void kept.set(i, l.box);
-    if (!l.lastWorking) return void (hidden[i] = true);
-    const w = l.box.right - l.box.left;
-    const left = { ...l.box, left: l.tickX - 6 - w, right: l.tickX - 6 };
-    const ni = labels.findIndex((x) => x.now);
-    const now = labels[ni];
-    if (!clear(left) && now?.short && kept.has(ni)) {
-      nowShort = true;
-      kept.set(ni, now.short);
-    }
-    if (clear(l.box)) return void kept.set(i, l.box);
-    dx[i] = left.left - l.box.left;
-    kept.set(i, left);
-  });
-  return { dx, hidden, nowShort };
-}
-
 /**
  * Where a dial label may go, for a dot at `dot` on a dial centred at `center`, `gap` from the dot's centre.
  * At the sides (|sin| of its angle over 0.7) it goes above its dot, anchored toward the centre: a label on
