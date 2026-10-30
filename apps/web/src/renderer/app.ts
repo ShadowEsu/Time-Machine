@@ -2,7 +2,7 @@
 // (the dial scene, or the plain sheet), Compare, Agents, Storage, Settings, onboarding and the Inspector.
 // Plain TypeScript, one render function.
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerdictRecord, VerifyResult } from "@timetm/core";
-import type { AgentRow, AppEvent, AutoSave, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, LicenseStatus, Method, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Results, RunNote, Settings, SourceRow, StorageResult, StoreProject, TmBridge, Verdict } from "../shared/api.js";
+import type { AgentRow, AppEvent, AutoSave, Bootstrap, Call, FolderState, CallOf, HookPreview, IsolationInfo, LicenseStatus, Method, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Results, RunNote, Settings, SourceRow, StorageResult, StoreProject, TmBridge, Verdict } from "../shared/api.js";
 import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
@@ -233,7 +233,7 @@ class ApiFailure extends Error {}
 const RECORDED: Method[] = ["init", "setCheck", "checkpoint", "diff", "open", "verify", "findGood", "recover", "undoRecover", "log", "hookInstall", "forget", "demo", "cleanStore"];
 const TITLES: Partial<{ [M in Method]: string }> = {
   init: "Set up", setCheck: "Change the check", checkpoint: "Save now", diff: "Compare", open: "Try it in a copy", verify: "Check it works",
-  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this rewind", log: "Audit log", hookInstall: "Connect Claude Code", forget: "Disconnect Claude Code", demo: "Try the demo",
+  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this bring back", log: "Audit log", hookInstall: "Connect Claude Code", forget: "Disconnect Claude Code", demo: "Try the demo",
   cleanStore: "Clean up storage",
 };
 
@@ -928,11 +928,18 @@ function history(): string {
   // After a bring back, one card says it all: where the working version is, how to try it, where your work from before went,
   // and Keep it or Undo. No Git commands.
   const saved = u ? newestByTime(pts.filter((c) => c.trigger === "recover" && c.note === `Before recovering ${u.result.id}`))[0] ?? null : null;
+  // Once you ran the folder commands, the engine sees the folder on use-<id>: the card says where things are now.
+  const onUse = !!u && folderOnUse(u.result, p);
+  const useSteps = onUse && u ? folderPlan(u.result, p)?.steps ?? null : null;
+  const savedLine = !saved ? ""
+    : onUse && useSteps ? `<p class="uc-saved"><span>${esc(useSteps.onUse)} It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>
+      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd">${esc(useSteps.back)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.local)}</p>`
+    : `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>`;
   const undoBar = u
-    ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
-      ${saved ? `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
+    ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>.${onUse ? "" : " Your folder was not touched."}</p>
+      ${savedLine}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
-      ${folderCommandsOn() ? useInFolder(u.result, p) : ""}
+      ${folderPanelOn() && !onUse ? useInFolder(u.result, p) : ""}
       <div class="uc-ch"><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div></div></div>`
     : "";
   const two = twoPane();
@@ -1026,23 +1033,76 @@ let bgChecking: string | null = null;
  * here: it offers the copy, and for a Git project the two real commands that switch the folder to the new branch (stash the
  * folder's own changes first, so a switch never refuses or overwrites them).
  */
-function useInFolder(res: RecoverResult, p: ProjectEntry): string {
+/** What the folder commands are built from right now, or null when there is no Git branch to switch to. */
+function folderPlan(res: RecoverResult, p: ProjectEntry): { steps: ReturnType<typeof folderSteps> | null; loading: boolean } | null {
   const before = res.savedBefore ? entry(res.savedBefore) : null;
   const sha = entry(res.id)?.commit;
-  const steps = res.copyOnly || !res.branch || !sha || !before?.head ? null
-    : folderSteps(homePath(p.path), res.branch, sha, res.id, { branch: before.branch, sha: before.head });
-  if (!steps) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
+  if (res.copyOnly || !res.branch || !sha || !before?.head) return null;
+  const secrets = folderStateFor(p, res.branch);
+  if (secrets === undefined) {
+    return { steps: null, loading: true };
+  }
+  if (secrets === null) return { steps: null, loading: true };
+  if ("failed" in secrets) return { steps: null, loading: false };
+  return { steps: folderSteps(homePath(p.path), res.branch, sha, res.id, { branch: before.branch, sha: before.head }, secrets), loading: false };
+}
+
+/** The folderState answer per project and recovery branch: null while it is asked. Asked again when the app comes back. */
+const folderSeen = new Map<string, FolderState | { excluded: []; tracked: []; branch: null; hooks: false; failed: true } | null>();
+
+/**
+ * The folder's state for the panel: asked once per bring back and again when the window comes back (you may have run the
+ * commands). Until the answer comes there is no block, so nothing secret can be copied by mistake. undefined: just asked.
+ */
+function folderStateFor(p: ProjectEntry, branch: string): FolderState | { failed: true } | null | undefined {
+  const key = `${p.id} ${branch}`;
+  const seen = folderSeen.get(key);
+  if (seen !== undefined) return seen;
+  folderSeen.set(key, null);
+  void bridge.call({ method: "folderState", projectId: p.id, branch }).then((r) => {
+    folderSeen.set(key, r.ok ? r.data : { excluded: [], tracked: [], branch: null, hooks: false, failed: true });
+    render();
+  });
+  return undefined;
+}
+
+/** The panel shows only where its commands run: macOS and Linux shells, never Windows, and only when turned on. */
+function folderPanelOn(): boolean {
+  return folderCommandsOn() && st.boot.platform !== "win32";
+}
+
+/** True once the folder is on the branch the commands make (the engine reads its current branch). */
+function folderOnUse(res: RecoverResult, p: ProjectEntry): boolean {
+  if (!folderPanelOn() || !res.branch) return false;
+  const s = folderSeen.get(`${p.id} ${res.branch}`);
+  return !!s && "branch" in s && s.branch === `use-${res.id}`;
+}
+/** On a phone the commands stay behind Show commands; Copy works without opening them. */
+let folderCmdsShown = false;
+
+function useInFolder(res: RecoverResult, p: ProjectEntry): string {
+  const plan = folderPlan(res, p);
+  if (!plan) return '<p class="uc-use-line"><b>Use it in your folder:</b> copy the files you want from the copy into it. Your broken version stays saved.</p>';
+  if (plan.loading) return '<p class="uc-use-line" aria-busy="true"><b>Use it in your folder:</b> checking your folder for files that look secret…</p>';
+  const steps = plan.steps;
+  if (!steps) return '<p class="uc-use-line"><b>Use it in your folder:</b> we couldn’t check your folder for files that look secret, so no commands are shown. Open the copy instead.</p>';
+  if (steps.blocked) return `<p class="uc-use-line"><b>Use it in your folder:</b> ${esc(steps.blocked)}</p>`;
   const n = steps.commands.split("\n").length;
   // The list opens by itself once Check it works there has passed; before that it is one line that expands.
   const passed = thereChecked === res.id && entry(res.id)?.verdict === "PASS" && checkRunning() !== res.id;
-  return `<div class="uc-use"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands, your broken version stays saved</summary>
+  return `<div class="uc-use${folderCmdsShown ? " shown" : ""}"><details${passed ? " open" : ""}><summary><b>Use it in your folder:</b> ${n} commands, your broken version stays saved</summary>
     <p>${esc(steps.intro)}</p>
+    <p class="uc-end">${esc(steps.end)}</p>
+    ${steps.left ? `<p class="uc-left">${esc(steps.left)}</p>` : ""}
+    <button class="btn quiet uc-show" data-act="show-cmds" aria-expanded="${folderCmdsShown}">${folderCmdsShown ? "Hide commands" : "Show commands"}</button>
     <pre class="mono sel-text uc-cmd">${esc(steps.commands)}</pre>
-    <div class="row-btns"><button class="btn quiet" data-act="copy" data-text="${esc(steps.commands)}">Copy commands</button><button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Or open the copy</button></div>
+    <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="commands">Copy commands</button><button class="btn link" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Or open the copy</button></div>
+    <p class="uc-local">${esc(steps.local)}</p>${steps.hooks ? `<p>${esc(steps.hooks)}</p>` : ""}
     <p><b>To go back</b></p>
     <pre class="mono sel-text uc-cmd">${esc(steps.back)}</pre>
-    <div class="row-btns"><button class="btn quiet" data-act="copy" data-text="${esc(steps.back)}">Copy</button></div>
-    <p>${esc(steps.backNote)}</p></details></div>`;
+    <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div>
+    <p>${esc(steps.backNote)}</p>
+    <details class="uc-why"><summary>Why these flags</summary><ul>${steps.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details></details></div>`;
 }
 
 /** The folder commands panel is off by default: it shows only when turned on for this browser (tm.folderCommands = "1"). */
@@ -1093,7 +1153,10 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   const isSafety = !!back && c.trigger === "recover" && c.note === `Before recovering ${back.result.id}`;
   const backTo = back ? entry(back.result.id) : null;
   // The broken version's own pane speaks of your folder (where it still is), apart from where the working copy went.
-  const here = isSafety && back ? `<div class="lp-here" role="note"><p><b>This is your broken version. It is still in your folder</b>, untouched, and this save point keeps it too.</p>
+  const moved = isSafety && back ? folderOnUse(back.result, p) : false;
+  const here = isSafety && back ? `<div class="lp-here" role="note"><p>${moved
+    ? `<b>This is your broken version.</b> Your folder is now on use-${esc(back.result.id)}; this save point and the branch tm/folder-before/${esc(back.result.id)} keep it.`
+    : "<b>This is your broken version. It is still in your folder</b>, untouched, and this save point keeps it too."}</p>
       <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(p.path)}">Open your folder</button></div>
       <p>${esc(`The working version, ${backTo ? named(backTo).name : "the one you brought back"}, is ${back.result.copyOnly ? "in a copy at" : `on the branch ${back.result.branch} and in a copy at`}`)} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
       <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(back.result.copyDir)}">${esc(revealLabel().replace("Show", "Show the working copy"))}</button></div></div>`
@@ -1111,8 +1174,8 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   // check (run in the background) says so, or while it runs, when the version just before it failed and nothing changed.
   const prior = isSafety ? pts[pts.findIndex((x) => x.id === c.id) - 1] : undefined;
   const folderNow = !isSafety ? ""
-    : c.verdict === "FAIL" || (c.verdict === null && prior?.verdict === "FAIL" && st.changes.get(c.id)?.length === 0) ? "Your folder now · broken version, kept."
-      : c.verdict === null ? "Your folder now · not checked." : `Your folder now · ${verdictWord(c.verdict).toLowerCase()}.`;
+    : c.verdict === "FAIL" || (c.verdict === null && prior?.verdict === "FAIL" && st.changes.get(c.id)?.length === 0) ? "Your folder now: the broken version (saved)."
+      : c.verdict === null ? "Your folder now: not checked." : `Your folder now: ${verdictWord(c.verdict).toLowerCase()}.`;
   const lead = damaged ? `This save point is damaged: ${damaged} Time Machine won’t check it or bring it back.`
     : folderNow ? folderNow
     : c.id === lw?.id && !isNewest ? `The last version that works. ${verdictSentence(c)}`
@@ -1506,7 +1569,7 @@ function rewind(): string {
     ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? ptClock(e) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
     : "";
   const pane = c ? tvRead(r, c) : { read: `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div>`, key: tvKey("find", "Find the last working version", "enter", keys("Mod+Enter")), alts: [] };
-  return `<div class="scrim rw-scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet rw rw-sheet step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
+  return `<div class="scrim rw-scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet rw rw-sheet step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Bring back ${p.name}`)}">
     <div class="rw-main"><div class="rw-head">${rewindSteps(r)}</div>
       <div class="tv-read" tabindex="0" role="region" aria-label="About this version">${triedRows}${pane.read}</div>
       ${rwFoot(r, pane)}</div>
@@ -1526,7 +1589,7 @@ function undoNote(res: RecoverResult): string {
   if (res.copyOnly) return '<p class="rw-undo-note">Undo removes the copy. Every save point stays, including your version from just before. Undo stops if you changed anything in the copy.</p>';
   return `<p class="rw-undo-note">Undo removes the new branch${st.settings.showGitDetails ? ` ${esc(res.branch)}` : ""} and the copy. Every save point stays, including your version from just before. Undo stops if you changed anything in the copy or added commits to the branch.</p>`;
 }
-function undoButton(size: string, label = "Undo this rewind"): string {
+function undoButton(size: string, label = "Undo this bring back"): string {
   const u = st.undo;
   return `<button class="btn ${size}" data-act="undo-rewind" data-key="undo" ${!u || u.working || st.busy ? "disabled" : ""}>${u?.working ? "Undoing…" : esc(label)}<kbd>${esc(keys("Mod+Z"))}</kbd></button>`;
 }
@@ -1875,7 +1938,7 @@ function timeView(): string {
   const still = r.finding || r.trying || r.recovering || r.step === "done";
   const pane = tvRead(r, c);
   // The reading comes first in the document, so its main key is the first control named to take focus; the dial follows it.
-  return `<div class="scrim rw-scrim ${once("tv")}" data-leave="tv"><div class="sheet rw tv step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
+  return `<div class="scrim rw-scrim ${once("tv")}" data-leave="tv"><div class="sheet rw tv step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Bring back ${p.name}`)}">
     <section class="rw-main" aria-label="Selected save point"><div class="rw-head">${rewindSteps(r)}</div>
       <div class="tv-read" tabindex="0" role="region" aria-label="About this version">${pane.read}</div>
       ${rwFoot(r, pane)}</section>
@@ -2118,7 +2181,7 @@ function settings(): string {
       `<div class="set-row set-theme"><div class="set-t"><span class="set-l" id="theme-l">Theme</span><p class="set-d">System follows your computer’s light or dark setting.</p></div><div class="theme-tiles" role="group" aria-labelledby="theme-l">${tile("system", "System")}${tile("light", "Light")}${tile("dark", "Dark")}</div></div>`
       + setRow("Show Git details", "Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.", sw("showGitDetails", s.showGitDetails, "Show Git details"))
       + setRow("Reduce motion", `Nothing moves on its own: no breathing dot, no spinning dial, no gliding rows. A check still shows its progress. ${osCalm ? "Your computer already asks for less motion, so Time Machine stays still either way." : "When this is off, Time Machine follows your computer’s own Reduce motion setting."}`, sw("reduceMotion", s.reduceMotion, "Reduce motion")) },
-    { id: "rewind", group: "Preferences", label: "Rewind style", title: "Rewind style", intro: "How going back to a save point looks. Both styles take the same steps.", icon: "rewind", body:
+    { id: "rewind", group: "Preferences", label: "Bring back style", title: "Bring back style", intro: "How going back to a save point looks. Both styles take the same steps.", icon: "rewind", body:
       setRow("Going back", "Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.",
         `<div class="seg" role="group" aria-label="Going back"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
     ...st.projects.map((p) => ({ id: `features:${p.id}`, group: "Projects", label: esc(p.name), title: esc(p.name), intro: "Its check, when it saves, and optional extras.", icon: "project", body: `<div class="mount" data-mount="features:${esc(p.id)}"></div>` })),
@@ -3717,7 +3780,7 @@ async function undoRewind(): Promise<void> {
   const u = st.undo;
   if (!u || u.working || st.busy) return;
   u.working = true;
-  st.busy = "Undoing the rewind";
+  st.busy = "Undoing the bring back";
   render();
   try {
     const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.result.id, branch: u.result.branch, copyDir: u.result.copyDir });
@@ -3730,7 +3793,7 @@ async function undoRewind(): Promise<void> {
     await loadTimeline();
     render();
     refocusList();
-    toast(r.removedBranch ? `Rewind undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Rewind undone. Removed the copy. Every save point is still here.`);
+    toast(r.removedBranch ? `Bring back undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Bring back undone. Removed the copy. Every save point is still here.`);
   } catch (e) {
     u.working = false;
     st.busy = null;
@@ -4650,6 +4713,19 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "copy-elsewhere":
       if (d.id) await copyElsewhere(d.id);
       return;
+    case "show-cmds":
+      folderCmdsShown = !folderCmdsShown;
+      return render();
+    case "copy-folder": {
+      // The text is built when Copy is pressed, from the same function the screen uses.
+      const u = justBack();
+      const p = project();
+      const plan = u && p ? folderPlan(u.result, p) : null;
+      const text = plan?.steps ? (d.which === "back" ? plan.steps.back : plan.steps.commands) : "";
+      if (!text) return void toast("Nothing to copy yet.");
+      const r = await bridge.call({ method: "copy", text });
+      return void toast(r.ok ? "Copied." : r.error.message);
+    }
     case "copy":
       if (d.text !== undefined) {
         const r = await bridge.call({ method: "copy", text: d.text });
@@ -5388,6 +5464,11 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   window.setInterval(tickAges, 30_000);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) tickAges();
+    // You may have run the folder commands in a terminal: read the folder again.
+    if (!document.hidden && folderSeen.size) {
+      folderSeen.clear();
+      render();
+    }
   });
   void loadAskProvider();
   document.addEventListener(FEATURES_CHANGED, () => void loadAskProvider());

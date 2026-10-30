@@ -1380,10 +1380,27 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .uc-use summary { cursor: pointer; color: var(--ink); line-height: 1.5; }
 .uc-use details > * + * { margin-top: 8px; }
 .uc-use-line { flex: 1 1 100%; font-size: 14px; }
-.uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre; overflow-x: auto; max-width: 100%; font-size: 13px; }
 /* r5: at desktop width Keep it sits right next to Undo. */
 .undo-card .uc-ch > div { flex: 0 1 300px; }
 /* r5: the sidebar status may take two lines ("Broken · copy ready"), never cut. */
 .project-it .nm small.project-verdict { white-space: normal; }
 .project-verdict > span:first-child { overflow: visible; text-overflow: clip; white-space: normal; }
 .project-verdict .pj-age { flex: none; white-space: nowrap; }
+/* r6: the ruler's glyph takes the surface colour, so it keeps 3:1 on the coloured marks in dark mode too. */
+.spk .vi { color: var(--surface); }
+/* r6: the folder panel. Commands never wrap mid-token (they scroll inside their block, never the page); on a phone they
+   stay behind Show commands, and Copy works without opening them. */
+.uc-use, .uc-use details, .undo-card .uc-t { min-width: 0; max-width: 100%; }
+.undo-card { min-width: 0; overflow-wrap: anywhere; }
+.uc-show { display: none; }
+.uc-why { margin-top: 8px; }
+.uc-why summary { cursor: pointer; color: var(--ink); }
+.uc-why ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.uc-local { font-weight: 600; color: var(--ink); }
+@media (max-width: 480px) {
+  .uc-show { display: inline-flex; }
+  .uc-use:not(.shown) .uc-cmd { display: none; }
+}
+/* r6: on a phone the preview sheet's content scrolls clear of its action bar. */
+.lp-sheet .lp-sb { padding-bottom: 120px; scroll-padding-bottom: 120px; }

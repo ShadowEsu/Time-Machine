@@ -122,6 +122,26 @@ describe("folder commands after a bring back (L364 r5, sequence S3)", () => {
     expect(g.commands.split("\n")[1]).toBe("git branch use-cp-0003 tm/recover/cp-0003-2 &&");
     expect(g.back).toContain("git reset -q --soft def456 && git -c core.hooksPath=/dev/null switch --detach def456 &&");
   });
+  test("secret-looking files are left out by literal pathspec and named; a tracked secret path means no block (Security L364)", () => {
+    const was = { branch: "main", sha: "def456" };
+    const one = folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [".env"], tracked: [] });
+    expect(one.commands.split("\n")[3]).toBe("git add -A -- . ':(exclude,literal).env' &&");
+    expect(one.left).toBe("We left out .env (looks like a secret). It stays in your folder, untouched.");
+    const two = folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [".env", "it's notes.txt"], tracked: [] });
+    expect(two.commands.split("\n")[3]).toBe("git add -A -- . ':(exclude,literal).env' ':(exclude,literal)it'\\''s notes.txt' &&");
+    expect(two.left).toBe("We left out .env and it's notes.txt (they look like secrets). They stay in your folder, untouched.");
+    const blocked = folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [], tracked: ["config/prod.env"] });
+    expect(blocked.commands).toBe("");
+    expect(blocked.back).toBe("");
+    expect(blocked.blocked).toBe("This version tracks config/prod.env, which looks secret. Move your copy somewhere safe first.");
+    expect(one.end).toBe("You end on a new branch, use-cp-0003, made from the working version. Your old branch is unchanged.");
+    expect(one.onUse).toBe("Your folder is on use-cp-0003, the working version. Your broken work is on the branch tm/folder-before/cp-0003.");
+    expect(one.why).toHaveLength(6);
+    expect(one.hooks).toBe("");
+    expect(folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [], tracked: [], hooks: true }).hooks).toBe("These steps skip your repo’s commit hooks.");
+    expect(one.local).toBe("tm/folder-before/cp-0003 is a local safety branch. Don’t push it or merge it. To get your work back, run the go-back line.");
+    expect(folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was).commands.split("\n")[3]).toBe("git add -A &&");
+  });
   test("a folder under home keeps the tilde outside the quotes; elsewhere the whole path is quoted", () => {
     expect(folderWord("~/my tips")).toBe("~/'my tips'");
     expect(folderWord("/Volumes/work/tips")).toBe("'/Volumes/work/tips'");

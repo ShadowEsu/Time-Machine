@@ -1,6 +1,6 @@
 // Runs validated calls against the one engine, @timetm/core. The CLI calls the same
 // functions, so the app and the CLI can never disagree.
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { accessSync, closeSync, constants, existsSync, fstatSync, lstatSync, openSync, opendirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -663,6 +663,9 @@ export class Engine {
           this.allowedPaths.add(r.reportPath);
           return r;
         });
+      case "folderState":
+        // Read only: names, never contents.
+        return folderState(p.path, call.branch);
       case "restorePaths":
         return this.serial(p.id, "Putting files back", () => tm.restorePaths(ctx, call.id, call.paths, call.dryRun ? { dryRun: true } : {}));
       case "undoRecover": {
@@ -806,4 +809,42 @@ function packageScripts(root: string): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * The folder's current branch, and which files the "Use it in your folder" commands must leave out: untracked files and tracked edits that look secret (by
+ * name, or by content up to 1 MB), and paths the recovery branch tracks whose ignored copy in the folder looks secret.
+ */
+function folderState(root: string, branch: string): { excluded: string[]; tracked: string[]; branch: string | null; hooks: boolean } {
+  const git = (args: string[], input?: string): string[] => {
+    try {
+      return execFileSync("git", ["-C", root, ...args], { input, maxBuffer: 64 * 1024 * 1024, stdio: ["pipe", "pipe", "ignore"] }).toString("utf8").split("\0").filter(Boolean);
+    } catch (e) {
+      // check-ignore exits 1 when nothing matches.
+      const out = (e as { stdout?: Buffer }).stdout;
+      return out ? out.toString("utf8").split("\0").filter(Boolean) : [];
+    }
+  };
+  const looks = (rel: string): boolean => {
+    if (tm.isSecretFileName(rel)) return true;
+    try {
+      const f = join(root, rel);
+      const st = lstatSync(f);
+      return st.isFile() && st.size <= 1024 * 1024 && tm.looksSecret(readFileSync(f).toString("latin1"));
+    } catch {
+      return false;
+    }
+  };
+  const changed = new Set([...git(["ls-files", "--others", "--exclude-standard", "-z"]), ...git(["diff", "--name-only", "-z", "HEAD"])]);
+  const excluded = [...changed].filter(looks).sort();
+  const index = new Set(git(["ls-files", "-z"]));
+  const onDisk = git(["ls-tree", "-r", "-z", "--name-only", branch]).filter((x) => !index.has(x) && existsSync(join(root, x)));
+  const tracked = onDisk.length ? git(["check-ignore", "--no-index", "-z", "--stdin"], onDisk.join("\0")).filter(looks).sort() : [];
+  const current = git(["symbolic-ref", "--short", "-q", "HEAD"]).join("").trim() || null;
+  const hookFile = git(["rev-parse", "--git-path", "hooks/pre-commit"]).join("").trim();
+  const hooks = !!git(["config", "--get", "core.hooksPath"]).join("").trim()
+    || (!!hookFile && existsSync(resolve(root, hookFile)))
+    || existsSync(join(root, ".husky", "pre-commit"))
+    || existsSync(join(root, ".pre-commit-config.yaml"));
+  return { excluded, tracked, branch: current, hooks };
 }

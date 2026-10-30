@@ -513,6 +513,8 @@ export class FakeEngine implements TmBridge {
         if (saved) s.audit.push({ at: new Date().toISOString(), action: "restore", target: call.id, result: `${call.paths.length} paths` });
         return r;
       }
+      case "folderState":
+        return { excluded: [], tracked: [], branch: "main", hooks: false };
       case "undoRecover": {
         await wait(300);
         if (!s.copies.delete(call.copyDir)) throw new Error(`${call.copyDir} is not a recovery copy this app made, so it was left alone.`);
@@ -790,6 +792,8 @@ export class FakeEngine implements TmBridge {
         this.audit.push({ at: new Date().toISOString(), action: "recover", target: call.id, result: `branch ${branch}` });
         return r;
       }
+      case "folderState":
+        return { excluded: [], tracked: [], branch: "main" };
       case "undoRecover": {
         await wait(500);
         if (!this.branches.has(call.branch)) throw new Error(`There is no branch ${call.branch}. It may already be gone.`);

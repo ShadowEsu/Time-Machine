@@ -241,6 +241,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("restorePaths"), projectId: ProjectId, id: CheckpointId, paths: z.array(z.string().min(1).max(4096)).min(1).max(500), dryRun: z.boolean().optional() }),
   /** `branch` is "" for a plain folder project: its recovery made a copy only. */
   z.strictObject({ method: z.literal("undoRecover"), projectId: ProjectId, id: CheckpointId, branch: z.string().regex(/^(tm\/recover\/cp-\d{4,}(-\d+)?)?$/), copyDir: AbsPath }),
+  /** Read only: the folder's current branch, and which of its files the "Use it in your folder" commands must leave out. */
+  z.strictObject({ method: z.literal("folderState"), projectId: ProjectId, branch: z.string().regex(/^tm\/recover\/cp-\d{4,}(-\d+)?$/) }),
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookPreview"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookInstall"), projectId: ProjectId }),
@@ -337,6 +339,20 @@ export interface StoreProject {
   bytes: number;
   /** False when the folder is no longer at `path`. */
   exists: boolean;
+}
+
+/**
+ * Files the "Use it in your folder" commands must not commit: `excluded`, untracked files and tracked edits in the folder
+ * that look secret (by name or by content), left in place; `tracked`, paths the working version tracks whose ignored copy in
+ * the folder looks secret (switching would overwrite it). Names only, never contents.
+ */
+export interface FolderState {
+  excluded: string[];
+  tracked: string[];
+  /** The folder's current branch, or null on a detached HEAD. */
+  branch: string | null;
+  /** The repo has commit hooks: core.hooksPath, .git/hooks/pre-commit, .husky/pre-commit or .pre-commit-config.yaml. */
+  hooks: boolean;
 }
 
 export interface Bootstrap {
@@ -515,6 +531,7 @@ export interface Results {
   recover: RecoverResult;
   restorePaths: RestoreResult;
   undoRecover: UndoRecoverResult;
+  folderState: FolderState;
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;

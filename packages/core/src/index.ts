@@ -32,5 +32,5 @@ export { runInterruptCleanups } from "./cleanup.js";
 export { cleanStore, type CleanStoreOptions, type CleanStoreResult } from "./storeClean.js";
 export { detectSandbox } from "./sandbox.js";
 export { checkRuns, secretScreen } from "./history.js";
-export { clipSafe } from "./secrets.js";
+export { clipSafe, isSecretFileName, looksSecret } from "./secrets.js";
 export { FREE_PROJECT_LIMIT, LICENSE_PUBLIC_KEY, activateLicense, licensePublicKeyFromEnv, licenseStatus, parseLicenseKey, removeLicense, signLicense, type LicensePayload, type LicenseStatus } from "./license.js";
