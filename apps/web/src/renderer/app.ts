@@ -7,7 +7,7 @@ import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, setHomes, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
+import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homeOf, homePath, setHomes, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
 import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
@@ -933,7 +933,7 @@ function history(): string {
   const useSteps = onUse && u ? folderPlan(u.result, p)?.steps ?? null : null;
   const savedLine = !saved ? ""
     : onUse && useSteps ? `<p class="uc-saved"><span>${esc(useSteps.onUse)} It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>
-      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${esc(useSteps.back)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.local)}</p>`
+      <p><b>To go back</b></p><pre class="mono sel-text uc-cmd" tabindex="0">${esc(useSteps.back)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div><p>${esc(useSteps.locked)}</p><p class="uc-local">${esc(useSteps.local)}</p>`
     : `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>`;
   const undoBar = u
     ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>.${onUse ? "" : " Your folder was not touched."}</p>
@@ -1044,11 +1044,11 @@ function folderPlan(res: RecoverResult, p: ProjectEntry): { steps: ReturnType<ty
   }
   if (secrets === null) return { steps: null, loading: true };
   if ("failed" in secrets) return { steps: null, loading: false };
-  return { steps: folderSteps(homePath(p.path), res.branch, sha, res.id, { branch: before.branch, sha: before.head }, secrets), loading: false };
+  return { steps: folderSteps(p.path, homeOf(p.path), sha, res.id, { branch: before.branch, sha: before.head }, secrets), loading: false };
 }
 
 /** The folderState answer per project and recovery branch: null while it is asked. Asked again when the app comes back. */
-const folderSeen = new Map<string, FolderState | { excluded: []; tracked: []; branch: null; hooks: false; failed: true } | null>();
+const folderSeen = new Map<string, FolderState | { excluded: []; tracked: []; forceAdd: []; branch: null; hooks: false; failed: true } | null>();
 
 /**
  * The folder's state for the panel: asked once per bring back and again when the window comes back (you may have run the
@@ -1060,7 +1060,7 @@ function folderStateFor(p: ProjectEntry, branch: string): FolderState | { failed
   if (seen !== undefined) return seen;
   folderSeen.set(key, null);
   void bridge.call({ method: "folderState", projectId: p.id, branch }).then((r) => {
-    folderSeen.set(key, r.ok ? r.data : { excluded: [], tracked: [], branch: null, hooks: false, failed: true });
+    folderSeen.set(key, r.ok ? r.data : { excluded: [], tracked: [], forceAdd: [], branch: null, hooks: false, failed: true });
     render();
   });
   return undefined;
@@ -1101,7 +1101,7 @@ function useInFolder(res: RecoverResult, p: ProjectEntry): string {
     <p><b>To go back</b></p>
     <pre class="mono sel-text uc-cmd" tabindex="0">${esc(steps.back)}</pre>
     <div class="row-btns"><button class="btn quiet" data-act="copy-folder" data-which="back">Copy</button></div>
-    <p>${esc(steps.backNote)}</p>
+    <p>${esc(steps.backNote)} ${esc(steps.locked)}</p>
     <details class="uc-why"><summary>Why these flags</summary><ul>${steps.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details></details></div>`;
 }
 

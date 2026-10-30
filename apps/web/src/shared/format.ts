@@ -172,6 +172,11 @@ export function setHomes(paths: readonly string[]): void {
 function homeSource(): string {
   return `(?<![^\\s"'\`(<>=:;,])(?:${[...homes.map(reEsc), OTHER_HOME].join("|")})(?=[/\\\\\\s"'\`<>&;:),.]|$)`;
 }
+/** The home folder a path is under (as the server gave it, or after realpath), or "" when it is under none. */
+export function homeOf(path: string): string {
+  return homes.find((h) => path === h || path.startsWith(`${h}/`)) ?? "";
+}
+
 /** A path under the home folder, said with ~ ("~/code/tips"). A home name inside another path stays as it is. */
 export function homePath(text: string): string {
   return text.replace(new RegExp(homeSource(), "g"), "~");

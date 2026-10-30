@@ -1,7 +1,7 @@
 // History as a list and a preview: what is selected first, what the status line says, where the keys go and what
 // changed since a save point.
 import { describe, expect, test } from "vitest";
-import { brokeAt, changedSince, defaultPick, folderSteps, folderWord, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, changedSince, defaultPick, folderSteps, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -105,45 +105,42 @@ describe("a save point with no message", () => {
   });
 });
 
-describe("folder commands after a bring back (L364 r5, sequence S3)", () => {
-  test("a side-branch commit, no stash; the same text on screen and copied; going back from a branch or a detached HEAD", () => {
-    const f = folderSteps("~/code/marigold-tips", "tm/recover/cp-0003", "abc123", "cp-0003", { branch: "main", sha: "def456" });
+describe("folder commands after a bring back (L364 r6, FolderCmds' S3s, used as-is)", () => {
+  const was = { branch: "main", sha: "def4567" };
+  const sha = "abc1234";
+  test("the block and go-back line, ~/'rest' under home, the same text on screen and copied", () => {
+    const f = folderSteps("/Users/ana/code/marigold-tips", "/Users/ana", sha, "cp-0003", was);
     expect(f.commands).toBe([
       "cd ~/'code/marigold-tips' &&",
-      "git branch use-cp-0003 tm/recover/cp-0003 &&",
+      "git branch use-cp-0003 abc1234 &&",
       "git -c core.hooksPath=/dev/null switch -c tm/folder-before/cp-0003 &&",
       "git add -A &&",
-      'git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name="Time Machine" -c user.email=tm@localhost commit -q --allow-empty -m "tm: folder before using cp-0003" &&',
+      "git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name=\"Time Machine\" -c user.email=tm@localhost commit -q --allow-empty -m 'tm: folder before using cp-0003' &&",
       "git -c core.hooksPath=/dev/null switch use-cp-0003",
     ].join("\n"));
-    expect(f.back).toBe("cd ~/'code/marigold-tips' && git -c core.hooksPath=/dev/null switch tm/folder-before/cp-0003 && git reset -q --soft main && git -c core.hooksPath=/dev/null switch main && git reset -q && git branch -D tm/folder-before/cp-0003 && git update-ref -d refs/heads/use-cp-0003 abc123");
-    const g = folderSteps("/opt/it's here", "tm/recover/cp-0003-2", "abc123", "cp-0003", { branch: null, sha: "def456" });
-    expect(g.commands.split("\n")[0]).toBe("cd '/opt/it'\\''s here' &&");
-    expect(g.commands.split("\n")[1]).toBe("git branch use-cp-0003 tm/recover/cp-0003-2 &&");
-    expect(g.back).toContain("git reset -q --soft def456 && git -c core.hooksPath=/dev/null switch --detach def456 &&");
+    expect(f.back).toBe("cd ~/'code/marigold-tips' && git -c core.hooksPath=/dev/null switch tm/folder-before/cp-0003 && git reset -q --soft main && git -c core.hooksPath=/dev/null switch main && git reset -q && git branch -D tm/folder-before/cp-0003 && git update-ref -d refs/heads/use-cp-0003 abc1234");
+    expect(f.end).toBe("You end on a new branch, use-cp-0003, made from the working version. Your old branch is unchanged.");
+    expect(f.local).toBe("tm/folder-before/cp-0003 is a local safety branch. Don’t push it or merge it. To get your work back, run the go-back line.");
+    expect(f.locked).toBe("If the last step says it cannot lock use-cp-0003, you made commits there. They are kept, and the rest is already back.");
+    expect(f.onUse).toBe("Your folder is on use-cp-0003, the working version. Your broken work is on the branch tm/folder-before/cp-0003.");
+    expect(f.why).toHaveLength(6);
+    expect(f.hooks).toBe("");
   });
-  test("secret-looking files are left out by literal pathspec and named; a tracked secret path means no block (Security L364)", () => {
-    const was = { branch: "main", sha: "def456" };
-    const one = folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [".env"], tracked: [] });
-    expect(one.commands.split("\n")[3]).toBe("git add -A -- . ':(exclude,literal).env' &&");
-    expect(one.left).toBe("We left out .env (looks like a secret). It stays in your folder, untouched.");
-    const two = folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [".env", "it's notes.txt"], tracked: [] });
-    expect(two.commands.split("\n")[3]).toBe("git add -A -- . ':(exclude,literal).env' ':(exclude,literal)it'\\''s notes.txt' &&");
-    expect(two.left).toBe("We left out .env and it's notes.txt (they look like secrets). They stay in your folder, untouched.");
-    const blocked = folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [], tracked: ["config/prod.env"] });
+  test("outside home the whole path is quoted, ' as '\\''; a detached HEAD goes back with --detach", () => {
+    const g = folderSteps("/opt/it's here", "/Users/ana", sha, "cp-0003", { branch: null, sha: "def4567" });
+    expect(g.commands.split("\n")[0]).toBe("cd '/opt/it'\\''s here' &&");
+    expect(g.back).toContain("git reset -q --soft def4567 && git -c core.hooksPath=/dev/null switch --detach def4567 &&");
+  });
+  test("secret-looking files are left out and named; a tracked secret path means no block; hooks get a line", () => {
+    const one = folderSteps("/Users/ana/tips", "/Users/ana", sha, "cp-0003", was, { excluded: [".env.local"], tracked: [], hooks: true });
+    expect(one.commands.split("\n").slice(3, 5)).toEqual(["git add -A -- . ':(exclude,literal).env.local' &&", "git reset -q -- ':(literal).env.local' &&"]);
+    expect(one.left).toBe("We left out .env.local (looks like a secret). It stays in your folder, untouched.");
+    expect(one.hooks).toBe("These steps skip your repo’s commit hooks.");
+    const two = folderSteps("/Users/ana/tips", "/Users/ana", sha, "cp-0003", was, { excluded: [".env", "notes.txt"], tracked: [] });
+    expect(two.left).toBe("We left out .env and notes.txt (they look like secrets). They stay in your folder, untouched.");
+    const blocked = folderSteps("/Users/ana/tips", "/Users/ana", sha, "cp-0003", was, { excluded: [], tracked: ["config/prod.env"] });
     expect(blocked.commands).toBe("");
     expect(blocked.back).toBe("");
     expect(blocked.blocked).toBe("This version tracks config/prod.env, which looks secret. Move your copy somewhere safe first.");
-    expect(one.end).toBe("You end on a new branch, use-cp-0003, made from the working version. Your old branch is unchanged.");
-    expect(one.onUse).toBe("Your folder is on use-cp-0003, the working version. Your broken work is on the branch tm/folder-before/cp-0003.");
-    expect(one.why).toHaveLength(6);
-    expect(one.hooks).toBe("");
-    expect(folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was, { excluded: [], tracked: [], hooks: true }).hooks).toBe("These steps skip your repo’s commit hooks.");
-    expect(one.local).toBe("tm/folder-before/cp-0003 is a local safety branch. Don’t push it or merge it. To get your work back, run the go-back line.");
-    expect(folderSteps("~/tips", "tm/recover/cp-0003", "abc123", "cp-0003", was).commands.split("\n")[3]).toBe("git add -A &&");
-  });
-  test("a folder under home keeps the tilde outside the quotes; elsewhere the whole path is quoted", () => {
-    expect(folderWord("~/my tips")).toBe("~/'my tips'");
-    expect(folderWord("/Volumes/work/tips")).toBe("'/Volumes/work/tips'");
   });
 });

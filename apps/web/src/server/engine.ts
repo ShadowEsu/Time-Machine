@@ -812,10 +812,12 @@ function packageScripts(root: string): string[] {
 }
 
 /**
- * The folder's current branch, and which files the "Use it in your folder" commands must leave out: untracked files and tracked edits that look secret (by
- * name, or by content up to 1 MB), and paths the recovery branch tracks whose ignored copy in the folder looks secret.
+ * The folder's current branch, its commit hooks, and the lists folderCommands() needs: `excluded`, untracked files and
+ * tracked edits that look secret (checkpoint's rule: name or content), are over capture.maxFileMB, or can't be read;
+ * `tracked` (secret collisions) and `forceAdd`, ignored files at paths the recovery branch tracks, secret-looking or not.
+ * Names only, never contents.
  */
-function folderState(root: string, branch: string): { excluded: string[]; tracked: string[]; branch: string | null; hooks: boolean } {
+function folderState(root: string, branch: string): { excluded: string[]; tracked: string[]; forceAdd: string[]; branch: string | null; hooks: boolean } {
   const git = (args: string[], input?: string): string[] => {
     try {
       return execFileSync("git", ["-C", root, ...args], { input, maxBuffer: 64 * 1024 * 1024, stdio: ["pipe", "pipe", "ignore"] }).toString("utf8").split("\0").filter(Boolean);
@@ -825,26 +827,50 @@ function folderState(root: string, branch: string): { excluded: string[]; tracke
       return out ? out.toString("utf8").split("\0").filter(Boolean) : [];
     }
   };
-  const looks = (rel: string): boolean => {
+  let maxBytes = 5 * 1024 * 1024;
+  try {
+    maxBytes = tm.loadConfig(root).config.capture.maxFileMB * 1024 * 1024;
+  } catch {
+    // An unreadable config keeps the default limit.
+  }
+  /** Left out: secret by name or content, too big, or unreadable. A deleted file or a link is judged by its name only. */
+  const leaveOut = (rel: string): boolean => {
     if (tm.isSecretFileName(rel)) return true;
+    const f = join(root, rel);
+    let st;
     try {
-      const f = join(root, rel);
-      const st = lstatSync(f);
-      return st.isFile() && st.size <= 1024 * 1024 && tm.looksSecret(readFileSync(f).toString("latin1"));
+      st = lstatSync(f);
     } catch {
       return false;
     }
+    if (!st.isFile()) return false;
+    if (st.size > maxBytes) return true;
+    try {
+      return tm.looksSecret(readFileSync(f).toString("latin1"));
+    } catch {
+      return true;
+    }
+  };
+  const looks = (rel: string): boolean => {
+    if (tm.isSecretFileName(rel)) return true;
+    try {
+      return tm.looksSecret(readFileSync(join(root, rel)).toString("latin1"));
+    } catch {
+      return true;
+    }
   };
   const changed = new Set([...git(["ls-files", "--others", "--exclude-standard", "-z"]), ...git(["diff", "--name-only", "-z", "HEAD"])]);
-  const excluded = [...changed].filter(looks).sort();
+  const excluded = [...changed].filter(leaveOut).sort();
   const index = new Set(git(["ls-files", "-z"]));
   const onDisk = git(["ls-tree", "-r", "-z", "--name-only", branch]).filter((x) => !index.has(x) && existsSync(join(root, x)));
-  const tracked = onDisk.length ? git(["check-ignore", "--no-index", "-z", "--stdin"], onDisk.join("\0")).filter(looks).sort() : [];
+  const ignored = onDisk.length ? git(["check-ignore", "--no-index", "-z", "--stdin"], onDisk.join("\0")).sort() : [];
+  const tracked = ignored.filter(looks);
+  const forceAdd = ignored.filter((x) => !tracked.includes(x));
   const current = git(["symbolic-ref", "--short", "-q", "HEAD"]).join("").trim() || null;
   const hookFile = git(["rev-parse", "--git-path", "hooks/pre-commit"]).join("").trim();
   const hooks = !!git(["config", "--get", "core.hooksPath"]).join("").trim()
     || (!!hookFile && existsSync(resolve(root, hookFile)))
     || existsSync(join(root, ".husky", "pre-commit"))
     || existsSync(join(root, ".pre-commit-config.yaml"));
-  return { excluded, tracked, branch: current, hooks };
+  return { excluded, tracked, forceAdd, branch: current, hooks };
 }

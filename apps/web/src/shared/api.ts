@@ -349,6 +349,8 @@ export interface StoreProject {
 export interface FolderState {
   excluded: string[];
   tracked: string[];
+  /** Ignored files at paths the working version tracks that do not look secret: saved with git add -f. */
+  forceAdd: string[];
   /** The folder's current branch, or null on a detached HEAD. */
   branch: string | null;
   /** The repo has commit hooks: core.hooksPath, .git/hooks/pre-commit, .husky/pre-commit or .pre-commit-config.yaml. */

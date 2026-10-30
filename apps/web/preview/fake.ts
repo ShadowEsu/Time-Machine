@@ -514,7 +514,7 @@ export class FakeEngine implements TmBridge {
         return r;
       }
       case "folderState":
-        return { excluded: [], tracked: [], branch: "main", hooks: false };
+        return { excluded: [], tracked: [], forceAdd: [], branch: "main", hooks: false };
       case "undoRecover": {
         await wait(300);
         if (!s.copies.delete(call.copyDir)) throw new Error(`${call.copyDir} is not a recovery copy this app made, so it was left alone.`);
