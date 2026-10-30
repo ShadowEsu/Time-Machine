@@ -1361,3 +1361,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .undo-card .uc-ch > div { display: grid; gap: 4px; justify-items: start; flex: 1 1 220px; }
 .undo-card .uc-ch small { font-size: 13px; line-height: 1.4; color: var(--ink-3); }
 @media (max-width: 480px) { .undo-card .uc-ch .btn { width: 100%; white-space: normal; height: auto; min-height: 44px; } .undo-card .uc-ch > div { justify-items: stretch; } }
+/* Round 4: the verdict strip carries its glyph (check, cross; a hollow ring is Not checked yet), so it reads without colour. */
+.spk { display: inline-grid; place-items: center; flex-basis: 14px; }
+.spk .vi { width: 10px; height: 10px; color: #fff; }
+.spk.v-fail .vi { background: var(--broken); border-radius: 2px; }
+.lp-ttl { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }

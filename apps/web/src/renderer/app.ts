@@ -597,7 +597,12 @@ function short(sha: string): string {
 /** What a save point was made as, before anyone named it. `author` is the author line shown beside it, if any, so the agent is named once. */
 function madeTitle(c: TimelineEntry, author: string | null = null): string {
   // The engine names the save it makes before a rewind by save point id. Say what it is: your work from before going back.
-  if (c.trigger === "recover" && /^Before recovering \S+$/.test(c.note)) return "Your broken version, saved before going back";
+  if (c.trigger === "recover" && /^Before recovering \S+$/.test(c.note)) {
+    // Several of them are numbered in the order they were made: "Your broken version #2, saved before going back".
+    const all = points().filter((x) => x.trigger === "recover" && /^Before recovering \S+$/.test(x.note));
+    const n = all.findIndex((x) => x.id === c.id) + 1;
+    return `Your broken version${n > 1 ? ` #${n}` : ""}, saved before going back`;
+  }
   const made = pointTitle(c, author);
   // An untitled save is named by what it did ("309 files deleted"), once its diff is read.
   return (made.trim() ? "" : changeWords(c)) || rowTitle(made, c.trigger, st.changes.get(c.id));
@@ -991,7 +996,7 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
  * hidden from screen readers and takes no presses.
  */
 function sparkline(pts: TimelineEntry[], lw: TimelineEntry | null): string {
-  const marks = pts.slice(-60).map((c) => `<i class="spk v-${verdictKey(c.verdict)}${c.id === st.selected ? " on" : ""}${c.id === lw?.id ? " lw" : ""}"></i>`).join("");
+  const marks = pts.slice(-60).map((c) => `<i class="spk v-${verdictKey(c.verdict)}${c.id === st.selected ? " on" : ""}${c.id === lw?.id ? " lw" : ""}">${c.verdict === "PASS" || c.verdict === "FAIL" ? vIcon(c.verdict) : ""}</i>`).join("");
   return `<span class="spark" aria-hidden="true">${marks}</span>`;
 }
 
@@ -1097,7 +1102,7 @@ function preview(c: TimelineEntry, sheet: boolean): string {
     : "";
   const putBack = filesChanged(c);
   const head = `<p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : author].filter(Boolean).join(" · ")))}</p>
-    <h2 class="lp-ph" id="prev-h">${esc(title(c, author))}</h2>
+    <div class="lp-ttl"><h2 class="lp-ph" id="prev-h">${esc(title(c, author))}</h2><button class="btn link small" data-act="rename" data-id="${esc(c.id)}">Rename</button></div>
     ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
     <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : isSafety && c.verdict === null ? "" : checkRunning() === c.id || bgChecking === c.id ? '<span class="vb vb-lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(checkRunning() === c.id ? "Checking it in a copy now. The verdict lands here when it ends." : lead)}</p></div>${here}`;
   const body = `${files}${opened}
@@ -4371,6 +4376,10 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "project":
       if (d.id) await selectProject(d.id);
       return;
+    case "rename":
+      // Rename from the list: the selected row's preview opens with its Name field in focus.
+      if (d.id) pick(d.id, !twoPane());
+      return void requestAnimationFrame(() => root.querySelector<HTMLInputElement>("#rn-title")?.focus());
     case "ov-bring":
       // From Overview: open the project's History on the version that works, then the one confirm to bring it back.
       if (!d.p || !d.id) return;
@@ -4991,6 +5000,10 @@ function onKey(e: KeyboardEvent): void {
   } else if (k === " " && onList && st.selected && !twoPane()) {
     e.preventDefault();
     pick(st.selected, true);
+  } else if ((k === "f2" || (k === "r" && !e.metaKey && !e.ctrlKey && !e.shiftKey)) && onList && st.selected) {
+    e.preventDefault();
+    if (!twoPane()) pick(st.selected, true);
+    requestAnimationFrame(() => root.querySelector<HTMLInputElement>("#rn-title")?.focus());
   } else if (k === "c" && st.selected) {
     e.preventDefault();
     void openCompare(st.selected, "now");

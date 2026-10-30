@@ -46,17 +46,17 @@ describe("since you last looked", () => {
 
   test("research says runs, and an agent that made every save is named once", () => {
     const d = digest([pt(1, 3, "PASS", true), pt(2, 2, "FAIL", true)], now);
-    expect(digestLine(d, "research")).toBe("2 runs, 2 checked. Broke once. Claude Code made all of them.");
-    expect(digestLine(d, "documents", () => "“Swapped the loader”")).toBe("2 save points, 2 checked. Broke once, at “Swapped the loader”. Claude Code made all of them.");
+    expect(digestLine(d, "research")).toBe("2 runs, 2 checked (1 works, 1 broken). Broke once. Claude Code made all of them.");
+    expect(digestLine(d, "documents", () => "“Swapped the loader”")).toBe("2 save points, 2 checked (1 works, 1 broken). Broke once, at “Swapped the loader”. Claude Code made all of them.");
   });
 
   test("a break is named once, with true counts of the save points since that fail (the demo's shape)", () => {
     const d = digest([pt(1, 6, null), pt(2, 5, null), pt(3, 4, "PASS"), pt(4, 3, "FAIL"), pt(5, 3, "FAIL"), pt(6, 2, "FAIL"), pt(7, 1, "FAIL")], now);
     expect(d.breaks).toBe(1);
     expect(d.brokeAt?.id).toBe("cp-0004");
-    expect(digestLine(d, "code", () => "“Agent: fixed lint warnings”")).toBe("7 save points, 5 checked. Broke once, at “Agent: fixed lint warnings”; the 3 save points since fail their check.");
+    expect(digestLine(d, "code", () => "“Agent: fixed lint warnings”")).toBe("7 save points, 5 checked (1 works, 4 broken). Broke once, at “Agent: fixed lint warnings”; the 3 save points since fail their check.");
     const mixed = digest([pt(1, 4, "PASS"), pt(2, 3, "FAIL"), pt(3, 2, null), pt(4, 1, "FAIL")], now);
-    expect(digestLine(mixed, "code", () => "x")).toBe("4 save points, 3 checked. Broke once, at x; 1 of the 2 save points since fails its check.");
+    expect(digestLine(mixed, "code", () => "x")).toBe("4 save points, 3 checked (1 works, 2 broken). Broke once, at x; 1 of the 2 save points since fails its check.");
   });
 
   test("a project that can't be read is said by name, never counted as a quiet day (writer#3)", () => {

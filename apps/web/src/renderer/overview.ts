@@ -19,6 +19,8 @@ export interface Digest {
   checked: number;
   /** Of those, how many passed. */
   works: number;
+  /** Of those, how many failed their check: the red marks on the strip. */
+  fails: number;
   /** Save points in the window that failed right after a checked save point that passed: where it broke. */
   breaks: number;
   /** The newest of those: where it broke last. Null when it did not break in the window. */
@@ -40,7 +42,7 @@ export interface Digest {
 /** Counts one project's save points (oldest first) over the `hours` before `now`. */
 export function digest(points: readonly DigestPoint[], now: number, hours = DIGEST_HOURS): Digest {
   const from = now - hours * 3_600_000;
-  const out: Digest = { saves: 0, checked: 0, works: 0, breaks: 0, brokeAt: null, since: 0, failingSince: 0, agentSaves: 0, agents: [], lastWorking: null, newest: points.at(-1) ?? null, everChecked: false };
+  const out: Digest = { saves: 0, checked: 0, works: 0, fails: 0, breaks: 0, brokeAt: null, since: 0, failingSince: 0, agentSaves: 0, agents: [], lastWorking: null, newest: points.at(-1) ?? null, everChecked: false };
   let before: Verdict | null = null;
   for (const p of points) {
     const t = Date.parse(p.createdAt);
@@ -53,6 +55,7 @@ export function digest(points: readonly DigestPoint[], now: number, hours = DIGE
       out.saves++;
       if (checked) out.checked++;
       if (p.verdict === "PASS") out.works++;
+      if (p.verdict === "FAIL") out.fails++;
       if (p.verdict === "FAIL" && before === "PASS") {
         out.breaks++;
         out.brokeAt = p;
@@ -114,7 +117,8 @@ function reportBody(busy: readonly ReportRow[], saves: number, hours: number, na
 export function digestLine(d: Digest, purpose: ProjectEntry["purpose"], name: (p: DigestPoint) => string = () => ""): string {
   if (!d.saves) return `Quiet in the last ${DIGEST_HOURS} hours.`;
   const parts = [unitCount(purpose, d.saves)];
-  if (d.checked) parts.push(`${d.checked} checked`);
+  // The counts match the strip beside them: each Works and Broken mark is counted.
+  if (d.checked) parts.push(`${d.checked} checked${d.fails ? ` (${[d.works ? `${d.works} works` : "", `${d.fails} broken`].filter(Boolean).join(", ")})` : ""}`);
   const at = d.brokeAt ? name(d.brokeAt) : "";
   const fail = (n: number): string => (n === 1 ? "fails its check" : "fail their check");
   const after = !d.failingSince ? ""

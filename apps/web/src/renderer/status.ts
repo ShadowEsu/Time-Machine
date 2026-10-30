@@ -99,12 +99,14 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
   const save: StatusButton = { label: "Save now", act: "save" };
   const check: StatusButton = { label: "Check it works", act: "check" };
   if (!newest) return { v: null, head: "No save points yet.", voice: "", body: checks ? "Save now, then check that it works." : "Save now to keep the first version.", primary: save, secondary: null };
-  // A save point is named by its message, the time after it; with no message, by its time and number ("2:58:48 AM #3").
+  // A save point is named by its message, the time after it; with no message, by its time ("Save at 2:58:48 AM").
+  // Times in a sentence never carry the internal "#N" (twins in one second are told apart in the Inspector).
+  const at = (c: StatusPoint): string => pointWhen(c, points).replace(/ #\d+$/, "");
   const said = (c: StatusPoint): string => namePhrase(namePoint(c, points, message(c)));
   // The voice line holds a time: "Saved 2:58 AM." With a message it names it too: "Saved “Added dark mode” at 2:58 AM."
   const savedAt = (c: StatusPoint): string => {
     const m = message(c).trim();
-    return m ? `Saved ${namePoint(c, points, m).name} at ${pointWhen(c, points)}.` : `Saved ${pointWhen(c, points)}.`;
+    return m ? `Saved ${namePoint(c, points, m).name} at ${at(c)}.` : `Saved ${at(c)}.`;
   };
   if (!checks && newest.verdict === null) {
     return { v: null, head: savedAt(newest), voice: "", body: "Kept on this computer, outside the folder. Open any version to compare it or bring it back as a copy.", primary: save, secondary: null };
@@ -115,7 +117,7 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
   switch (newest.verdict) {
     case "FAIL": {
       const since = brokenSince(points) ?? newest;
-      const voice = `Since ${pointWhen(since, points)}.`;
+      const voice = `Since ${at(since)}.`;
       if (!lw) return { v: "FAIL", head: "Broken.", voice, body: "No earlier version has passed yet. We can check the older ones for you.", primary: { label: "Find the last working version", act: "rewind" }, secondary: null };
       return {
         v: "FAIL",

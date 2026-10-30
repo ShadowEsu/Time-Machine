@@ -185,10 +185,10 @@ describe("project status", () => {
     // No message: "Save at" and its time in names and buttons, never "the first save" and never an internal "#N".
     const untitled = [pt(1, "PASS", sec(today, 5), ""), pt(2, "FAIL", sec(today, 5), "Auto save")];
     const broken = projectStatus(untitled);
-    expect(broken.voice).toBe(`Since ${t5} #2.`);
+    expect(broken.voice).toBe(`Since ${t5}.`);
     expect(broken.body).toContain(`The save at ${t5} still works.`);
     expect(broken.primary).toEqual({ label: `Bring back Save at ${t5}`, act: "rewind-to", id: "cp-0001", title: `Bring back Save at ${t5}` });
-    expect(projectStatus([untitled[0]!, { ...untitled[1]!, verdict: null }]).voice).toBe(`Saved ${t5} #2.`);
+    expect(projectStatus([untitled[0]!, { ...untitled[1]!, verdict: null }]).voice).toBe(`Saved ${t5}.`);
     expect(pointClock(untitled[0]!, untitled)).toBe(`${t5} #1`);
     // Another day: the day goes in front of the time.
     const day = new Date(2026, 9, 14);
