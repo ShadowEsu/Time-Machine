@@ -252,6 +252,10 @@ body.home .plan li { border-top: 1px solid var(--rule); color: var(--ink-2); }
 body.home .plan li:last-child { border-bottom: 1px solid var(--rule); }
 body.home .plan ul + .btn { margin-top: 28px; }
 body.home .plan .btn[disabled] { opacity: 1; border: 1.5px dashed var(--ink-3); background: var(--paper); color: var(--ink-3); box-shadow: none; transform: none; }
+body.home .plan [data-buy][hidden], body.home .plan [data-buy-closed][hidden] { display: none; }
+body.home .plan ul + .plan-closed { margin: 24px 0 0; color: var(--ink-2); font-size: 15px; line-height: 1.55; }
+body.home .plan-closed b { color: var(--ink); font-weight: 600; }
+body.home .plan .plan-closed + .btn { margin-top: 16px; }
 body.home .plan-status { color: var(--ink-2); }
 body.home .plan-aside { gap: 0; }
 body.home .plan-aside .plan-note { padding: 20px 0; border-top: 1px solid var(--rule); color: var(--ink-2); }
