@@ -57,6 +57,15 @@ function containsSecret(path: string, buf: Buffer): boolean {
   return isSecretFileName(path) || looksSecret(buf.toString("latin1"));
 }
 
+/** True when the tracked file `rel`, at `full` in the working folder, is a plain file that holds a secret now. */
+function holdsSecret(rel: string, full: string | Buffer): boolean {
+  try {
+    return lstatSync(full).isFile() && containsSecret(rel, readFileSync(full));
+  } catch {
+    return false;
+  }
+}
+
 /** Whether the disk finds `path` under its name with every A to Z letter's case flipped too (same device and inode), or null
  *  when the name has no such letter or `path` isn't there, so it can't tell. Other scripts are left alone: how a disk folds
  *  them (a dotless ı, say) isn't how JavaScript flips them, and a wrong flip would read as a firm "case matters" (Security F2). */
@@ -137,33 +146,40 @@ function snapshotCommit(p: Project, isConfig: (rel: string) => boolean, id: stri
     const config = tracked.filter((f) => isConfig(f.toString("utf8")));
     // Git can't take a pathspec past a symbolic link, so such an entry gets no exclude; the reset below puts it back.
     const excluded = config.filter((f) => !blockedOnDisk(p.root, f));
+    // An edited tracked file that now holds a secret is left out of git add, which would otherwise write the edit's blob
+    // into .git/objects even though the reset below takes it back out of the commit (Security TM-C1). The refresh only
+    // fills in the temp index's file stats (it hashes, never writes an object), so diff-files then lists just the
+    // entries whose content differs from HEAD's.
+    git(p.root, p.env, ["update-index", "-q", "--refresh"], index);
+    const rootBytes = Buffer.from(`${p.root}/`);
+    const secretEdits = splitZBytes(gitBytes(p.root, p.env, ["diff-files", "-z", "--name-only"], index)).filter(
+      (f) => !isConfig(f.toString("utf8")) && !blockedOnDisk(p.root, f) && holdsSecret(f.toString("utf8"), Buffer.concat([rootBytes, f])),
+    );
+    const skipped = [...excluded, ...secretEdits];
     // The names go through stdin, so a config folder with many files never makes the command line too long.
     const fromStdin = ["--pathspec-from-file=-", "--pathspec-file-nul"];
     const nul = Buffer.from([0]);
     const list = (names: Buffer[]): Buffer => Buffer.concat(names.flatMap((n, i) => (i ? [nul, n] : [n])));
-    // With nothing left to update (no first commit, an empty one, or only config files), git add -u fails on the unmatched pathspec.
-    if (tracked.length > excluded.length) {
-      gitBytes(p.root, p.env, ["add", "-u", ...fromStdin], index, list([Buffer.from("."), ...excluded.map((f) => Buffer.concat([Buffer.from(":(exclude,literal)"), f]))]));
+    // With nothing left to update (no first commit, an empty one, or only config files and secret edits), git add -u
+    // fails on the unmatched pathspec.
+    if (tracked.length > skipped.length) {
+      gitBytes(p.root, p.env, ["add", "-u", ...fromStdin], index, list([Buffer.from("."), ...skipped.map((f) => Buffer.concat([Buffer.from(":(exclude,literal)"), f]))]));
     }
     // The exclude was picked from the folder as it looked a moment before git add, so a link swapped in or out meanwhile could
     // still stage a config file's text (or its removal). Every config entry is set back to HEAD's on the temp index, from
     // HEAD's tree and never from the folder (Security R7-1, L2). The `--` keeps a file named like the commit from making
     // the commit ambiguous (Security I2).
     if (head && config.length) gitBytes(p.root, p.env, ["reset", "-q", ...fromStdin, head, "--"], { ...index, GIT_LITERAL_PATHSPECS: "1" }, list(config));
-    // Edited tracked files that now hold a secret keep their last committed version.
+    // Edited tracked files that now hold a secret keep their last committed version. The ones found before git add are
+    // already at HEAD's version. This second look stays as defence in depth: a file edited to hold a secret between that
+    // check and git add, or one behind a symbolic link that got no exclude, is still taken back out of the commit.
     const changedPaths = head ? splitZ(git(p.root, p.env, ["diff-index", "--cached", "-z", "--name-only", head, "--"], index)) : splitZ(git(p.root, p.env, ["ls-files", "-z"], index));
-    const secretTracked = changedPaths.filter((rel) => {
-      const full = join(p.root, rel);
-      try {
-        return lstatSync(full).isFile() && containsSecret(rel, readFileSync(full));
-      } catch {
-        return false;
-      }
-    });
-    if (secretTracked.length) {
+    const lateSecrets = changedPaths.filter((rel) => holdsSecret(rel, join(p.root, rel)));
+    if (lateSecrets.length) {
       // Named literally: a file called *.md must not take every Markdown file back with it (Security INFO).
-      git(p.root, p.env, head ? ["reset", "-q", head, "--", ...secretTracked] : ["rm", "-q", "--cached", "--", ...secretTracked], { ...index, GIT_LITERAL_PATHSPECS: "1" });
+      git(p.root, p.env, head ? ["reset", "-q", head, "--", ...lateSecrets] : ["rm", "-q", "--cached", "--", ...lateSecrets], { ...index, GIT_LITERAL_PATHSPECS: "1" });
     }
+    const secretTracked = [...secretEdits.map((f) => f.toString("utf8")), ...lateSecrets].sort();
     const tree = git(p.root, p.env, ["write-tree"], index);
     const headTree = head ? git(p.root, p.env, ["rev-parse", `${head}^{tree}`]) : null;
     if (head && tree === headTree) return { snapshot: head, tree, changedTracked: 0, secretTracked };
