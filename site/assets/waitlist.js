@@ -94,6 +94,8 @@
   function wire(form) {
     var email = form.querySelector('input[name="email"]');
     var consent = form.querySelector('input[name="consent"]');
+    // The second, optional box. Separate from the npm box: leaving it unticked never blocks a signup.
+    var feedback = form.querySelector('input[name="feedback"]');
     var honeypot = form.querySelector('input[name="company"]');
     var button = form.querySelector('button[type="submit"], button:not([type])');
     var status = form.querySelector("[data-waitlist-status]");
@@ -130,8 +132,11 @@
 
       var controller = typeof AbortController === "function" ? new AbortController() : null;
       var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
-      // The box's value names the wording the person agreed to (consent_text_version, 0007).
+      // The box's value names the wording the person agreed to (consent_text_version, 0007). The feedback box says whether it
+      // is ticked, and sends its own wording's version only when it is (0008).
       var body = { email: value, consent: consent.checked, consentVersion: consent.value, source: location.pathname, company: honeypot ? honeypot.value : "" };
+      if (feedback) body.feedback = feedback.checked;
+      if (feedback && feedback.checked) body.feedbackVersion = feedback.value;
       if (ref) body.ref = ref;
 
       fetch(api("waitlist"), {
