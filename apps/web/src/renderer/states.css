@@ -514,15 +514,13 @@ section > .b9-lede { margin: -2px 0 16px; }
   .so-planned { margin-left: 0; }
 }
 
-/* Runs: All / Pinned above the journal as the Settings pill, a pin beside a pinned row's title, and the detail's name, note
-   and pin in a quiet sunken card. Text fields here are the app's sans at 14 px, not the mono of a path field. */
-.jf-row { margin-top: 36px; display: flex; justify-content: flex-end; }
+/* Runs: All / Pinned in the History list's header as the Settings pill, a pin beside a pinned row's title, and the
+   detail's name, note and pin in a quiet sunken card. Text fields here are the app's sans at 14 px, not the mono of a path field. */
 .jf { display: inline-flex; gap: 2px; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--surface); font-size: 14.5px; }
 .jf button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font-weight: 500; cursor: pointer; transition: background-color var(--t-hover) var(--ease), color var(--t-hover) var(--ease); }
 .jf button:hover:not(.on) { background: var(--sel); color: var(--ink); }
 .jf button.on { background: var(--ink); color: var(--paper); font-weight: 600; }
 .jf-n { font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; opacity: .8; }
-.jf-row + .journal > .day:first-child { margin-top: 0; }
 .jf-empty { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: 18px; background: var(--sunken); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
 .jf-empty b { color: var(--ink); font-weight: 600; }
 .pin-i { width: 14px; height: 14px; flex: none; }
@@ -550,13 +548,6 @@ section > .b9-lede { margin: -2px 0 16px; }
 /* The Add flow's stepper stays on one line; only a phone lets it wrap. */
 .ob-page .steps { flex-wrap: nowrap; white-space: nowrap; font-size: 14px; }
 @media (max-width: 600px) { .ob-page .steps { flex-wrap: wrap; white-space: normal; row-gap: 8px; } }
-
-/* Journal times: the time stays whole on one line; a same-second ordinal sits on its own line below. The column is wide
-   enough for "12:43:36 AM" at every width, so every row's title starts at the same place. */
-.journal .entry { grid-template-columns: 92px minmax(0, 1fr) auto; }
-.journal .entry .when span { display: block; margin-right: 0; white-space: nowrap; }
-.journal .entry .when .tm-o { color: var(--ink-3); }
-@media (max-width: 600px) { .journal .entry { grid-template-columns: 92px minmax(0, 1fr); } }
 
 /* Storage > Thin old auto saves: the preview line and its buttons, then the Review list, which scrolls past ten rows. */
 .th-ask { display: grid; gap: 10px; }

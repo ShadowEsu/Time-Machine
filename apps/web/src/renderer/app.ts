@@ -7,13 +7,12 @@ import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
-import { branchShift, changeSummary, checkReason, clockParts, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusButton, type StatusPoint } from "./status.js";
+import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, triggerLabel, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
+import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, passStreaks, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
 import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
-import { crossings, homeX, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
-import { verdictWas } from "./journal.js";
+import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
 import { resetProjectCaches } from "./project-caches.js";
 import { claudeChannel, type Channel } from "./channels.js";
 import { renderAskPanel } from "./ask-panel.js";
@@ -22,22 +21,23 @@ import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { checkLede, hookStepActions, setupStrip, welcomeWords } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
-import { BEAD_IN_MS, beadDelay, BLOCK_STAGGER_MAX, BLOCK_STAGGER_MS, blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, RING_MS, rowDelay, VERDICT_MS } from "./motion.js";
+import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, RING_MS, VERDICT_MS } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
 import { confirmButtons, type ConfirmCopy } from "./confirm.js";
 import { thinConfirm, thinReview, thinSummary } from "./thin-view.js";
-import { dialCandidates, fitRow, placeLabels, type Box } from "./label-fit.js";
+import { dialCandidates, placeLabels, type Box } from "./label-fit.js";
 import { tailHtml, type LogTailView } from "./log-tail.js";
 import { acceptRecord, checkBodyHtml } from "./check-record.js";
 import { overviewPage, saveState, type DigestPoint } from "./overview.js";
-import { hasCheck, PURPOSES, purposeIcon, unitCount } from "./purpose.js";
+import { hasCheck, PURPOSES, purposeIcon } from "./purpose.js";
 import { ADD_FULL, ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathLede, pathProblem, pathSetupNote, purposeCards, savedOnlyToast, skipNote, type AddStep } from "./add-flow.js";
 import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage, type AccountView } from "./plan.js";
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
-import { changedLine, filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
+import { filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
+import { brokeAt, changedSince, defaultPick, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -157,9 +157,7 @@ interface State {
   drawer: boolean;
   /** The Ask column on the right of project screens. ⌘J shows or hides it. */
   askOpen: boolean;
-  /** Folded runs of automatic saves the user opened, by the id of their newest save point. */
-  unfolded: Set<string>;
-  /** A journal entry briefly tinted after a citation brought it into view. */
+  /** A row of History's list briefly tinted after a citation brought it into view. */
   lit: string | null;
   /** The time of the newest "agent-turn ended" audit line per project, refreshed with sidebar state. */
   lastTurn: Map<string, string>;
@@ -196,8 +194,6 @@ interface State {
   thin: { projectId: string; working: boolean; preview: Results["thinPreview"] | null; review: boolean; removed: number | null } | null;
   hookSheet: { projectId: string; preview: HookPreview; done: string | null; error: string | null; working: boolean } | null;
   demoBusy: boolean;
-  /** The demo's three steps on History: drag to the save point that works, go back to it, then undo or keep it. */
-  coach: { projectId: string; target: string; went: boolean } | null;
   openResult: OpenResult | null;
   /** The last check result per save point in this session, for evidence lines (time taken, network). */
   verifyResults: Map<string, VerifyResult>;
@@ -385,7 +381,7 @@ async function loadTimeline(): Promise<void> {
     st.timeline = timeline;
     st.timelineError = null;
     const ids = points().map((c) => c.id);
-    if (!st.selected || !ids.includes(st.selected)) st.selected = ids.at(-1) ?? null;
+    if (!st.selected || !ids.includes(st.selected)) st.selected = defaultPick(points(), lastWorking()?.id ?? null);
     void loadChanges();
     void loadDeployChips();
     void loadPasses();
@@ -581,11 +577,6 @@ function vIcon(v: Verdict | null): string {
         : v === "BLOCKED" || v === "INCOMPLETE" ? '<path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'
           : '<circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/>';
   return `<svg class="vi" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${path}</svg>`;
-}
-/** A row's time: "2:43:36 AM" whole on one line, and a same-second ordinal ("#3") on a line of its own below it. */
-function timeParts(t: string): string {
-  const { time, ord } = clockParts(t);
-  return `<span class="tm-t">${esc(time)}</span>${ord ? `<span class="tm-o">${esc(ord)}</span>` : ""}`;
 }
 /** Times inside a sentence never break in the middle: "2:08:05 AM" stays on one line. Takes and returns escaped HTML. */
 function keepTimes(html: string): string {
@@ -809,29 +800,6 @@ function sessions(pts: TimelineEntry[]): { name: string; from: number; to: numbe
   return out;
 }
 
-/** A short line on what the check found, from recorded evidence only. */
-function checkSummary(c: TimelineEntry): string {
-  const vr = st.verifyResults.get(c.id);
-  const same = vr && vr.verdict === c.verdict ? vr : null;
-  switch (c.verdict) {
-    case "PASS": {
-      const n = st.passes.get(c.id) ?? 0;
-      const count = n > 1 ? `Passed its check ${n} times in a row` : "check passed";
-      return same ? `${count}${n > 1 ? ", the last" : ""} in ${seconds(same.durationMs)}` : count;
-    }
-    case "FAIL":
-      return same?.exitCode != null ? `check failed, exit code ${same.exitCode}` : "check failed";
-    case "INCOMPLETE":
-      return "check did not finish";
-    case "BLOCKED":
-      return "check needs something";
-    case "ERROR":
-      return "check crashed";
-    default:
-      return "";
-  }
-}
-
 /** What Time Machine ran for this save point. Evidence, kept apart from anything an agent claimed. */
 function weRan(c: TimelineEntry): string {
   const vr = st.verifyResults.get(c.id);
@@ -865,128 +833,6 @@ function checksOn(p: ProjectEntry | null, pts?: readonly DigestPoint[]): boolean
   return hasCheck(null, ever);
 }
 
-/** A journal row: the time, then the title, then who made it, its verdict and what changed, then one quiet action.
- *  `was` is the checked save point before it, when its verdict was different. `lastGood` marks the way back. */
-function journalEntry(c: TimelineEntry, lastGood: boolean, was: TimelineEntry | undefined): string {
-  const author = authorOf(c);
-  const changed = st.changes.get(c.id);
-  const summary = checkSummary(c);
-  const shown = title(c, author);
-  // What changed, by kind and folder ("309 files deleted"), else the paths read for the row titles. A title that already
-  // names them is not said twice.
-  const files = changeWords(c) || changedLine(changed);
-  const what = files && files !== shown ? `<span class="e-files" title="${esc((changed ?? []).slice(0, 12).join(", "))}">${FILE_ICON}<span>${esc(files)}</span></span>` : "";
-  const facts = summary ? summary[0]!.toUpperCase() + summary.slice(1) : "";
-  // The save point under the History playhead is tinted, so the ruler and the record read as one.
-  const picked = !st.drawer && c.id === st.selected && c.id !== points().at(-1)?.id;
-  const running = checkRunning();
-  const checking = c.id === running || (running === "new" && c.id === points().at(-1)?.id);
-  const cls = ["entry", lastGood ? "lw" : "", st.drawer && c.id === st.selected ? "on" : "", picked ? "sel" : "", st.lit === c.id ? "lit" : "", checking ? "checking" : ""].filter(Boolean).join(" ");
-  const busy = st.busy ? "disabled" : "";
-  const p = project();
-  const kind = p?.kind ?? "git";
-  const damaged = damagedReason(c);
-  // One action per row: bring back the way out, check what is not checked. Both act, so both are the one quiet row button;
-  // the rest only open, and "Open" stays a word. A folder that is gone or a damaged save point has nothing to run.
-  const act = damaged || folderMissing(p) ? '<span class="go" aria-hidden="true">Open</span>'
-    : lastGood ? `<button class="go" data-act="rewind-to" data-id="${esc(c.id)}" aria-label="${esc(goBackLabel(c, points(), message))}" ${busy}>Bring back</button>`
-    : c.verdict === null && checksOn(p) ? `<button class="go${checking ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" aria-label="${esc(`Check ${nameLine(named(c))}`)}" ${busy}>Check</button>`
-      : '<span class="go" aria-hidden="true">Open</span>';
-  // While its check runs, the row says Checking where its verdict goes; the verdict lands there when the check ends.
-  // A project with no check has no verdict to show, so its rows carry none. A damaged save point says so, never "crashed".
-  const verdict = damaged ? `<span class="vb v-damaged" title="${esc(damaged)}"><i class="g" aria-hidden="true"></i>Damaged</span>`
-    : checking ? '<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : c.verdict === null && !checksOn(p) ? "" : badge(c.verdict);
-  const all = points();
-  const before = all[all.findIndex((x) => x.id === c.id) - 1];
-  const shift = branchShift(c, before, kind);
-  return `<article class="${cls}${damaged ? " damaged" : ""}" id="e-${esc(c.id)}" data-act="open" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(c.verdict)}">
-    <div class="when">${timeParts(ptClock(c))}</div>
-    <div class="body">
-      <h3><button class="e-t" data-act="open" data-id="${esc(c.id)}">${esc(shown)}</button>${st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : ""}${lastGood ? '<span class="wayback">Last version that works</span>' : ""}</h3>
-      <div class="meta">${authorChip(author)}${verdict}${shift ? `<span class="chip br-chip">${esc(shift)}</span>` : ""}${damaged ? (damaged === shown ? "" : `<span class="dmg">${esc(damaged)}</span>`) : what}${was ? `<span class="was">${keepTimes(esc(`Before it: ${verdictWord(was.verdict)}, ${named(was).name}`))}</span>` : ""}${facts && !damaged ? `<span>${esc(facts)}</span>` : ""}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span>${st.settings.showGitDetails ? `<span class="mono">${esc(kind === "folder" ? c.id : `${c.id} · ${gitLine(c, kind)}`)}</span>` : ""}</div>
-    </div>${act}</article>`;
-}
-
-/** An automatic save no one checked: before a prompt or a risky command. Runs of them fold. */
-function isAutoSave(c: TimelineEntry | undefined): boolean {
-  return !!c && c.verdict === null && (c.trigger === "claude-code:prompt" || c.trigger === "claude-code:pre-bash");
-}
-
-/** One frame of the ruler's flag: a save point's time and verdict, plus its title for the one under the playhead. */
-function flagFrame(c: TimelineEntry | undefined, on: boolean): string {
-  if (!c) return '<span class="rf empty"></span>';
-  const verdict = on ? badge(c.verdict) : `<span class="rf-v">${glyph(c.verdict)}<span>${esc(verdictWord(c.verdict))}</span></span>`;
-  return `<span class="rf${on ? " on" : ""}"><b class="rf-t">${esc(ptClock(c))}</b>${verdict}${on ? `<span class="rf-n">${esc(title(c))}</span>` : ""}</span>`;
-}
-
-/** The History ruler draws at most this many save points. */
-const RULER_MAX = 60;
-let rulerWin = { project: "", start: 0, follow: true };
-/**
- * The save points the ruler draws: the newest 60, moved just enough to keep the selected one in view, so the keys,
- * the drag and what a screen reader hears always name the same save point. It stays put while you drag inside it.
- */
-function rulerWindow(all: TimelineEntry[]): TimelineEntry[] {
-  const max = Math.max(0, all.length - RULER_MAX);
-  if (rulerWin.project !== (st.projectId ?? "")) rulerWin = { project: st.projectId ?? "", start: max, follow: true };
-  let start = rulerWin.follow ? max : Math.min(rulerWin.start, max);
-  const si = all.findIndex((c) => c.id === st.selected);
-  if (si >= 0 && si < start) start = si;
-  else if (si >= start + RULER_MAX) start = si - RULER_MAX + 1;
-  rulerWin = { project: rulerWin.project, start, follow: start === max };
-  return all.slice(start, start + RULER_MAX);
-}
-
-/**
- * The ruler on the project page, in its well: past on the left, now on the right, agent sessions above, each
- * save point a bead in its verdict's shape. It is one control. Press anywhere along it and drag, or focus it and
- * use the arrow keys: the playhead moves to each save point and a flag above it reads the verdict live, with the
- * save points either side. The last version that works wears a sky halo and its own flag.
- */
-function homeRuler(all: TimelineEntry[]): string {
-  const pts = rulerWindow(all);
-  const start = pts[0] ? all.indexOf(pts[0]) : 0;
-  const n = pts.length;
-  const sel = pts.findIndex((c) => c.id === st.selected);
-  const cur = sel < 0 ? n - 1 : sel;
-  const c = pts[cur];
-  const lw = lastWorking();
-  const wayBack = lw && pts.at(-1)?.verdict !== "PASS" ? lw : null;
-  const clips = sessions(pts).map((s) => `<span class="clip" style="left:${homeX(s.from, n) - 1}%;width:${homeX(s.to, n) - homeX(s.from, n) + 2}%"><span>${esc(s.name)}</span></span>`).join("");
-  const running = checkRunning();
-  const newestId = points().at(-1)?.id;
-  const ticks = pts
-    .map((p, i) => `<span class="rt-tk b-${verdictKey(p.verdict)}${i > cur ? " after" : ""}${i === cur ? " on" : ""}${p === wayBack ? " lw" : ""}${coachStep() === 1 && p.id === st.coach?.target ? " aim" : ""}${p.id === running || (running === "new" && p.id === newestId) ? " checking" : ""}${p.id === newestId ? " nowtk" : ""}" data-vid="${esc(p.id)}" data-v="${verdictKey(p.verdict)}" data-carry="tk:${esc(p.id)}" style="--x:${homeX(i, n)}" title="${esc(`${ptWhen(p)} · ${title(p)} · ${verdictWord(p.verdict)}`)}">${vIcon(p.verdict)}</span>`)
-    .join("");
-  // Labels for Now, the last working, the selected and the first save point, in that order of importance.
-  // fitRulerLabels measures them after the draw: a less important one hides, the last working one moves.
-  const lwi = lw ? pts.indexOf(lw) : -1;
-  const marks = [...new Set([n - 1, lwi, cur, 0])].filter((i) => i >= 0);
-  const shift = (i: number): number => (n === 1 ? -50 : i === 0 ? -15 : i === n - 1 ? -85 : -50);
-  const labels = marks.map((i) => {
-    const p = pts[i];
-    const t = esc(p ? ptClock(p) : "");
-    const now = i === n - 1 && p?.id === points().at(-1)?.id;
-    return `<span class="rlab${i === cur ? " on" : ""}${now ? " now" : ""}" data-i="${i}"${i === lwi ? " data-lw" : ""} style="left:${homeX(i, n)}%;transform:translateX(${shift(i)}%)">${now ? `Now<span class="rl-t"> ${t}</span>` : t}</span>`;
-  }).join("");
-  const wbi = wayBack ? pts.indexOf(wayBack) : -1;
-  // Placed by transform from --x, like the playhead, so when the last version that works changes the flag glides to it.
-  const lwFlag = wbi >= 0 ? `<span class="lwflag" data-carry="lwf" style="--x:${homeX(wbi, n)};--s:${Math.max(-50, Math.min(-12, shift(wbi)))}%">Last version that works</span>` : "";
-  const flag = `<div class="rflag" data-carry="flag" aria-hidden="true" style="--x:${homeX(cur, n)}">${flagFrame(pts[cur - 1], false)}${flagFrame(c, true)}${flagFrame(pts[cur + 1], false)}</div>`;
-  const today = pts.every((p) => dayLabel(p.createdAt) === "Today");
-  const u = unitWords(project()?.purpose ?? "code");
-  const many = u.many.charAt(0).toUpperCase() + u.many.slice(1);
-  const head = all.length <= n ? (today ? `Today’s ${u.many}` : many) : start + n === all.length ? `The last ${n} ${u.many}` : `${many} ${start + 1} to ${start + n} of ${all.length}`;
-  const density = n <= 14 ? "d1" : n <= 28 ? "d2" : "d3";
-  // Every shape the ruler draws is named; a project with no check has one, Saved.
-  const checks = checksOn(project());
-  const legend = legendItems(checks, pts.map((p) => p.verdict)).map((x) => `<span><span class="lg b-${verdictKey(x.v)}">${vIcon(x.v)}</span>${esc(x.word)}</span>`).join("");
-  return `<div class="rwell">
-    <div class="rw-h"><b>${esc(head)}</b><span class="rw-hint">Drag along it, or use ← →</span><span class="legend" aria-hidden="true">${legend}</span></div>
-    <div class="hruler ${density}${historyScrub ? " scrubbing" : ""}${rulerByPointer ? " by-pointer" : ""}" role="slider" tabindex="0" aria-label="Save points, oldest on the left. Use the arrow keys, or drag along it." aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${cur + 1}" aria-valuetext="${esc(c ? `${ptWhen(c)}, ${title(c)}, ${c.verdict === null && !checks ? "Saved" : verdictWord(c.verdict)}` : "")}">
-    <div class="lane">${clips}</div><div class="base"></div>${ticks}
-    <span class="ph${cur === n - 1 ? " now" : ""}" data-carry="hph" style="--x:${homeX(cur, n)}"></span>${labels}${lwFlag}${flag}</div></div>`;
-}
 
 /**
  * Setup on History, until the project has its first verdict and Claude Code is connected or the strip
@@ -1016,7 +862,8 @@ function setupView(p: ProjectEntry, pts: TimelineEntry[]): string {
   </ol></section>`;
 }
 
-/** The project page: the status in one sentence and the way out in the voice, one main action, the ruler, the journal, then what does not come back. */
+/** History as a list and a preview: one status line, then the save points newest first beside the selected one's preview.
+ *  Below TWO_PANE_MIN the list leads alone and a row opens its preview as a sheet. */
 function history(): string {
   const p = project();
   if (!p) return welcome();
@@ -1024,11 +871,9 @@ function history(): string {
   if (!st.timeline && !st.timelineError) {
     const row = '<div class="sk-row"><i class="sk sk-t"></i><i class="sk-g"></i><span><i class="sk sk-l"></i><i class="sk sk-m"></i></span></div>';
     // On a phone the placeholder page is taller than the window and holds no control, so the scroller itself takes focus.
-    return `<div class="page proj" tabindex="0" role="region" aria-label="${esc(`Reading ${p.name}`)}"><div class="doc" role="status">
-      <section class="hero"><div class="eyebrow hero-e"><span>${esc(p.name)}</span></div><h1 class="hero-h sk-head"><span class="sr-only">Reading ${esc(p.name)}</span><span aria-hidden="true">&nbsp;</span></h1>
-        <p class="hero-p">Loading saved versions from your local history.</p><div class="hero-acts" aria-hidden="true"><i class="sk sk-btn"></i></div>
-        <div class="honest sk-honest" aria-hidden="true"><i class="sk sk-dt"></i><i class="sk sk-dd"></i><i class="sk sk-dd"></i></div></section>
-      <div class="sk-ruler" aria-hidden="true"></div><div aria-hidden="true">${row.repeat(3)}</div>
+    return `<div class="page proj lp${twoPane() ? " lp-two" : ""}" tabindex="0" role="region" aria-label="${esc(`Reading ${p.name}`)}"><div class="doc lp-doc" role="status">
+      <section class="lp-status"><h1 class="lp-h sk-head"><span class="sr-only">Reading ${esc(p.name)}</span><span aria-hidden="true">&nbsp;</span></h1><p class="lp-sub">Loading saved versions from your local history.</p></section>
+      <div class="lp-panes" aria-hidden="true"><div class="lp-col"><div class="lp-head"></div><div class="lp-list">${row.repeat(4)}</div></div>${twoPane() ? '<div class="lp-prev lp-sk"><i class="sk sk-l"></i><i class="sk sk-m"></i><i class="sk sk-btn"></i></div>' : ""}</div>
     </div></div>`;
   }
   if (st.timelineError && !st.timeline) {
@@ -1048,14 +893,11 @@ function history(): string {
   const checked = newest ? st.verifyResults.get(newest.id) : undefined;
   const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null, checksOn(p, pts), message);
   const lw = lastWorking();
+  const behind = lw && newest?.verdict !== "PASS" ? lw : null;
+  const broke = behind ? brokeAt(pts, behind.id) : null;
   const working = st.agents?.some((a) => a.projectId === p.id && a.working);
   const command = checked?.command ?? st.agents?.find((a) => a.projectId === p.id)?.check ?? null;
-  const facts = (rows: [string, string[]][]): string =>
-    `<dl class="honest">${rows.filter(([, v]) => v.length).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${keepTimes(v.map(esc).join(" · "))}</dd>`).join("")}</dl>`;
-  const honest =
-    s.v === "FAIL" && lw ? facts([["What does not come back", [...notSavedLines(lw), `Changes after ${said(lw)}, unless you redo them. They stay saved in History.`]]])
-      : newest ? facts([["Saved", savedLines(newest)], ["Not saved", notSavedLines(newest)]]) : "";
-  // A folder that is gone shows its history read only: the notice and its two ways out take the place of the main action.
+  // A folder that is gone shows its history read only: the notice and its two ways out sit under the status line.
   const goneCard = gone
     ? `<div class="note bad gone-card" role="status"><p>${esc(`Can’t find ${p.name} at ${p.path}. If it moved, choose it; if it is gone, bring a version back as a copy somewhere else.`)}</p>
       <div class="row-btns"><button class="btn dark" data-act="relink">It moved…</button>${newest ? `<button class="btn" data-act="copy-elsewhere" data-id="${esc(st.selected ?? newest.id)}">Bring back a copy…</button>` : ""}</div>
@@ -1063,89 +905,170 @@ function history(): string {
     : "";
   // Git words (the branch) only for a project that is a Git repository; a plain folder's history lives in the store.
   const branch = p.kind !== "folder" && newest?.branch ? `${esc(newest.branch)} · ` : "";
-  const header = `<section class="hero" data-vid="hero" data-v="${esc(s.head)}">
-    <div class="hero-e"><span class="dot v-${verdictKey(s.v)}" aria-hidden="true"></span><span>${esc(p.name)}</span>${p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : ""}${command ? `<span class="hero-cmd">checks with <code class="mono">${esc(command)}</code></span>` : ""}${st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""}</div>
-    <h1 class="hero-h"><span class="hh">${keepTimes(esc(s.head))}</span></h1>${s.voice ? `<p class="hero-when">${keepTimes(esc(s.voice))}</p>` : ""}
-    <p class="hero-p">${keepTimes(esc(s.body))}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
-    ${gone ? goneCard : `<div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>`}
+  const line = statusLine({ newest: newest?.verdict ?? null, broke: broke ? named(broke).name : null, works: behind ? named(behind).name : null, head: s.head, voice: s.voice });
+  // The demo says so once, here; its save points carry no Demo chip.
+  const sub = [p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : "", command ? `Checks with <code class="mono">${esc(command)}</code> in a copy.` : "", working ? "Claude Code is working now. We check again when its turn ends." : "", st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""].filter(Boolean).join(" ");
+  const status = `<section class="lp-status" data-vid="hero" data-v="${esc(s.head)}">
+    <h1 class="lp-h"><span class="lp-mark v-${verdictKey(newest?.verdict ?? null)}" aria-hidden="true">${vIcon(newest?.verdict ?? null)}</span><span>${keepTimes(esc(line))}</span></h1>
+    ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${goneCard}
   </section>`;
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
   const undoBar = u
     ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. ${u.result.copyOnly ? "It is in a copy next to your folder" : `It is on a new branch${st.settings.showGitDetails ? `, <span class="mono">${esc(u.result.branch)}</span>,` : ""} and in a copy`}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
     : "";
+  const two = twoPane();
   if (!pts.length) {
-    return `<div class="page proj"><div class="doc">${header}${gone ? "" : `<div class="empty-dir journal-empty"><p>${esc(checksOn(p) ? "Save now to make your first save point, then check that it works in a copy." : "Save now to keep the first version of this folder.")}</p><button class="btn" data-act="save">Save now</button></div>`}</div></div>`;
+    return `<div class="page proj lp"><div class="doc lp-doc">${status}${gone ? "" : `<div class="empty-dir journal-empty"><p>${esc(checksOn(p) ? "Save now to make your first save point, then check that it works in a copy." : "Save now to keep the first version of this folder.")}</p><button class="btn" data-act="save">Save now</button></div>`}</div></div>`;
   }
-  // The journal, newest first, one white card per day.
-  const days: { day: string; date: string; rows: string[] }[] = [];
-  const perDay = new Map<string, number>();
-  // A save point whose record can't be read has no time; it gets its own card at the end, not a day of its own mid-list.
+  // A save point whose record can't be read has no time; it goes at the end of the list.
   const readable = pts.filter((c) => !Number.isNaN(new Date(c.createdAt).getTime()));
   const pinnedOnly = st.journalFilter === "pinned";
-  const unreadable = pinnedOnly ? [] : pts.filter((c) => !readable.includes(c));
-  const shown = filtered(readable, st.notes, st.journalFilter);
-  for (const c of shown) perDay.set(dayLabel(c.createdAt), (perDay.get(dayLabel(c.createdAt)) ?? 0) + 1);
+  const unreadable = pinnedOnly ? [] : pts.filter((c) => !readable.includes(c)).reverse();
   // Newest first by time, not by id: a clock change or an imported store never splits one date into two groups (cli#8).
-  const newestFirst = newestByTime(shown);
-  const was = verdictWas(readable);
-  for (let i = 0; i < newestFirst.length; i++) {
-    const c = newestFirst[i];
-    if (!c) continue;
-    const day = dayLabel(c.createdAt);
-    if (days.at(-1)?.day !== day) days.push({ day, date: new Date(c.createdAt).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }), rows: [] });
-    const rows = days.at(-1)!.rows;
-    // Two or more automatic saves in a row fold into one line, unless one of them is open.
-    let j = i;
-    while (isAutoSave(newestFirst[j]) && dayLabel(newestFirst[j]?.createdAt ?? "") === day) j++;
-    const run = newestFirst.slice(i, j);
-    if (!pinnedOnly && run.length >= 2 && !st.unfolded.has(c.id) && !run.some((x) => x.id === st.selected && st.drawer)) {
-      const oldest = run.at(-1);
-      rows.push(`<button class="fold" data-act="unfold" data-id="${esc(c.id)}"><span class="when"></span><span class="body">${esc(`${plural(run.length, "automatic save")} · ${oldest ? ptTime(oldest) : ""} to ${ptTime(c)}`)}</span><span class="go">Show</span></button>`);
-      i = j - 1;
-      continue;
-    }
-    rows.push(journalEntry(c, c.id === lw?.id && newest?.verdict !== "PASS", was.get(c.id)));
-    const older = newestFirst[i + 1];
-    // Only say "broke here" when two neighbouring checks prove it.
-    if (!pinnedOnly && older && c.verdict === "FAIL" && older.verdict === "PASS") rows.push(`<div class="broke-rule"><span>${keepTimes(esc(`Broke here: ${named(older).name} works, ${named(c).name} is broken`))}</span></div>`);
-  }
-  if (unreadable.length) {
-    days.push({ day: "Damaged", date: "", rows: [...unreadable].reverse().map((c) => journalEntry(c, false, undefined)) });
-    perDay.set("Damaged", unreadable.length);
-  }
-  // Each day's header names it ("Today", "Monday", "14 Oct"), then its full date and how many it holds; it sticks to the top while its rows scroll.
-  const journal = days.map((d) => `<div class="day"><h2>${esc(d.day)}</h2><span>${esc(d.date ? `${d.date} · ` : "")}${esc(unitCount(p.purpose, perDay.get(d.day) ?? 0))}</span></div><div class="list">${d.rows.join("")}</div>`).join("");
+  const rows = [...newestByTime(filtered(readable, st.notes, st.journalFilter)), ...unreadable];
+  const sel = entry(st.selected);
+  const days = [...new Set(rows.map((c) => dayLabel(c.createdAt)))];
+  // One day needs no groups: the list's header names it. More days group under their names.
+  const options = days.length <= 1
+    ? rows.map((c) => listRow(c, behind, broke)).join("")
+    : days.map((d, i) => `<div role="group" aria-labelledby="lp-g${i}"><div class="lp-day" id="lp-g${i}">${esc(d)}</div>${rows.filter((c) => dayLabel(c.createdAt) === d).map((c) => listRow(c, behind, broke)).join("")}</div>`).join("");
+  const activeId = sel && rows.includes(sel) ? `opt-${sel.id}` : "";
+  const units = unitWords(p.purpose);
+  const listbox = rows.length
+    ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys"${activeId ? ` aria-activedescendant="${esc(activeId)}"` : ""}>${options}</div>
+      <p class="sr-only" id="lp-keys">Newest first. Up and Down choose, Enter brings it back.</p>`
+    : `<div class="lp-list lp-empty">${pinnedOnly ? noPinned(p.purpose) : ""}</div>`;
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
-  return `<div class="page proj"><div class="doc">${header}${undoBar}${coachView()}
-    ${homeRuler(pts)}
+  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${sparkline(pts, behind)}${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>`;
+  const right = two && sel ? preview(sel, false) : "";
+  return `<div class="page proj lp${two ? " lp-two" : ""}"><div class="doc lp-doc">${status}${undoBar}
     ${setupView(p, pts)}
-    <div class="jf-row">${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>
-    <section class="journal" aria-label="History" id="list">${journal || (pinnedOnly ? noPinned(p.purpose) : "")}</section>
-    ${honest ? `<section class="know" aria-labelledby="know-h">${buddy()}<div><h2 id="know-h">Good to know</h2>${honest}</div></section>` : ""}
-    <div class="mount" data-mount="unlinked:${esc(p.id)}"></div>
+    <div class="lp-panes"><section class="lp-col" aria-labelledby="lp-ht">${head}${listbox}<div class="mount" data-mount="unlinked:${esc(p.id)}"></div></section>${right}</div>
   </div></div>`;
 }
 
-/** The demo's next step on this project, 1 to 3, or 0 when there is none. */
-function coachStep(): number {
-  const c = st.coach;
-  if (!c || c.projectId !== st.projectId) return 0;
-  if (c.went) return 3;
-  return st.selected === c.target || st.rewind?.target === c.target ? 2 : 1;
+/** History is two panes from TWO_PANE_MIN up: the list and the selected save point's preview side by side. */
+function twoPane(): boolean {
+  return window.innerWidth >= TWO_PANE_MIN;
 }
 
-/** The demo's three steps in plain words. The first names the save point to find by its message. */
-function coachSteps(): string[] {
-  const t = st.coach ? entry(st.coach.target) : null;
-  return [t ? `Drag the ruler to ${said(t)}, the last green dot` : "Drag the ruler to the last green dot", "Go back to it", "Undo it, or keep it"];
+/**
+ * One option in History's list: the verdict as an icon, a word and a colour, the save point's message and its time. The last
+ * version that works and the save point it broke at are marked in words.
+ */
+function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntry | null): string {
+  const p = project();
+  const damaged = damagedReason(c);
+  const running = checkRunning();
+  const checking = c.id === running || (running === "new" && c.id === points().at(-1)?.id);
+  const v = damaged ? '<span class="lp-v v-damaged"><i class="g" aria-hidden="true"></i>Damaged</span>'
+    : checking ? '<span class="lp-v v-checking"><i class="g" aria-hidden="true"></i>Checking</span>'
+    : c.verdict === null && !checksOn(p) ? '<span class="lp-v v-none">Saved</span>'
+    : `<span class="lp-v v-${verdictKey(c.verdict)}">${vIcon(c.verdict)}<span>${esc(verdictWord(c.verdict))}</span></span>`;
+  const on = c.id === st.selected;
+  const tag = c.id === lw?.id ? '<span class="lp-tag lw">Last version that works</span>' : c.id === broke?.id ? '<span class="lp-tag br">Broke here</span>' : "";
+  const pin = st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : "";
+  return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(c.verdict)}">
+    <span class="lp-m">${v}${tag}</span><span class="lp-t"><span class="lp-tt">${esc(title(c, authorOf(c)))}</span>${pin}</span><span class="lp-when">${esc(ptClock(c))}</span></div>`;
 }
 
-function coachView(): string {
-  const step = coachStep();
-  if (!step) return "";
-  return `<section class="coach" aria-label="Demo">
-    <div class="coach-h"><b>Bring back the version that works</b><button class="btn ghost" data-act="coach-hide">Hide</button></div>
-    ${steps(step, coachSteps())}</section>`;
+/**
+ * The ruler, folded into the list's header: one mark per save point, oldest on the left, in its verdict's shape and colour.
+ * The words are in the list; this is the shape of the day at a glance, so it is hidden from screen readers. A press picks one.
+ */
+function sparkline(pts: TimelineEntry[], lw: TimelineEntry | null): string {
+  const marks = pts.slice(-60).map((c) => `<i class="spk v-${verdictKey(c.verdict)}${c.id === st.selected ? " on" : ""}${c.id === lw?.id ? " lw" : ""}" data-act="pick" data-id="${esc(c.id)}" title="${esc(`${ptClock(c)} · ${title(c)} · ${verdictWord(c.verdict)}`)}"></i>`).join("");
+  return `<span class="spark" aria-hidden="true">${marks}</span>`;
+}
+
+/**
+ * What the preview's main button brings back for a save point: the version itself, or, for one known Broken, the last
+ * version that works (it never re-runs the check as its main action). The newest that is not broken is where you are, and a
+ * damaged save point or a gone folder has nothing to bring back here: null. ⌘⇧R and Enter on the list do what the button says.
+ */
+function bringTarget(c: TimelineEntry): TimelineEntry | null {
+  const p = project();
+  if (!p || damagedReason(c) || folderMissing(p)) return null;
+  const lw = lastWorking();
+  if (c.verdict === "FAIL" && lw && lw.id !== c.id) return lw;
+  return points().at(-1)?.id === c.id ? null : c;
+}
+
+/**
+ * The selected save point's preview: which files changed since, what the check said, and the one action named for its
+ * outcome. Beside the list it is a region; on a phone it is a full-height sheet with the action at its foot.
+ */
+function preview(c: TimelineEntry, sheet: boolean): string {
+  const p = project();
+  if (!p) return "";
+  const pts = points();
+  const busy = st.busy ? "disabled" : "";
+  const author = authorOf(c);
+  const isNewest = pts.at(-1)?.id === c.id;
+  const vr = st.verifyResults.get(c.id);
+  const same = (vr && vr.verdict === c.verdict ? vr : null) ?? st.storedChecks.get(storedKey(c)) ?? null;
+  if (!same && c.verdict !== null && !st.storedChecks.has(storedKey(c))) void loadStoredCheck(p.id, c);
+  const lw = lastWorking();
+  const checks = checksOn(p, pts);
+  const gone = folderMissing(p);
+  const damaged = damagedReason(c);
+  const notNow = `<button class="btn quiet" data-act="not-now" title="${esc(sheet ? "Close this preview" : "Stay on the newest version")}">Not now${sheet ? "<kbd>Esc</kbd>" : ""}</button>`;
+  const bring = (dark: boolean, label: string): string => `<button class="btn ${dark ? "big dark" : "link"}" data-act="use" data-id="${esc(c.id)}" ${busy}><span>${esc(label)}</span>${dark ? `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>` : ""}</button>`;
+  const check = (dark: boolean): string => `<button class="btn ${dark ? "big dark" : "link"}${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>`;
+  const target = bringTarget(c);
+  // One ink button. A version that works (or any version, with no check) comes back. A broken one brings back the last version
+  // that works, and checking it again is a quiet link. One not checked yet is checked first, and can still come back. The
+  // newest that works is where you are, so it is only checked. A gone folder brings a copy back somewhere else.
+  const acts = damaged ? ""
+    : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${esc(c.id)}" ${busy}>Bring back a copy…</button>${notNow}`
+    : target && target.id !== c.id ? `${bringBackButton(target, "btn big dark", busy)}${checks ? check(false) : ""}${notNow}`
+    : !target ? (checks ? check(true) : "")
+    : c.verdict === "PASS" || !checks ? `${bring(true, "Bring back this version")}${notNow}`
+    : `${check(true)}${bring(false, "Bring back anyway")}${notNow}`;
+  const lead = damaged ? `This save point is damaged: ${damaged} Time Machine won’t check it or bring it back.`
+    : c.id === lw?.id && !isNewest ? `The last version that works. ${verdictSentence(c)}`
+    : isNewest ? (c.verdict === null && !checks ? "Where you are now." : `Where you are now. ${verdictSentence(c)}`)
+    : c.verdict === null && !checks ? "Kept on this computer, outside the folder." : verdictSentence(c);
+  const bringsFirst = !!target && (target.id !== c.id || c.verdict === "PASS" || !checks);
+  const outcome = target && bringsFirst && !damaged ? `<p class="lp-out">${esc(`${target.id === c.id ? "It" : sentenceStart(named(target).name)} comes back ${p.kind === "folder" ? "as a copy next to your folder" : "on a new branch and in a copy"}. Your folder is not touched.`)}</p>`
+    : gone && !damaged ? '<p class="lp-out">It comes back as a copy in a folder you choose.</p>' : "";
+  const compare = damaged || gone ? ""
+    : c.verdict === "FAIL" && lw && lw.id !== c.id ? `<button class="btn link" data-act="compare" data-a="${esc(lw.id)}" data-b="${esc(c.id)}">${esc(`What changed since ${named(lw).name}`)}</button>`
+    : `<button class="btn link" data-act="compare" data-a="${esc(c.id)}" data-b="now">Compare with now</button>`;
+  // Which files changed after this version, up to now: what bringing it back sets aside. The newest shows its own changes.
+  const since = changedSince(pts, c.id, st.changes);
+  const own = st.changes.get(c.id);
+  const list = isNewest ? own ?? [] : since.paths;
+  const known = isNewest ? !!own : since.known;
+  const files = `<section class="lp-files" aria-labelledby="lp-fh"><h3 id="lp-fh">${isNewest ? "Changed in this save point" : "Changed since this version"}</h3>${
+    !known && !list.length ? '<p class="muted">Reading what changed…</p>'
+      : !list.length ? `<p class="muted">${isNewest ? "No file changes since the save point before." : "Nothing changed since."}</p>`
+      : `<ul class="lp-fl">${list.slice(0, 8).map((f) => `<li class="sel-text">${esc(f)}</li>`).join("")}</ul>${list.length > 8 ? `<p class="muted">${esc(`and ${list.length - 8} more`)}</p>` : ""}`
+  }${compare ? `<div class="lp-links">${compare}<button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button></div>` : ""}</section>`;
+  const opened = st.openResult && st.openResult.id === c.id
+    ? `<div class="note">A copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal-dir" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div><div class="mono muted sel-text" style="margin-top:6px">${esc(st.openResult.dir)}</div></div>`
+    : "";
+  const git = st.settings.showGitDetails
+    ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div>${p.kind === "folder" ? "" : `<div><span class="k">your code</span> ${esc(gitLine(c, p.kind))}</div><div><span class="k">snapshot</span> ${esc(short(c.commit))} (made by Time Machine)</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div>`}<div><span class="k">trigger</span> ${esc(c.trigger)}</div></div>`
+    : "";
+  const putBack = filesChanged(c);
+  const head = `<p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : author].filter(Boolean).join(" · ")))}</p>
+    <h2 class="lp-ph" id="prev-h">${esc(title(c, author))}</h2>
+    ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
+    <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(lead)}</p></div>`;
+  const body = `${files}${opened}
+    ${damaged ? "" : checkWords(same, c.verdict)}
+    ${c.agent ? provenance(c) : ""}
+    ${putBack ? `<details class="lp-more"><summary>Put single files back</summary>${putBack}</details>` : ""}
+    ${noteBlock(c.id, st.notes.get(c.id), st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: st.notes.get(c.id)?.title ?? "", note: st.notes.get(c.id)?.note ?? "" }, p.purpose, st.noteSaving)}
+    ${git}
+    <button class="btn link small" data-act="inspector">Open in Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`;
+  if (!sheet) return `<section class="lp-prev" role="region" aria-labelledby="prev-h" data-id="${esc(c.id)}">${head}${acts ? `<div class="lp-acts">${acts}</div>${outcome}` : ""}${body}</section>`;
+  return `<div class="lp-sheet ${once("lp-sheet")}" data-leave="lp-sheet" role="dialog" aria-modal="true" aria-labelledby="prev-h" data-id="${esc(c.id)}">
+    <header class="lp-sh"><span class="lp-eye">${esc(unitWords(p.purpose).One)}</span><button class="btn quiet" data-act="close-drawer">Close</button></header>
+    <div class="lp-sb">${head}${body}</div>
+    ${acts ? `<footer class="lp-sf">${outcome}<div class="lp-acts">${acts}</div></footer>` : ""}
+  </div>`;
 }
 
 /** A save point named in a sentence by its id: "“Added dark mode” (8:16 PM)", or "the save point at 8:16 PM #3". Git details add the id. */
@@ -1153,14 +1076,6 @@ function pointName(id: string): string {
   const c = entry(id);
   if (!c) return id;
   return st.settings.showGitDetails ? `${said(c)} (${c.id})` : said(c);
-}
-
-/** A save point named in a heading: "“Added dark mode” · 8:16 PM", or "8:16 PM #3". Git details add the id. */
-function headName(id: string): string {
-  const c = entry(id);
-  if (!c) return id;
-  const line = nameLine(named(c));
-  return st.settings.showGitDetails ? `${line} (${c.id})` : line;
 }
 
 /** A save point in a list or a mono field, where "#N" may tell twins apart. Git details add the id. */
@@ -1172,16 +1087,6 @@ function pointLabel(c: TimelineEntry): string {
 function bringBackButton(c: TimelineEntry, cls: string, extra = ""): string {
   const n = named(c);
   return `<button class="${cls}" data-act="rewind-to" data-id="${esc(c.id)}" title="${esc(`Bring back ${nameLine(n)}`)}" ${extra}><span>${esc(`Bring back ${n.name}`)}${n.time ? ` <span class="b-sub">${keepTimes(esc(n.time))}</span>` : ""}</span></button>`;
-}
-
-/** A project screen action from the status rule: the main one filled, the other a quiet link. Shortcuts sit inside, so they are learned by seeing them. */
-function statusButton(b: StatusButton, primary: boolean): string {
-  const data = `${b.id ? ` data-id="${esc(b.id)}"` : ""}${b.a ? ` data-a="${esc(b.a)}"` : ""}${b.b ? ` data-b="${esc(b.b)}"` : ""}`;
-  const key = { save: "Mod+S", check: "Mod+Enter", "rewind-to": "Mod+Shift+R", rewind: "Mod+Shift+R", compare: "" }[b.act];
-  // The main Check it works shows the check running in it (seen through the scrim) until the verdict lands. It checks the newest.
-  const runningOn = checkRunning();
-  const running = primary && b.act === "check" && (runningOn === "new" || runningOn === points().at(-1)?.id);
-  return `<button class="btn ${primary ? "big dark" : "link"}${running ? " running" : ""}" data-act="${b.act}"${data}${b.title ? ` title="${esc(b.title)}"` : ""} ${st.busy ? "disabled" : ""}><span>${keepTimes(esc(b.label))}${b.sub ? ` <span class="b-sub">${keepTimes(esc(b.sub))}</span>` : ""}</span>${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
 }
 
 /** One plain sentence on what a verdict means for this save point. Isolation names only with Git details. */
@@ -1626,6 +1531,15 @@ function tvAlt(act: string, label: string, key: string, keyLabel: string, disabl
   return `<button class="btn link" data-act="${act}" data-key="${key}" ${disabled ? "disabled" : ""}>${esc(label)}${keyLabel ? `<kbd>${esc(keyLabel)}</kbd>` : ""}</button>`;
 }
 
+/**
+ * What does not come back, said on the steps that bring a version back (review and Done), where it is needed: secret values,
+ * databases and what is deployed, from the save point's own record, then the changes made after it, which stay saved.
+ */
+function notBack(lines: string[], c: TimelineEntry | null): string {
+  const later = c && points().at(-1)?.id !== c.id ? [`Changes made after ${said(c)}. They stay saved in History.`] : [];
+  return `<section class="nb" aria-labelledby="nb-h"><h3 id="nb-h">What does not come back</h3><ul>${[...lines, ...later].map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>`;
+}
+
 /** A version in the Rewind's heading: its message, or its time and number when it has none, in the record's face. The meta line under it gives the time. */
 function versionHead(c: TimelineEntry, lead = ""): string {
   return keepTimes(esc(lead || message(c) || named(c).name));
@@ -1653,12 +1567,13 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
       read: `<h2 class="tv-head ${stampOnce(`done:${res.branch || res.copyDir}`)}">${keepTimes(esc(`${sentenceStart(pointName(res.id))} is back.`))} <span class="voice">Your folder wasn’t touched.</span></h2>
       ${checksOn(project()) ? `<div class="rw-proof">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a copy on ${device()}.` : "Not checked yet. Run Check it works before you rely on it."}</span></div>` : ""}
       <p class="rw-lede">${res.copyOnly ? "It is in a copy next to your folder. This folder has no Git repo, so no branch was made. Copy back the files you want to keep." : "It is on a new branch, with a copy next to your project. Your folder was not touched, so switching is your call."}</p>
+      ${notBack(res.notRestored.map((line) => plainNotSaved(line, project()?.purpose === "code")), entry(res.id))}
       <div class="rw-where">
         ${res.copyOnly ? "" : loc("New branch, local only", res.branch, `<button class="btn quiet" data-act="copy" data-text="${esc(res.branch)}" aria-label="Copy the branch name">Copy</button>`)}
         ${loc("Open this folder", res.copyDir, `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">${revealLabel()}</button>`)}
       </div>
       <section class="report" aria-labelledby="rw-report-h"><h3 id="rw-report-h">What came back</h3>
-        ${cols("Brought back", "Not brought back", res.restored.map((line) => plainRestored(line, entry(res.id)?.dirty ?? false)), res.notRestored.map((line) => plainNotSaved(line, project()?.purpose === "code")))}
+        <div class="kv"><span class="h">Brought back</span>${li(res.restored.map((line) => plainRestored(line, entry(res.id)?.dirty ?? false)), "Nothing listed")}</div>
         <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
         <p class="endline">${res.copyOnly ? "Your current version was saved first. Nothing was deleted." : "Your current version was saved first. Nothing was pushed, merged, deployed or deleted."}</p>
         <div class="row-btns"><button class="btn link" data-act="copy-report" data-path="${esc(res.reportPath)}">Copy the report as text</button></div>
@@ -1727,9 +1642,10 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
       ${ev ? `<div class="rw-proof">${ev}</div>` : ""}
       ${r.find?.found === c.id ? `<p class="rw-found">We checked ${esc(plural(r.find.tried.length, "save point"))}, newest first, each in a copy. This is the newest one that passed.</p>` : ""}
     ${error}${warn}${opened}
+    ${notBack(notSavedLines(c), c)}
     ${rwFiles(c, prev)}
     ${goBackSteps({ folder: project()?.kind === "folder", id: c.id, gitDetails: st.settings.showGitDetails })}
-    ${cols("Comes back", "Does not come back", comesBackLines(c), notSavedLines(c))}`,
+    <div class="kv"><span class="h">Comes back</span>${li(comesBackLines(c), "Nothing listed")}</div>`,
     key,
     alts,
   };
@@ -1802,10 +1718,6 @@ function tvRuler(r: RewindState, pts: TimelineEntry[], cur: number): string {
 let sceneIds: string[] = [];
 /** True while the dial is being dragged. */
 let dialDrag = false;
-/** True while the History ruler is being dragged. */
-let historyScrub = false;
-/** True when a press, not a key, last focused the History ruler: it keeps focus for the keys, but no ring or flag after letting go. */
-let rulerByPointer = false;
 
 /** The dial: a white knurled dial with one detent per save point, its verdict mark around the edge, then the time it points at. */
 function dialModule(pts: TimelineEntry[], cur: number, still: boolean, back: number): string {
@@ -2410,12 +2322,21 @@ function toggleInspector(open = !st.inspector): void {
   back?.focus({ preventScroll: true });
 }
 
-/** Close the save point's detail. When the focus was in it and is now lost, it goes back to that save point's row. */
+/** Close the save point's detail. When the focus was in it and is now lost, it goes back to History's list. */
 function closeDrawer(): void {
-  const id = st.selected;
   st.drawer = false;
   render();
-  if (id && (!document.activeElement || document.activeElement === document.body)) root.querySelector<HTMLElement>(`#e-${CSS.escape(id)} .e-t`)?.focus({ preventScroll: true });
+  if (!document.activeElement || document.activeElement === document.body) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+}
+
+/** Selects a save point in History's list: beside the list its preview follows; on a phone `open` shows it as a sheet. */
+function pick(id: string | null, open: boolean): void {
+  if (!id || !entry(id)) return;
+  if (st.selected !== id) st.openResult = null;
+  st.selected = id;
+  if (open && !twoPane()) st.drawer = true;
+  render();
+  root.querySelector(".lp-row.on")?.scrollIntoView({ block: "nearest" });
 }
 
 function inspector(): string {
@@ -2590,7 +2511,6 @@ function focusKey(): string | null {
   // refocus() can leave focus on the page heading; it keeps it through redraws (Design re-check 83bce7a P2).
   if (a.matches("main h1")) return "main h1";
   if (a.classList.contains("knob")) return ".knob";
-  if (a.classList.contains("hruler")) return ".hruler";
   return null;
 }
 
@@ -2854,7 +2774,7 @@ function dropMounts(projectId: string): void {
   }
 }
 
-/** A citation from Ask: bring that entry into view and tint it briefly. It does not open anything. */
+/** A citation from Ask: select that save point in History's list, bring it into view and tint it briefly. Its preview shows beside the list. */
 function cite(id: string): void {
   if (!entry(id)) return;
   if (st.screen !== "history") {
@@ -2866,31 +2786,23 @@ function cite(id: string): void {
   st.drawer = false;
   if (window.innerWidth < 1100) st.askOpen = false;
   render();
-  document.getElementById(`e-${id}`)?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+  document.getElementById(`opt-${id}`)?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
   setTimeout(() => {
     if (st.lit !== id) return;
     st.lit = null;
-    document.getElementById(`e-${id}`)?.classList.remove("lit");
+    document.getElementById(`opt-${id}`)?.classList.remove("lit");
   }, 1400);
 }
 
 /** The page on screen and when it appeared. The Rewind sits over History, so it is the same page. */
 let pageIn = { key: "", at: 0 };
-/** When each project's journal first showed its rows. Rows rise in only that first time. */
-const journalIn = new Map<string, number>();
-/** When each project's History ruler first showed its beads. They pop in, left to right, only that first time. */
-const rulerIn = new Map<string, number>();
-/** The save point under the History playhead and when it got there: the bead it lands on settles in. */
-let selIn: { id: string | null; at: number } = { id: null, at: -Infinity };
 /** What each verdict mark (a bead, a row, the status) showed in the last draw, by project, and when one changed. */
 const shownVerdicts = new Map<string, string>();
 const verdictIn = new Map<string, number>();
 /** Where the last press landed (the middle of what was pressed), and when. */
 let lastPress = { x: 0, y: 0, at: -Infinity };
-/** A page's blocks rise over this long; the bead the playhead lands on and the ruler's labels settle over these. */
+/** A page's blocks rise over this long. */
 const BLOCK_IN_MS = 300;
-const SEL_IN_MS = 220;
-const LABEL_IN_MS = 200;
 /** Projects whose History has been drawn: a save point new to one of them arrives with a landing, the first draw does not. */
 const verdictProjects = new Set<string>();
 
@@ -2913,9 +2825,8 @@ function trackVerdicts(now: number): void {
 }
 
 /**
- * A new page fades in and its blocks rise one after another; a project's journal rows and its ruler's beads come in
- * one after another, once. The bead under the playhead settles when the playhead lands; a verdict that changed lands
- * once. A sheet, menu or column that opens from a press grows from where the press was. Redraws continue all of it.
+ * A new page fades in and its blocks rise one after another; a verdict that changed lands once. A sheet, menu or column
+ * that opens from a press grows from where the press was. Redraws continue all of it.
  */
 function applyEntrances(scene: boolean): void {
   const now = performance.now();
@@ -2923,7 +2834,6 @@ function applyEntrances(scene: boolean): void {
   if (key !== pageIn.key) pageIn = { key, at: now };
   // Noted under Reduce motion too, so a change seen then never plays later.
   trackVerdicts(now);
-  if (st.selected !== selIn.id) selIn = { id: st.selected, at: now };
   if (reducedMotion()) return;
   const enter = (el: HTMLElement, cls: string, delay: number | null): void => {
     if (delay === null) return;
@@ -2932,41 +2842,11 @@ function applyEntrances(scene: boolean): void {
   };
   const sincePage = now - pageIn.at;
   const page = root.querySelector<HTMLElement>(".main > .toolbar + *");
-  // The page's own blocks: History's status, ruler, journal..., the sections of Agents and Storage. A feature host keeps its state, so it stays still.
+  // The page's own blocks: History's status, its list and preview, the sections of Agents and Storage. A feature host keeps its state, so it stays still.
   const blocks = page ? [...page.querySelectorAll<HTMLElement>(":scope > .doc > *, :scope > .b9 > *")].filter((el) => !el.classList.contains("mount")) : [];
   if (page) enter(page, blocks.length ? "page-fade" : "page-in", entranceDelay(0, sincePage, PAGE_IN_MS));
-  const startOf = (el: Element | null): number => {
-    const i = el ? blocks.indexOf(el as HTMLElement) : -1;
-    return i < 0 ? 0 : Math.min(i, BLOCK_STAGGER_MAX) * BLOCK_STAGGER_MS;
-  };
-  // The journal's rows rise themselves, so the journal block does not.
-  blocks.forEach((el, i) => {
-    if (el.id !== "list") enter(el, "block-in", blockDelay(i, sincePage, BLOCK_IN_MS));
-  });
+  blocks.forEach((el, i) => enter(el, "block-in", blockDelay(i, sincePage, BLOCK_IN_MS)));
   if (!st.projectId || scene) return;
-  // An entrance that starts with its block: offset by the block's turn, unless the part came in after the page did.
-  const after = (since: number, block: Element | null): number => Math.max(0, startOf(block) - (since - pageIn.at));
-  const rows = root.querySelectorAll<HTMLElement>("#list > .day, #list > .list > *");
-  if (rows.length) {
-    const since = journalIn.get(st.projectId) ?? now;
-    journalIn.set(st.projectId, since);
-    const t = now - since - after(since, root.querySelector("#list"));
-    rows.forEach((row, i) => enter(row, "row-in", rowDelay(i, t)));
-  }
-  const ruler = root.querySelector<HTMLElement>(".hruler");
-  if (ruler) {
-    const since = rulerIn.get(st.projectId) ?? now;
-    rulerIn.set(st.projectId, since);
-    const t = now - since - after(since, ruler.closest(".rwell"));
-    const beads = [...ruler.querySelectorAll<HTMLElement>(".rt-tk")];
-    const base = ruler.querySelector<HTMLElement>(".base");
-    if (base) enter(base, "base-in", entranceDelay(0, t, BEAD_IN_MS + 160));
-    beads.forEach((b, i) => enter(b, "tk-in", beadDelay(i, t)));
-    const labelsAt = beads.length ? (beadDelay(beads.length - 1, 0) ?? 0) + 80 : 0;
-    ruler.querySelectorAll<HTMLElement>(".rlab, .lwflag, .lane").forEach((el) => enter(el, "lab-in", entranceDelay(labelsAt, t, LABEL_IN_MS)));
-    const on = ruler.querySelector<HTMLElement>(".rt-tk.on");
-    if (on && selIn.at > since + 50) enter(on, "tk-sel", entranceDelay(0, now - selIn.at, SEL_IN_MS));
-  }
   root.querySelectorAll<HTMLElement>("[data-vid]").forEach((el) => {
     const at = verdictIn.get(`${st.projectId ?? ""} ${el.dataset.vid ?? ""}`);
     const delay = at === undefined ? null : entranceDelay(0, now - at, VERDICT_MS);
@@ -3093,6 +2973,10 @@ function tickResendClock(): void {
 function render(): void {
   const pageKey = `${st.screen}:${st.screen === "onboarding" ? st.onboarding.step : ""}`;
   const pageScroll = pageKey === drawnPage ? (document.querySelector(".page")?.scrollTop ?? 0) : 0;
+  // History's list and preview scroll on their own; the list keeps its place, the preview starts at its top for another save point.
+  const lpList = pageKey === drawnPage ? (document.querySelector(".lp-list")?.scrollTop ?? 0) : 0;
+  const lpPrev = document.querySelector<HTMLElement>(".lp-prev, .lp-sb");
+  const lpPrevAt = lpPrev ? { id: lpPrev.closest<HTMLElement>("[data-id]")?.dataset.id ?? "", top: lpPrev.scrollTop } : null;
   drawnPage = pageKey;
   const focus = focusKey();
   const mountFocus = document.activeElement?.closest(".mount") ? document.activeElement : null;
@@ -3120,8 +3004,13 @@ function render(): void {
   // The right column holds the entry detail when one is open, else Ask when it is shown. Only on project screens. It stays
   // under Check it works (a sheet over the whole window), so closing the sheet returns to the button that opened it.
   const inProject = !!project() && PROJECT_SCREENS.includes(st.screen) && !scene;
-  const right = !inProject || st.hookSheet || st.demoBusy ? "" : st.drawer && entry(st.selected) ? detail() : st.askOpen ? askColumn() : "";
-  const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
+  // History's preview sits beside the list from TWO_PANE_MIN up, inside the page; narrower, an open one is a full-height sheet.
+  const sel = entry(st.selected);
+  const onHistory = st.screen === "history" || st.screen === "rewind";
+  const right = !inProject || st.hookSheet || st.demoBusy ? ""
+    : onHistory ? (!twoPane() && st.drawer && sel ? preview(sel, true) : st.askOpen ? askColumn() : "")
+    : st.drawer && sel ? detail() : st.askOpen ? askColumn() : "";
+  const appCls = right.includes('class="rcol detail') ? "has-detail" : right.includes('class="rcol ask-col') ? "has-ask" : "";
   // Below 861 px the rail lives only in the navigation sheet (nav-toggle). It is not drawn hidden as well, so every
   // destination exists once, in the sheet, and nothing finds a copy that cannot be seen or pressed.
   const rail = window.innerWidth < RAIL_MIN ? "" : scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar();
@@ -3136,9 +3025,12 @@ function render(): void {
   applyOnce();
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
+  const list = document.querySelector(".lp-list");
+  if (list) list.scrollTop = lpList;
+  const prev = document.querySelector<HTMLElement>(".lp-prev, .lp-sb");
+  if (prev && lpPrevAt && (prev.closest<HTMLElement>("[data-id]")?.dataset.id ?? "") === lpPrevAt.id) prev.scrollTop = lpPrevAt.top;
   placeMounts(mountFocus, scrolled);
   fitSessions();
-  fitRulerLabels();
   fitDialLabels();
   applyCarry();
   applyFlash();
@@ -3157,12 +3049,10 @@ function render(): void {
   const livePre = root.querySelector<HTMLElement>(".ck-live pre");
   if (livePre) livePre.scrollTop = livePre.scrollHeight;
   tickResendClock();
-  const coach = st.screen === "history" ? coachStep() : 0;
   const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${checkReason(st.check.result.reason)}`
       : st.check ? "Checking your project in a copy…"
-        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ")
-          : coach ? `Step ${coach} of 3: ${coachSteps()[coach - 1]}.` : "");
+        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : "");
   if (announcer.textContent !== announcement) announcer.textContent = announcement;
   placeLeaving(leaving);
   // Kept for this tab on every draw, so a reload or Reconnect comes back here (route.ts).
@@ -3180,10 +3070,10 @@ function render(): void {
 /** The route last written to sessionStorage, so a draw that changes nothing writes nothing. */
 let keptRoute = "";
 
-/** Lists that move between their rows with ↑/↓ (Home and End too) and take one Tab stop each: the journal's rows and
- *  Overview's cards, which can be long. Enter opens the row, as a click does. The rail keeps a Tab stop on every button,
- *  as a navigation list does, so a Tab user meets each project (Design note). Jump to keeps its own arrows (paletteKey). */
-const ROVING: readonly string[] = [".journal .e-t, .journal .fold", ".ov-list .ov-open"];
+/** Lists that move between their rows with ↑/↓ (Home and End too) and take one Tab stop each: Overview's cards, which can
+ *  be long. Enter opens the row, as a click does. The rail keeps a Tab stop on every button, as a navigation list does, so a
+ *  Tab user meets each project (Design note). Jump to and History's list keep their own arrows (paletteKey, onKey). */
+const ROVING: readonly string[] = [".ov-list .ov-open"];
 /** The row each list last moved to, by data-id, so a redraw keeps its Tab stop there. */
 const roveAt: { [list: string]: string } = {};
 /** How far each key moves along a roving list. */
@@ -3195,7 +3085,7 @@ function applyRoving(): void {
     const rows = [...root.querySelectorAll<HTMLElement>(sel)];
     const at = rows.find((r) => r === document.activeElement)
       ?? rows.find((r) => r.dataset.id === roveAt[sel])
-      ?? rows.find((r) => r.matches(".on, [aria-current]") || !!r.closest(".entry.on, .entry.sel"))
+      ?? rows.find((r) => r.matches(".on, [aria-current]"))
       ?? rows[0];
     for (const r of rows) r.tabIndex = r === at ? 0 : -1;
   }
@@ -3241,61 +3131,6 @@ function fitSessions(): void {
 function rectOf(el: Element): Box {
   const r = el.getBoundingClientRect();
   return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-}
-
-/**
- * Ruler labels never touch. In order (Now, the last working one, the selected one, the first) a label
- * that comes within 8 px of one already kept hides; the last working one moves left of its tick instead,
- * and Now drops its time if that is still not enough (the hero already names that time).
- */
-function fitRulerLabels(): void {
-  const ruler = document.querySelector<HTMLElement>(".hruler");
-  if (!ruler) return;
-  const labs = [...ruler.querySelectorAll<HTMLElement>(".rlab")];
-  for (const el of labs) {
-    el.style.marginLeft = "";
-    el.classList.remove("rl-c", "rl-hide");
-  }
-  // A session of one or two save points is narrower than its name: an empty sliver reads as a stray mark, so it goes.
-  ruler.querySelectorAll<HTMLElement>(".clip").forEach((el) => el.classList.toggle("clip-x", el.clientWidth < 48));
-  const shown = labs.filter((el) => el.getClientRects().length > 0);
-  const ticks = ruler.querySelectorAll(".rt-tk");
-  const row = shown.map((el) => {
-    const box = rectOf(el);
-    const tick = ticks[Number(el.dataset.i)];
-    const t = tick ? rectOf(tick) : box;
-    const now = el.classList.contains("now");
-    let short: Box | null = null;
-    if (now && el.querySelector(".rl-t")?.getClientRects().length) {
-      el.classList.add("rl-c");
-      short = rectOf(el);
-      el.classList.remove("rl-c");
-    }
-    return { box, tickX: (t.left + t.right) / 2, lastWorking: "lw" in el.dataset, now, short };
-  });
-  const fit = fitRow(row);
-  shown.forEach((el, i) => {
-    if (fit.hidden[i]) el.classList.add("rl-hide");
-    if (fit.dx[i]) el.style.marginLeft = `${fit.dx[i]}px`;
-    if (fit.nowShort && el.classList.contains("now")) el.classList.add("rl-c");
-  });
-  // The "Last version that works" flag hangs left of its bead, but near the right end of a narrow ruler it would still
-  // reach past the ruler (and give the page a sideways scroll): move it back in by what sticks out.
-  const lw = ruler.querySelector<HTMLElement>(".lwflag");
-  if (lw) {
-    lw.style.marginLeft = "";
-    const out = lw.getBoundingClientRect().right - ruler.getBoundingClientRect().right;
-    if (out > 0) lw.style.marginLeft = `${-Math.ceil(out)}px`;
-  }
-  // A session chip shows its whole name or not at all, and never touches the flag (dev#36): a cut "Claude…" says nothing.
-  const flag = lw?.getBoundingClientRect() ?? null;
-  ruler.querySelectorAll<HTMLElement>(".clip:not(.clip-x)").forEach((el) => {
-    const name = el.firstElementChild;
-    const cut = !!name && name.scrollWidth > name.clientWidth + 1;
-    const b = el.getBoundingClientRect();
-    const hits = !!flag && b.left < flag.right + 4 && b.right > flag.left - 4 && b.top < flag.bottom + 4 && b.bottom > flag.top - 4;
-    if (cut || hits) el.classList.add("clip-x");
-  });
 }
 
 /** Dial labels stay inside the card, off every dot, the card's own words and each other. A less important one hides first. */
@@ -3703,7 +3538,6 @@ async function rewindDo(): Promise<void> {
   try {
     r.result = await api({ method: "recover", projectId: p.id, id: r.target });
     st.undo = { projectId: p.id, result: r.result, working: false };
-    if (st.coach?.projectId === p.id) st.coach.went = true;
     r.step = "done";
   } catch (e) {
     r.error = msg(e);
@@ -3719,9 +3553,9 @@ async function rewindDo(): Promise<void> {
   render();
 }
 
-/** The control that was pressed went away with the redraw, so focus goes to the ruler, the page's main control, not to nothing. */
-function refocusRuler(): void {
-  if (document.activeElement === document.body) root.querySelector<HTMLElement>(".hruler")?.focus({ preventScroll: true });
+/** The control that was pressed went away with the redraw, so focus goes to History's list, the page's main control, not to nothing. */
+function refocusList(): void {
+  if (document.activeElement === document.body) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
 }
 
 /** Undo the last rewind: the engine removes its branch and copy, only if both are untouched. */
@@ -3734,7 +3568,6 @@ async function undoRewind(): Promise<void> {
   try {
     const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.result.id, branch: u.result.branch, copyDir: u.result.copyDir });
     st.undo = null;
-    if (st.coach?.projectId === u.projectId) st.coach = null;
     st.busy = null;
     if (st.screen === "rewind" && st.rewind?.step === "done") {
       st.rewind = { ...st.rewind, result: null, step: "review" };
@@ -3742,7 +3575,7 @@ async function undoRewind(): Promise<void> {
     }
     await loadTimeline();
     render();
-    refocusRuler();
+    refocusList();
     toast(r.removedBranch ? `Rewind undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Rewind undone. Removed the copy. Every save point is still here.`);
   } catch (e) {
     u.working = false;
@@ -3825,13 +3658,10 @@ async function runDemo(): Promise<void> {
     st.demoBusy = false;
     await refreshStatuses();
     await selectProject(r.project.id);
-    // Land on History at Now, broken, with the three steps: drag back to the version find-good found,
-    // go back to it, then undo or keep it.
-    const found = r.result.findGood.found;
-    if (!found) return toast("Demo ready, but no working version was found.");
-    st.coach = { projectId: r.project.id, target: found, went: false };
+    // Land on History with the version find-good found selected: the answer and its action show without a click.
+    if (!r.result.findGood.found) return toast("Demo ready, but no working version was found.");
     render();
-    root.querySelector<HTMLElement>(".hruler")?.focus({ preventScroll: true });
+    root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
     // Recovery saves the broken state before it creates a branch. That new save point has no
     // verdict yet: check it for real without delaying History or guessing that it failed.
     const before = own.savedBefore;
@@ -4496,13 +4326,8 @@ async function onClick(el: HTMLElement): Promise<void> {
       return undoRewind();
     case "undo-dismiss":
       st.undo = null;
-      if (st.coach?.went) st.coach = null;
       render();
-      return refocusRuler();
-    case "coach-hide":
-      st.coach = null;
-      render();
-      return refocusRuler();
+      return refocusList();
     case "tv-go":
       return tvGo(d.id);
     case "tv-try":
@@ -4568,11 +4393,22 @@ async function onClick(el: HTMLElement): Promise<void> {
       // (writer#26). A row clicked with the pointer keeps it, so the next click lands where the eye is.
       const into = !!el.closest(".pal") || el.matches(":focus-visible");
       st.selected = d.id ?? null;
-      st.drawer = true;
+      st.drawer = !twoPane();
       render();
-      if (into) root.querySelector<HTMLElement>('.rcol.detail [data-act="close-drawer"]')?.focus({ preventScroll: true });
+      if (into) root.querySelector<HTMLElement>(twoPane() ? "#list" : '.lp-sheet [data-act="close-drawer"]')?.focus({ preventScroll: true });
+      root.querySelector(".lp-row.on")?.scrollIntoView({ block: "nearest" });
       return;
     }
+    case "pick":
+      pick(d.id ?? null, true);
+      if (twoPane()) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+      return;
+    case "not-now":
+      // On a phone it closes the sheet. Beside the list it stays where you are: the newest save point.
+      if (!twoPane()) return closeDrawer();
+      pick(points().at(-1)?.id ?? null, false);
+      root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+      return;
     case "close-drawer":
       return closeDrawer();
     case "ask-toggle":
@@ -4580,9 +4416,6 @@ async function onClick(el: HTMLElement): Promise<void> {
       if (st.askOpen) st.drawer = false;
       render();
       return st.askOpen ? focusAsk() : refocus(ASK_BACK);
-    case "unfold":
-      if (d.id) st.unfolded.add(d.id);
-      return render();
     case "save":
       return saveNow();
     case "check":
@@ -4844,9 +4677,13 @@ function shortcut(action: ShortcutAction): void {
     case "check":
       if (inProject) void checkNow();
       return;
-    case "rewind":
-      if (inProject && points().length) void startRewind();
+    case "rewind": {
+      // On History it brings back what the preview's button says: the version, or the last that works for a broken one.
+      const sel = st.screen === "history" ? entry(st.selected) : null;
+      const target = sel ? bringTarget(sel) : null;
+      if (inProject && points().length) void startRewind(target?.id);
       return;
+    }
     case "compare":
       if (inProject && points().length) void openCompare();
       return;
@@ -4921,11 +4758,6 @@ function onKey(e: KeyboardEvent): void {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   const k = e.key.toLowerCase();
   const t = e.target;
-  // Any key puts the History ruler back to keyboard focus, so its ring and flag show again.
-  if (rulerByPointer) {
-    rulerByPointer = false;
-    root.querySelector(".hruler")?.classList.remove("by-pointer");
-  }
   const typing = t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
   if (dialogFocus.trapTab(e)) return;
   if (paletteKey(e)) return;
@@ -5024,24 +4856,30 @@ function onKey(e: KeyboardEvent): void {
   }
   if (typing || st.screen !== "history" || st.check) return;
   if (t instanceof HTMLButtonElement && (k === "enter" || k === " ")) return;
-  const pts = points();
-  const found = pts.findIndex((c) => c.id === st.selected);
-  // Nothing selected means the playhead is on Now, so the first step back is the save point before it.
-  const i = found < 0 ? pts.length - 1 : found;
-  const onRuler = t instanceof HTMLElement && t.classList.contains("hruler");
-  const to = (how: Step): string | null => pts[stepIndex(pts.map((c) => verdictKey(c.verdict)), i, how)]?.id ?? st.selected;
-  // History list is newest first, so Down goes back in time. With Shift, a step goes to where the verdict changed.
-  if (k === "arrowdown" || k === "j" || k === "arrowleft") st.selected = to(e.shiftKey ? "prevChange" : "back");
-  else if (k === "arrowup" || k === "l" || k === "arrowright") st.selected = to(e.shiftKey ? "nextChange" : "forward");
-  else if (onRuler && (k === "home" || k === "end")) st.selected = to(k === "home" ? "first" : "last");
-  else if (k === "c" && st.selected) return void openCompare(st.selected, "now");
-  else if (k === " " && st.selected) return void (e.preventDefault(), startRewind(st.selected));
-  else if (k === "enter" && (st.selected || onRuler) && !(e.target instanceof HTMLButtonElement)) {
-    st.selected = pts[i]?.id ?? null;
-    st.drawer = true;
-  } else return;
-  e.preventDefault();
-  render();
+  // History's list is a listbox: focus stays on it and the arrows move the selection along the rows shown, newest first.
+  // Away from any control the arrows still move it; Home, End and the Page keys only on the list, so the page can scroll.
+  const onList = t instanceof HTMLElement && t.id === "list";
+  const loose = !(t instanceof HTMLElement) || t === document.body || t.matches("main h1, .page");
+  if (!onList && !loose) return;
+  const ids = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')].map((el) => el.dataset.id ?? "");
+  const at = ids.indexOf(st.selected ?? "");
+  const key = k === "j" ? "ArrowDown" : k === "k" ? "ArrowUp" : e.key;
+  const move = onList || key === "ArrowDown" || key === "ArrowUp" ? listMove(ids.length, at < 0 ? 0 : at, key) : null;
+  if (move !== null) {
+    e.preventDefault();
+    pick(ids[move] ?? null, false);
+  } else if (k === "enter" && onList && st.selected) {
+    e.preventDefault();
+    const sel = entry(st.selected);
+    const target = sel ? bringTarget(sel) : null;
+    if (target) void startRewind(target.id);
+  } else if (k === " " && onList && st.selected && !twoPane()) {
+    e.preventDefault();
+    pick(st.selected, true);
+  } else if (k === "c" && st.selected) {
+    e.preventDefault();
+    void openCompare(st.selected, "now");
+  }
 }
 
 function onEvent(ev: AppEvent): void {
@@ -5123,10 +4961,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     screen: boot.data.projects.length ? "overview" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
     compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false,
     navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
-    askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
+    askOpen: false, lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, overview: new Map(), sources: null, labs: false, notes: new Map(), journalFilter: "all", noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
-    hookSheet: null, demoBusy: false, coach: null, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), passes: new Map(), changesFor: "", confirm: null, flash: null, undo: null,
+    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), passes: new Map(), changesFor: "", confirm: null, flash: null, undo: null,
     license: { status: boot.data.license, draft: "", working: false, error: null },
     account: { ...SIGNED_OUT },
     copyMade: null,
@@ -5144,11 +4982,9 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   } catch {
     // Storage can be off; the app then starts on Overview, and Sources without the labs rows.
   }
-  // Whatever was drawn under the launch splash arrives again as it lifts: the page, its ruler's beads, its rows.
+  // Whatever was drawn under the launch splash arrives again as it lifts: the page and its blocks.
   window.addEventListener(SPLASH_OUT, () => {
     pageIn = { key: "", at: 0 };
-    journalIn.clear();
-    rulerIn.clear();
     render();
   }, { once: true });
   // Where a press landed, so a sheet, menu or column that opens from it grows out of that spot.
@@ -5271,21 +5107,19 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     void runDiff();
   });
   window.addEventListener("keydown", onKey);
-  let layoutBand = window.innerWidth < RAIL_MIN ? 0 : window.innerWidth < 1100 ? 1 : 2;
+  // The bands where the drawing changes: the rail as a sheet, History in one pane, Ask and the detail as sheets, all beside.
+  const bandOf = (w: number): number => (w < RAIL_MIN ? 0 : w < TWO_PANE_MIN ? 1 : w < 1100 ? 2 : 3);
+  let layoutBand = bandOf(window.innerWidth);
   // Labels are measured; measure them again once the mono font is in, since its widths differ from the fallback's.
-  void document.fonts?.ready.then(() => {
-    fitRulerLabels();
-    fitDialLabels();
-  });
+  void document.fonts?.ready.then(() => fitDialLabels());
   window.addEventListener("resize", () => {
-    const band = window.innerWidth < RAIL_MIN ? 0 : window.innerWidth < 1100 ? 1 : 2;
+    const band = bandOf(window.innerWidth);
     if (band !== layoutBand) {
       layoutBand = band;
       if (band !== 0) st.navOpen = false;
       render();
     } else {
       fitSessions();
-      fitRulerLabels();
       fitDialLabels();
     }
     const shown = toastHost.querySelector<HTMLElement>(".toast:not(.leave)");
@@ -5334,44 +5168,6 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     dialDrag = false;
     root.querySelector(".dial")?.classList.remove("drag");
     root.querySelector<HTMLElement>(".knob")?.focus({ preventScroll: true });
-  });
-  // The History ruler: press anywhere along it and drag. The save point under the pointer is selected as
-  // it moves, and letting go opens it. Only a change of save point redraws.
-  const scrubHistory = (e: PointerEvent): void => {
-    const ruler = root.querySelector<HTMLElement>(".hruler");
-    const pts = rulerWindow(points());
-    if (!ruler || !pts.length) return;
-    const box = ruler.getBoundingClientRect();
-    const i = nearestTick(pts.map((_, k) => homeX(k, pts.length)), ((e.clientX - box.left) / box.width) * 100);
-    const id = pts[i]?.id;
-    if (!id || id === st.selected) return;
-    st.selected = id;
-    render();
-  };
-  root.addEventListener("pointerdown", (e) => {
-    const ruler = (e.target as HTMLElement).closest<HTMLElement>(".hruler");
-    if (!ruler || e.button !== 0) return;
-    // No text selection while dragging. Focus stays on the ruler, so the arrow keys carry on from here.
-    e.preventDefault();
-    ruler.focus({ preventScroll: true });
-    historyScrub = true;
-    rulerByPointer = true;
-    ruler.classList.add("scrubbing", "by-pointer");
-    scrubHistory(e);
-  });
-  window.addEventListener("pointermove", (e) => {
-    if (historyScrub) scrubHistory(e);
-  });
-  window.addEventListener("pointerup", () => {
-    if (!historyScrub) return;
-    historyScrub = false;
-    st.drawer = true;
-    render();
-  });
-  window.addEventListener("pointercancel", () => {
-    if (!historyScrub) return;
-    historyScrub = false;
-    render();
   });
   // The Rewind's ruler takes the same drag: the save point under the pointer goes on the stage. Focus
   // stays where it was (the dial), so the keys carry on from wherever the drag let go.
