@@ -1,5 +1,6 @@
 // The "Use it in your folder" text (sequence S3s), as one pure function with no dependencies. Proven by harness.sh
-// (rows s1-s5, x1-x3 and S3S a-f/j, each run in zsh and bash): see RESULTS.md, section "S3s: secret-looking files".
+// (rows s1-s5, x1-x3, j2, inject1-5 and S3S a-f/j/l/q, each run in zsh and bash): see RESULTS.md, sections "S3s:
+// secret-looking files" and "r7: --no-overwrite-ignore". Needs git 2.23 or later (git switch).
 // The app never runs this text. The engine supplies the lists below; it must render at copy time.
 
 export interface FolderCommandsInput {
@@ -70,6 +71,8 @@ export function folderCommands(i: FolderCommandsInput): FolderCommands {
 
   const dir = folderWord(i.folder, i.home);
   const quiet = "git -c core.hooksPath=/dev/null";
+  // Every switch refuses rather than overwrite an ignored file at a path the target tracks (git 2.23+, like switch itself).
+  const sw = `${quiet} switch --no-overwrite-ignore`;
   const orig = i.detachedSha ?? i.orig;
   const add = i.excluded.length
     ? [`git add -A -- . ${i.excluded.map((p) => quoted(`:(exclude,literal)${p}`)).join(" ")} &&`, `git reset -q -- ${i.excluded.map((p) => quoted(`:(literal)${p}`)).join(" ")} &&`]
@@ -77,17 +80,17 @@ export function folderCommands(i: FolderCommandsInput): FolderCommands {
   const commands = [
     `cd ${dir} &&`,
     `git branch ${word(i.use)} ${i.recoverySha} &&`,
-    `${quiet} switch -c ${word(i.save)} &&`,
+    `${sw} -c ${word(i.save)} &&`,
     ...add,
     ...(forceAdd.length ? [`git add -f -- ${forceAdd.map(quoted).join(" ")} &&`] : []),
     `${quiet} -c commit.gpgsign=false -c user.name="Time Machine" -c user.email=tm@localhost commit -q --allow-empty -m ${quoted(`tm: folder before using ${i.id}`)} &&`,
-    `${quiet} switch ${word(i.use)}`,
+    `${sw} ${word(i.use)}`,
   ].join("\n");
   const back = [
     `cd ${dir}`,
-    `${quiet} switch ${word(i.save)}`,
+    `${sw} ${word(i.save)}`,
     `git reset -q --soft ${word(orig)}`,
-    `${quiet} switch ${i.detachedSha ? `--detach ${i.detachedSha}` : word(i.orig)}`,
+    `${sw} ${i.detachedSha ? `--detach ${i.detachedSha}` : word(i.orig)}`,
     "git reset -q",
     `git branch -D ${word(i.save)}`,
     `git update-ref -d ${word(`refs/heads/${i.use}`)} ${i.recoverySha}`,

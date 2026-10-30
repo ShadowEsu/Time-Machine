@@ -113,17 +113,17 @@ describe("folder commands after a bring back (L364 r6, FolderCmds' S3s, used as-
     expect(f.commands).toBe([
       "cd ~/'code/marigold-tips' &&",
       "git branch use-cp-0003 abc1234 &&",
-      "git -c core.hooksPath=/dev/null switch -c tm/folder-before/cp-0003 &&",
+      "git -c core.hooksPath=/dev/null switch --no-overwrite-ignore -c tm/folder-before/cp-0003 &&",
       "git add -A &&",
       "git -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name=\"Time Machine\" -c user.email=tm@localhost commit -q --allow-empty -m 'tm: folder before using cp-0003' &&",
-      "git -c core.hooksPath=/dev/null switch use-cp-0003",
+      "git -c core.hooksPath=/dev/null switch --no-overwrite-ignore use-cp-0003",
     ].join("\n"));
-    expect(f.back).toBe("cd ~/'code/marigold-tips' && git -c core.hooksPath=/dev/null switch tm/folder-before/cp-0003 && git reset -q --soft main && git -c core.hooksPath=/dev/null switch main && git reset -q && git branch -D tm/folder-before/cp-0003 && git update-ref -d refs/heads/use-cp-0003 abc1234");
+    expect(f.back).toBe("cd ~/'code/marigold-tips' && git -c core.hooksPath=/dev/null switch --no-overwrite-ignore tm/folder-before/cp-0003 && git reset -q --soft main && git -c core.hooksPath=/dev/null switch --no-overwrite-ignore main && git reset -q && git branch -D tm/folder-before/cp-0003 && git update-ref -d refs/heads/use-cp-0003 abc1234");
     expect(f.end).toBe("You end on a new branch, use-cp-0003, made from the working version. Your old branch, main, is unchanged.");
     expect(f.local).toBe("tm/folder-before/cp-0003 is a local safety branch. Don’t push it or merge it. To get your work back, run the go-back line.");
     expect(f.locked).toBe("If the last step says it cannot lock use-cp-0003, you made commits there. They are kept, and the rest is already back.");
     expect(f.onUse).toBe("Your folder is on use-cp-0003, the working version. Your broken work is on the branch tm/folder-before/cp-0003.");
-    expect(f.why).toHaveLength(7);
+    expect(f.why).toHaveLength(8);
     expect(f.hooks).toBe("Your repo’s commit hooks are skipped for these steps so they can’t change files mid-way.");
     expect(f.intro).toContain("These steps delete nothing.");
     expect(f.beforeBack).toBe("Commit or copy any new edits on use-cp-0003 before going back.");
@@ -132,7 +132,7 @@ describe("folder commands after a bring back (L364 r6, FolderCmds' S3s, used as-
   test("outside home the whole path is quoted, ' as '\\''; a detached HEAD goes back with --detach", () => {
     const g = folderSteps("/opt/it's here", "/Users/ana", sha, "cp-0003", { branch: null, sha: "def4567" });
     expect(g.commands.split("\n")[0]).toBe("cd '/opt/it'\\''s here' &&");
-    expect(g.back).toContain("git reset -q --soft def4567 && git -c core.hooksPath=/dev/null switch --detach def4567 &&");
+    expect(g.back).toContain("git reset -q --soft def4567 && git -c core.hooksPath=/dev/null switch --no-overwrite-ignore --detach def4567 &&");
   });
   test("secret-looking files are left out and named; a tracked secret path means no block; hooks get a line", () => {
     const one = folderSteps("/Users/ana/tips", "/Users/ana", sha, "cp-0003", was, { excluded: [".env.local"], tracked: [] });

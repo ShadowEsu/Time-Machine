@@ -161,7 +161,8 @@ export function folderSteps(folder: string, home: string, recoverySha: string, i
       "In the go-back line, git branch -D removes only the safety branch, after its changes are back in your folder.",
       "-D, not -d: the safety branch was never merged, so -d would refuse.",
       `git update-ref -d deletes ${use} only while it still points at the working version, so any commits you made there are kept.`,
-      "These are macOS and Linux shell commands (zsh, bash).",
+      "--no-overwrite-ignore: a switch stops rather than overwrite an ignored file in your folder.",
+      "These are macOS and Linux shell commands (zsh, bash), for Git 2.23 or later.",
     ],
   };
 }

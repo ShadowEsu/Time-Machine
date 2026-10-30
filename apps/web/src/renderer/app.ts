@@ -1101,7 +1101,7 @@ function cmdHtml(text: string): string {
 
 /** Prose that names a branch keeps the name on one line: a hyphen in use-cp-0003 is not a place to break. */
 function proseHtml(text: string): string {
-  return esc(text).replace(/\b(?:use-cp-\d+(?:-\d+)?|tm\/[\w./-]*\w)/g, (m) => `<span class="nb">${m}</span>`);
+  return esc(text).replace(/\b(?:use-cp-\d+(?:-\d+)?|tm\/[\w./-]*\w)/g, (m) => `<span class="nw">${m}</span>`);
 }
 
 /** The go-back line as shown: a line break after each &&, so every step is in view. Copy keeps folderCommands()' text. */
