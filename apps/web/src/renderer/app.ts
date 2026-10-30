@@ -942,7 +942,7 @@ function history(): string {
       ${savedLine}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
       ${folderPanelOn() && !onUse ? useInFolder(u.result, p) : ""}
-      <div class="uc-ch"><div>${undoButton("")}<small>${esc(onUse && u ? `Removes the copy and the branch ${u.result.branch}; your folder stays on use-${u.result.id}.` : "Removes the working copy and branch; nothing else changes.")}</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>${esc(onUse && u ? `Keeps the copy and the branch ${u.result.branch}; your folder stays on use-${u.result.id}.` : "Keeps the working copy and branch; your folder stays as it is.")}</small></div></div></div>`
+      <div class="uc-ch"><div>${undoButton("")}<small>${proseHtml(onUse && u ? `Removes the copy and the branch ${u.result.branch}; your folder stays on use-${u.result.id}.` : "Removes the working copy and branch; nothing else changes.")}</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>${proseHtml(onUse && u ? `Keeps the copy and the branch ${u.result.branch}; your folder stays on use-${u.result.id}.` : "Keeps the working copy and branch; your folder stays as it is.")}</small></div></div></div>`
     : "";
   const two = twoPane();
   if (!pts.length) {
