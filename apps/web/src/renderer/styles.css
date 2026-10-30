@@ -1343,3 +1343,6 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 @media (max-width: 600px) { .cf-lists { grid-template-columns: minmax(0, 1fr); } }
 .ov-go { margin-top: 10px; }
 .ov-go .btn { white-space: normal; height: auto; min-height: 44px; }
+.undo-card > .uc-t { flex: 1 1 300px; min-width: 0; display: grid; gap: 6px; }
+.undo-card .uc-k { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.undo-card .row-btns { align-items: center; }

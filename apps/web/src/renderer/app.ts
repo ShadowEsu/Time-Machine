@@ -596,12 +596,8 @@ function short(sha: string): string {
 
 /** What a save point was made as, before anyone named it. `author` is the author line shown beside it, if any, so the agent is named once. */
 function madeTitle(c: TimelineEntry, author: string | null = null): string {
-  // The engine names the save it makes before a rewind by save point id. Say what it is, and which version it made way for.
-  const before = c.trigger === "recover" ? /^Before recovering (\S+)$/.exec(c.note) : null;
-  if (before?.[1]) {
-    const to = entry(before[1]);
-    return `Saved before bringing back ${to ? named(to).name : "an older version"}`;
-  }
+  // The engine names the save it makes before a rewind by save point id. Say what it is: your work from before going back.
+  if (c.trigger === "recover" && /^Before recovering \S+$/.test(c.note)) return `Your broken version, saved before going back · ${ptTime(c)}`;
   const made = pointTitle(c, author);
   // An untitled save is named by what it did ("309 files deleted"), once its diff is read.
   return (made.trim() ? "" : changeWords(c)) || rowTitle(made, c.trigger, st.changes.get(c.id));
@@ -724,7 +720,7 @@ function sidebar(mobile = false): string {
     <button class="it nav-it${st.screen === "sources" ? " on" : ""}" data-act="sources"${st.screen === "sources" ? ' aria-current="page"' : ""}>${navIcon("sources")}<span class="nm">Sources</span></button>
     <button class="group group-b${st.screen === "agents" ? " on" : ""}" data-act="agents">Agents</button>
     ${st.agents ? agent(claude) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
-    <p class="ag-more">More agents coming</p>
+    <p class="ag-more">Codex and Cursor: planned</p>
     <div class="side-foot">
       <div class="stored">${esc(`History is saved on ${device()}${askWords}`)}</div>
       ${plan}
@@ -921,10 +917,14 @@ function history(): string {
     <h1 class="lp-h"><span class="lp-mark v-${verdictKey(brought ? brought.verdict : newest?.verdict ?? null)}" aria-hidden="true">${vIcon(brought ? brought.verdict : newest?.verdict ?? null)}</span><span>${keepTimes(esc(line))}</span></h1>
     ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${goneCard}${heroGo}
   </section>`;
-  // Where the version you brought back is now, with the ways to reach it, and Undo.
+  // After a bring back, one card says it all: where the working version is, how to try it, where your work from before went,
+  // and Keep it or Undo. No Git commands.
+  const saved = u ? newestByTime(pts.filter((c) => c.trigger === "recover" && c.note === `Before recovering ${u.result.id}`))[0] ?? null : null;
   const undoBar = u
-    ? `<div class="undo-card" role="status">${glyph(u.result.lastVerdict)}<p>${u.result.copyOnly ? "It is in a copy next to your folder" : `It is on a new branch, <span class="mono sel-text">${esc(u.result.branch)}</span>, and in a copy`} at <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
-      <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${u.result.copyOnly ? "" : `<button class="btn quiet" data-act="copy" data-text="${esc(u.result.branch)}">Copy branch name</button>`}${undoButton("")}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
+    ? `<div class="undo-card" role="status">${glyph(u.result.lastVerdict)}<div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
+      ${saved ? `<p>Your broken version is saved here: <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
+      <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
+      <div class="row-btns"><button class="btn quiet" data-act="undo-dismiss">Keep it</button>${undoButton("")}</div></div>`
     : "";
   const two = twoPane();
   if (!pts.length) {
@@ -1041,8 +1041,12 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   // newest that works is where you are, so it is only checked. A gone folder brings a copy back somewhere else.
   const back = justBack();
   const isBack = back?.result.id === c.id;
-  // The version just brought back says where it is now and how to reach it, instead of offering itself again.
-  const here = isBack && back ? `<div class="lp-here" role="note"><p><b>This is the version you brought back.</b> ${esc(back.result.copyOnly ? "It is in a copy at" : `It is on the branch ${back.result.branch} and in a copy at`)} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
+  // The save made just before it: your broken version. Its preview says so, and where the working version went.
+  const isSafety = !!back && c.trigger === "recover" && c.note === `Before recovering ${back.result.id}`;
+  const backTo = back ? entry(back.result.id) : null;
+  // The version just brought back, and the broken version saved before it, each say where the working version is now and
+  // how to reach it, instead of offering it again.
+  const here = (isBack || isSafety) && back ? `<div class="lp-here" role="note"><p><b>${esc(isBack ? "This is the version you brought back." : `This is your broken version, saved before going back to ${backTo ? named(backTo).name : "the version that works"}.`)}</b> ${esc(isBack ? "It is" : "The working version is")} ${back.result.copyOnly ? "in a copy at" : `on the branch <span class="mono sel-text">${esc(back.result.branch)}</span> and in a copy at`} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
       <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(back.result.copyDir)}">${revealLabel()}</button>${back.result.copyOnly ? "" : `<button class="btn quiet" data-act="copy" data-text="${esc(back.result.branch)}">Copy branch name</button>`}</div></div>` : "";
   const acts = damaged || isBack ? ""
     : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${esc(c.id)}" ${busy}>Bring back a copy…</button>${notNow}`
@@ -1957,7 +1961,7 @@ function agentsScreen(): string {
   return `<div class="page b9-page" id="agents-page" tabindex="0" role="region" aria-label="Agents"><div class="b9">
     <header class="b9-head"><h1>Agents</h1><p class="voice b9-voice">Connections and activity come from local hook events, never from your screen.</p></header>
     <section aria-labelledby="b9-agents-h"><div class="b9-day"><h2 id="b9-agents-h">Agent channels</h2></div>
-      <p class="b9-lede">Claude Code connects through hooks. More agents coming.</p>${channels}</section>
+      <p class="b9-lede">Claude Code connects through hooks. Codex and Cursor: planned, not connected.</p>${channels}</section>
     <section aria-labelledby="b9-cc-h"><div class="b9-day"><h2 id="b9-cc-h">Claude Code in each project</h2></div>
       <p class="b9-lede">Claude Code can save before each prompt and before risky commands, and check after each turn. We show the exact lines before we add them.</p>${projects}</section>
     <section class="b9-know" aria-labelledby="b9-know-h">${buddy()}<div><h2 id="b9-know-h">Good to know</h2><p>What an agent says about its own tests is never shown as a check. We run your check ourselves, in a copy.</p></div></section>

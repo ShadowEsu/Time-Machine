@@ -1,5 +1,5 @@
 // The agent channel: Claude Code, read from its hook lines and the audit log. Other agents are not built yet; the app
-// says "More agents coming" once and lists none of them. No activity is ever invented.
+// says "Codex and Cursor: planned" once, quietly, and connects none of them. No activity is ever invented.
 import type { AgentRow } from "../shared/api.js";
 import { plural, when } from "../shared/format.js";
 
