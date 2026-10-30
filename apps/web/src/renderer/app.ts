@@ -37,7 +37,7 @@ import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage,
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
-import { brokeAt, changedSince, defaultPick, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
+import { brokeAt, changedSince, defaultPick, foldRepeats, listMove, statusLine, TWO_PANE_MIN } from "./history-list.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -596,9 +596,12 @@ function short(sha: string): string {
 
 /** What a save point was made as, before anyone named it. `author` is the author line shown beside it, if any, so the agent is named once. */
 function madeTitle(c: TimelineEntry, author: string | null = null): string {
-  // The engine names the save it makes before a rewind by save point id. Say it by time instead.
+  // The engine names the save it makes before a rewind by save point id. Say what it is, and which version it made way for.
   const before = c.trigger === "recover" ? /^Before recovering (\S+)$/.exec(c.note) : null;
-  if (before?.[1]) return `Before going back to ${pointName(before[1])}`;
+  if (before?.[1]) {
+    const to = entry(before[1]);
+    return `Saved before bringing back ${to ? named(to).name : "an older version"}`;
+  }
   const made = pointTitle(c, author);
   // An untitled save is named by what it did ("309 files deleted"), once its diff is read.
   return (made.trim() ? "" : changeWords(c)) || rowTitle(made, c.trigger, st.changes.get(c.id));
@@ -905,16 +908,23 @@ function history(): string {
     : "";
   // Git words (the branch) only for a project that is a Git repository; a plain folder's history lives in the store.
   const branch = p.kind !== "folder" && newest?.branch ? `${esc(newest.branch)} · ` : "";
-  const line = statusLine({ newest: newest?.verdict ?? null, broke: broke ? named(broke).name : null, works: behind ? named(behind).name : null, head: s.head, voice: s.voice });
+  const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
+  const brought = u ? entry(u.result.id) : null;
+  // Just after a bring back the line says what you have now, naming only save points in the list below it.
+  const line = brought ? `You brought back ${named(brought).name}. Your newer work is saved.`
+    : statusLine({ newest: newest?.verdict ?? null, broke: broke ? named(broke).name : null, works: behind ? named(behind).name : null, head: s.head, voice: s.voice });
   // The demo says so once, here; its save points carry no Demo chip.
   const sub = [p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : "", command ? `Checks with <code class="mono">${esc(command)}</code> in a copy.` : "", working ? "Claude Code is working now. We check again when its turn ends." : "", st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""].filter(Boolean).join(" ");
-  const status = `<section class="lp-status" data-vid="hero" data-v="${esc(s.head)}">
-    <h1 class="lp-h"><span class="lp-mark v-${verdictKey(newest?.verdict ?? null)}" aria-hidden="true">${vIcon(newest?.verdict ?? null)}</span><span>${keepTimes(esc(line))}</span></h1>
-    ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${goneCard}
+  // One pane (below TWO_PANE_MIN): the answer's action sits under it, so bringing back the version that works is one tap.
+  const heroGo = !twoPane() && behind && !brought && !gone && !damagedReason(behind) ? `<div class="lp-go">${bringBackButton(behind, "btn big dark", st.busy ? "disabled" : "")}</div>` : "";
+  const status = `<section class="lp-status" data-vid="hero" data-v="${esc(brought ? "back" : s.head)}">
+    <h1 class="lp-h"><span class="lp-mark v-${verdictKey(brought ? brought.verdict : newest?.verdict ?? null)}" aria-hidden="true">${vIcon(brought ? brought.verdict : newest?.verdict ?? null)}</span><span>${keepTimes(esc(line))}</span></h1>
+    ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${goneCard}${heroGo}
   </section>`;
-  const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
+  // Where the version you brought back is now, with the ways to reach it, and Undo.
   const undoBar = u
-    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. ${u.result.copyOnly ? "It is in a copy next to your folder" : `It is on a new branch${st.settings.showGitDetails ? `, <span class="mono">${esc(u.result.branch)}</span>,` : ""} and in a copy`}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
+    ? `<div class="undo-card" role="status">${glyph(u.result.lastVerdict)}<p>${u.result.copyOnly ? "It is in a copy next to your folder" : `It is on a new branch, <span class="mono sel-text">${esc(u.result.branch)}</span>, and in a copy`} at <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
+      <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${u.result.copyOnly ? "" : `<button class="btn quiet" data-act="copy" data-text="${esc(u.result.branch)}">Copy branch name</button>`}${undoButton("")}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
     : "";
   const two = twoPane();
   if (!pts.length) {
@@ -926,20 +936,22 @@ function history(): string {
   const unreadable = pinnedOnly ? [] : pts.filter((c) => !readable.includes(c)).reverse();
   // Newest first by time, not by id: a clock change or an imported store never splits one date into two groups (cli#8).
   const rows = [...newestByTime(filtered(readable, st.notes, st.journalFilter)), ...unreadable];
+  // Safety saves made before bringing back the same version, one after another, are one row: the newest, with how many more.
+  const folded = foldRepeats(rows, (c) => (c.trigger === "recover" && c.note ? c.note : null), st.selected);
   const sel = entry(st.selected);
   const days = [...new Set(rows.map((c) => dayLabel(c.createdAt)))];
   // One day needs no groups: the list's header names it. More days group under their names.
   const options = days.length <= 1
-    ? rows.map((c) => listRow(c, behind, broke)).join("")
-    : days.map((d, i) => `<div role="group" aria-labelledby="lp-g${i}"><div class="lp-day" id="lp-g${i}">${esc(d)}</div>${rows.filter((c) => dayLabel(c.createdAt) === d).map((c) => listRow(c, behind, broke)).join("")}</div>`).join("");
+    ? folded.map((r) => listRow(r.c, behind, broke, r.more)).join("")
+    : days.map((d, i) => `<div role="group" aria-labelledby="lp-g${i}"><div class="lp-day" id="lp-g${i}">${esc(d)}</div>${folded.filter((r) => dayLabel(r.c.createdAt) === d).map((r) => listRow(r.c, behind, broke, r.more)).join("")}</div>`).join("");
   const activeId = sel && rows.includes(sel) ? `opt-${sel.id}` : "";
   const units = unitWords(p.purpose);
   const listbox = rows.length
     ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys"${activeId ? ` aria-activedescendant="${esc(activeId)}"` : ""}>${options}</div>
       <p class="sr-only" id="lp-keys">Newest first. Up and Down choose, Enter brings it back.</p>`
-    : `<div class="lp-list lp-empty">${pinnedOnly ? noPinned(p.purpose) : ""}</div>`;
+    : `<div class="lp-list lp-empty">${pinnedOnly ? noPinned(p.purpose) : st.journalFilter === "works" ? `<div class="jf-empty"><p><b>${esc(`No ${units.many} have passed their check yet.`)}</b></p><button class="btn quiet" data-act="journal-filter" data-v="all">Show all</button></div>` : ""}</div>`;
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
-  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${sparkline(pts, behind)}${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>`;
+  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${sparkline(pts, behind)}${filterBar(st.journalFilter, pinnedCount, p.purpose, checksOn(p) ? readable.filter((c) => c.verdict === "PASS").length : null)}</div>`;
   const right = two && sel ? preview(sel, false) : "";
   return `<div class="page proj lp${two ? " lp-two" : ""}"><div class="doc lp-doc">${status}${undoBar}
     ${setupView(p, pts)}
@@ -956,7 +968,7 @@ function twoPane(): boolean {
  * One option in History's list: the verdict as an icon, a word and a colour, the save point's message and its time. The last
  * version that works and the save point it broke at are marked in words.
  */
-function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntry | null): string {
+function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntry | null, more = 0): string {
   const p = project();
   const damaged = damagedReason(c);
   const running = checkRunning();
@@ -968,8 +980,9 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
   const on = c.id === st.selected;
   const tag = c.id === lw?.id ? '<span class="lp-tag lw">Last version that works</span>' : c.id === broke?.id ? '<span class="lp-tag br">Broke here</span>' : "";
   const pin = st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : "";
+  const again = more ? `<span class="lp-rep">${esc(`and ${more} more like it`)}</span>` : "";
   return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(c.verdict)}">
-    <span class="lp-m">${v}${tag}</span><span class="lp-t"><span class="lp-tt">${esc(title(c, authorOf(c)))}</span>${pin}</span><span class="lp-when">${esc(ptClock(c))}</span></div>`;
+    <span class="lp-m">${v}${tag}${again}</span><span class="lp-t"><span class="lp-tt">${esc(title(c, authorOf(c)))}</span>${pin}</span><span class="lp-when">${esc(ptTime(c))}</span></div>`;
 }
 
 /**
@@ -990,8 +1003,14 @@ function bringTarget(c: TimelineEntry): TimelineEntry | null {
   const p = project();
   if (!p || damagedReason(c) || folderMissing(p)) return null;
   const lw = lastWorking();
-  if (c.verdict === "FAIL" && lw && lw.id !== c.id) return lw;
-  return points().at(-1)?.id === c.id ? null : c;
+  const to = c.verdict === "FAIL" && lw && lw.id !== c.id ? lw : points().at(-1)?.id === c.id ? null : c;
+  // The version just brought back is already back: offering it again would make a second branch and copy of the same thing.
+  return to && justBack()?.result.id === to.id ? null : to;
+}
+
+/** The bring back this project has just finished, while its Undo is still offered. */
+function justBack(): State["undo"] {
+  return st.undo && st.undo.projectId === st.projectId ? st.undo : null;
 }
 
 /**
@@ -1019,12 +1038,19 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   // One ink button. A version that works (or any version, with no check) comes back. A broken one brings back the last version
   // that works, and checking it again is a quiet link. One not checked yet is checked first, and can still come back. The
   // newest that works is where you are, so it is only checked. A gone folder brings a copy back somewhere else.
-  const acts = damaged ? ""
+  const back = justBack();
+  const isBack = back?.result.id === c.id;
+  // The version just brought back says where it is now and how to reach it, instead of offering itself again.
+  const here = isBack && back ? `<div class="lp-here" role="note"><p><b>This is the version you brought back.</b> ${esc(back.result.copyOnly ? "It is in a copy at" : `It is on the branch ${back.result.branch} and in a copy at`)} <span class="mono sel-text">${esc(homePath(back.result.copyDir))}</span>.</p>
+      <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(back.result.copyDir)}">${revealLabel()}</button>${back.result.copyOnly ? "" : `<button class="btn quiet" data-act="copy" data-text="${esc(back.result.branch)}">Copy branch name</button>`}</div></div>` : "";
+  const acts = damaged || isBack ? ""
     : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${esc(c.id)}" ${busy}>Bring back a copy…</button>${notNow}`
-    : target && target.id !== c.id ? `${bringBackButton(target, "btn big dark", busy)}${checks ? check(false) : ""}${notNow}`
+    : target && target.id !== c.id ? `${bringBackButton(target, "btn big dark", busy)}${notNow}`
     : !target ? (checks ? check(true) : "")
     : c.verdict === "PASS" || !checks ? `${bring(true, "Bring back this version")}${notNow}`
     : `${check(true)}${bring(false, "Bring back anyway")}${notNow}`;
+  // A broken one's Check it again is a quiet link with the other links, so the main button and Not now keep one line.
+  const recheck = target && target.id !== c.id && checks ? check(false) : "";
   const lead = damaged ? `This save point is damaged: ${damaged} Time Machine won’t check it or bring it back.`
     : c.id === lw?.id && !isNewest ? `The last version that works. ${verdictSentence(c)}`
     : isNewest ? (c.verdict === null && !checks ? "Where you are now." : `Where you are now. ${verdictSentence(c)}`)
@@ -1035,6 +1061,7 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   const compare = damaged || gone ? ""
     : c.verdict === "FAIL" && lw && lw.id !== c.id ? `<button class="btn link" data-act="compare" data-a="${esc(lw.id)}" data-b="${esc(c.id)}">${esc(`What changed since ${named(lw).name}`)}</button>`
     : `<button class="btn link" data-act="compare" data-a="${esc(c.id)}" data-b="now">Compare with now</button>`;
+  const links = [recheck, compare, compare ? `<button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button>` : ""].join("");
   // Which files changed after this version, up to now: what bringing it back sets aside. The newest shows its own changes.
   const since = changedSince(pts, c.id, st.changes);
   const own = st.changes.get(c.id);
@@ -1044,7 +1071,7 @@ function preview(c: TimelineEntry, sheet: boolean): string {
     !known && !list.length ? '<p class="muted">Reading what changed…</p>'
       : !list.length ? `<p class="muted">${isNewest ? "No file changes since the save point before." : "Nothing changed since."}</p>`
       : `<ul class="lp-fl">${list.slice(0, 8).map((f) => `<li class="sel-text">${esc(f)}</li>`).join("")}</ul>${list.length > 8 ? `<p class="muted">${esc(`and ${list.length - 8} more`)}</p>` : ""}`
-  }${compare ? `<div class="lp-links">${compare}<button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button></div>` : ""}</section>`;
+  }${links ? `<div class="lp-links">${links}</div>` : ""}</section>`;
   const opened = st.openResult && st.openResult.id === c.id
     ? `<div class="note">A copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal-dir" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div><div class="mono muted sel-text" style="margin-top:6px">${esc(st.openResult.dir)}</div></div>`
     : "";
@@ -1055,7 +1082,7 @@ function preview(c: TimelineEntry, sheet: boolean): string {
   const head = `<p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : author].filter(Boolean).join(" · ")))}</p>
     <h2 class="lp-ph" id="prev-h">${esc(title(c, author))}</h2>
     ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
-    <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(lead)}</p></div>`;
+    <div class="lp-verdict">${damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : checkRunning() === c.id ? '<span class="vb vb-lg v-checking"><i class="g" aria-hidden="true"></i>Checking</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg")}<p>${esc(checkRunning() === c.id ? "Checking it in a copy now. The verdict lands here when it ends." : lead)}</p></div>${here}`;
   const body = `${files}${opened}
     ${damaged ? "" : checkWords(same, c.verdict)}
     ${c.agent ? provenance(c) : ""}
@@ -1567,11 +1594,11 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
       read: `<h2 class="tv-head ${stampOnce(`done:${res.branch || res.copyDir}`)}">${keepTimes(esc(`${sentenceStart(pointName(res.id))} is back.`))} <span class="voice">Your folder wasn’t touched.</span></h2>
       ${checksOn(project()) ? `<div class="rw-proof">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a copy on ${device()}.` : "Not checked yet. Run Check it works before you rely on it."}</span></div>` : ""}
       <p class="rw-lede">${res.copyOnly ? "It is in a copy next to your folder. This folder has no Git repo, so no branch was made. Copy back the files you want to keep." : "It is on a new branch, with a copy next to your project. Your folder was not touched, so switching is your call."}</p>
-      ${notBack(res.notRestored.map((line) => plainNotSaved(line, project()?.purpose === "code")), entry(res.id))}
       <div class="rw-where">
-        ${res.copyOnly ? "" : loc("New branch, local only", res.branch, `<button class="btn quiet" data-act="copy" data-text="${esc(res.branch)}" aria-label="Copy the branch name">Copy</button>`)}
-        ${loc("Open this folder", res.copyDir, `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">${revealLabel()}</button>`)}
+        ${res.copyOnly ? "" : loc("New branch, local only", res.branch, `<button class="btn quiet" data-act="copy" data-text="${esc(res.branch)}">Copy branch name</button>`)}
+        ${loc("Open this folder", homePath(res.copyDir), `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">${revealLabel()}</button>`)}
       </div>
+      ${notBack(res.notRestored.map((line) => plainNotSaved(line, project()?.purpose === "code")), entry(res.id))}
       <section class="report" aria-labelledby="rw-report-h"><h3 id="rw-report-h">What came back</h3>
         <div class="kv"><span class="h">Brought back</span>${li(res.restored.map((line) => plainRestored(line, entry(res.id)?.dirty ?? false)), "Nothing listed")}</div>
         <div class="kv todo"><span class="h">Things to do by hand</span>${li(res.manualSteps, "Nothing")}</div>
@@ -2562,12 +2589,12 @@ function toolbar(): string {
   const more = menuButton("tools", "More actions", [...phoneOnly, ...tools], tools.length ? "" : "mn-phone-only");
   // Ask is a quiet icon with its shortcut; Check it works stays the routine action beside it.
   const ask = inProject ? `<button class="btn ghost ask-t${st.askOpen ? " on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}" title="${esc(`Ask ${keys("Mod+J")}`)}"><span class="sr-only">Ask </span><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z"/></svg><kbd class="kc">${esc(keys("Mod+J"))}</kbd></button>` : "";
-  // The toolbar's Check it works steps aside when it is already the page's main button, and while a save point's detail
-  // is open: the detail has its own Check it again, and the breadcrumb keeps its room. It stays in ⋯.
+  // History has no big Check button of its own, so the toolbar's Check it works stays put, before and after a bring back. It
+  // steps aside only while a save point's sheet is open: the sheet has its own Check it again. It stays in ⋯.
   const ready = inProject && !!newest && !folderMissing(p) && st.screen === "history" && !st.drawer;
-  const checkFirst = ready && checksOn(p) && projectStatus(points()).primary.act !== "check";
+  const checkFirst = ready && checksOn(p);
   const check = checkFirst ? `<button class="btn tb-check" data-act="check" ${busy}>Check it works</button>` : "";
-  // A phone keeps one action beside ⋯ (dev#36): Check it works, or Save now when checking is already the page's big button.
+  // A phone keeps one action beside ⋯ (dev#36): Check it works, or Save now for a folder with no check.
   const phoneMain = ready ? (checkFirst ? `<button class="btn tb-main" data-act="check" ${busy}>Check it works</button>` : `<button class="btn tb-main" data-act="save" ${busy}>Save now</button>`) : "";
   const v = p ? (st.statuses.get(p.id)?.newest?.verdict ?? null) : null;
   // The phone's project switcher names the project, so its accessible name starts with what it shows.
@@ -3386,8 +3413,8 @@ function exitRewind(): void {
   const page = document.querySelector(".page");
   if (page) page.scrollTop = back.pageScroll;
   if (!finished) return;
+  // History's banner says what came back and where, with Undo; a toast saying it again would be the same news twice.
   root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
-  toast(`Brought back ${pointName(finished.id)}. Your folder wasn’t touched. ${keys("Mod+Z")} undoes it.`, finished.lastVerdict);
 }
 
 /** Put the Time View playhead on another save point. Nothing runs until Try or Use. */
@@ -3989,7 +4016,7 @@ function overviewScreen(): string {
   const lic = st.license.status;
   const checks = new Set(st.projects.filter((p) => checksOn(p)).map((p) => p.id));
   const strips = st.projects.some((p) => Array.isArray(st.overview.get(p.id)));
-  return overviewPage({ projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "" });
+  return overviewPage({ projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "", pointName: (c, all) => namePoint(c, all, pointMessage(c as TimelineEntry)).name });
 }
 
 /** A failed read stays an error, never an invented empty list. */
@@ -4277,7 +4304,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       if (d.id) await togglePin(d.id);
       return;
     case "journal-filter":
-      st.journalFilter = d.v === "pinned" ? "pinned" : "all";
+      st.journalFilter = d.v === "pinned" || d.v === "works" ? d.v : "all";
       render();
       return refocus(`[data-act="journal-filter"][data-v="${st.journalFilter}"]`);
     case "labs":

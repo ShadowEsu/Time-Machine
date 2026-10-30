@@ -5,7 +5,7 @@ import type { Purpose, RunNote } from "../shared/api.js";
 import { esc } from "../shared/format.js";
 import { PURPOSES } from "./purpose.js";
 
-export type JournalFilter = "all" | "pinned";
+export type JournalFilter = "all" | "works" | "pinned";
 
 /** The longest name and note the store keeps (api.ts RunNoteSchema). */
 export const TITLE_MAX = 80;
@@ -43,9 +43,11 @@ export function rowTitle(made: string, trigger: string, files: readonly string[]
   return "Saved by you";
 }
 
-/** The save points the journal shows under a filter. */
-export function filtered<T extends { id: string }>(points: readonly T[], notes: ReadonlyMap<string, RunNote>, filter: JournalFilter): T[] {
-  return filter === "pinned" ? points.filter((c) => notes.get(c.id)?.pinned) : [...points];
+/** The save points the journal shows under a filter: all, the pinned ones, or the ones whose check passed. */
+export function filtered<T extends { id: string; verdict?: string | null }>(points: readonly T[], notes: ReadonlyMap<string, RunNote>, filter: JournalFilter): T[] {
+  if (filter === "pinned") return points.filter((c) => notes.get(c.id)?.pinned);
+  if (filter === "works") return points.filter((c) => c.verdict === "PASS");
+  return [...points];
 }
 
 /** A small pin, filled when pinned. Decorative: the words beside it say so. */
@@ -53,11 +55,11 @@ export function pinIcon(on: boolean): string {
   return `<svg class="pin-i" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 2.5h4l-.6 4 2.6 2.4H4l2.6-2.4zM8 8.9v4.6" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
-/** All / Pinned above the journal, with how many are pinned. */
-export function filterBar(filter: JournalFilter, pinned: number, purpose: Purpose): string {
+/** All / Works / Pinned above the journal, with how many pass and how many are pinned. `works` is null for a project with no check. */
+export function filterBar(filter: JournalFilter, pinned: number, purpose: Purpose, works: number | null = null): string {
   const u = unitWords(purpose);
   const b = (v: JournalFilter, label: string): string => `<button class="${filter === v ? "on" : ""}" aria-pressed="${filter === v}" data-act="journal-filter" data-v="${v}">${label}</button>`;
-  return `<div class="jf" role="group" aria-label="${esc(`Show ${u.many}`)}">${b("all", "All")}${b("pinned", `${pinIcon(true)}Pinned<span class="jf-n">${pinned}</span>`)}</div>`;
+  return `<div class="jf" role="group" aria-label="${esc(`Show ${u.many}`)}">${b("all", "All")}${works === null ? "" : b("works", `Works<span class="jf-n">${works}</span>`)}${b("pinned", `${pinIcon(true)}Pinned<span class="jf-n">${pinned}</span>`)}</div>`;
 }
 
 /** The Pinned filter with nothing pinned: what to do about it. */

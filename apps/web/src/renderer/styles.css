@@ -1326,3 +1326,12 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 /* What does not come back: on the steps that bring a version back, where it is needed. */
 .nb { padding: 14px 16px; border-radius: var(--r-md); border: 1.5px solid var(--ink); background: var(--surface); }
 .nb ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+/* Round 2: the 390 hero's way back, the version just brought back, folded safety saves. */
+.lp-go { margin-top: 14px; }
+.lp-go .btn { width: 100%; justify-content: center; white-space: normal; height: auto; min-height: 52px; padding: 10px 18px; }
+.lp-here { display: grid; gap: 10px; padding: 14px 16px; border-radius: var(--r-lg); background: var(--sunken); border: 1px solid var(--line); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.lp-here b { color: var(--ink); }
+.lp-here .mono { overflow-wrap: anywhere; }
+.lp-rep { font-size: 13px; color: var(--ink-3); }
+.undo-card .mono { overflow-wrap: anywhere; }
+.undo-card .row-btns { flex-wrap: wrap; }

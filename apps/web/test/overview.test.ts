@@ -37,7 +37,7 @@ describe("since you last looked", () => {
     const broke = { name: "app", d: digest([pt(1, 3, "PASS"), pt(2, 2, "FAIL")], now), checks: true };
     const unchecked = { name: "pricing-page", d: digest([pt(1, 4, null), pt(2, 1, null)], now), checks: true };
     const folder = { name: "thesis-notes", d: digest([pt(1, 5, null), pt(2, 3, null), pt(3, 2, null), pt(4, 1, null)], now), checks: false };
-    expect(reportLine([broke, unchecked])).toBe("4 saves in the last 24 hours across 2 projects. 1 break, shown below.");
+    expect(reportLine([broke, unchecked])).toBe("4 saves in the last 24 hours across 2 projects. Broke once, shown below.");
     expect(reportLine([unchecked, folder])).toBe("6 saves in the last 24 hours across 2 projects. pricing-page has 2 not checked yet.");
     expect(reportLine([folder])).toBe("4 saves in the last 24 hours.");
     expect(reportLine([{ name: "app", d: digest([pt(1, 3, "PASS")], now), checks: true }, folder])).toBe("5 saves in the last 24 hours across 2 projects. Nothing broke.");
@@ -46,8 +46,17 @@ describe("since you last looked", () => {
 
   test("research says runs, and an agent that made every save is named once", () => {
     const d = digest([pt(1, 3, "PASS", true), pt(2, 2, "FAIL", true)], now);
-    expect(digestLine(d, "research")).toBe("2 runs, 2 checked, 1 broke. Claude Code made all of them.");
-    expect(digestLine(d, "documents")).toBe("2 save points, 2 checked, 1 broke. Claude Code made all of them.");
+    expect(digestLine(d, "research")).toBe("2 runs, 2 checked. Broke once. Claude Code made all of them.");
+    expect(digestLine(d, "documents", () => "“Swapped the loader”")).toBe("2 save points, 2 checked. Broke once, at “Swapped the loader”. Claude Code made all of them.");
+  });
+
+  test("a break is named once, with true counts of the save points since that fail (the demo's shape)", () => {
+    const d = digest([pt(1, 6, null), pt(2, 5, null), pt(3, 4, "PASS"), pt(4, 3, "FAIL"), pt(5, 3, "FAIL"), pt(6, 2, "FAIL"), pt(7, 1, "FAIL")], now);
+    expect(d.breaks).toBe(1);
+    expect(d.brokeAt?.id).toBe("cp-0004");
+    expect(digestLine(d, "code", () => "“Agent: fixed lint warnings”")).toBe("7 save points, 5 checked. Broke once, at “Agent: fixed lint warnings”; the 3 save points since fail their check.");
+    const mixed = digest([pt(1, 4, "PASS"), pt(2, 3, "FAIL"), pt(3, 2, null), pt(4, 1, "FAIL")], now);
+    expect(digestLine(mixed, "code", () => "x")).toBe("4 save points, 3 checked. Broke once, at x; 1 of the 2 save points since fails its check.");
   });
 
   test("a project that can't be read is said by name, never counted as a quiet day (writer#3)", () => {

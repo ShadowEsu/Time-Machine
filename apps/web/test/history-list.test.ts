@@ -1,7 +1,7 @@
 // History as a list and a preview: what is selected first, what the status line says, where the keys go and what
 // changed since a save point.
 import { describe, expect, test } from "vitest";
-import { brokeAt, changedSince, defaultPick, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, changedSince, defaultPick, foldRepeats, listMove, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -78,5 +78,16 @@ describe("what changed since a save point", () => {
     expect(changedSince(demo, "cp-0007", changes)).toEqual({ paths: [], known: true });
     expect(changedSince(demo, "cp-0002", changes).known).toBe(false);
     expect(changedSince(demo, "nope", changes)).toEqual({ paths: [], known: false });
+  });
+});
+
+describe("safety saves made one after another", () => {
+  const rows = [{ id: "s3", k: "a" }, { id: "s2", k: "a" }, { id: "s1", k: "a" }, { id: "x", k: null }, { id: "y", k: null }, { id: "s0", k: "a" }];
+  const key = (r: { k: string | null }): string | null => r.k;
+  test("fold into the newest, which says how many more; rows without a key and rows apart never fold", () => {
+    expect(foldRepeats(rows, key, null).map((r) => [r.c.id, r.more])).toEqual([["s3", 2], ["x", 0], ["y", 0], ["s0", 0]]);
+  });
+  test("stay whole when the selected row is one of them", () => {
+    expect(foldRepeats(rows, key, "s2").map((r) => r.c.id)).toEqual(["s3", "s2", "s1", "x", "y", "s0"]);
   });
 });

@@ -80,3 +80,21 @@ export function changedSince(pts: readonly ListPoint[], id: string, changes: Rea
   }
   return { paths: [...seen], known };
 }
+
+/**
+ * Rows in list order with runs of neighbours that share a key folded into the first of the run, which says how many more
+ * it holds. A null key never folds, and a run that holds `keep` (the selected row) stays whole so the selection stays shown.
+ */
+export function foldRepeats<T extends { id: string }>(rows: readonly T[], key: (t: T) => string | null, keep: string | null): { c: T; more: number }[] {
+  const out: { c: T; more: number }[] = [];
+  for (let i = 0; i < rows.length; ) {
+    const k = key(rows[i]!);
+    let j = i + 1;
+    while (k !== null && j < rows.length && key(rows[j]!) === k) j++;
+    const run = rows.slice(i, j);
+    if (run.length > 1 && !run.some((r) => r.id === keep)) out.push({ c: run[0]!, more: run.length - 1 });
+    else for (const c of run) out.push({ c, more: 0 });
+    i = j;
+  }
+  return out;
+}

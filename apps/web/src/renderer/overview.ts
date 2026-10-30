@@ -21,6 +21,11 @@ export interface Digest {
   works: number;
   /** Save points in the window that failed right after a checked save point that passed: where it broke. */
   breaks: number;
+  /** The newest of those: where it broke last. Null when it did not break in the window. */
+  brokeAt: DigestPoint | null;
+  /** Save points after `brokeAt`, and how many of them failed their check too. */
+  since: number;
+  failingSince: number;
   /** Save points in the window an agent made, and which agents. */
   agentSaves: number;
   agents: string[];
@@ -35,7 +40,7 @@ export interface Digest {
 /** Counts one project's save points (oldest first) over the `hours` before `now`. */
 export function digest(points: readonly DigestPoint[], now: number, hours = DIGEST_HOURS): Digest {
   const from = now - hours * 3_600_000;
-  const out: Digest = { saves: 0, checked: 0, works: 0, breaks: 0, agentSaves: 0, agents: [], lastWorking: null, newest: points.at(-1) ?? null, everChecked: false };
+  const out: Digest = { saves: 0, checked: 0, works: 0, breaks: 0, brokeAt: null, since: 0, failingSince: 0, agentSaves: 0, agents: [], lastWorking: null, newest: points.at(-1) ?? null, everChecked: false };
   let before: Verdict | null = null;
   for (const p of points) {
     const t = Date.parse(p.createdAt);
@@ -48,7 +53,15 @@ export function digest(points: readonly DigestPoint[], now: number, hours = DIGE
       out.saves++;
       if (checked) out.checked++;
       if (p.verdict === "PASS") out.works++;
-      if (p.verdict === "FAIL" && before === "PASS") out.breaks++;
+      if (p.verdict === "FAIL" && before === "PASS") {
+        out.breaks++;
+        out.brokeAt = p;
+        out.since = 0;
+        out.failingSince = 0;
+      } else if (out.brokeAt) {
+        out.since++;
+        if (p.verdict === "FAIL") out.failingSince++;
+      }
       if (p.agent) {
         out.agentSaves++;
         if (!out.agents.includes(p.agent.name)) out.agents.push(p.agent.name);
@@ -85,7 +98,7 @@ function reportBody(busy: readonly ReportRow[], saves: number, hours: number, na
   const head = `${plural(saves, "save")} in the last ${hours} hours${busy.length > 1 ? ` across ${plural(busy.length, "project")}` : ""}.`;
   const checked = busy.filter((r) => r.checks);
   const breaks = checked.reduce((n, r) => n + r.d.breaks, 0);
-  if (breaks) return `${head} ${plural(breaks, "break")}, shown below.`;
+  if (breaks) return `${head} ${breaks === 1 ? "Broke once" : `Broke ${breaks} times`}, shown below.`;
   const waiting = checked.filter((r) => r.d.saves > r.d.checked);
   const [only] = waiting;
   if (waiting.length === 1 && only) return `${head} ${name(only.name)} has ${only.d.saves - only.d.checked} not checked yet.`;
@@ -93,14 +106,23 @@ function reportBody(busy: readonly ReportRow[], saves: number, hours: number, na
   return checked.some((r) => r.d.checked) ? `${head} Nothing broke.` : head;
 }
 
-/** One project's line in the report, in its own word for a save point: "9 runs, 3 checked, 1 broke. Claude Code made 7." */
-export function digestLine(d: Digest, purpose: ProjectEntry["purpose"]): string {
+/**
+ * One project's line in the report, in its own word for a save point: "7 save points, 5 checked. Broke once, at “Agent:
+ * fixed lint warnings”; the 3 save points since fail their check. Claude Code made 2." `name` says a save point the way
+ * the app names it; true counts only, so the line agrees with the red marks beside it.
+ */
+export function digestLine(d: Digest, purpose: ProjectEntry["purpose"], name: (p: DigestPoint) => string = () => ""): string {
   if (!d.saves) return `Quiet in the last ${DIGEST_HOURS} hours.`;
   const parts = [unitCount(purpose, d.saves)];
   if (d.checked) parts.push(`${d.checked} checked`);
-  if (d.breaks) parts.push(`${d.breaks} broke`);
+  const at = d.brokeAt ? name(d.brokeAt) : "";
+  const fail = (n: number): string => (n === 1 ? "fails its check" : "fail their check");
+  const after = !d.failingSince ? ""
+    : d.failingSince === d.since ? `; the ${unitCount(purpose, d.since)} since ${fail(d.since)}`
+      : `; ${d.failingSince} of the ${unitCount(purpose, d.since)} since ${fail(d.failingSince)}`;
+  const broke = d.breaks ? ` ${d.breaks === 1 ? "Broke once" : `Broke ${d.breaks} times`}${at ? `, ${d.breaks === 1 ? "at" : "last at"} ${at}` : ""}${after}.` : "";
   const who = d.agentSaves ? ` ${d.agents.length === 1 ? d.agents[0] : "Agents"} made ${d.agentSaves === d.saves ? (d.saves === 1 ? "it" : "all of them") : d.agentSaves}.` : "";
-  return `${parts.join(", ")}.${who}`;
+  return `${parts.join(", ")}.${broke}${who}`;
 }
 
 /** A project without a check says when it was saved instead of a verdict: "Saved 2:16 AM". */
@@ -180,6 +202,8 @@ export interface OverviewInput {
   freeLimit: number | null;
   /** The classes that play the strips' first draw, or "" once it has played. */
   enter: string;
+  /** A save point said the way the app names it, among its project's save points: "“Added dark mode”". */
+  pointName?: (p: DigestPoint, all: readonly DigestPoint[]) => string;
 }
 
 function card(p: ProjectEntry, i: number, input: OverviewInput): string {
@@ -205,7 +229,7 @@ function card(p: ProjectEntry, i: number, input: OverviewInput): string {
     const facts = checks
       ? [d.newest ? `Last saved ${when(d.newest.createdAt, new Date(input.now))}` : "", d.lastWorking ? `Last working version ${when(d.lastWorking.createdAt, new Date(input.now))}` : d.everChecked ? "No version has passed its check yet" : ""].filter(Boolean)
       : [];
-    body = `${s?.problem ? `<p class="ov-dig">${esc(s.problem)}</p>` : ""}${activityStrip(tl, input.now, { purpose: p.purpose, checks })}<p class="ov-dig${d.breaks ? " broke" : ""}">${d.breaks ? '<i class="g v-fail" aria-hidden="true"></i>' : ""}${esc(digestLine(d, p.purpose))}</p>${facts.length ? `<p class="ov-facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</p>` : ""}`;
+    body = `${s?.problem ? `<p class="ov-dig">${esc(s.problem)}</p>` : ""}${activityStrip(tl, input.now, { purpose: p.purpose, checks })}<p class="ov-dig${d.breaks ? " broke" : ""}">${d.breaks ? '<i class="g v-fail" aria-hidden="true"></i>' : ""}${esc(digestLine(d, p.purpose, (x) => input.pointName?.(x, tl) ?? ""))}</p>${facts.length ? `<p class="ov-facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</p>` : ""}`;
   }
   return `<li class="ov-proj" style="--i:${i}">${head}${body}</li>`;
 }
