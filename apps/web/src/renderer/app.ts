@@ -38,6 +38,8 @@ import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage,
 import { LABS_KEY, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { changedLine, filterBar, filtered, nameCount, noPinned, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
+import { PMF_FEELINGS, pmfCardShown } from "../shared/pmf.js";
+import { emptyPmf, PICK_Q1, pmfCardHtml, pmfIdHtml, pmfSheetHtml, type PmfView } from "./pmf.js";
 
 export interface StartOptions {
   preview: boolean;
@@ -230,6 +232,8 @@ interface State {
   copyMade: { projectId: string; dir: string } | null;
   /** The service Ask would send to, from the keys set: null with no key, undefined until read. */
   askProvider: AskProvider | null | undefined;
+  /** The survey's card and sheet. The answers stay here, in this window, until Send. */
+  pmf: PmfView;
 }
 
 class ApiFailure extends Error {}
@@ -1109,7 +1113,7 @@ function history(): string {
   // Each day's header names it ("Today", "Monday", "14 Oct"), then its full date and how many it holds; it sticks to the top while its rows scroll.
   const journal = days.map((d) => `<div class="day"><h2>${esc(d.day)}</h2><span>${esc(d.date ? `${d.date} · ` : "")}${esc(unitCount(p.purpose, perDay.get(d.day) ?? 0))}</span></div><div class="list">${d.rows.join("")}</div>`).join("");
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
-  return `<div class="page proj"><div class="doc">${header}${undoBar}${coachView()}
+  return `<div class="page proj"><div class="doc">${header}${undoBar}${coachView()}${pmfCard()}
     ${homeRuler(pts)}
     ${setupView(p, pts)}
     <div class="jf-row">${filterBar(st.journalFilter, pinnedCount, p.purpose)}</div>
@@ -2110,7 +2114,9 @@ function settings(): string {
         `<div class="seg" role="group" aria-label="Going back"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
     ...st.projects.map((p) => ({ id: `features:${p.id}`, group: "Projects", label: esc(p.name), title: esc(p.name), intro: "Its check, when it saves, and optional extras.", icon: "project", body: `<div class="mount" data-mount="features:${esc(p.id)}"></div>` })),
     { id: "local", group: "Time Machine", label: "Local browser app", title: "Local browser app", intro: "Time Machine runs in your browser, served from this computer.", icon: "local", body:
-      `<div class="browser-capabilities"><p class="set-p">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="set-p muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>` },
+      `<div class="browser-capabilities"><p class="set-p">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="set-p muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>`
+      // Once the survey was sent, its ID stays here so it can be quoted to have the answers deleted.
+      + (s.pmf.sentAt && s.pmf.installId ? setRow("Survey answers", `Sent ${esc(when(s.pmf.sentAt))}. ${pmfIdHtml(s.pmf.installId)}`) : "") },
     { id: "checks", group: "Time Machine", label: "Checks", title: "Checks", intro: "Where your checks run and what they can reach.", icon: "checks", body:
       setRow("Where checks run", `In a copy on ${device()}, never in your folder. Checks use the tools installed on ${device()}.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}`)
       + setRow("Network during checks", network)
@@ -3116,7 +3122,7 @@ function render(): void {
   // The first Tab stop skips the rail and the bar to the page itself (writer#26). A button, not a #link: the URL's hash is the bridge's.
   root.innerHTML = `<div class="shell"><button class="skip" data-act="skip">Skip to the page</button>
     ${opts.preview ? `<aside class="banner" aria-label="Preview"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</aside>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`;
+    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}${pmfSheetHtml(st.pmf, once("scrim:pmf"), st.settings.pmf.sentAt ? st.settings.pmf.installId : undefined)}</div></div>`;
   // The toast sits over the work area: past the rail, and short of a right column when one is open.
   toastHost.dataset.right = appCls;
   seenOnce = drawOnce;
@@ -3369,6 +3375,46 @@ async function saveNow(): Promise<void> {
     render();
     if (back) refocus(back);
   });
+}
+
+/**
+ * The survey card (shared/pmf.ts), inline on Overview and History. Never while something runs, a rewind or the Add flow is
+ * open, or any sheet is up. The first time it is drawn, the server records shownAt, so a later session never shows it.
+ */
+function pmfCard(): string {
+  const blocked = !!(st.busy || st.rewind || st.check || st.hookSheet || st.confirm || st.palette || st.keysSheet || st.navOpen || st.demoBusy || st.undo?.working) || st.screen === "onboarding";
+  if (st.pmf.sent || !pmfCardShown(st.settings, Date.now(), { session: st.pmf.session, blocked })) return "";
+  if (!st.pmf.session) {
+    st.pmf.session = true;
+    void bridge.call({ method: "setSettings", patch: { pmf: { shownAt: new Date().toISOString() } } }).then((r) => {
+      if (r.ok) st.settings = r.data;
+    });
+  }
+  return pmfCardHtml();
+}
+
+/** Send: the only place the answers leave this window. They stay in the sheet when it fails, for another try. */
+async function sendPmf(): Promise<void> {
+  const v = st.pmf;
+  if (v.sending) return;
+  const q1 = v.draft.q1;
+  if (!q1) {
+    v.error = PICK_Q1;
+    render();
+    return refocus("#pmf-q1-very");
+  }
+  v.sending = true;
+  v.error = null;
+  render();
+  try {
+    st.settings = await api({ method: "sendFeedback", answers: { q1, q2: v.draft.q2, q3: v.draft.q3, q4: v.draft.q4 } });
+    v.sent = true;
+    v.draft = emptyPmf().draft;
+  } catch (e) {
+    v.error = msg(e);
+  }
+  v.sending = false;
+  render();
 }
 
 async function hideVerdictTip(): Promise<void> {
@@ -4145,7 +4191,7 @@ function overviewScreen(): string {
   const lic = st.license.status;
   const checks = new Set(st.projects.filter((p) => checksOn(p)).map((p) => p.id));
   const strips = st.projects.some((p) => Array.isArray(st.overview.get(p.id)));
-  return overviewPage({ projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "" });
+  return overviewPage({ projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "", notice: pmfCard() });
 }
 
 /** A failed read stays an error, never an invented empty list. */
@@ -4580,6 +4626,25 @@ async function onClick(el: HTMLElement): Promise<void> {
       if (p) void bridge.call({ method: "stopCheck", projectId: p.id });
       return;
     }
+    case "pmf-open":
+      st.pmf.open = true;
+      st.pmf.error = null;
+      return render();
+    case "pmf-no":
+      return setSetting({ pmf: { closedAt: new Date().toISOString() } });
+    case "pmf-close":
+      if (st.pmf.sending) return;
+      st.pmf.open = false;
+      return render();
+    case "pmf-q1": {
+      const picked = PMF_FEELINGS.find((f) => f === d.v);
+      if (!picked || st.pmf.sending) return;
+      st.pmf.draft.q1 = picked;
+      if (st.pmf.error === PICK_Q1) st.pmf.error = null;
+      return render();
+    }
+    case "pmf-privacy":
+      return void bridge.call({ method: "openExternal", url: PRIVACY_URL });
     case "tip-hide":
       return hideVerdictTip();
     case "close-check":
@@ -4927,6 +4992,10 @@ function onKey(e: KeyboardEvent): void {
     if (k === "escape") {
       e.preventDefault();
       if (st.confirm) st.confirm = null;
+      else if (st.pmf.open) {
+        if (st.pmf.sending) return;
+        st.pmf.open = false;
+      }
       else if (st.check && (st.check.phase === "done" || st.check.error)) return closeCheck();
       else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
       else if (st.navOpen) st.navOpen = false;
@@ -5117,6 +5186,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     account: { ...SIGNED_OUT },
     copyMade: null,
     askProvider: undefined,
+    pmf: emptyPmf(),
     storeProjects: null,
   };
   if (isMac()) document.documentElement.classList.add("mac");
@@ -5155,6 +5225,13 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
       closeCheck();
       return;
     }
+    if (target.classList.contains("scrim") && st.pmf.open) {
+      // Closing sends nothing. What was typed stays in this window, for this session only.
+      if (st.pmf.sending) return;
+      st.pmf.open = false;
+      render();
+      return;
+    }
     if (target.classList.contains("scrim") && (st.palette || st.keysSheet || st.confirm)) {
       const pal = !!st.palette;
       st.palette = null;
@@ -5178,6 +5255,11 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     if (e.target.dataset.form === "signin-email" || e.target.dataset.form === "signin-code") {
       e.preventDefault();
       void (e.target.dataset.form === "signin-email" ? sendSignInCode() : verifySignIn());
+      return;
+    }
+    if (e.target.dataset.form === "pmf") {
+      e.preventDefault();
+      void sendPmf();
       return;
     }
     if (e.target.dataset.form === "license") {
@@ -5230,6 +5312,10 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
         t.removeAttribute("aria-describedby");
         root.querySelector("#signin-error")?.remove();
       }
+      return;
+    }
+    if (t.dataset.model === "pmf-q2" || t.dataset.model === "pmf-q3" || t.dataset.model === "pmf-q4") {
+      st.pmf.draft[t.dataset.model.slice(4) as "q2" | "q3" | "q4"] = t.value;
       return;
     }
     if (t.dataset.model === "license-key") {

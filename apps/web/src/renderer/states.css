@@ -563,3 +563,23 @@ section > .b9-lede { margin: -2px 0 16px; }
 .th-list { list-style: none; margin: 0; padding: 8px 12px; display: grid; gap: 4px; max-height: 240px; overflow: auto; border-radius: var(--r-md); background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 .th-list li { display: flex; gap: 12px; min-width: 0; }
 .th-list .mono { flex: none; font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* The survey (pmf.ts): an inline card under the page heading on Overview and History, and its sheet of four questions. */
+.pmf-card { align-items: center; margin: 24px 0 0; }
+.pmf-card .row-btns { flex: none; }
+.doc > .pmf-card { margin: 0 0 20px; }
+.sheet.pmf { width: min(620px, 100%); }
+.pmf-form { display: grid; gap: 18px; }
+.pmf-q { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.pmf-l { font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+/* "Optional" sits on its own line under each question, so it is in the same place however the question wraps. */
+.pmf-l .muted { display: block; font-weight: 400; font-size: 13px; }
+.pmf-opts { display: grid; gap: 6px; }
+.sheet.pmf textarea.field { height: auto; min-height: 76px; padding: 8px 10px; resize: vertical; font: 400 15px/1.5 var(--font); }
+.pmf-consent { margin: 0; line-height: 1.5; color: var(--ink-2); }
+/* The consent line, any error and Send stay in view at the bottom of the sheet while the questions scroll under them.
+   The negative bottom and margin cover the sheet's own bottom padding, so nothing shows through below. */
+.pmf-foot { position: sticky; bottom: -24px; z-index: 1; display: grid; gap: 12px; margin: 0 0 -24px; padding: 14px 0 24px; border-top: 1px solid var(--line); background: var(--surface); }
+@media (max-width: 640px) {
+  .pmf-card { align-items: stretch; }
+  .pmf-foot { bottom: -20px; margin-bottom: -20px; padding-bottom: 20px; }
+}

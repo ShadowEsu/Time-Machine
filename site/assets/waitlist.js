@@ -12,6 +12,7 @@
     sending: "Saving…",
     email: "Please enter a valid email address.",
     consent: "Please tick the box to join the waitlist.",
+    outdated: "The words by the box changed since this page loaded. Reload the page, read them, and tick the box again.",
     invalidEmail: "That email doesn't look right. Check it and try again.",
     badRequest: "Something in the form went wrong. Reload the page and try again.",
     origin: "This form only works on the Time Machine site.",
@@ -83,6 +84,7 @@
   function messageFor(status, error) {
     if (status === 400 && error === "invalid_email") return MSG.invalidEmail;
     if (status === 400 && error === "consent_required") return MSG.consent;
+    if (status === 400 && error === "consent_outdated") return MSG.outdated;
     if (status === 400 || status === 413) return MSG.badRequest;
     if (status === 429 && error === "rate_limited") return MSG.rateLimited;
     if (status === 403) return MSG.origin;
@@ -92,6 +94,8 @@
   function wire(form) {
     var email = form.querySelector('input[name="email"]');
     var consent = form.querySelector('input[name="consent"]');
+    // The second, optional box. Separate from the npm box: leaving it unticked never blocks a signup.
+    var feedback = form.querySelector('input[name="feedback"]');
     var honeypot = form.querySelector('input[name="company"]');
     var button = form.querySelector('button[type="submit"], button:not([type])');
     var status = form.querySelector("[data-waitlist-status]");
@@ -128,7 +132,11 @@
 
       var controller = typeof AbortController === "function" ? new AbortController() : null;
       var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
-      var body = { email: value, consent: consent.checked, source: location.pathname, company: honeypot ? honeypot.value : "" };
+      // The box's value names the wording the person agreed to (consent_text_version, 0007). The feedback box says whether it
+      // is ticked, and sends its own wording's version only when it is (0008).
+      var body = { email: value, consent: consent.checked, consentVersion: consent.value, source: location.pathname, company: honeypot ? honeypot.value : "" };
+      if (feedback) body.feedback = feedback.checked;
+      if (feedback && feedback.checked) body.feedbackVersion = feedback.value;
       if (ref) body.ref = ref;
 
       fetch(api("waitlist"), {
@@ -151,7 +159,7 @@
           } else if (r.status === 503 && r.data.error === "not_configured") {
             say(status, form, "info", MSG.soon);
           } else {
-            var field = r.data.error === "invalid_email" ? email : r.data.error === "consent_required" ? consent : null;
+            var field = r.data.error === "invalid_email" ? email : r.data.error === "consent_required" || r.data.error === "consent_outdated" ? consent : null;
             fail(messageFor(r.status, r.data.error), field);
           }
         }, function () {

@@ -20,8 +20,10 @@ The `tm` tool and the web app keep everything locally: save points, Git bundles,
 | License key contents | You buy the web app license | An opaque purchase id, the plan and the issue date, signed by us. Nothing about you |
 | Website visits | You visit the site | Cookieless, aggregate page counts. No ad tracking |
 | Support messages | You contact us | To help you |
+| Survey answers: your four answers, the app version and a random survey ID | You press Send on the four-question survey in the web app | To decide what to build. Kept 12 months. To have them deleted sooner, email us your survey ID |
+| Consent to a feedback email | You tick "Email me to ask for feedback." when you join the waitlist. It is a separate, optional box; unticked, nothing about it is stored | To email you a feedback request, at most twice. We keep that you ticked it, which wording of the box you saw, and when |
 
-**No telemetry.** The `tm` tool and the web app send no usage events.
+**No telemetry.** The `tm` tool and the web app send no usage events. The four-question survey in the web app sends only your answers, the app version and a random survey ID made for your computer (not taken from your hardware, your name or your folders), and only when you press Send. How often you used Ask and when you first opened the app stay on your computer; they only decide when the survey shows. If you close it or choose No thanks, nothing is sent. The app shows your survey ID after you press Send, and in Settings.
 
 ## 3. What we never do
 
@@ -32,7 +34,7 @@ The `tm` tool and the web app keep everything locally: save points, Git bundles,
 
 ## 4. Who we share with
 
-Only service providers that help us run Time Machine: Vercel, which hosts the website and its functions, Supabase, which holds the waitlist database and sign-in accounts, and Stripe, which processes payment once checkout opens. We will add any other provider here before we use it. We may share information if the law requires it.
+Only service providers that help us run Time Machine: Vercel, which hosts the website and its functions, Supabase, which holds the waitlist database, survey answers and sign-in accounts, and Stripe, which processes payment once checkout opens. If we use an AI tool to summarise survey answers, it is Claude through Anthropic's commercial API, whose [commercial terms](https://www.anthropic.com/legal/commercial-terms) do not let Anthropic train its models on them. We will add any other provider here before we use it. We may share information if the law requires it.
 
 **Features you turn on that talk to other services.** These are off until you turn them on, and they talk to the other service directly from your computer with your own key. We do not receive this data.
 
@@ -42,6 +44,8 @@ Only service providers that help us run Time Machine: Vercel, which hosts the we
 ## 5. How long we keep it
 
 Billing records: as long as tax law requires. Waitlist emails: until you ask us to delete yours, and we delete the whole list 6 months after launch.
+
+Survey answers: 12 months. A daily job deletes answers older than that. Each computer can send answers at most once in 90 days.
 
 ## 6. Your rights
 

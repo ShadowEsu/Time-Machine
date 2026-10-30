@@ -4,6 +4,7 @@ import { z } from "zod";
 import { BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "./agreement.js";
 import type { AskProvider } from "./ask.js";
 import { EXTERNAL_REFUSED, isAllowedExternal } from "./links.js";
+import { PMF_FEELINGS, PMF_TEXT_MAX } from "./pmf.js";
 import type {
   CheckpointResult,
   CleanStoreResult,
@@ -68,6 +69,9 @@ const ProjectCheckConfigPatch = ProjectCheckConfigSchema.partial().refine((p) =>
 
 export const ThemeSchema = z.enum(["system", "light", "dark"]);
 
+const IsoTime = z.iso.datetime();
+const PmfMarksSchema = z.object({ shownAt: IsoTime.optional(), closedAt: IsoTime.optional(), sentAt: IsoTime.optional(), installId: z.uuidv4().optional() });
+
 /**
  * Settings kept in settings.json. Unknown keys are dropped, not refused: a file written by an older
  * version (with the Mac app's hotkey or overlay keys) still loads and keeps its theme.
@@ -85,6 +89,12 @@ export const SettingsSchema = z.object({
   setupHidden: z.array(ProjectId).max(1000).default([]),
   /** Calmer screens: no moving dial or stamps. Also turns on the plain rewind sheet. */
   reduceMotion: z.boolean().default(false),
+  /** When the app was first opened, set once by the first bootstrap. Older settings files get it on their next start. */
+  firstUseAt: IsoTime.nullable().default(null),
+  /** Successful Asks on this computer, counted by the server after each answer. Never set by the window. */
+  askCount: z.number().int().min(0).default(0),
+  /** The survey (shared/pmf.ts): when it was first shown, closed with No thanks, or sent, and the random ID made at the first Send. */
+  pmf: PmfMarksSchema.default({}),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -97,6 +107,16 @@ export const SettingsPatchSchema = z.strictObject({
   verdictTipSeen: z.boolean().optional(),
   setupHidden: z.array(ProjectId).max(1000).optional(),
   reduceMotion: z.boolean().optional(),
+  /** The window may only say the survey was shown or closed. The ID, the send time and the counts are the server's. */
+  pmf: z.strictObject({ shownAt: IsoTime.optional(), closedAt: IsoTime.optional() }).optional(),
+});
+
+/** The survey answers as the window sends them. Q1 is required; the three free text answers may be empty. */
+export const PmfAnswersSchema = z.strictObject({
+  q1: z.enum(PMF_FEELINGS),
+  q2: z.string().max(PMF_TEXT_MAX),
+  q3: z.string().max(PMF_TEXT_MAX),
+  q4: z.string().max(PMF_TEXT_MAX),
 });
 
 /** A Vercel project linked to a Time Machine project. The ids go into API URLs, so only safe characters. */
@@ -283,6 +303,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("accountLicenses") }),
   /** Forgets the sign-in token. Nothing is sent to the site. */
   z.strictObject({ method: z.literal("signOut") }),
+  /** The survey's Send: the only call that sends the answers, with the facts in shared/pmf.ts PMF_SENDS, to the site's /api/feedback. */
+  z.strictObject({ method: z.literal("sendFeedback"), answers: PmfAnswersSchema }),
 ]);
 export type Call = z.infer<typeof CallSchema>;
 export type Method = Call["method"];
@@ -543,6 +565,8 @@ export interface Results {
   /** Null when signed out, or when the sign-in ended. */
   accountLicenses: AccountLicenses | null;
   signOut: { ok: true };
+  /** The settings after Send, with pmf.sentAt set. */
+  sendFeedback: Settings;
 }
 
 /**

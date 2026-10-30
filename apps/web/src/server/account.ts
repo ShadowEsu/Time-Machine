@@ -1,11 +1,12 @@
-// Sign-in from the app to the Time Machine site, to list the license keys bought with an email.
-// It calls only three site endpoints: /api/health, /api/auth and /api/account. Every answer is checked
+// Sign-in from the app to the Time Machine site, to list the license keys bought with an email, and the survey's Send.
+// It calls only four site endpoints: /api/health, /api/auth, /api/account and /api/feedback. Every answer is checked
 // with Zod. The sign-in token lives in this object's memory only: never on disk, never in a log, an
 // error or a result. Quitting the app signs out.
 import * as tm from "@timetm/core";
 import { z } from "zod";
 import { AGREE_FIRST, AGREEMENT_OUTDATED, type SignInAgreement } from "../shared/agreement.js";
 import type { AccountLicenses, SiteStatus } from "../shared/api.js";
+import type { PmfPayload } from "../shared/pmf.js";
 import { SITE_HOST } from "../shared/links.js";
 
 export const DEFAULT_SITE = `https://${SITE_HOST}`;
@@ -67,6 +68,8 @@ const TOO_MANY = "Too many tries, wait a minute.";
 const NO_CHECKOUT = "Buying is not open yet, so there are no keys to list.";
 const TROUBLE = "The Time Machine site had a problem. Try again in a minute.";
 const MALFORMED = "The Time Machine site sent an answer the app did not expect.";
+const ALREADY_ANSWERED = "This computer already sent answers in the last 90 days, so these were not sent.";
+const FEEDBACK_CLOSED = "The Time Machine site can't take answers right now. Nothing was sent. Try again later.";
 
 /** A short plain sentence for a site error. The site's own text is never shown. */
 function sentence(status: number, error: string | null): string {
@@ -76,6 +79,8 @@ function sentence(status: number, error: string | null): string {
   if (status === 401 && error === "bad_code") return BAD_CODE;
   if (status === 400 && error === "agreement_required") return AGREE_FIRST;
   if (status === 400 && error === "agreement_outdated") return AGREEMENT_OUTDATED;
+  if (status === 409 && error === "already_answered") return ALREADY_ANSWERED;
+  if (status === 503 && error === "not_configured") return FEEDBACK_CLOSED;
   return TROUBLE;
 }
 
@@ -95,7 +100,7 @@ export class Account {
     this.now = io.now ?? Date.now;
   }
 
-  private async request<T>(method: "GET" | "POST", path: "/api/health" | "/api/auth" | "/api/account", schema: z.ZodType<T>, opts: { body?: unknown; token?: string } = {}): Promise<T> {
+  private async request<T>(method: "GET" | "POST", path: "/api/health" | "/api/auth" | "/api/account" | "/api/feedback", schema: z.ZodType<T>, opts: { body?: unknown; token?: string } = {}): Promise<T> {
     const site = this.io.site();
     const headers: Record<string, string> = { accept: "application/json" };
     // The site's /api/auth takes calls from its own origin only, as its sign-in page sends them.
@@ -140,6 +145,11 @@ export class Account {
   async signIn(email: string, agreement: SignInAgreement): Promise<{ ok: true }> {
     await this.request("POST", "/api/auth", Sent, { body: { action: "send", email, ...agreement } });
     return { ok: true };
+  }
+
+  /** The survey's Send: posts exactly the payload, once, after the person pressed Send. The site keeps it and never echoes it. */
+  async sendFeedback(payload: PmfPayload): Promise<void> {
+    await this.request("POST", "/api/feedback", Sent, { body: payload });
   }
 
   /** Trades the code for a sign-in token, kept in memory only. The site records the agreement on the signed-in email. */

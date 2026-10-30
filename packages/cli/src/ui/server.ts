@@ -140,7 +140,14 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
     switch (call.method) {
       case "bootstrap": {
         const localBrandMarks = env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
-        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
+        // The survey's 7 days count from the first start (shared/pmf.ts). A settings folder that can't be written only delays it.
+        let settings = state.settings;
+        try {
+          settings = state.markFirstUse(new Date());
+        } catch {
+          // The window still opens; the next start tries again.
+        }
+        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
         return { ok: true, data };
       }
       case "setCredential":

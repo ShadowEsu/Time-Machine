@@ -25,12 +25,15 @@ describe("settings", () => {
       verdictTipSeen: false,
       setupHidden: [],
       reduceMotion: false,
+      firstUseAt: null,
+      askCount: 0,
+      pmf: {},
     });
   });
 
   test("settings saved by the Mac app keep their values and drop the desktop-only keys", () => {
     const old = { showGitDetails: true, theme: "system", onboarded: true, simpleRewind: false };
-    expect(SettingsSchema.parse({ ...old, overlayCards: false, hotkey: "Control+Alt+T", agentPill: true })).toEqual({ ...old, verdictTipSeen: false, setupHidden: [], reduceMotion: false });
+    expect(SettingsSchema.parse({ ...old, overlayCards: false, hotkey: "Control+Alt+T", agentPill: true })).toEqual({ ...old, verdictTipSeen: false, setupHidden: [], reduceMotion: false, firstUseAt: null, askCount: 0, pmf: {} });
   });
 
   test("a patch never resets what it leaves out, and unknown keys are refused", () => {

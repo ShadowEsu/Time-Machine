@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "../waitlist.js";
-import { clientId, clientIp, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody } from "./waitlist.js";
+import { clientId, clientIp, FEEDBACK_CONSENT_VERSION, handleWaitlist, isAllowedOrigin, isConfigured, MAX_BODY_BYTES, readRequestBody, WAITLIST_CONSENT_EARLIER, WAITLIST_CONSENT_VERSION } from "./waitlist.js";
 
 // Synthetic data only.
 const EMAIL = "Synthetic.Person+tm@Example.test";
@@ -35,7 +35,7 @@ function setup({ env = ENV, response = joined } = {}) {
   return { fetch, log, deps: { env, fetch, log } };
 }
 
-const good = { email: EMAIL, consent: true, source: "/blog/first-post", company: "" };
+const good = { email: EMAIL, consent: true, consentVersion: WAITLIST_CONSENT_VERSION, source: "/blog/first-post", company: "" };
 
 describe("waitlist handler", () => {
   it("saves a pending signup with one Supabase call and sends no email", async () => {
@@ -48,7 +48,7 @@ describe("waitlist handler", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.apikey).toBe(ENV.SUPABASE_KEY);
     expect(init.headers.Authorization).toBe(`Bearer ${ENV.SUPABASE_KEY}`);
-    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_source: "/blog/first-post", p_ref: null, p_client: null });
+    expect(JSON.parse(init.body)).toEqual({ p_email: NORMALIZED, p_consent_version: WAITLIST_CONSENT_VERSION, p_source: "/blog/first-post", p_ref: null, p_client: null });
   });
 
   it("passes a well formed ref code to Supabase", async () => {
@@ -103,6 +103,69 @@ describe("waitlist handler", () => {
       const res = await handleWaitlist(request({ ...good, consent }), deps);
       expect(res.status).toBe(400);
       expect(res.body).toEqual({ ok: false, error: "consent_required" });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it("refuses a tick on other words than the current box's: an old page, a missing or forged version (Security T2)", async () => {
+    for (const consentVersion of [undefined, "on", "waitlist-2026-01-01", "waitlist-2026-10-29", null, ["waitlist-2026-10-28"]]) {
+      const { fetch, deps } = setup();
+      const res = await handleWaitlist(request({ ...good, consentVersion }), deps);
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ ok: false, error: "consent_outdated" });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it("still accepts a tick on the earlier npm wording from a cached page, and records that page's version", async () => {
+    expect(WAITLIST_CONSENT_VERSION).toBe("waitlist-2026-10-30");
+    // Exactly two npm wordings are accepted: the current one and the one before it. Nothing else.
+    expect([WAITLIST_CONSENT_VERSION, ...WAITLIST_CONSENT_EARLIER]).toEqual(["waitlist-2026-10-30", "waitlist-2026-10-28"]);
+    for (const consentVersion of ["waitlist-2026-10-29", "waitlist-2026-10-31", "waitlist-2026-10-27", "feedback-2026-10-30", "waitlist-2026-10-30 ", "WAITLIST-2026-10-30"]) {
+      const { fetch, deps } = setup();
+      expect((await handleWaitlist(request({ ...good, consentVersion }), deps)).body).toEqual({ ok: false, error: "consent_outdated" });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+    const { fetch, deps } = setup();
+    expect((await handleWaitlist(request({ ...good, consentVersion: "waitlist-2026-10-28" }), deps)).body).toEqual({ ok: true, pending: true });
+    expect(JSON.parse(fetch.mock.calls[0][1].body).p_consent_version).toBe("waitlist-2026-10-28");
+  });
+
+  it("records the separate feedback box, with its own version, only when it is ticked (ledger 299)", async () => {
+    expect(FEEDBACK_CONSENT_VERSION).toMatch(/^feedback-\d{4}-\d{2}-\d{2}$/);
+    // Unticked or missing: the signup saves, and nothing about feedback is sent to the database.
+    for (const extra of [{}, { feedback: false }, { feedback: false, feedbackVersion: FEEDBACK_CONSENT_VERSION }]) {
+      const { fetch, deps } = setup();
+      expect((await handleWaitlist(request({ ...good, ...extra }), deps)).body).toEqual({ ok: true, pending: true });
+      const args = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(args).not.toHaveProperty("p_feedback_version");
+      expect(args.p_consent_version).toBe(WAITLIST_CONSENT_VERSION);
+    }
+    // Ticked: its own version goes next to the npm box's.
+    const { fetch, deps } = setup();
+    expect((await handleWaitlist(request({ ...good, feedback: true, feedbackVersion: FEEDBACK_CONSENT_VERSION }), deps)).body).toEqual({ ok: true, pending: true });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ p_email: NORMALIZED, p_consent_version: WAITLIST_CONSENT_VERSION, p_source: "/blog/first-post", p_ref: null, p_client: null, p_feedback_version: FEEDBACK_CONSENT_VERSION });
+  });
+
+  it("never lets the feedback box stand in for the npm box", async () => {
+    const { fetch, deps } = setup();
+    const res = await handleWaitlist(request({ ...good, consent: false, feedback: true, feedbackVersion: FEEDBACK_CONSENT_VERSION }), deps);
+    expect(res.body).toEqual({ ok: false, error: "consent_required" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a ticked feedback box on other words, and a malformed one", async () => {
+    for (const [extra, error] of [
+      [{ feedback: true }, "consent_outdated"],
+      [{ feedback: true, feedbackVersion: "feedback-2020-01-01" }, "consent_outdated"],
+      [{ feedback: true, feedbackVersion: WAITLIST_CONSENT_VERSION }, "consent_outdated"],
+      [{ feedback: "on", feedbackVersion: FEEDBACK_CONSENT_VERSION }, "bad_request"],
+      [{ feedback: null }, "bad_request"],
+    ]) {
+      const { fetch, deps } = setup();
+      const res = await handleWaitlist(request({ ...good, ...extra }), deps);
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ ok: false, error });
       expect(fetch).not.toHaveBeenCalled();
     }
   });

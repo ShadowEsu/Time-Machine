@@ -7,8 +7,9 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import * as tm from "@timetm/core";
 import { z } from "zod";
-import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AddedProject, type AgentRow, type AppEvent, type Call, type HookPreview, type IsolationInfo, type LicenseStatus, type ProjectCheckConfig, type ProjectEntry, type ProjectPreview, type ProjectStatus, type Purpose, type Res, type Results, type StorageResult, type StoreProject } from "../shared/api.js";
+import { VERCEL_CONSENT_VERSION, vercelConsentValid, type AddedProject, type AgentRow, type AppEvent, type Call, type HookPreview, type IsolationInfo, type LicenseStatus, type ProjectCheckConfig, type ProjectEntry, type ProjectPreview, type ProjectStatus, type Purpose, type Res, type Results, type Settings, type StorageResult, type StoreProject } from "../shared/api.js";
 import { ASK_CONSENT_VERSION } from "../shared/ask.js";
+import { PMF_LOOKS_SECRET, pmfPayload, type PmfAnswers } from "../shared/pmf.js";
 import { PRICING_URL } from "../shared/links.js";
 import { Account, siteFromEnv } from "./account.js";
 import { askHistory } from "./ask.js";
@@ -182,8 +183,41 @@ export class Engine {
     this.announcedSkips.set(projectId, told);
     const skipped = cp.coverage.missing.filter((m) => !told.has(m));
     for (const m of skipped) told.add(m);
-    const event: AppEvent = { type: "saved", projectId, checkpoint: cp.id, trigger: cp.trigger, skipped };
+    this.emit({ type: "saved", projectId, checkpoint: cp.id, trigger: cp.trigger, skipped });
+  }
+
+  private emit(event: AppEvent): void {
     for (const cb of this.listeners) cb(event);
+  }
+
+  /**
+   * The survey's Send. Sends the answers with exactly what PMF_SENDS names: the app version and a random survey ID made for
+   * this computer at the first Send (randomUUID, never from hardware, the user or a path). The Ask count and first-use date
+   * stay here. An answer that looks like a key or password, or holds a secret value from a project's config files (the same
+   * screen as Ask's history), blocks Send before anything leaves. Nothing is recorded as sent until the site said so.
+   */
+  private async sendFeedback(answers: PmfAnswers): Promise<Settings> {
+    let s = this.state.readSettings();
+    if (s.pmf.sentAt) throw new tm.TmError("usage", "These answers were already sent from this computer.");
+    const screens = this.state.projects.flatMap((p) => {
+      try {
+        return [tm.secretScreen(this.ctx(p))];
+      } catch {
+        // A project that can't be read has no config values to compare; the key patterns below still apply.
+        return [];
+      }
+    });
+    if ([answers.q2, answers.q3, answers.q4].some((text) => tm.looksSecret(text) || screens.some((secret) => secret(text)))) {
+      throw new tm.TmError("usage", PMF_LOOKS_SECRET);
+    }
+    // Kept before sending, so a retry after a failure sends the same ID.
+    if (!s.pmf.installId) s = this.state.updateSettings({ pmf: { installId: randomUUID() } });
+    const installId = s.pmf.installId;
+    if (!installId) throw new tm.TmError("internal", "The survey ID could not be saved, so nothing was sent.");
+    await this.account.sendFeedback(pmfPayload(answers, { installId, appVersion: this.hook.version }));
+    const next = this.state.updateSettings({ pmf: { sentAt: new Date().toISOString() } });
+    this.emit({ type: "settings", settings: next });
+    return next;
   }
 
   ctx(p: ProjectEntry): tm.Ctx {
@@ -566,6 +600,8 @@ export class Engine {
         return this.account.accountLicenses();
       case "signOut":
         return this.account.signOut();
+      case "sendFeedback":
+        return this.sendFeedback(call.answers);
       case "stopCheck": {
         // Never queued behind the check it stops. False when nothing was running.
         const c = this.stops.get(call.projectId);
@@ -615,7 +651,14 @@ export class Engine {
       case "ask": {
         const { credentials } = this.services;
         const model = process.env.TM_ASK_MODEL?.trim();
-        return askHistory(p, ctx, call.question, { key: credentials.get("gemini"), anthropicKey: credentials.get("anthropic"), ...(model ? { anthropicModel: model } : {}), fetch: this.services.fetch });
+        const answer = await askHistory(p, ctx, call.question, { key: credentials.get("gemini"), anthropicKey: credentials.get("anthropic"), ...(model ? { anthropicModel: model } : {}), fetch: this.services.fetch });
+        // Only an answered Ask counts toward the survey (shared/pmf.ts). A count that can't be saved never fails the answer.
+        try {
+          this.emit({ type: "settings", settings: this.state.countAsk() });
+        } catch {
+          // The answer still shows; the survey just counts this Ask late or not at all.
+        }
+        return answer;
       }
       case "diff":
         return tm.diff(ctx, call.a, call.b);
