@@ -222,6 +222,8 @@ interface State {
   flash: { sel: string; until: number } | null;
   /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
   undo: { projectId: string; result: RecoverResult; working: boolean } | null;
+  /** Each project's recoveries still on disk (branch and copy), oldest first, so History can say where they are after a reload or Keep it. */
+  recoveries: Map<string, Results["recoveries"]>;
   /** The license on this computer, the key being pasted in Settings, and the last save or remove error. */
   license: { status: LicenseStatus; draft: string; working: boolean; error: string | null };
   /** Sign in to get your key, on Plan. In memory only; the sign-in token itself stays in the server. */
@@ -385,10 +387,29 @@ async function loadTimeline(): Promise<void> {
     void loadChanges();
     void loadDeployChips();
     void loadPasses();
+    void loadRecoveries();
   } catch (e) {
     st.timeline = null;
     st.timelineError = msg(e);
   }
+}
+
+/** Where the open project's recoveries are. Read only; a failure leaves the last answer, since History only names them. */
+async function loadRecoveries(): Promise<void> {
+  const p = project();
+  if (!p) return;
+  try {
+    const list = await api({ method: "recoveries", projectId: p.id });
+    st.recoveries.set(p.id, list);
+    if (st.projectId === p.id) render();
+  } catch {
+    // History still works without it; the Done step and the recovery report name the branch and copy too.
+  }
+}
+
+/** The newest recovery of a project that is still on disk, if any. */
+function lastRecovery(projectId: string): Results["recoveries"][number] | null {
+  return st.recoveries.get(projectId)?.at(-1) ?? null;
 }
 
 /** Deploy chips for the journal, matched by recorded commit in the deploys module. Empty when nothing is linked. */
@@ -1060,12 +1081,19 @@ function history(): string {
     <div class="hero-e"><span class="dot v-${verdictKey(s.v)}" aria-hidden="true"></span><span>${esc(p.name)}</span>${command ? `<span class="hero-cmd">checks with <code class="mono">${esc(command)}</code></span>` : ""}${st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""}</div>
     <h1 class="hero-h"><span class="hh">${keepTimes(esc(s.head))}</span></h1>${s.voice ? `<p class="hero-when">${keepTimes(esc(s.voice))}</p>` : ""}
     <p class="hero-p">${keepTimes(esc(s.body))}${working ? " Claude Code is working now. We check again when its turn ends." : ""}</p>
-    ${gone ? goneCard : `<div class="hero-acts">${statusButton(s.primary, true)}${s.secondary ? statusButton(s.secondary, false) : ""}</div>`}
+    ${gone ? goneCard : `<div class="hero-acts">${heroButton(p.id, s.primary, true)}${s.secondary ? heroButton(p.id, s.secondary, false) : ""}</div>`}
   </section>`;
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
+  const rec = u ? null : lastRecovery(p.id);
+  const where = (branch: string, copyDir: string): string =>
+    `${branch ? `the branch <span class="mono sel-text">${esc(branch)}</span>${copyDir ? " and in " : ""}` : ""}${copyDir ? `a copy at <span class="mono sel-text">${esc(copyDir)}</span>` : ""}`;
+  const reveal = (copyDir: string): string => (copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(copyDir)}">${revealLabel()}</button>` : "");
+  const copyBranch = (branch: string): string => (branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(branch)}" aria-label="Copy the branch name ${esc(branch)}">Copy branch name</button>` : "");
   const undoBar = u
-    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. ${u.result.copyOnly ? "It is in a copy next to your folder" : `It is on a new branch${st.settings.showGitDetails ? `, <span class="mono">${esc(u.result.branch)}</span>,` : ""} and in a copy`}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
-    : "";
+    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. It is on ${where(u.result.copyOnly ? "" : u.result.branch, u.result.copyDir)}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}${reveal(u.result.copyDir)}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
+    : rec
+      ? `<div class="undo-card kept"><p>${esc(sentenceStart(pointName(rec.id)))} was brought back to ${where(rec.branch, rec.copyDir)}.${rec.copyDir ? "" : " Its copy is not there anymore."} Your folder was not touched.</p><div class="row-btns">${reveal(rec.copyDir)}${copyBranch(rec.branch)}</div></div>`
+      : "";
   if (!pts.length) {
     return `<div class="page proj"><div class="doc">${header}${gone ? "" : `<div class="empty-dir journal-empty"><p>${esc(checksOn(p) ? "Save now to make your first save point, then check that it works in a copy." : "Save now to keep the first version of this folder.")}</p><button class="btn" data-act="save">Save now</button></div>`}</div></div>`;
   }
@@ -1173,6 +1201,18 @@ function statusButton(b: StatusButton, primary: boolean): string {
   const runningOn = checkRunning();
   const running = primary && b.act === "check" && (runningOn === "new" || runningOn === points().at(-1)?.id);
   return `<button class="btn ${primary ? "big dark" : "link"}${running ? " running" : ""}" data-act="${b.act}"${data}${b.title ? ` title="${esc(b.title)}"` : ""} ${st.busy ? "disabled" : ""}><span>${keepTimes(esc(b.label))}</span>${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
+}
+
+/**
+ * A hero action, unless it would bring back a save point that already has a recovery on disk: then it shows that
+ * recovery instead of offering to make a second one of the same version.
+ */
+function heroButton(projectId: string, b: StatusButton, primary: boolean): string {
+  const done = b.act === "rewind-to" && b.id ? st.recoveries.get(projectId)?.filter((r) => r.id === b.id).at(-1) : undefined;
+  if (!done) return statusButton(b, primary);
+  const cls = `btn ${primary ? "big dark" : "link"}`;
+  if (done.copyDir) return `<button class="${cls}" data-act="reveal-dir" data-path="${esc(done.copyDir)}"><span>${esc(isMac() ? "Show the recovered copy in Finder" : "Copy the recovered copy’s path")}</span></button>`;
+  return done.branch ? `<button class="${cls}" data-act="copy" data-text="${esc(done.branch)}"><span>Copy the recovery branch name</span></button>` : statusButton(b, primary);
 }
 
 /** One plain sentence on what a verdict means for this save point. Isolation names only with Git details. */
@@ -5112,7 +5152,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     askOpen: false, unfolded: new Set(), lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, overview: new Map(), sources: null, labs: false, notes: new Map(), journalFilter: "all", noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
-    hookSheet: null, demoBusy: false, coach: null, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), passes: new Map(), changesFor: "", confirm: null, flash: null, undo: null,
+    hookSheet: null, demoBusy: false, coach: null, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), passes: new Map(), changesFor: "", confirm: null, flash: null, undo: null, recoveries: new Map(),
     license: { status: boot.data.license, draft: "", working: false, error: null },
     account: { ...SIGNED_OUT },
     copyMade: null,

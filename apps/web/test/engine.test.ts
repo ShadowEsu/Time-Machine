@@ -1,6 +1,6 @@
 // Adding a project the app is not allowed to read, adding one with no test command, and the free project limit.
 import { generateKeyPairSync } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { signLicense, status, type RecoverResult } from "@timetm/core";
@@ -149,6 +149,42 @@ test("a plain folder is added as a documents folder, saved, recovered to a copy 
     expect(listing(folder)).toEqual(changed);
 
     expect(new AppState(join(dir, "data")).projects).toMatchObject([{ id: projectId, kind: "folder", purpose: "documents" }]);
+  });
+});
+
+test("a recovery stays findable after the app restarts: its branch and copy are listed until Undo removes them", async () => {
+  const dir = tempDir("enginerecoveries");
+  const project = join(dir, "app");
+  write(project, "index.js", "1;\n");
+  git(dir, "init", "-q", "-b", "main", project);
+  git(project, "add", "-A");
+  git(project, "commit", "-q", "-m", "first");
+  await withStore(dir, async () => {
+    const engine = newEngine(dir);
+    const added = await engine.run({ method: "addProject", path: project });
+    if (!added.ok) throw new Error(added.error.message);
+    const projectId = (added.data as ProjectEntry).id;
+    expect(await engine.run({ method: "recoveries", projectId })).toEqual({ ok: true, data: [] });
+    expect(await engine.run({ method: "checkpoint", projectId, note: "Works" })).toMatchObject({ ok: true, data: { checkpoint: { id: "cp-0001" } } });
+    write(project, "index.js", "2;\n");
+    expect(await engine.run({ method: "checkpoint", projectId, note: "Broke it" })).toMatchObject({ ok: true, data: { checkpoint: { id: "cp-0002" } } });
+    const r = await engine.run({ method: "recover", projectId, id: "cp-0001" });
+    if (!r.ok) throw new Error(r.error.message);
+    const rec = r.data as RecoverResult;
+
+    // A fresh engine is the app after a reload or restart: it has no memory of this session's rewind.
+    const later = newEngine(dir);
+    const listed = await later.run({ method: "recoveries", projectId });
+    if (!listed.ok) throw new Error(listed.error.message);
+    expect(listed.data).toHaveLength(1);
+    expect(listed.data[0]).toMatchObject({ id: "cp-0001", branch: rec.branch });
+    expect(realpathSync(listed.data[0]?.copyDir ?? "")).toBe(realpathSync(rec.copyDir));
+    expect(readFileSync(join(listed.data[0]?.copyDir ?? "", "index.js"), "utf8")).toBe("1;\n");
+    // Listing is read only: it does not let the later session undo a copy it did not make.
+    expect(await later.run({ method: "undoRecover", projectId, id: "cp-0001", branch: rec.branch, copyDir: rec.copyDir })).toMatchObject({ ok: false });
+
+    expect(await engine.run({ method: "undoRecover", projectId, id: "cp-0001", branch: rec.branch, copyDir: rec.copyDir })).toMatchObject({ ok: true });
+    expect(await later.run({ method: "recoveries", projectId })).toEqual({ ok: true, data: [] });
   });
 });
 

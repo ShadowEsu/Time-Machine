@@ -241,6 +241,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("restorePaths"), projectId: ProjectId, id: CheckpointId, paths: z.array(z.string().min(1).max(4096)).min(1).max(500), dryRun: z.boolean().optional() }),
   /** `branch` is "" for a plain folder project: its recovery made a copy only. */
   z.strictObject({ method: z.literal("undoRecover"), projectId: ProjectId, id: CheckpointId, branch: z.string().regex(/^(tm\/recover\/cp-\d{4,}(-\d+)?)?$/), copyDir: AbsPath }),
+  /** The recoveries still on disk, oldest first: each recovery branch with its copy ("" when the copy is gone). Read only. */
+  z.strictObject({ method: z.literal("recoveries"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookPreview"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookInstall"), projectId: ProjectId }),
@@ -513,6 +515,7 @@ export interface Results {
   recover: RecoverResult;
   restorePaths: RestoreResult;
   undoRecover: UndoRecoverResult;
+  recoveries: { id: string; branch: string; copyDir: string }[];
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;
