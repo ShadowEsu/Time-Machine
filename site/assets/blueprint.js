@@ -1,4 +1,4 @@
-/* The blueprint sheets on home. The markup is each drawing's final, exploded state, which is what no-JS and
+/* The blueprint sheets on How it works. The markup is each drawing's final, exploded state, which is what no-JS and
    reduced-motion visitors see. Here, each sheet assembles as it enters the screen and pulls apart as you scroll:
    [data-from="dx dy"]  a part starts offset by (dx, dy) in drawing units and slides home;
    .draw               a line draws itself (pathLength="1"); its arrowhead appears when the line arrives;
