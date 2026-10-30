@@ -1269,8 +1269,8 @@ function filesChanged(c: TimelineEntry): string {
   const before = p ? changeFrom.get(`${p.id} ${c.id}`) : undefined;
   const put = (f: string): string => {
     if (!canPut) return "";
-    if (removed.has(f)) return before ? `<button class="btn link small" data-act="put-back" data-id="${esc(before)}" data-path="${esc(f)}" aria-label="${esc(`Put ${f} back from the version before, where it still was`)}">Put it back</button>` : "";
-    return `<button class="btn link small" data-act="put-back" data-id="${esc(c.id)}" data-path="${esc(f)}" aria-label="${esc(`Put ${f} back from this version`)}">Put it back</button>`;
+    if (removed.has(f)) return before ? `<button class="btn link small" data-act="put-back" data-id="${esc(before)}" data-path="${esc(f)}" aria-label="${esc(`Put it back: ${f}, from the version before, where it still was`)}">Put it back</button>` : "";
+    return `<button class="btn link small" data-act="put-back" data-id="${esc(c.id)}" data-path="${esc(f)}" aria-label="${esc(`Put it back: ${f}, from this version`)}">Put it back</button>`;
   };
   const held = changed.filter((f) => !removed.has(f));
   const all = canPut && held.length > 1 && held.length <= 200 ? `<button class="btn link small" data-act="put-back" data-id="${esc(c.id)}" data-paths="${esc(JSON.stringify(held))}">${esc(`Put all ${held.length} back`)}</button>` : "";
@@ -1347,11 +1347,16 @@ function detail(): string {
   const checks = checksOn(p, pts);
   const gone = folderMissing(p);
   const damaged = damagedReason(c);
+  // A save point already known Broken never re-runs the check as its main action: that brings back the last version that
+  // works, and Check it again is a quiet link (L364 audit gap 4).
+  const wayOut = c.verdict === "FAIL" && lw && lw.id !== c.id && !gone && !damaged ? lw : null;
   const primary = damaged ? ""
     : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${c.id}" ${busy}>Bring back a copy…</button>`
     : (c.verdict === "PASS" || !checks) && !isNewest
     ? `<button class="btn big dark" data-act="use" data-id="${c.id}" ${busy}>Bring back this version</button>`
+    : wayOut ? bringBackButton(wayOut, "btn big dark", busy)
     : checks ? `<button class="btn big dark${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${c.id}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>` : "";
+  const recheck = wayOut && checks ? `<button class="btn link" data-act="verify-one" data-id="${c.id}" ${busy}>Check it again</button>` : "";
   // A broken save point compares with the last version that works: that is what broke it. The newest compares with now too:
   // the folder may have changed since (writer#11). Nothing compares with a folder that is gone.
   const compare = damaged || gone ? ""
@@ -1370,7 +1375,7 @@ function detail(): string {
   const tag = window.innerWidth < 1100 ? "div" : "aside";
   return `<${tag} class="rcol detail ${once("detail")}" ${tag === "div" ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(nameLine(n))}">
     <header class="rc-top"><span class="eyebrow">${esc(c.trigger === "demo" ? dayLabel(c.createdAt) : `${dayLabel(c.createdAt)} · ${author}`)}</span>
-      <button class="btn quiet" data-act="close-drawer" aria-label="Close">Close<kbd>Esc</kbd></button></header>
+      <button class="btn quiet" data-act="close-drawer">Close<kbd>Esc</kbd></button></header>
     <div class="rc-body">
       <h2 class="sp-h">${esc(words || n.name)}</h2>
       <p class="sp-when">${keepTimes(esc([n.time, words ? "" : title(c, author)].filter(Boolean).join(" · ")))}</p>
@@ -1380,7 +1385,7 @@ function detail(): string {
       ${noteBlock(c.id, st.notes.get(c.id), st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: st.notes.get(c.id)?.title ?? "", note: st.notes.get(c.id)?.note ?? "" }, p.purpose, st.noteSaving)}
       ${damaged ? "" : checkWords(same ?? null, c.verdict)}
       ${c.agent ? provenance(c) : ""}
-      ${damaged ? "" : `<div class="sp-acts">${primary}<div class="sp-links"><button class="btn link" data-act="try" data-id="${c.id}" ${busy}>Open a copy</button>${compare}</div></div>
+      ${damaged ? "" : `<div class="sp-acts">${primary}<div class="sp-links">${recheck}<button class="btn link" data-act="try" data-id="${c.id}" ${busy}>Open a copy</button>${compare}</div></div>
       <p class="sp-note">A copy is a separate folder with this version in it. Your project is not touched.</p>`}
       ${opened}
       ${filesChanged(c)}
@@ -1508,7 +1513,7 @@ function rewind(): string {
   const pane = c ? tvRead(r, c) : { read: `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div>`, key: tvKey("find", "Find the last working version", "enter", keys("Mod+Enter")), alts: [] };
   return `<div class="scrim rw-scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet rw rw-sheet step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
     <div class="rw-main"><div class="rw-head">${rewindSteps(r)}</div>
-      <div class="tv-read">${triedRows}${pane.read}</div>
+      <div class="tv-read" tabindex="0" role="region" aria-label="About this version">${triedRows}${pane.read}</div>
       ${rwFoot(r, pane)}</div>
   </div></div>`;
 }
@@ -1870,7 +1875,7 @@ function timeView(): string {
   // The reading comes first in the document, so its main key is the first control named to take focus; the dial follows it.
   return `<div class="scrim rw-scrim ${once("tv")}" data-leave="tv"><div class="sheet rw tv step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
     <section class="rw-main" aria-label="Selected save point"><div class="rw-head">${rewindSteps(r)}</div>
-      <div class="tv-read">${pane.read}</div>
+      <div class="tv-read" tabindex="0" role="region" aria-label="About this version">${pane.read}</div>
       ${rwFoot(r, pane)}</section>
     ${dialModule(pts, cur, still, all.length - 1 - ci)}
     ${tvRuler(r, pts, cur)}
@@ -1928,7 +1933,7 @@ function compare(): string {
     const fromId = c.a && c.a !== "now" && c.b === "now" ? c.a : null;
     const ca = fromId ? entry(fromId) : null;
     const canPut = !!fromId && !!ca && !folderMissing(p) && !damagedReason(ca) && !st.busy;
-    const putRow = (r: Row): string => canPut && r.k !== "added" ? `<button class="btn link small" data-act="put-back" data-id="${esc(fromId ?? "")}" data-path="${esc(r.t)}" aria-label="${esc(`Put ${r.t} back from ${name(c.a)}`)}">Put it back</button>` : "";
+    const putRow = (r: Row): string => canPut && r.k !== "added" ? `<button class="btn link small" data-act="put-back" data-id="${esc(fromId ?? "")}" data-path="${esc(r.t)}" aria-label="${esc(`Put it back: ${r.t}, from ${name(c.a)}`)}">Put it back</button>` : "";
     const sec = (x: { h: string; rows: Row[]; foot?: string }): string => `<section class="cmp-sec" aria-label="${esc(x.h)}"><h2 class="cmp-ch">${esc(x.h)}</h2>
       <ul class="cmp-files">${x.rows.map((r) => `<li class="cf cf-${r.k}"><span class="mono sel-text cf-p">${esc(r.t)}</span><span class="cf-s">${esc(r.s)}</span>${x.h === "Code" || x.h === "Other files we saved" ? putRow(r) : ""}</li>`).join("")}</ul>${x.foot ? `<p class="small muted">${esc(x.foot)}</p>` : ""}</section>`;
     const changed = sections.filter((x) => x.rows.length);
@@ -2791,7 +2796,7 @@ function askColumn(): string {
   if (!p) return "";
   const tag = window.innerWidth < 1100 ? "div" : "aside";
   return `<${tag} class="rcol ask-col ${once("ask-col")}" ${tag === "div" ? 'role="dialog" aria-modal="true"' : ""} aria-label="${esc(`Ask about ${p.name}`)}">
-    <header class="rc-top"><h2 class="ask-h" id="ask-h" tabindex="-1">Ask</h2><span class="small muted ask-about">about ${esc(p.name)}</span><span class="tb-sp"></span><button class="btn ghost" data-act="ask-toggle" aria-label="Hide Ask">Hide<kbd>${esc(keys("Mod+J"))}</kbd></button></header>
+    <header class="rc-top"><h2 class="ask-h" id="ask-h" tabindex="-1">Ask</h2><span class="small muted ask-about">about ${esc(p.name)}</span><span class="tb-sp"></span><button class="btn ghost" data-act="ask-toggle">Hide<span class="sr-only"> Ask</span><kbd>${esc(keys("Mod+J"))}</kbd></button></header>
     <div class="mount ask-mount" data-mount="ask:${esc(p.id)}"></div>
   </${tag}>`;
 }
