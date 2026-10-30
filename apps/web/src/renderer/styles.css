@@ -1383,3 +1383,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
 /* r5: at desktop width Keep it sits right next to Undo. */
 .undo-card .uc-ch > div { flex: 0 1 300px; }
+/* r5: the sidebar status may take two lines ("Broken · copy ready"), never cut. */
+.project-it .nm small.project-verdict { white-space: normal; }
+.project-verdict > span:first-child { overflow: visible; text-overflow: clip; white-space: normal; }
+.project-verdict .pj-age { flex: none; white-space: nowrap; }
