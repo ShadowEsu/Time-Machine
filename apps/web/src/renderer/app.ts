@@ -686,7 +686,10 @@ function sidebar(mobile = false): string {
       // written is not a missing folder: it says so, and the server's sentence is in the title (cli#5).
       // The open project's time is told the way its rows and header tell it: seconds only when another save shares the minute.
       const shown = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
-      const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : checks ? verdictWord(v) : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest);
+      // After a bring back the folder is still broken, and a working copy is ready: the row says both, and opens History,
+      // where the banner says where the copy is.
+      const ready = st.undo?.projectId === p.id && v === "FAIL" ? " · working copy ready" : "";
+      const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : checks ? `${verdictWord(v)}${ready}` : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest);
       const age = s?.newest && !s.problem ? `<span class="pj-age" data-at="${esc(s.newest.createdAt)}" title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(railAge(s.newest.createdAt))}</span>` : "";
       const on = p.id === st.projectId && inProject;
       // The purpose icon carries the status dot on its corner. The name gets the whole first line; the status and the age
@@ -929,6 +932,7 @@ function history(): string {
     ? `<div class="undo-card" role="status"><div class="uc-t"><p>${esc(u.result.copyOnly ? "The working version is in a copy at" : "The working version is on a new branch and in a copy at")} <span class="mono sel-text">${esc(homePath(u.result.copyDir))}</span>. Your folder was not touched.</p>
       ${saved ? `<p class="uc-saved"><span>Your broken version is still in your folder. It is also saved here:</span> <button class="btn link" data-act="pick" data-id="${esc(saved.id)}">${esc(title(saved))}</button></p>` : ""}${u.result.copyOnly ? "" : `<p class="uc-b">Branch <span class="mono sel-text">${esc(u.result.branch)}</span></p>`}</div>
       <div class="row-btns"><span class="uc-k">Try it</span><button class="btn quiet" data-act="reveal-dir" data-path="${esc(u.result.copyDir)}">${revealLabel()}</button>${checksOn(p) ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(u.result.id)}">Check it works there</button>` : ""}</div>
+      ${useInFolder(u.result, p)}
       <div class="uc-ch"><div>${undoButton("")}<small>Removes the working copy and branch; nothing else changes.</small></div><div><button class="btn quiet" data-act="undo-dismiss">Keep it</button><small>Keeps the working copy and branch; your folder stays as it is.</small></div></div></div>`
     : "";
   const two = twoPane();
@@ -1016,6 +1020,25 @@ function bringTarget(c: TimelineEntry): TimelineEntry | null {
 
 /** The save point a background check is running on (the broken version saved before a bring back), or null. */
 let bgChecking: string | null = null;
+
+/**
+ * "Use it in your folder", a quiet disclosure in the banner. Changing your folder is your call, so the app runs nothing
+ * here: it offers the copy, and for a Git project the two real commands that switch the folder to the new branch (stash the
+ * folder's own changes first, so a switch never refuses or overwrites them).
+ */
+function useInFolder(res: RecoverResult, p: ProjectEntry): string {
+  const cmds = res.copyOnly || !res.branch ? "" : [`cd ${shellWord(p.path)}`, `git stash push --include-untracked -m "before ${res.branch}"`, `git switch ${res.branch}`].join("\n");
+  return `<details class="uc-use"><summary>Use it in your folder</summary>
+    <p>Your broken version stays saved either way.</p>
+    <div class="row-btns"><button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">Open the copy</button></div>
+    ${cmds ? `<p>Or switch your folder to it in a terminal:</p><pre class="mono sel-text uc-cmd">${esc(cmds)}</pre><div class="row-btns"><button class="btn quiet" data-act="copy" data-text="${esc(cmds)}">Copy the commands</button></div>` : "<p>This folder has no Git repo: copy the files you want from the copy into it.</p>"}
+  </details>`;
+}
+
+/** A path as one word for a shell: quoted when it has anything a shell would split or expand. */
+function shellWord(path: string): string {
+  return /^[\w@%+=:,./~-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`;
+}
 
 /** The bring back this project has just finished, while its Undo is still offered. */
 function justBack(): State["undo"] {

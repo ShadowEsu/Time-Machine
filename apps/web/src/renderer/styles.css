@@ -1373,3 +1373,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .ag-row .it.ag { flex: 1 1 100%; }
 .ag-row .it.ag .nm, .ag-row .it.ag .nm > span, .ag-row .it.ag .nm small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lp-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.uc-use { flex: 1 1 100%; font-size: 14px; color: var(--ink-2); }
+.uc-use summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.uc-use > * + * { margin-top: 8px; }
+.uc-cmd { padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
