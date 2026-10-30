@@ -229,7 +229,10 @@ function card(p: ProjectEntry, i: number, input: OverviewInput): string {
     const facts = checks
       ? [d.newest ? `Last saved ${when(d.newest.createdAt, new Date(input.now))}` : "", d.lastWorking ? `Last working version ${when(d.lastWorking.createdAt, new Date(input.now))}` : d.everChecked ? "No version has passed its check yet" : ""].filter(Boolean)
       : [];
-    body = `${s?.problem ? `<p class="ov-dig">${esc(s.problem)}</p>` : ""}${activityStrip(tl, input.now, { purpose: p.purpose, checks })}<p class="ov-dig${d.breaks ? " broke" : ""}">${d.breaks ? '<i class="g v-fail" aria-hidden="true"></i>' : ""}${esc(digestLine(d, p.purpose, (x) => input.pointName?.(x, tl) ?? ""))}</p>${facts.length ? `<p class="ov-facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</p>` : ""}`;
+    // While it is still broken, the line that says where it broke carries the way back: the last version that works.
+    const way = checks && d.breaks && d.lastWorking && d.newest?.verdict === "FAIL" && !s?.problem
+      ? `<div class="ov-go"><button class="btn dark" data-act="ov-bring" data-p="${esc(p.id)}" data-id="${esc(d.lastWorking.id)}">${esc(`Bring back ${input.pointName?.(d.lastWorking, tl) || "the last version that works"}`)}</button></div>` : "";
+    body = `${s?.problem ? `<p class="ov-dig">${esc(s.problem)}</p>` : ""}${activityStrip(tl, input.now, { purpose: p.purpose, checks })}<p class="ov-dig${d.breaks ? " broke" : ""}">${d.breaks ? '<i class="g v-fail" aria-hidden="true"></i>' : ""}${esc(digestLine(d, p.purpose, (x) => input.pointName?.(x, tl) ?? ""))}</p>${way}${facts.length ? `<p class="ov-facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</p>` : ""}`;
   }
   return `<li class="ov-proj" style="--i:${i}">${head}${body}</li>`;
 }

@@ -213,7 +213,7 @@ interface State {
   changesFor: string;
   /** A confirm before removing a project, going back to a version without proof, or protecting a whole folder (with its path
    *  and what it is for, so either answer can carry on into the Add flow). */
-  confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget"; id: string | null; path?: string; purpose?: Purpose | null }) | null;
+  confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget" | "bring"; id: string | null; path?: string; purpose?: Purpose | null; lists?: { comes: string[]; not: string[] } }) | null;
   /** A button that shows its pressed state because its shortcut just fired. */
   flash: { sel: string; until: number } | null;
   /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
@@ -949,9 +949,9 @@ function history(): string {
   const listbox = rows.length
     ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys"${activeId ? ` aria-activedescendant="${esc(activeId)}"` : ""}>${options}</div>
       <p class="sr-only" id="lp-keys">Newest first. Up and Down choose, Enter brings it back.</p>`
-    : `<div class="lp-list lp-empty">${pinnedOnly ? noPinned(p.purpose) : st.journalFilter === "works" ? `<div class="jf-empty"><p><b>${esc(`No ${units.many} have passed their check yet.`)}</b></p><button class="btn quiet" data-act="journal-filter" data-v="all">Show all</button></div>` : ""}</div>`;
+    : `<div class="lp-list lp-empty">${pinnedOnly ? noPinned(p.purpose) : st.journalFilter !== "all" ? `<div class="jf-empty"><p><b>${esc(st.journalFilter === "works" ? `No ${units.many} have passed their check yet.` : `No named ${units.many} yet. Open one and give it a name.`)}</b></p><button class="btn quiet" data-act="journal-filter" data-v="all">Show all</button></div>` : ""}</div>`;
   const pinnedCount = readable.filter((c) => st.notes.get(c.id)?.pinned).length;
-  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${sparkline(pts, behind)}${filterBar(st.journalFilter, pinnedCount, p.purpose, checksOn(p) ? readable.filter((c) => c.verdict === "PASS").length : null)}</div>`;
+  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${sparkline(pts, behind)}${filterBar(st.journalFilter, pinnedCount, p.purpose, checksOn(p) ? readable.filter((c) => c.verdict === "PASS").length : null, readable.filter((c) => !!st.notes.get(c.id)?.title?.trim()).length)}</div>`;
   const right = two && sel ? preview(sel, false) : "";
   return `<div class="page proj lp${two ? " lp-two" : ""}"><div class="doc lp-doc">${status}${undoBar}
     ${setupView(p, pts)}
@@ -987,10 +987,11 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
 
 /**
  * The ruler, folded into the list's header: one mark per save point, oldest on the left, in its verdict's shape and colour.
- * The words are in the list; this is the shape of the day at a glance, so it is hidden from screen readers. A press picks one.
+ * A picture of the day at a glance, not a control: the list's rows are the targets, and say it all in words, so it is
+ * hidden from screen readers and takes no presses.
  */
 function sparkline(pts: TimelineEntry[], lw: TimelineEntry | null): string {
-  const marks = pts.slice(-60).map((c) => `<i class="spk v-${verdictKey(c.verdict)}${c.id === st.selected ? " on" : ""}${c.id === lw?.id ? " lw" : ""}" data-act="pick" data-id="${esc(c.id)}" title="${esc(`${ptClock(c)} · ${title(c)} · ${verdictWord(c.verdict)}`)}"></i>`).join("");
+  const marks = pts.slice(-60).map((c) => `<i class="spk v-${verdictKey(c.verdict)}${c.id === st.selected ? " on" : ""}${c.id === lw?.id ? " lw" : ""}"></i>`).join("");
   return `<span class="spark" aria-hidden="true">${marks}</span>`;
 }
 
@@ -2316,9 +2317,11 @@ function hookSheet(): string {
 function confirmView(): string {
   const c = st.confirm;
   if (!c) return "";
-  return `<div class="scrim confirm-scrim ${once("scrim:confirm")}" data-leave="confirm"><div class="sheet confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+  // A bring back lists what comes back and what does not, side by side, where it is decided.
+  const lists = c.lists ? `<div class="cf-lists"><div class="kv"><span class="h">What comes back</span>${li(c.lists.comes, "Nothing listed")}</div><div class="kv no"><span class="h">What does not come back</span>${li(c.lists.not, "Nothing listed")}</div></div>` : "";
+  return `<div class="scrim confirm-scrim ${once("scrim:confirm")}" data-leave="confirm"><div class="sheet confirm${lists ? " cf-wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
     <h2 id="confirm-title">${keepTimes(esc(c.title))}</h2>
-    <p id="confirm-body">${esc(c.body)}</p>
+    <p id="confirm-body">${esc(c.body)}</p>${lists}
     <div class="row-btns">${c.act === "whole-folder" ? `<button class="btn dark" data-act="whole-pick">${st.boot.platform === "darwin" ? "Choose a folder…" : "Type a smaller folder"}</button><button class="btn" data-act="confirm-do">${esc(c.action)}</button>` : confirmButtons(c.action)}</div>
   </div></div>`;
 }
@@ -3332,6 +3335,49 @@ function backToNow(): void {
   render();
 }
 
+/**
+ * Bring back from History. A version that passed its check (or any, in a folder with no check) asks once, on one sheet that
+ * lists what comes back and what does not, then comes back and History itself shows where it is. One not proven goes
+ * through the Rewind, which can try it in a copy first.
+ */
+function bringBack(id: string | undefined): Promise<void> | void {
+  const p = project();
+  const c = id ? entry(id) : null;
+  if (!p || !c || st.busy) return;
+  if (st.screen !== "history" || folderMissing(p) || damagedReason(c) || (checksOn(p) && c.verdict !== "PASS")) return startRewind(id);
+  st.confirm = {
+    act: "bring", id: c.id, action: "Bring it back",
+    title: `Bring back ${said(c)}?`,
+    body: p.kind === "folder"
+      ? "We make a copy of it next to your folder. Your folder is not touched, and every save point stays."
+      : "We make a copy of it next to your folder, on a new branch. Your folder is not touched, and every save point stays.",
+    lists: { comes: comesBackLines(c), not: [...notSavedLines(c), `Changes after ${said(c)}. They stay saved in History.`] },
+  };
+  render();
+}
+
+/** The confirmed bring back: the copy and the branch, then History says what came back and where, with Undo. */
+async function bringDo(id: string): Promise<void> {
+  const p = project();
+  if (!p || st.busy) return;
+  st.busy = "Bringing it back";
+  st.drawer = false;
+  render();
+  try {
+    const res = await api({ method: "recover", projectId: p.id, id });
+    st.undo = { projectId: p.id, result: res, working: false };
+    st.selected = res.id;
+  } catch (e) {
+    toast(e instanceof Error ? e.message : String(e));
+  }
+  st.busy = null;
+  await loadTimeline();
+  st.selected = st.undo?.projectId === p.id ? st.undo.result.id : st.selected;
+  render();
+  root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
+  void refreshStatuses().then(render);
+}
+
 /** `search` runs find-good even when a working version is already known. */
 async function startRewind(target?: string, search = false): Promise<void> {
   const p = project();
@@ -4290,6 +4336,12 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "project":
       if (d.id) await selectProject(d.id);
       return;
+    case "ov-bring":
+      // From Overview: open the project's History on the version that works, then the one confirm to bring it back.
+      if (!d.p || !d.id) return;
+      await selectProject(d.p);
+      if (entry(d.id)) st.selected = d.id;
+      return bringBack(d.id);
     case "source-add": {
       const row = st.sources !== "error" ? st.sources?.find((x) => x.id === d.id) : undefined;
       const purpose = row ? SOURCE_PURPOSE[row.id] : null;
@@ -4304,7 +4356,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       if (d.id) await togglePin(d.id);
       return;
     case "journal-filter":
-      st.journalFilter = d.v === "pinned" || d.v === "works" ? d.v : "all";
+      st.journalFilter = d.v === "pinned" || d.v === "works" || d.v === "named" ? d.v : "all";
       render();
       return refocus(`[data-act="journal-filter"][data-v="${st.journalFilter}"]`);
     case "labs":
@@ -4381,6 +4433,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       st.confirm = null;
       render();
       if (c?.act === "tv-use") return rewindDo();
+      if (c?.act === "bring" && c.id) return bringDo(c.id);
       if (c?.act === "remove" && c.id) return removeProject(c.id);
       if (c?.act === "forget" && c.id) return forgetProject(c.id);
       if (c?.act === "thin" && c.id) return thinApply(c.id);
@@ -4462,7 +4515,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       return startRewind();
     case "rewind-to":
     case "use":
-      return startRewind(d.id);
+      return bringBack(d.id);
     case "rw-open":
       return rewindOpen();
     case "put-back": {
@@ -4708,7 +4761,7 @@ function shortcut(action: ShortcutAction): void {
       // On History it brings back what the preview's button says: the version, or the last that works for a broken one.
       const sel = st.screen === "history" ? entry(st.selected) : null;
       const target = sel ? bringTarget(sel) : null;
-      if (inProject && points().length) void startRewind(target?.id);
+      if (inProject && points().length) void (target ? bringBack(target.id) : startRewind());
       return;
     }
     case "compare":
@@ -4899,7 +4952,7 @@ function onKey(e: KeyboardEvent): void {
     e.preventDefault();
     const sel = entry(st.selected);
     const target = sel ? bringTarget(sel) : null;
-    if (target) void startRewind(target.id);
+    if (target) void bringBack(target.id);
   } else if (k === " " && onList && st.selected && !twoPane()) {
     e.preventDefault();
     pick(st.selected, true);
