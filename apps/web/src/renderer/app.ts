@@ -2641,7 +2641,7 @@ function toolbar(): string {
   ];
   const more = menuButton("tools", "More actions", [...phoneOnly, ...tools], tools.length ? "" : "mn-phone-only");
   // Ask is a quiet icon with its shortcut; Check it works stays the routine action beside it.
-  const ask = inProject ? `<button class="btn ghost ask-t${st.askOpen ? " on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}" aria-label="Ask" title="${esc(`Ask ${keys("Mod+J")}`)}"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z"/></svg><kbd class="kc">${esc(keys("Mod+J"))}</kbd></button>` : "";
+  const ask = inProject ? `<button class="btn ghost ask-t${st.askOpen ? " on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}" title="${esc(`Ask ${keys("Mod+J")}`)}"><span class="sr-only">Ask </span><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z"/></svg><kbd class="kc">${esc(keys("Mod+J"))}</kbd></button>` : "";
   // The toolbar's Check it works steps aside when it is already the page's main button, and while a save point's detail
   // is open: the detail has its own Check it again, and the breadcrumb keeps its room. It stays in ⋯.
   const ready = inProject && !!newest && !folderMissing(p) && st.screen === "history" && !st.drawer;
