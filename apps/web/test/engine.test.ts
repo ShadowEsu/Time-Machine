@@ -176,10 +176,11 @@ test("a recovery stays findable after the app restarts: its branch and copy are 
     const later = newEngine(dir);
     const listed = await later.run({ method: "recoveries", projectId });
     if (!listed.ok) throw new Error(listed.error.message);
-    expect(listed.data).toHaveLength(1);
-    expect(listed.data[0]).toMatchObject({ id: "cp-0001", branch: rec.branch });
-    expect(realpathSync(listed.data[0]?.copyDir ?? "")).toBe(realpathSync(rec.copyDir));
-    expect(readFileSync(join(listed.data[0]?.copyDir ?? "", "index.js"), "utf8")).toBe("1;\n");
+    const list = listed.data as { id: string; branch: string; copyDir: string }[];
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ id: "cp-0001", branch: rec.branch });
+    expect(realpathSync(list[0]?.copyDir ?? "")).toBe(realpathSync(rec.copyDir));
+    expect(readFileSync(join(list[0]?.copyDir ?? "", "index.js"), "utf8")).toBe("1;\n");
     // Listing is read only: it does not let the later session undo a copy it did not make.
     expect(await later.run({ method: "undoRecover", projectId, id: "cp-0001", branch: rec.branch, copyDir: rec.copyDir })).toMatchObject({ ok: false });
 
