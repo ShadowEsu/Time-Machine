@@ -615,7 +615,7 @@ export class FakeEngine implements TmBridge {
   private async dispatch(call: Call): Promise<unknown> {
     switch (call.method) {
       case "bootstrap":
-        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project, ...this.sides.map((s) => s.project)] : [], storeDir: "~/.timemachine", preview: true, license: this.license };
+        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project, ...this.sides.map((s) => s.project)] : [], storeDir: "~/.timemachine", homes: ["/Users/you"], preview: true, license: this.license };
       case "sources":
         return FAKE_SOURCES.map((s) => ({ ...s }));
       case "setPurpose": {

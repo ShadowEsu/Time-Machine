@@ -88,7 +88,7 @@ describe("Ask answers", () => {
 
   test("a cite chip escapes its id and says what it is", () => {
     expect(citeChip(`cp-1"><b>`, { verdict: null, createdAt: T1 })).not.toContain("<b>");
-    expect(citeChip("cp-0003", POINTS.get("cp-0003"))).toContain(`aria-label="Save point at ${esc(when(T1))}, Works. Show it in the journal."`);
+    expect(citeChip("cp-0003", POINTS.get("cp-0003"))).toContain(`aria-label="${esc(when(T1))}, save point, Works. Show it in the journal."`);
     expect(citeChip("cp-0001", undefined)).toBe("");
   });
 

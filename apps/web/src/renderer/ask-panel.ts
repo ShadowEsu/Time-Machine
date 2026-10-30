@@ -55,7 +55,7 @@ const CANT_TELL = "I can't tell from the history";
 export function citeChip(id: string, point: CitedPoint | undefined): string {
   if (!point) return "";
   const time = when(point.createdAt);
-  const label = `Save point at ${time}, ${verdictWord(point.verdict)}. Show it in the journal.`;
+  const label = `${time}, save point, ${verdictWord(point.verdict)}. Show it in the journal.`;
   return `<button type="button" class="ft-cite" data-fa="cite" data-id="${esc(id)}" aria-label="${esc(label)}" title="${esc(label)}"><i class="g v-${verdictKey(point.verdict)}" aria-hidden="true"></i>${esc(time)}</button>`;
 }
 

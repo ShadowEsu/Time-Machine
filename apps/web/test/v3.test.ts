@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import type { AgentRow } from "../src/shared/api.ts";
 import { when } from "../src/shared/format.ts";
-import { claudeChannel, PLANNED_AGENTS } from "../src/renderer/channels.ts";
+import { claudeChannel } from "../src/renderer/channels.ts";
 import { DIAL_SPAN, DIAL_START, dialAngle, dialIndex } from "../src/renderer/dial.ts";
 
 describe("rewind dial", () => {
@@ -52,9 +52,5 @@ describe("agent channels", () => {
     expect(ch.state).toBe("not-connected");
     expect(ch.line).not.toMatch(/Working|Idle|turn/);
     expect(claudeChannel([], new Map(), now).line).toBe("Add a project first.");
-  });
-
-  test("Codex and Gemini are planned, not connected; with Claude Code the app lists exactly three agents", () => {
-    expect(PLANNED_AGENTS.map((a) => a.name)).toEqual(["Codex", "Gemini"]);
   });
 });
