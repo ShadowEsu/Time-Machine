@@ -388,8 +388,9 @@ function revealRow(el: Element | null): void {
   if (!s) return;
   const r = el.getBoundingClientRect();
   const box = s.getBoundingClientRect();
-  if (r.top < box.top) s.scrollTop -= box.top - r.top;
-  else if (r.bottom > box.bottom) s.scrollTop += Math.min(r.bottom - box.bottom, r.top - box.top);
+  // Whole pixels, rounded away from the row: scrollTop drops a fraction, which left a row a fraction of a pixel cut.
+  if (r.top < box.top) s.scrollTop -= Math.ceil(box.top - r.top);
+  else if (r.bottom > box.bottom) s.scrollTop += Math.ceil(Math.min(r.bottom - box.bottom, r.top - box.top));
 }
 
 /** Reads the open project's save points with their names, so a list never shows without the names it had (writer#13). */
