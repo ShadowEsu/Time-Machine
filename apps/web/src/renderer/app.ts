@@ -374,6 +374,24 @@ async function loadAskProvider(): Promise<void> {
   render();
 }
 
+/** Set when History picks its first selection, so the next draw brings that row into view. */
+let revealOnDraw = false;
+
+/**
+ * Brings a row of History's list fully into view by moving its nearest scroller (the list's own, else the page) the
+ * least it can, at once: no smooth scroll, and the window itself never moves.
+ */
+function revealRow(el: Element | null): void {
+  if (!el) return;
+  let s = el.parentElement;
+  while (s && !(s.scrollHeight > s.clientHeight && /auto|scroll/.test(getComputedStyle(s).overflowY))) s = s.parentElement;
+  if (!s) return;
+  const r = el.getBoundingClientRect();
+  const box = s.getBoundingClientRect();
+  if (r.top < box.top) s.scrollTop -= box.top - r.top;
+  else if (r.bottom > box.bottom) s.scrollTop += Math.min(r.bottom - box.bottom, r.top - box.top);
+}
+
 /** Reads the open project's save points with their names, so a list never shows without the names it had (writer#13). */
 async function loadTimeline(): Promise<void> {
   const p = project();
@@ -384,7 +402,10 @@ async function loadTimeline(): Promise<void> {
     st.timelineError = null;
     const ids = points().map((c) => c.id);
     // Nothing chosen yet: the last version that works while the newest does not, so the way back shows without a click.
-    if (!st.selected || !ids.includes(st.selected)) st.selected = defaultPick(points(), lastWorking()?.id ?? null);
+    if (!st.selected || !ids.includes(st.selected)) {
+      st.selected = defaultPick(points(), lastWorking()?.id ?? null);
+      revealOnDraw = true;
+    }
     void loadChanges();
     void loadDeployChips();
     void loadRecoveries();
@@ -2307,14 +2328,14 @@ function pick(id: string | null, open: boolean): void {
   st.foldAt = null;
   if (open && !detailBeside()) st.drawer = true;
   render();
-  root.querySelector(".lp-row.on")?.scrollIntoView({ block: "nearest" });
+  revealRow(root.querySelector(".lp-row.on"));
 }
 
 /** Puts the list's keys on a fold of quiet save points; the selected save point and its detail stay as they are. */
 function keyFold(key: string): void {
   st.foldAt = key;
   render();
-  root.querySelector(".lp-fold.on")?.scrollIntoView({ block: "nearest" });
+  revealRow(root.querySelector(".lp-fold.on"));
 }
 
 /** Opens a fold: its save points show as rows and stay so, and the newest of them is selected. */
@@ -3005,6 +3026,10 @@ function render(): void {
   applyOnce();
   const page = document.querySelector(".page");
   if (page) page.scrollTop = pageScroll;
+  if (revealOnDraw && st.screen === "history" && root.querySelector("#list")) {
+    revealOnDraw = false;
+    revealRow(root.querySelector(".lp-row.on"));
+  }
   placeMounts(mountFocus, scrolled);
   fitSessions();
   fitDialLabels();
@@ -4354,7 +4379,7 @@ async function onClick(el: HTMLElement): Promise<void> {
       st.drawer = !detailBeside();
       render();
       if (into) root.querySelector<HTMLElement>(detailBeside() ? "#list" : '.rcol.detail [data-act="close-drawer"]')?.focus({ preventScroll: true });
-      root.querySelector(".lp-row.on")?.scrollIntoView({ block: "nearest" });
+      revealRow(root.querySelector(".lp-row.on"));
       return;
     }
     case "pick":
