@@ -15,7 +15,7 @@ export interface ProjectCaches {
   deployChips: Map<string, string>;
   notes: Map<string, RunNote>;
   journalFilter: JournalFilter;
-  /** History's opened folds of quiet save points, by the fold's newest id, and the fold the list's keys are on (null: the selected row). */
+  /** The save points of History's opened folds, and the fold the list's keys are on (by its newest id; null: the selected row). */
   folds: Set<string>;
   foldAt: string | null;
   noteDraft: NoteDraft | null;

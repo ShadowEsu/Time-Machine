@@ -126,7 +126,11 @@ describe("folding a run of quiet save points", () => {
     }
     expect(shape([{ id: "lw", verdict: "PASS" }, ...run(5), { id: "br", verdict: "FAIL" }])).toEqual(["lw", "fold q-1 x5", "br"]);
   });
-  test("an opened fold stays open as rows", () => {
-    expect(foldRuns(run(5), quiet, new Set(["q-1"])).every((x) => "row" in x)).toBe(true);
+  test("an opened fold stays open as rows, even when selecting its newest leaves four of it in a row", () => {
+    const opened = new Set(["q-1", "q-2", "q-3", "q-4", "q-5"]);
+    expect(foldRuns(run(5), quiet, opened).every((x) => "row" in x)).toBe(true);
+    expect(foldRuns(run(5).slice(1), quiet, opened).every((x) => "row" in x)).toBe(true);
+    // A run that has none of them still folds.
+    expect(shape(run(4, 6))).toEqual(["fold q-6 x4"]);
   });
 });

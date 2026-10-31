@@ -93,15 +93,15 @@ export type ListItem<T> = { row: T } | { fold: string; rows: T[] };
 /**
  * Folds every run of `FOLD_MIN` or more save points next to each other that `quiet` says may fold (in the app:
  * unnamed, unpinned, never checked, not selected) into one item, so a long session of automatic saves does not push the
- * last version that works out of sight. A row that may not fold ends a run. A fold that was opened (`open` has its key)
- * stays as rows.
+ * last version that works out of sight. A row that may not fold ends a run. `open` holds the save points of folds that
+ * were opened: a run with any of them stays as rows, so selecting a row of an opened fold never folds the rest again.
  */
 export function foldRuns<T extends { id: string }>(rows: readonly T[], quiet: (c: T) => boolean, open: ReadonlySet<string>): ListItem<T>[] {
   const out: ListItem<T>[] = [];
   let run: T[] = [];
   const flush = (): void => {
     const key = run[0]?.id;
-    if (key && run.length >= FOLD_MIN && !open.has(key)) out.push({ fold: key, rows: run });
+    if (key && run.length >= FOLD_MIN && !run.some((c) => open.has(c.id))) out.push({ fold: key, rows: run });
     else for (const c of run) out.push({ row: c });
     run = [];
   };
