@@ -183,7 +183,7 @@ interface State {
   notes: Map<string, RunNote>;
   /** History's list shows every save point, or only the ones that work, are named or are pinned. */
   journalFilter: JournalFilter;
-  /** History's opened folds of quiet save points, by the fold's newest id, and the fold the list's keys are on (null: the selected row). */
+  /** The save points of History's opened folds, and the fold the list's keys are on (by its newest id; null: the selected row). */
   folds: Set<string>;
   foldAt: string | null;
   /** The name and note being typed in the open detail, and whether they are being saved. */
@@ -870,7 +870,7 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
 /** A fold of quiet save points in History's list: one option that says how many, opened by a press, Enter or →. */
 function foldRow(key: string, rows: readonly TimelineEntry[], checks: boolean, units: { many: string }): string {
   const on = st.foldAt === key;
-  return `<div role="option" id="opt-fold-${esc(key)}" class="lp-row lp-fold${on ? " on" : ""}" aria-selected="${on}" data-act="unfold" data-fold="${esc(key)}" data-v="none">
+  return `<div role="option" id="opt-fold-${esc(key)}" class="lp-row lp-fold${on ? " on" : ""}" aria-selected="${on}" data-act="unfold" data-fold="${esc(key)}" data-ids="${esc(rows.map((c) => c.id).join(" "))}" data-v="none">
     <span class="lp-t"><span class="lp-tt">${esc(`${rows.length} more ${units.many}${checks ? " · not checked" : ""}`)}</span></span><span class="lp-when" aria-hidden="true">›</span></div>`;
 }
 
@@ -2317,9 +2317,10 @@ function keyFold(key: string): void {
   root.querySelector(".lp-fold.on")?.scrollIntoView({ block: "nearest" });
 }
 
-/** Opens a fold: its save points show as rows, and the newest of them is selected. */
+/** Opens a fold: its save points show as rows and stay so, and the newest of them is selected. */
 function openFold(key: string): void {
-  st.folds.add(key);
+  const el = [...root.querySelectorAll<HTMLElement>(".lp-fold")].find((f) => f.dataset.fold === key);
+  for (const id of (el?.dataset.ids ?? key).split(" ")) st.folds.add(id);
   pick(key, false);
 }
 
@@ -4819,15 +4820,15 @@ function onKey(e: KeyboardEvent): void {
   const onList = t instanceof HTMLElement && t.id === "list";
   const loose = !(t instanceof HTMLElement) || t === document.body || t.matches("main h1, .page");
   if (!onList && !loose) return;
-  const opts = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')];
-  const ids = opts.map((el) => el.dataset.id ?? `fold:${el.dataset.fold ?? ""}`);
+  const options = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')];
+  const ids = options.map((el) => el.dataset.id ?? `fold:${el.dataset.fold ?? ""}`);
   const at = Math.max(0, ids.indexOf(st.foldAt ? `fold:${st.foldAt}` : (st.selected ?? "")));
   const key = k === "j" ? "ArrowDown" : k === "k" ? "ArrowUp" : e.key;
   const vertical = key === "ArrowDown" || key === "ArrowUp";
   let move: number | null = null;
-  if (e.shiftKey && vertical && opts.length) {
+  if (e.shiftKey && vertical && options.length) {
     // stepIndex counts oldest first; the list shows newest first.
-    const verdicts = opts.map((el) => el.dataset.v ?? "none").reverse();
+    const verdicts = options.map((el) => el.dataset.v ?? "none").reverse();
     const last = verdicts.length - 1;
     move = last - stepIndex(verdicts, last - at, key === "ArrowDown" ? "prevChange" : "nextChange");
   } else if (onList || vertical) move = listMove(ids.length, at, key);
