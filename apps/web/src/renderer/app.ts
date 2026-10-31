@@ -2671,6 +2671,7 @@ function toolbar(): string {
   const checkFirst = ready && checksOn(p) && projectStatus(points()).primary.act !== "check";
   const check = checkFirst ? `<button class="btn tb-check" data-act="check" ${busy}>Check it works</button>` : "";
   // A phone keeps one action beside ⋯ (dev#36): Check it works, or Save now when checking is already the page's big button.
+  // It comes after ⋯ in the markup, so Tab follows the eye: right of ⋯ on a wider phone, a row of its own under it at 440 px.
   const phoneMain = ready ? (checkFirst ? `<button class="btn tb-main" data-act="check" ${busy}>Check it works</button>` : `<button class="btn tb-main" data-act="save" ${busy}>Save now</button>`) : "";
   const v = p ? (st.statuses.get(p.id)?.newest?.verdict ?? null) : null;
   // The phone's project switcher names the project, so its accessible name starts with what it shows.
@@ -2678,7 +2679,7 @@ function toolbar(): string {
   return `<div class="toolbar">${buddy("tb-buddy")}${switcher}<nav class="crumb" aria-label="Where you are">${crumb}</nav>
     ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
     <span class="tb-sp"></span>
-    <button class="icon-b jump" data-act="palette" aria-label="Jump to…"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>${ask}${check}${phoneMain}${more}</div>`;
+    <button class="icon-b jump" data-act="palette" aria-label="Jump to…"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>${ask}${check}${more}${phoneMain}</div>`;
 }
 
 /** Everything "Jump to…" can reach: actions first, then projects, then recent save points. */
