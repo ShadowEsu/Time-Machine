@@ -1,22 +1,16 @@
-// Agent channels: one line per coding agent. Claude Code is read from its hook lines and the audit
-// log. The others are planned and always say so. No activity is ever invented.
+// The agent channel: Claude Code, read from its hook lines and the audit log. It is the only agent the app connects, and
+// the only one it lists. No activity is ever invented.
 import type { AgentRow } from "../shared/api.js";
 import { plural, when } from "../shared/format.js";
 
 export interface Channel {
   name: string;
-  state: "working" | "idle" | "partial" | "not-connected" | "planned";
+  state: "working" | "idle" | "partial" | "not-connected";
   /** One plain sentence. */
   line: string;
   /** The rail's status line under the name: "Connected to tips", "Not connected". */
   short: string;
 }
-
-/** Agents without a connection yet. Shown as planned, never as connected. With Claude Code these are the three the app lists. */
-export const PLANNED_AGENTS: readonly { name: string }[] = [
-  { name: "Codex" },
-  { name: "Gemini" },
-];
 
 /**
  * Claude Code's channel from the hook state of each project. `lastEnded` maps a project id to the

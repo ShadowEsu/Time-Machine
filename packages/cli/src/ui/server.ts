@@ -140,7 +140,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
     switch (call.method) {
       case "bootstrap": {
         const localBrandMarks = env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
-        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
+        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, homes: homeRoots(), preview: false };
         return { ok: true, data };
       }
       case "setCredential":
@@ -302,6 +302,17 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
       lock.release();
     },
   };
+}
+
+/** The home folder as given and after realpath (/var and /private/var on a Mac), so the app shows a path under either as ~. */
+function homeRoots(): string[] {
+  const given = homedir();
+  try {
+    return [...new Set([given, realpathSync(given)])];
+  } catch {
+    // A home that cannot be resolved is shortened as given.
+    return [given];
+  }
 }
 
 /** OS launchers receive an argument array, never a shell command or interpolated path. */

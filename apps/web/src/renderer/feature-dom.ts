@@ -1,5 +1,6 @@
 // Small DOM helpers shared by the Ask panel, the deploy list and the feature settings.
 import type { TmBridge } from "../shared/api.js";
+import { homeHtml } from "../shared/format.js";
 
 /** The bridge the feature views call. Only call is used, so tests and the preview can pass a fake. */
 export type FeatureApi = Pick<TmBridge, "call">;
@@ -14,7 +15,8 @@ export function announceFeatures(projectId: string): void {
 /**
  * Replaces the host's markup but keeps what the person was typing. Fields marked data-keep
  * carry their value, focus and caret over by key. Values move between DOM nodes only and
- * never go into markup, so a pasted key is never written into HTML.
+ * never go into markup, so a pasted key is never written into HTML. Paths read ~ for the
+ * home folder (homeHtml), as on the rest of the page.
  */
 export function patch(host: HTMLElement, html: string): void {
   const kept = new Map<string, { value: string; focused: boolean; start: number | null; end: number | null }>();
@@ -23,7 +25,7 @@ export function patch(host: HTMLElement, html: string): void {
     const text = el instanceof HTMLSelectElement ? null : el;
     kept.set(key, { value: el.value, focused: document.activeElement === el, start: text?.selectionStart ?? null, end: text?.selectionEnd ?? null });
   }
-  host.innerHTML = html;
+  host.innerHTML = homeHtml(html);
   for (const el of host.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("[data-keep]")) {
     const k = kept.get(el.dataset.keep ?? "");
     if (!k) continue;

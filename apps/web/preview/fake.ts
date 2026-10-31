@@ -478,6 +478,11 @@ export class FakeEngine implements TmBridge {
         s.audit.push({ at: x.entry.createdAt, action: "checkpoint", target: x.entry.id, result: "saved" });
         return { checkpoint: x.entry, skipped: false };
       }
+      case "recoveries":
+        return [...s.copies].map((copyDir) => {
+          const id = copyDir.slice(copyDir.lastIndexOf("-recovered-") + "-recovered-".length);
+          return { id, branch: p.kind === "folder" ? "" : `tm/recover/${id}`, copyDir };
+        });
       case "recover": {
         await wait(700);
         const target = find(call.id);
@@ -610,7 +615,7 @@ export class FakeEngine implements TmBridge {
   private async dispatch(call: Call): Promise<unknown> {
     switch (call.method) {
       case "bootstrap":
-        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project, ...this.sides.map((s) => s.project)] : [], storeDir: "~/.timemachine", preview: true, license: this.license };
+        return { platform: "darwin", settings: this.settings, projects: this.added ? [this.project, ...this.sides.map((s) => s.project)] : [], storeDir: "~/.timemachine", homes: ["/Users/you"], preview: true, license: this.license };
       case "sources":
         return FAKE_SOURCES.map((s) => ({ ...s }));
       case "setPurpose": {
@@ -767,6 +772,11 @@ export class FakeEngine implements TmBridge {
         // The preview stops a search after the check in progress; single checks are short enough to finish.
         this.stopping = true;
         return true;
+      case "recoveries":
+        return [...this.branches].map((branch) => {
+          const id = /^tm\/recover\/(cp-\d+)/.exec(branch)?.[1] ?? "";
+          return { id, branch, copyDir: `/Users/you/code/marigold-tips-recovered-${id}` };
+        });
       case "recover": {
         await wait(900);
         const target = this.find(call.id);

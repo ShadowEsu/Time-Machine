@@ -42,7 +42,6 @@
 .set-c { display: flex; align-items: center; min-width: 0; }
 .set-p { max-width: 64ch; padding-top: 6px; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
 .set-p.muted { font-size: 14.5px; color: var(--ink-3); }
-.set-planned { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--ink-3); }
 @container set (min-width: 720px) {
   .set-row { grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; }
   .set-row.set-theme { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -315,8 +314,6 @@ section > .b9-lede { margin: -2px 0 16px; }
 .is-working .b9-pill { border-color: color-mix(in srgb, var(--works) 40%, transparent); background: var(--works-bg); color: var(--works); }
 .is-idle .b9-pill { border-color: var(--sky-line); background: var(--sky); color: var(--sky-ink); }
 .is-partial .b9-pill { border-color: color-mix(in srgb, var(--amber) 45%, transparent); background: var(--amber-bg); color: var(--amber); }
-.is-planned .b9-t, .is-planned .b9-sub { color: var(--ink-3); }
-.is-planned .b9-pill { border-style: dashed; color: var(--ink-3); }
 /* Storage: each project's name, then its size in mono, right-aligned in a column every row shares (subgrid). Its actions
    (Clean up, Thin, Remove from app) take their own line under them at every width: side by side they need over 600 px,
    which left the name a 0 px column at 1024 and 1440 (Design gate MF1). */
@@ -477,7 +474,7 @@ section > .b9-lede { margin: -2px 0 16px; }
 @media (max-width: 720px) { .pl-cols { grid-template-columns: minmax(0, 1fr); } }
 
 /* Sources: rows like Agents (mark, name and one line, then its state or its one action). Found folders show their path in
-   mono. Planned connectors sit under Labs preview as dashed cards with a sample that is visibly a sample. */
+   mono. */
 .so-row { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 16px; }
 .so-row > .amark { width: 36px; height: 36px; border-radius: 10px; font-size: 14px; }
 .so-on { border-color: color-mix(in srgb, var(--works) 40%, transparent); background: var(--works-bg); color: var(--works); }
@@ -487,42 +484,18 @@ section > .b9-lede { margin: -2px 0 16px; }
 .so-row > .b9-main { min-width: 0; }
 .so-prot { display: block; margin-top: 2px; font-size: 13.5px; color: var(--ink-2); }
 .so-miss { margin-top: 12px; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
-.so-labs-h { justify-content: space-between; align-items: center; }
-.so-switch { display: inline-flex; align-items: center; gap: 4px; font: 500 14.5px/1.2 var(--font); color: var(--ink-2); }
-.so-page .switch { width: 44px; height: 26px; border: 1.5px solid var(--ink); background: var(--paper-2); }
-.so-page .switch::after { top: 3px; left: 3px; width: 17px; height: 17px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--ink); }
-.so-page .switch.on { background: var(--ink); }
-.so-page .switch.on::after { transform: translateX(18px); background: var(--paper); box-shadow: none; }
-.so-cards { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.so-card { display: grid; align-content: start; gap: 10px; padding: 16px 18px 18px; border: 1.5px dashed var(--line-2); border-radius: var(--r-lg); background: var(--sunken); }
-.so-ch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.so-ch > .amark { width: 32px; height: 32px; border-radius: 9px; }
-.so-ch b { font: 650 16px/1.3 var(--display); letter-spacing: -.01em; color: var(--ink); }
-.so-planned { margin-left: auto; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; border: 1.5px dashed var(--ink-4); font: 600 13px/1 var(--font); color: var(--ink-3); white-space: nowrap; }
-.so-would { font-size: 14px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
-.so-sample { position: relative; display: grid; gap: 6px; padding: 28px 12px 12px; border-radius: var(--r-md); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-.so-sl { position: absolute; top: 8px; left: 12px; font: 600 13px/1 var(--font); color: var(--ink-3); }
-/* A sample row: its label keeps whole words; when the card is too narrow for both, the status goes under it (Design gate P2-2). */
-.so-sr { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; font-size: 13.5px; line-height: 1.4; color: var(--ink-3); }
-.so-sr > span { flex: 1 1 16ch; }
-.so-sr small { flex: 0 1 auto; font: 500 13px/1.4 var(--mono); font-variant-numeric: tabular-nums; }
-.so-labs-note { margin-top: 14px; }
-@media (max-width: 720px) { .so-cards { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) {
   .so-row { grid-template-columns: auto minmax(0, 1fr); }
   .so-row > .btn, .so-row > .b9-pill { grid-column: 2; justify-self: start; }
-  .so-planned { margin-left: 0; }
 }
 
-/* Runs: All / Pinned above the journal as the Settings pill, a pin beside a pinned row's title, and the detail's name, note
-   and pin in a quiet sunken card. Text fields here are the app's sans at 14 px, not the mono of a path field. */
-.jf-row { margin-top: 36px; display: flex; justify-content: flex-end; }
+/* Runs: All / Works / Named / Pinned in the list's header as the Settings pill, a pin beside a pinned row's title, and the
+   detail's name, note and pin in a quiet sunken card. Text fields here are the app's sans at 14 px, not the mono of a path field. */
 .jf { display: inline-flex; gap: 2px; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--surface); font-size: 14.5px; }
 .jf button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font-weight: 500; cursor: pointer; transition: background-color var(--t-hover) var(--ease), color var(--t-hover) var(--ease); }
 .jf button:hover:not(.on) { background: var(--sel); color: var(--ink); }
 .jf button.on { background: var(--ink); color: var(--paper); font-weight: 600; }
 .jf-n { font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; opacity: .8; }
-.jf-row + .journal > .day:first-child { margin-top: 0; }
 .jf-empty { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: 18px; background: var(--sunken); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
 .jf-empty b { color: var(--ink); font-weight: 600; }
 .pin-i { width: 14px; height: 14px; flex: none; }
@@ -550,13 +523,6 @@ section > .b9-lede { margin: -2px 0 16px; }
 /* The Add flow's stepper stays on one line; only a phone lets it wrap. */
 .ob-page .steps { flex-wrap: nowrap; white-space: nowrap; font-size: 14px; }
 @media (max-width: 600px) { .ob-page .steps { flex-wrap: wrap; white-space: normal; row-gap: 8px; } }
-
-/* Journal times: the time stays whole on one line; a same-second ordinal sits on its own line below. The column is wide
-   enough for "12:43:36 AM" at every width, so every row's title starts at the same place. */
-.journal .entry { grid-template-columns: 92px minmax(0, 1fr) auto; }
-.journal .entry .when span { display: block; margin-right: 0; white-space: nowrap; }
-.journal .entry .when .tm-o { color: var(--ink-3); }
-@media (max-width: 600px) { .journal .entry { grid-template-columns: 92px minmax(0, 1fr); } }
 
 /* Storage > Thin old auto saves: the preview line and its buttons, then the Review list, which scrolls past ten rows. */
 .th-ask { display: grid; gap: 10px; }

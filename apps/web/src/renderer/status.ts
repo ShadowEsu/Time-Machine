@@ -2,7 +2,7 @@
 // from the save points alone, so the app, the tests and the palette always agree.
 import type { TimelineEntry } from "@timetm/core";
 import type { Verdict } from "../shared/api.js";
-import { pointAt, pointTime, sentenceStart, twinOrdinal, verdictWord, versionPhrase, when } from "../shared/format.js";
+import { nameLine, namePhrase, namePoint, pointMessage, pointWhen, sentenceStart, verdictWord, when } from "../shared/format.js";
 
 /**
  * The shapes History's ruler names. A project with no check and no verdict shows one neutral state, Saved. Otherwise the
@@ -13,12 +13,6 @@ export function legendItems(checks: boolean, shown: readonly (Verdict | null)[])
   if (!checks) return [...(["PASS", "FAIL", "INCOMPLETE", "BLOCKED", "ERROR"] as const).filter((v) => shown.includes(v)).map((v) => ({ v, word: verdictWord(v) })), { v: null, word: "Saved" }];
   const extra = (["INCOMPLETE", "BLOCKED", "ERROR"] as const).filter((v) => shown.includes(v));
   return [...(["PASS", "FAIL", null] as const), ...extra].map((v) => ({ v, word: verdictWord(v) }));
-}
-
-/** A journal time, "2:43:36 AM #3", as the time that stays whole and the same-second ordinal that may sit below it. */
-export function clockParts(t: string): { time: string; ord: string } {
-  const m = /^(.*?)(?:\s+(#\d+))?$/.exec(t.trim());
-  return { time: m?.[1] ?? t, ord: m?.[2] ?? "" };
 }
 
 /** How long ago, in the rail's plain words: "just now", "3 min", "2 h" (today), "Yesterday", "4 days", then the date. */
@@ -36,7 +30,11 @@ export function railAge(iso: string, now = Date.now()): string {
   return at.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-export type StatusPoint = Pick<TimelineEntry, "id" | "verdict" | "createdAt" | "note" | "trigger" | "agent">;
+export type StatusPoint = Pick<TimelineEntry, "id" | "verdict" | "createdAt" | "note" | "trigger" | "agent" | "subject">;
+
+/** What names a save point: its message. By default the save point's own; the app adds the names people give. */
+export type MessageOf = (c: StatusPoint) => string;
+const ownMessage: MessageOf = (c) => pointMessage(c);
 
 /** A button on the project screen. `act` and the ids become data attributes the app already handles. */
 export interface StatusButton {
@@ -45,15 +43,17 @@ export interface StatusButton {
   id?: string;
   a?: string;
   b?: string;
-  /** The whole phrase, shown as a tooltip when the label is the short form ("Bring back 2:36 AM"). */
+  /** Said after the label, quieter: the time of the save point the label names by its message. */
+  sub?: string;
+  /** The whole name, for a tooltip: "Bring back “Added dark mode” · 2:58:48 AM". */
   title?: string;
 }
 
 export interface ProjectStatusView {
   v: Verdict | null;
-  /** The status, said once in the display face: "Works.", "Broken.", "Not checked yet.", "Saved 7:33 AM." */
+  /** The status, said once in the display face: "Works.", "Broken.", "Not checked yet.", "Saved 7:33:05 AM." */
   head: string;
-  /** The time it holds for, said once as quiet text under the head: "Saved 7:33 AM." Empty when the head already says it. */
+  /** The time it holds for, said once as quiet text under the head: "Saved 7:33:05 AM." Empty when the head already says it. */
   voice: string;
   /** One sentence that adds something: what it means or what to do next. Never the time again. */
   body: string;
@@ -73,50 +73,55 @@ export function brokenSince<T extends StatusPoint>(points: T[]): T | null {
   return points.slice(lastPass + 1).find((c) => c.verdict === "FAIL") ?? null;
 }
 
-/** `peers` are the project's save points, so two versions saved in the same minute never get the same label, and two in one second are told apart by order. */
-export const goBackLabel = (c: StatusPoint, peers: readonly StatusPoint[]): string => `Bring back ${versionPhrase(c, peers)}`;
-
-/** The button form: "Bring back 2:36 AM". The time alone, with seconds only when another save point shares the minute,
- *  and a twin by its order first ("Bring back the first save at 2:36:56 AM"), never "#N". `goBackLabel` is its title. */
-export function goBackShort(c: StatusPoint, peers: readonly StatusPoint[]): string {
-  const nth = twinOrdinal(c, peers);
-  return nth ? `Bring back the ${nth} save at ${pointTime(c, peers)}` : `Bring back ${pointTime(c, peers)}`;
+/** The go-back action's whole name, for a tooltip or a list: "Bring back “Added dark mode” · 2:58:48 AM". */
+export function goBackLabel(c: StatusPoint, peers: readonly StatusPoint[], message: MessageOf = ownMessage): string {
+  const n = namePoint(c, peers, message(c));
+  return `Bring back ${n.time ? nameLine(n) : namePhrase(n)}`;
 }
 
-/** The go-back button: the short label on the face, the whole phrase in its title. */
-const goBackButton = (c: StatusPoint, peers: readonly StatusPoint[]): StatusButton => ({ label: goBackShort(c, peers), act: "rewind-to", id: c.id, title: goBackLabel(c, peers) });
+/** The go-back button: "Bring back “Added dark mode”" with its time beside it, quieter; with no message, "Bring back the save at 2:58:48 AM". */
+function goBackButton(c: StatusPoint, peers: readonly StatusPoint[], message: MessageOf): StatusButton {
+  const n = namePoint(c, peers, message(c));
+  return { label: `Bring back ${n.time ? n.name : namePhrase(n)}`, ...(n.time ? { sub: n.time } : {}), act: "rewind-to", id: c.id, title: goBackLabel(c, peers, message) };
+}
 
 /**
  * The status sentence and exactly one primary button, plus at most one secondary.
  * `checkedAt` is the time of a check that ran in this session, when there is one.
  * `checks` is false for a folder that just saves versions (no check set, none ever ran): it never offers a check or calls a version working.
+ * `message` names a save point; the app passes one that knows the names people gave.
  */
-export function projectStatus(points: StatusPoint[], checkedAt: string | null = null, checks = true): ProjectStatusView {
+export function projectStatus(points: StatusPoint[], checkedAt: string | null = null, checks = true, message: MessageOf = ownMessage): ProjectStatusView {
   const newest = points.at(-1);
   const save: StatusButton = { label: "Save now", act: "save" };
   const check: StatusButton = { label: "Check it works", act: "check" };
   if (!newest) return { v: null, head: "No save points yet.", voice: "", body: checks ? "Save now, then check that it works." : "Save now to keep the first version.", primary: save, secondary: null };
-  // Times say the minute, and add the seconds only when another save point shares that minute, as the buttons do:
-  // "the 9:48 AM version" must never name two versions. Two in one second are said by order, "the second save at 9:48:05 AM", never "#N".
-  const said = (c: StatusPoint): string => pointAt(c, points);
-  const savedAt = (c: StatusPoint): string => `Saved ${twinOrdinal(c, points) ? "as " : ""}${said(c)}.`;
+  // A save point is named by its message, the time after it; with no message, by its time ("the save at 2:58:48 AM").
+  // A time in a sentence never carries "#N": twins in one second are told apart in the Inspector.
+  const at = (c: StatusPoint): string => pointWhen(c, points).replace(/ #\d+$/, "");
+  const said = (c: StatusPoint): string => namePhrase(namePoint(c, points, message(c)));
+  // The voice line holds a time: "Saved 2:58:48 AM." With a message it names it too: "Saved “Added dark mode” at 2:58:48 AM."
+  const savedAt = (c: StatusPoint): string => {
+    const m = message(c).trim();
+    return m ? `Saved ${namePoint(c, points, m).name} at ${at(c)}.` : `Saved ${at(c)}.`;
+  };
   if (!checks && newest.verdict === null) {
     return { v: null, head: savedAt(newest), voice: "", body: "Kept on this computer, outside the folder. Open any version to compare it or bring it back as a copy.", primary: save, secondary: null };
   }
   const lw = lastWorking(points);
-  const goBack: StatusButton | null = lw ? goBackButton(lw, points) : null;
-  const stillWorks = lw ? `${sentenceStart(versionPhrase(lw, points))} still works.` : "";
+  const goBack: StatusButton | null = lw ? goBackButton(lw, points, message) : null;
+  const stillWorks = lw ? `${sentenceStart(said(lw))} still works.` : "";
   switch (newest.verdict) {
     case "FAIL": {
       const since = brokenSince(points) ?? newest;
-      const voice = `Since ${said(since)}.`;
+      const voice = `Since ${at(since)}.`;
       if (!lw) return { v: "FAIL", head: "Broken.", voice, body: "No earlier version has passed yet. We can check the older ones for you.", primary: { label: "Find the last working version", act: "rewind" }, secondary: null };
       return {
         v: "FAIL",
         head: "Broken.",
         voice,
         body: `${stillWorks} Bringing it back puts it on a new branch and in a copy. Your folder is not touched.`,
-        primary: goBackButton(lw, points),
+        primary: goBackButton(lw, points, message),
         secondary: { label: "See what changed", act: "compare", a: lw.id, b: "now" },
       };
     }
@@ -145,20 +150,6 @@ export function projectStatus(points: StatusPoint[], checkedAt: string | null = 
         secondary: goBack,
       };
   }
-}
-
-/**
- * How many checks in a row passed for each save point, newest last, from the audit log's "verify" lines
- * (oldest first). A check that did not pass starts the count again; a stopped check proves nothing and
- * leaves it as it was. "3 checks passed" is only said when the last three checks all passed.
- */
-export function passStreaks(entries: readonly { action: string; target: string | null; result: string }[]): Map<string, number> {
-  const streaks = new Map<string, number>();
-  for (const e of entries) {
-    if (e.action !== "verify" || !e.target) continue;
-    streaks.set(e.target, e.result === "PASS" ? (streaks.get(e.target) ?? 0) + 1 : 0);
-  }
-  return streaks;
 }
 
 /** True for an engine reason that says a save point failed its integrity check: it is damaged, not a check that crashed. */
@@ -260,10 +251,4 @@ export function gitLine(c: GitPoint, kind: "git" | "folder"): string {
   const where = c.branch ? `${c.branch} · ${sha}` : `detached at ${sha}`;
   const n = uncommittedCount(c);
   return `${where}${c.subject ? ` ${c.subject}` : ""}${n ? ` + ${n} uncommitted` : ""}`;
-}
-
-/** The branch a row was saved on, when it differs from the save point before it: "on feature/x", "detached at e5dd44b". Else "". */
-export function branchShift(c: Pick<TimelineEntry, "branch" | "head">, before: Pick<TimelineEntry, "branch" | "head"> | undefined, kind: "git" | "folder"): string {
-  if (kind === "folder" || !before || !c.head || c.branch === before.branch) return "";
-  return c.branch ? `on ${c.branch}` : `detached at ${c.head.slice(0, 7)}`;
 }

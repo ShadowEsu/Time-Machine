@@ -14,13 +14,13 @@ export function verdictWord(v: Verdict | null): string {
   return APP_WORDS[v ?? "UNVERIFIED"];
 }
 
-/** Just the time of day, "10:42" or "8:16 PM" by locale. */
+/** Just the time of day, with seconds: "10:42:07" or "8:16:05 PM" by locale. */
 export function clock(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
 
-/** "10:42" today, "Mon 10:42" otherwise. */
+/** "10:42:07" today, "Mon 10:42:07" otherwise. */
 export function when(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "unknown time";
@@ -37,60 +37,45 @@ export interface Stamped {
   createdAt: string;
 }
 
-/** A save point's distinct time: the `label` (with "#N" for twins), the `time` alone, and `nth`, its place among its twins (0 for none). */
+/** A save point's distinct time: the `label` (with "#N" for twins) and the `time` alone. */
 interface Distinct {
   label: string;
   time: string;
-  nth: number;
 }
 
 const distinctCache = new WeakMap<readonly Stamped[], Map<string, Distinct>>();
 
 /**
  * Time labels that tell save points apart (GitLab Pajamas and Primer: show the exact time where order matters).
- * A save point alone in its minute reads "8:16 PM". Save points that share a minute read with seconds,
- * "8:16:05 PM". Save points that still share a second ("twins") add their number, "8:16:05 PM #7", and
- * know their place among the twins, oldest first.
+ * Every time carries its seconds, "8:16:05 PM". Save points that still share a second ("twins") add their number,
+ * "8:16:05 PM #7", for the Inspector, rulers and lists; a name never carries it.
  */
 function distinctClocks(peers: readonly Stamped[]): Map<string, Distinct> {
   const cached = distinctCache.get(peers);
   if (cached) return cached;
-  const perMinute = new Map<number, number>();
-  const perSecond = new Map<number, Stamped[]>();
+  const perSecond = new Map<number, number>();
   for (const p of peers) {
     const t = Date.parse(p.createdAt);
-    if (Number.isNaN(t)) continue;
-    perMinute.set(Math.floor(t / 60_000), (perMinute.get(Math.floor(t / 60_000)) ?? 0) + 1);
-    const twins = perSecond.get(Math.floor(t / 1000)) ?? [];
-    twins.push(p);
-    perSecond.set(Math.floor(t / 1000), twins);
+    if (!Number.isNaN(t)) perSecond.set(Math.floor(t / 1000), (perSecond.get(Math.floor(t / 1000)) ?? 0) + 1);
   }
-  for (const twins of perSecond.values()) twins.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
   const labels = new Map<string, Distinct>();
   for (const p of peers) {
     const t = Date.parse(p.createdAt);
     if (Number.isNaN(t)) continue;
-    if ((perMinute.get(Math.floor(t / 60_000)) ?? 0) < 2) {
-      const time = clock(p.createdAt);
-      labels.set(p.id, { label: time, time, nth: 0 });
-      continue;
-    }
-    const time = new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
-    const twins = perSecond.get(Math.floor(t / 1000)) ?? [];
-    const nth = twins.length > 1 ? twins.indexOf(p) + 1 : 0;
-    const n = /(\d+)$/.exec(p.id)?.[1];
-    labels.set(p.id, { label: nth && n ? `${time} #${Number(n)}` : time, time, nth });
+    const time = clock(p.createdAt);
+    const n = (perSecond.get(Math.floor(t / 1000)) ?? 0) > 1 ? /(\d+)$/.exec(p.id)?.[1] : undefined;
+    labels.set(p.id, { label: n ? `${time} #${Number(n)}` : time, time });
   }
   distinctCache.set(peers, labels);
   return labels;
 }
 
-/** `clock` for a save point, distinct among `peers` (the project's save points). Keeps the "#N" of twins: for rulers, lists and ids, not sentences. */
+/** `clock` for a save point, distinct among `peers` (the project's save points). Keeps the "#N" of twins: for rulers, lists and ids, not names or sentences. */
 export function pointClock(c: Stamped, peers: readonly Stamped[]): string {
   return distinctClocks(peers).get(c.id)?.label ?? clock(c.createdAt);
 }
 
-/** `pointClock` without the "#N": the time alone, for a heading or a readout that says which twin elsewhere. */
+/** `pointClock` without the "#N": the time alone, for a name, a heading or a sentence. */
 export function pointTime(c: Stamped, peers: readonly Stamped[]): string {
   return distinctClocks(peers).get(c.id)?.time ?? clock(c.createdAt);
 }
@@ -99,7 +84,7 @@ function shortDay(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 }
 
-/** `when` for a save point, distinct among `peers`: "8:16:05 PM" today, "Mon 14 Oct 8:16 PM" otherwise. */
+/** `when` for a save point, distinct among `peers`: "8:16:05 PM" today, "Mon 14 Oct 8:16:05 PM" otherwise. */
 export function pointWhen(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
   const d = new Date(c.createdAt);
   if (Number.isNaN(d.getTime())) return "unknown time";
@@ -108,59 +93,90 @@ export function pointWhen(c: Stamped, peers: readonly Stamped[], now = new Date(
   return `${shortDay(d)} ${time}`;
 }
 
-const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+/** Notes a save point gets from how it was made, not from what it holds. They never name it; its time does. */
+const MADE_NOTES: Record<string, true> = { "Auto save": true, "Saved by you": true, "After agent turn": true, "Saved before a check": true, "Saved to compare with now": true, "Saved when the app started": true, "First save point": true };
 
-/** For a save point that shares its second with another (a twin): which one it is, oldest first ("second", "12th"). "" otherwise. */
-export function twinOrdinal(c: Stamped, peers: readonly Stamped[]): string {
-  const n = distinctClocks(peers).get(c.id)?.nth ?? 0;
-  if (!n) return "";
-  return ORDINALS[n - 1] ?? `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
-}
+/** A message is quoted whole up to this many characters, then clipped, so a button or a heading keeps one line. */
+const MESSAGE_MAX = 40;
 
 /**
- * A twin said in a sentence, its order before its time, so "second" can only mean the later of two beads with one time:
- * "the second save at 8:16:05 PM", "the second save on Mon 14 Oct at 8:16:05 PM" (Design 24 Oct P2-1). "" for a save point
- * that shares its second with none. Never "#N" in a sentence.
+ * What a save point is named by: the name someone gave it (`given`), else the agent's prompt, else a note a person or an
+ * agent wrote, else the commit's subject. "" when it has none: a safety save's command, an auto save, a save the app made.
  */
-function twinPhrase(c: Stamped, peers: readonly Stamped[], now: Date): string {
-  const nth = twinOrdinal(c, peers);
-  if (!nth) return "";
+export function pointMessage(c: Titled & { subject?: string | null }, given = ""): string {
+  if (given.trim()) return given.trim();
+  if (c.trigger === "claude-code:pre-bash") return "";
+  const prompt = c.agent?.prompt?.trim();
+  if (prompt) return prompt.charAt(0).toUpperCase() + prompt.slice(1);
+  const note = c.note.trim();
+  if (note && !MADE_NOTES[note] && !/^Before (?:recovering|restoring from) /.test(note)) return note;
+  return c.subject?.trim() ?? "";
+}
+
+/** A save point's name, in two parts: its message in quotes and, secondary, its time ("“Added dark mode”", "2:58:48 AM").
+ *  With no message, its time names it ("Save at 2:58:48 AM") and `time` is "". Times carry the day when not today, never "#N". */
+export interface PointName {
+  name: string;
+  time: string;
+}
+
+export function namePoint(c: Stamped, peers: readonly Stamped[], message: string, now = new Date()): PointName {
   const d = new Date(c.createdAt);
-  const time = pointTime(c, peers);
-  return d.toDateString() === now.toDateString() ? `the ${nth} save at ${time}` : `the ${nth} save on ${shortDay(d)} at ${time}`;
+  const time = Number.isNaN(d.getTime()) ? "" : d.toDateString() === now.toDateString() ? pointTime(c, peers) : `${shortDay(d)} ${pointTime(c, peers)}`;
+  const m = message.trim();
+  if (m) return { name: `“${m.length > MESSAGE_MAX ? `${m.slice(0, MESSAGE_MAX - 1).trimEnd()}…` : m}”`, time };
+  return { name: time ? `Save at ${time}` : "A save with no time", time: "" };
 }
 
-/** When a save point was made, said inside a sentence: "8:16 PM" (the day in front when not today), or a twin's `twinPhrase`. */
-export function pointAt(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || pointWhen(c, peers, now);
+/** The name on one line, for a label, a title or a heading: "“Added dark mode” · 2:58:48 AM", or "Save at 2:58:48 AM". */
+export function nameLine(n: PointName): string {
+  return n.time ? `${n.name} · ${n.time}` : n.name;
 }
 
-/** A version named in a sentence: "the 8:16 PM version", or a twin's "the second save at 8:16:05 PM". */
-export function versionPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || `the ${pointWhen(c, peers, now)} version`;
+/** The name inside a sentence: "“Added dark mode” (2:58:48 AM)", or "the save at 2:58:48 AM". */
+export function namePhrase(n: PointName): string {
+  return n.time ? `${n.name} (${n.time})` : n.name.replace(/^Save at /, "the save at ").replace(/^A save /, "a save ");
 }
 
-/** A version named by its time alone, for a heading whose title and meta line tell twins apart: "the 8:16:05 PM version". */
-export function versionTimePhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  const d = new Date(c.createdAt);
-  if (Number.isNaN(d.getTime())) return `the ${pointWhen(c, peers, now)} version`;
-  const time = pointTime(c, peers);
-  return `the ${d.toDateString() === now.toDateString() ? time : `${shortDay(d)} ${time}`} version`;
-}
-
-/** A save point named in a sentence: "the save point from 8:16 PM", or a twin's "the second save at 8:16:05 PM". */
-export function savePointPhrase(c: Stamped, peers: readonly Stamped[], now = new Date()): string {
-  return twinPhrase(c, peers, now) || `the save point from ${pointWhen(c, peers, now)}`;
-}
-
-/** A phrase made to start a sentence: "the 8:16 PM version" becomes "The 8:16 PM version". */
+/** A phrase made to start a sentence: "the save at 8:16:05 PM" becomes "The save at 8:16:05 PM". */
 export function sentenceStart(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** A heading's time for a save point, without "#N", and for a twin the line under it that says which one: "The second save at 8:16:05 PM". */
-export function sameSecondLine(c: Stamped, peers: readonly Stamped[], now = new Date()): { time: string; line: string } {
-  return { time: pointTime(c, peers), line: sentenceStart(twinPhrase(c, peers, now)) };
+/** The server's home folder, as given and after realpath (/var and /private/var on a Mac), longest first. */
+let homes: readonly string[] = [];
+
+/** Set once from the bootstrap. Trailing separators are dropped; a root ("/") is never a home. */
+export function setHomes(paths: readonly string[]): void {
+  homes = [...new Set(paths.map((x) => x.replace(/[/\\]+$/, "")).filter((x) => x.length > 1))].sort((a, b) => b.length - a.length);
+}
+
+/**
+ * A home folder where a path starts, up to a separator or the path's end. A path starts at the start of the text or after a
+ * space, a quote, a bracket, "=", ":", ";" or ",", so a home folder's name inside another path ("/backup/Users/me") is left
+ * alone. Null when no home is known: nothing is shortened.
+ */
+function homeSource(): string | null {
+  if (!homes.length) return null;
+  const alts = homes.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  return `(?<![^\\s"'\`(\\[<>=:;,])(?:${alts})(?=[/\\\\\\s"'\`<>&;:,)\\]]|\\.(?![\\w-])|$)`;
+}
+
+/** Every path in `text` that starts with the home folder, said with ~ ("~/code/tips"). Anything else stays as it is. */
+export function homePath(text: string): string {
+  const src = homeSource();
+  return src ? text.replace(new RegExp(src, "g"), "~") : text;
+}
+
+/**
+ * `homePath` over a page's HTML before it is drawn, so every path on screen, in a title or an accessible name reads ~. What a
+ * button acts on (any data- attribute), what someone typed (a field's value, a textarea) and a placeholder keep the real text.
+ */
+export function homeHtml(html: string): string {
+  const src = homeSource();
+  if (!src) return html;
+  const re = new RegExp(`(<textarea\\b[\\s\\S]*?</textarea>|\\b(?:data-[\\w-]+|value|placeholder)="[^"]*")|${src}`, "g");
+  return html.replace(re, (_m, keep: string | undefined) => keep ?? "~");
 }
 
 /** Where a picked check came from, in plain words. `created` is false when timemachine.yml already existed. */
@@ -206,12 +222,6 @@ export interface Titled {
   note: string;
   trigger: string;
   agent?: { name: string; prompt?: string } | null;
-}
-
-/** What a save point is about, in the user's words: the agent prompt when there is one, else its note. */
-export function shortTitle(c: Titled): string {
-  const prompt = c.agent?.prompt;
-  return prompt && c.trigger !== "claude-code:pre-bash" ? prompt : c.note;
 }
 
 /**

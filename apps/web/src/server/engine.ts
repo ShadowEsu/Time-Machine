@@ -665,6 +665,9 @@ export class Engine {
         });
       case "restorePaths":
         return this.serial(p.id, "Putting files back", () => tm.restorePaths(ctx, call.id, call.paths, call.dryRun ? { dryRun: true } : {}));
+      case "recoveries":
+        // Read only: History names where each recovery is. Undo still takes only a copy made in this session.
+        return tm.recoveries(ctx);
       case "undoRecover": {
         // Core refuses anything that is not this exact recovery copy. The app also only passes on
         // a copy it made in this session.
