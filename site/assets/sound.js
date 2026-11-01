@@ -109,6 +109,20 @@
   sheet.onload = sheet.onerror = place;   // early in the Tab order, with the header
   document.head.append(sheet);
 
+  // ---- clear of the pricing card ----
+  // At phone widths the floating dock sat on the pricing card's text (Design gate on #65, 31 Oct), and no corner inset
+  // clears a full-width column. So while any of #pricing is on screen the dock is out of view (visibility, so it also
+  // leaves the Tab order), unless keyboard focus is inside it or its panel is open; it comes back as you scroll past.
+  const pricing = document.getElementById("pricing");
+  if (pricing && "IntersectionObserver" in window) {
+    let onPricing = false;
+    const panel = dock.querySelector(".mus-pop");
+    const away = () => dock.classList.toggle("is-away", onPricing && !dock.contains(document.activeElement) && !(panel && !panel.hidden));
+    new IntersectionObserver((entries) => { onPricing = entries[entries.length - 1].isIntersecting; away(); }).observe(pricing);
+    dock.addEventListener("focusout", () => setTimeout(away));
+    if (panel) new MutationObserver(away).observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+  }
+
   // ---- pause motion ----
   const still = dock.querySelector(".mus-motion");
   function setPaused(paused, store) {
