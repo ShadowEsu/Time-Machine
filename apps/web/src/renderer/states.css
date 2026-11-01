@@ -262,9 +262,18 @@
 /* The folder field asks for input; an orange ring there read as an error before anything was typed (writer#37). Errors get their own red line. */
 .ob-page .path-form .field:focus-visible { outline-color: color-mix(in srgb, var(--ink) 30%, transparent); }
 .ob-page .path-form .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--broken); }
-.path-in { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.path-in .field { flex: 1 1 260px; min-width: 0; }
-.path-err { margin: -2px 0 0; font-size: 14px; line-height: 1.5; color: var(--fail-fg); }
+/* The field, then its error and help, then Choose a folder (the markup's order). Wide: Choose sits beside the field and the
+   error and help run under both. Phone: one column, so the error lands right under the field, not under the button (A2). */
+.path-in { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: center; }
+.path-in.has-pick { grid-template-columns: minmax(0, 1fr) auto; }
+.path-in .field { grid-column: 1; grid-row: 1; min-width: 0; }
+.path-in > [data-act="ob-pick"] { grid-column: 2; grid-row: 1; }
+.path-in > .path-err, .path-in > .path-help { grid-column: 1 / -1; margin: 0; }
+.path-err { font-size: 14px; line-height: 1.5; color: var(--fail-fg); }
+@media (max-width: 600px) {
+  .path-in.has-pick { grid-template-columns: minmax(0, 1fr); }
+  .path-in > [data-act="ob-pick"] { grid-column: 1; grid-row: auto; justify-self: start; }
+}
 .ad-full { display: grid; gap: 10px; margin-bottom: 4px; }
 .ad-full p { margin: 0; }
 .ob-page .opt { gap: 12px; padding: 14px 16px; border-radius: var(--r-md); }

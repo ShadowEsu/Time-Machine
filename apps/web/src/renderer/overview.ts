@@ -230,6 +230,6 @@ export function overviewPage(input: OverviewInput): string {
     <section aria-labelledby="ov-p-h"><div class="b9-day"><h2 id="ov-p-h">Protected</h2>${plan}</div>
       <ul class="ov-list${input.enter ? ` ${input.enter}` : ""}">${input.projects.map((p, i) => card(p, i, input)).join("")}</ul>
       <div class="row-btns ov-add"><button class="btn" data-act="add">Protect a folder</button><button class="btn link" data-act="sources">See folders found on this computer</button></div>
-      ${input.freeLimit !== null && input.projects.length >= input.freeLimit ? `<p class="ov-full">${esc(ADD_FULL)}. <button class="btn link" data-act="storage">Open Storage</button></p>` : ""}</section>
+      ${input.freeLimit !== null && input.projects.length >= input.freeLimit ? `<p class="ov-full">${esc(ADD_FULL)} <button class="btn link" data-act="storage">Open Storage</button></p>` : ""}</section>
   </div></div>`;
 }

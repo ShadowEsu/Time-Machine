@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ADD_FULL, ADD_STEPS, AUTO_SAVE_LABEL, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathProblem, purposeCards, skipNote } from "../src/renderer/add-flow.ts";
+import { ADD_FULL, ADD_STEPS, AUTO_SAVE_LABEL, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathErrorWords, pathProblem, purposeCards, skipNote } from "../src/renderer/add-flow.ts";
 import { legendItems, projectStatus } from "../src/renderer/status.ts";
 
 describe("the Add flow", () => {
@@ -87,6 +87,20 @@ describe("the Add flow", () => {
     expect(pathProblem("Documents/Thesis")).toBe("Enter the whole path to the folder, starting with / or ~/.");
   });
 
+  test("the engine's path sentences reach the field as what to do; Choose a folder is named only where it is shown", () => {
+    const missing = "That folder does not exist.";
+    const file = "That is a file, not a folder.";
+    for (const picker of [true, false]) {
+      expect(pathErrorWords(missing, picker)).not.toBe(missing);
+      expect(pathErrorWords(file, picker)).not.toBe(file);
+      expect(pathErrorWords(missing, picker).includes("Choose a folder")).toBe(picker);
+      expect(pathErrorWords(file, picker)).not.toContain("Choose a folder…");
+    }
+    // Every other sentence is the engine's own (permissions, Git) and passes through as it is.
+    const other = "Time Machine can't read ~/x. Check the folder's permissions, then try again.";
+    expect(pathErrorWords(other, true)).toBe(other);
+  });
+
   test("Build it is offered only when package.json has a build script, and never twice", () => {
     expect(buildOffered("code", [], "")).toBe(false);
     expect(buildOffered("code", ["test", "lint"], "npm test")).toBe(false);
@@ -110,12 +124,14 @@ describe("the Add flow", () => {
     expect(defaultAutoSave("git", "documents")).toBe("off");
   });
 
-  test("a full free plan says so on step 1, with the way to Storage and to a key", () => {
-    expect(ADD_FULL).toBe("Free plan full: remove one in Storage");
+  test("a full free plan says so on step 1 in a sentence, with the way to Storage and to the key field in one hop", () => {
+    expect(ADD_FULL).not.toContain(":");
+    expect(ADD_FULL).toMatch(/\.$/);
     const card = addFullCard(3);
     expect(card).toContain(ADD_FULL);
+    expect(card).not.toContain(`${ADD_FULL}.`);
     expect(card).toContain('data-act="storage"');
-    expect(card).toContain('data-act="plan"');
+    expect(card).toMatch(/data-act="settings-section" data-v="license"/);
     expect(card).toContain("3 projects");
     // Disabled cards: nothing is offered that the engine would refuse at the end.
     expect(purposeCards(null, true)).toMatch(/data-act="ob-purpose"[^>]*disabled/);

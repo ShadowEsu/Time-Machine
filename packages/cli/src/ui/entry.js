@@ -9,11 +9,11 @@ if (installBrowserBridge()) {
   const section = document.createElement("main");
   section.className = "browser-connect";
   const title = document.createElement("h1");
-  title.textContent = "Connect to your local Time Machine";
+  title.textContent = "Open the link from your terminal";
   const message = document.createElement("p");
-  message.textContent = "Open the full URL printed by tm ui in your terminal, including the #token fragment. This private link connects this browser to your local projects. Do not share it.";
+  message.textContent = "tm ui printed a private link that ends in #token=…. Open that full link in this browser. Don’t share it: it opens your local projects.";
   const hint = document.createElement("p");
-  hint.textContent = "If the terminal was closed, run tm ui again and use the new URL. Your saved projects and history stay local.";
+  hint.textContent = "Closed the terminal? Run tm ui again and open the new link.";
   section.append(title, message, hint);
   root?.append(section);
 }

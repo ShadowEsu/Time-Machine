@@ -16,7 +16,7 @@ export const PURPOSES: { [P in Purpose]: PurposeWords } = {
   code: { label: "Code project", hint: "An app, a site or a library. Add a check that tells you it works, or only save versions.", unit: "save point", units: "save points" },
   documents: { label: "Documents and notes", hint: "Writing, notes, a thesis, an Obsidian vault.", unit: "save point", units: "save points" },
   research: { label: "Research and experiments", hint: "Analysis scripts, data and trial-run outputs.", unit: "run", units: "runs" },
-  agents: { label: "AI agent workspace", hint: "A folder an agent works in, so you can see what it changed and go back.", unit: "save point", units: "save points" },
+  agents: { label: "AI agent workspace", hint: "A folder an agent works in, so you can see what it changed and bring a version back.", unit: "save point", units: "save points" },
   other: { label: "Something else", hint: "Any folder of your own files.", unit: "save point", units: "save points" },
 };
 
