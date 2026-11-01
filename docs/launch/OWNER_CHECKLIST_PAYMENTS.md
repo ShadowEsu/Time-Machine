@@ -17,7 +17,7 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 
 - **Who:** the owner, on their own computer, in the repo.
 - **Throwaway pair, for test mode:** `node scripts/license-keygen.mjs` (prints a pair, writes nothing). Keep it in `.private/LICENSE_SIGNING_KEY.md`, which is never in the repo.
-- **Release pair, for live mode:** made with the command in `CHECKOUT_SETUP.md` section 1, which sends the private key straight into Vercel's Production settings as a Sensitive variable and prints only the public key. The private key never appears on a screen, in a file, in chat, in an issue or in a commit. Put the printed public key in `LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts` and `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js` in one commit, and run `pnpm vitest run site/api packages/core/test/license.test.ts`. No key has been sold yet, so replacing the public key in the repo breaks nothing. Live checkout refuses any other signing key.
+- **Release pair, for live mode: done on 2026-11-01** (`CHECKOUT_SETUP.md` section 1). The private key is only in Vercel Production as `TM_LICENSE_PRIVATE_KEY` (Sensitive), and its public key is committed in `LICENSE_PUBLIC_KEY` and `SELLER_PUBLIC_KEY`. Never delete or overwrite that variable: there is no backup. Live checkout refuses any other signing key.
 
 ## 3. Vercel settings, test values first
 
@@ -29,10 +29,10 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 | Name | Value now (Preview) | Value at step 7 (Production) |
 |---|---|---|
 | `STRIPE_SECRET_KEY` | the `rk_test_` key from step 1 | the restricted live key (`rk_live_`), pasted by the owner in the Vercel UI |
-| `TM_LICENSE_PRIVATE_KEY` | the throwaway private key from step 2 | the release private key, piped in by the step 2 command |
+| `TM_LICENSE_PRIVATE_KEY` | the throwaway private key from step 2 | already set: the release private key (step 2). Do not change it |
 | `TM_CHECKOUT_LIVE` | leave unset | exactly `1` |
 | `SUPABASE_ANON_KEY` | the Supabase project's anon key | same |
-| `SITE_ORIGIN` | leave unset, so the preview's own address is used | leave unset, so buyers return to the host they bought on |
+| `SITE_ORIGIN` | leave unset, so the preview's own address is used | `https://time-machine-site.vercel.app` (never `time-machine.company`, which some networks block) |
 
 - **Then:** make a preview deployment so the settings apply, and open `/api/health` on it. It should show `"checkout": true`. It shows `"auth": true` only after step 4. Production keeps showing `"checkout": false` until step 9.
 
@@ -62,9 +62,9 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 ## 7. Turn on live mode
 
 - **Who:** the owner, only after the written approval in step 6.
-- **Do, all at once in Vercel, on Production only, each as a Sensitive variable:** paste the restricted live key into `STRIPE_SECRET_KEY` yourself, check `TM_LICENSE_PRIVATE_KEY` holds the release private key (step 2), set `TM_CHECKOUT_LIVE` to exactly `1`, and set `SUPABASE_ANON_KEY` if sign-in is on. Leave `SITE_ORIGIN` unset.
+- **Do, in Vercel, on Production only, each as a Sensitive variable:** paste the restricted live key into `STRIPE_SECRET_KEY` yourself, set `SITE_ORIGIN` to `https://time-machine-site.vercel.app`, and set `SUPABASE_ANON_KEY` if sign-in is on. `TM_LICENSE_PRIVATE_KEY` is already the release private key; do not change it. Redeploy, check that `/api/health` on Production shows `"releaseKey": true`, and only then set `TM_CHECKOUT_LIVE` to exactly `1`, last.
 - **The code checks all of it:** live checkout opens only on Production, with `TM_CHECKOUT_LIVE` exactly `1`, an `rk_live_` key and the release signing key (`CHECKOUT_SETUP.md` section 6). Anything else stays closed and calls nothing.
-- **Do not redeploy yet.** Settings apply only to the next deploy.
+- **After setting `TM_CHECKOUT_LIVE`, do not redeploy yet.** Settings apply only to the next deploy, which is step 9, after Security's GO.
 
 ## 8. Security GO
 
@@ -76,5 +76,5 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 
 - **Who:** the owner.
 - **Command, from `site/`:** `vercel --prod`
-- **Then:** open `/api/health` and check `"checkout": true` (and `"auth": true` if sign-in is on).
+- **Then:** open `/api/health` and check `"checkout": true` and `"releaseKey": true` (and `"auth": true` if sign-in is on).
 - **First live purchase, with your own card:** buy once for $50 on the live site, check the `/thanks` key works with `tm license <key>` in a normal release, then refund that payment in full in the Stripe Dashboard (Payments, the payment, Refund), reload the same `/thanks` page and check that it says the purchase was refunded and shows no key.

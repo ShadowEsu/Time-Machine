@@ -27,8 +27,9 @@ const TEST_KEY = /^(sk|rk)_test_[A-Za-z0-9_]+$/;
 const LIVE_KEY = /^rk_live_[A-Za-z0-9_]+$/;
 // The release public key every Time Machine release checks keys against. Must equal LICENSE_PUBLIC_KEY in
 // packages/core/src/license.ts (a test keeps them equal). Keys signed with its private half work forever,
-// so that private key only ever signs keys for real, live-mode payments.
-export const SELLER_PUBLIC_KEY = "Q_PPODTar9QhyhsdEruxYVIpPl-kSZnrfTQtcAzHqoA";
+// so that private key only ever signs keys for real, live-mode payments. Made on 2026-11-01; its private half
+// exists only in Vercel Production as TM_LICENSE_PRIVATE_KEY (Sensitive), and /api/health's releaseKey proves the match.
+export const SELLER_PUBLIC_KEY = "FP-N-EN2DqV2TAYj_d6DAozkwnyX5vzGtmfEi0RUJfY";
 export const PKCS8_HEADER = Buffer.from("302e020100300506032b657004220420", "hex");
 
 export const reply = (status, body, headers = {}) => ({ status, headers, body });
@@ -39,9 +40,14 @@ export function publicKeyOf(privateKey) {
   return createPublicKey(key).export({ type: "spki", format: "der" }).subarray(-32).toString("base64url");
 }
 
-// True when the configured signing key is the release key, whose keys every release accepts.
+// True when the value is a raw 32-byte Ed25519 private key as base64url (43 characters).
+export function isSigningKey(value) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value) && Buffer.from(value, "base64url").length === 32;
+}
+
+// True when the configured signing key is well formed and is the release key, whose keys every release accepts.
 export function signsReleaseKeys(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
-  return publicKeyOf(env.TM_LICENSE_PRIVATE_KEY) === sellerPublicKey;
+  return isSigningKey(env.TM_LICENSE_PRIVATE_KEY) && publicKeyOf(env.TM_LICENSE_PRIVATE_KEY) === sellerPublicKey;
 }
 
 // True when the Stripe key is a restricted live key. Its sessions are live-mode sessions; any other key's are test-mode.
@@ -57,9 +63,7 @@ export function isLiveKey(key) {
 // a key the site cannot sign, and a key set by mistake takes no money. Used by checkout, license, account and
 // /api/health. `sellerPublicKey` is injectable so tests can stand in for the release key.
 export function isCheckoutConfigured(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
-  if (!env || !env.STRIPE_SECRET_KEY || !env.TM_LICENSE_PRIVATE_KEY) return false;
-  if (!/^[A-Za-z0-9_-]{43}$/.test(env.TM_LICENSE_PRIVATE_KEY)) return false;
-  if (Buffer.from(env.TM_LICENSE_PRIVATE_KEY, "base64url").length !== 32) return false;
+  if (!env || !env.STRIPE_SECRET_KEY || !isSigningKey(env.TM_LICENSE_PRIVATE_KEY)) return false;
   const releaseKey = signsReleaseKeys(env, sellerPublicKey);
   // Vercel sets VERCEL_ENV to "production" on the live deployment; previews and local runs keep test mode.
   if (env.VERCEL_ENV === "production") return env.TM_CHECKOUT_LIVE === "1" && isLiveKey(env.STRIPE_SECRET_KEY) && releaseKey;

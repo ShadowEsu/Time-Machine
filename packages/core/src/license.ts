@@ -11,8 +11,8 @@ import { TmError } from "./errors.js";
 import { privateDir } from "./paths.js";
 import type { Ctx } from "./types.js";
 
-/** Raw Ed25519 public key, base64url. The matching private key lives only with the seller. */
-export const LICENSE_PUBLIC_KEY = "Q_PPODTar9QhyhsdEruxYVIpPl-kSZnrfTQtcAzHqoA";
+/** Raw Ed25519 public key, base64url. The matching private key lives only with the seller (Vercel Production, made 2026-11-01). */
+export const LICENSE_PUBLIC_KEY = "FP-N-EN2DqV2TAYj_d6DAozkwnyX5vzGtmfEi0RUJfY";
 
 /**
  * The public key license keys are checked against, for the CLI and the web app alike. TM_LICENSE_PUBLIC_KEY

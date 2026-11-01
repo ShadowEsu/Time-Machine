@@ -20,18 +20,9 @@ node scripts/license-keygen.mjs
 
 It prints a public key and a private key and writes nothing. The private key is what Vercel uses in test mode (step 3). Keys it signs work only with `TM_LICENSE_PUBLIC_KEY` set to its public key, never in a normal release. Keep the pair in `.private/LICENSE_SIGNING_KEY.md` on your computer; that folder is never in the repo.
 
-**The release keypair**, once, for live mode (step 6). Every release accepts keys signed with its private key, forever, so that private key never appears on a screen, in a file, in chat, in an issue or in a commit. Make it and send the private half straight into Vercel's Production settings, printing only the public half. From `site/`, with the Vercel CLI signed in to the `time-machine-site` project:
+**The release keypair**, for live mode (step 6). **Made on 2026-11-01.** Its public key is `LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts` and `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js` (a test keeps them equal and pins the value). Its private half exists only in Vercel, as the Production variable `TM_LICENSE_PRIVATE_KEY` of type Secret (Sensitive). One process made the pair in memory and wrote the private half only to the stdin of `vercel env add TM_LICENSE_PRIVATE_KEY --environment production --sensitive`, printing only the public half. The private half never went through argv, an env var, a file, a log or chat. `/api/health` on Production shows `"releaseKey": true` when that variable matches the committed public key.
 
-```sh
-node -e '
-const { generateKeyPairSync } = require("node:crypto");
-const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-console.error("Release public key (commit this): " + publicKey.export({ type: "spki", format: "der" }).subarray(-32).toString("base64url"));
-process.stdout.write(privateKey.export({ type: "pkcs8", format: "der" }).subarray(-32).toString("base64url"));
-' | npx -y vercel@65.5.0 env add TM_LICENSE_PRIVATE_KEY --environment production --sensitive
-```
-
-The private key goes only through the pipe (`vercel env add` reads a piped value from stdin) and is stored as a Sensitive variable, which Vercel never shows again. Then put the printed public key in `LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts` and `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js` (a test keeps them equal), run `pnpm vitest run site/api packages/core/test/license.test.ts`, and commit. Never delete that Vercel variable: the private key exists nowhere else, and a new pair means a release with the new public key, which refuses every key sold before it.
+There is no backup. **Never delete or overwrite that Vercel variable.** Every release accepts keys signed with it forever. If it is ever lost, make a new pair the same way and ship a release that accepts both public keys, so keys already sold keep working.
 
 ## 2. Stripe account, test mode first
 
@@ -53,7 +44,7 @@ Redeploy after saving. Environment variables apply to new deployments only.
 
 ## 4. Check health
 
-Open `/api/health` on the preview deployment. It must show `"checkout": true`. If it shows `false`, one of the two required settings is missing, the Stripe key is not a test key, the signing key is the release key, the private key is not 43 base64url characters, or this is the Production deployment. No secret value is ever shown there.
+Open `/api/health` on the preview deployment. It must show `"checkout": true` and `"releaseKey": false`. If `checkout` shows `false`, one of the two required settings is missing, the Stripe key is not a test key, the signing key is the release key, the private key is not 43 base64url characters, or this is the Production deployment. No secret value is ever shown there.
 
 ## 5. One test purchase
 
@@ -70,11 +61,11 @@ Live checkout opens only when all four of these hold, checked by `isCheckoutConf
 1. The deployment is Production (`VERCEL_ENV` is `production`). Preview and local runs are never live.
 2. `TM_CHECKOUT_LIVE` is exactly `1`.
 3. `STRIPE_SECRET_KEY` is a restricted live key: it starts with `rk_live_`, with nothing before it and no space or newline. A live secret key (`sk_live_`) is refused.
-4. `TM_LICENSE_PRIVATE_KEY` is the release private key from step 1, so real money only ever buys keys every release accepts.
+4. `TM_LICENSE_PRIVATE_KEY` is the release private key from step 1, so real money only ever buys keys every release accepts. `/api/health` shows `"releaseKey": true` exactly when this holds.
 
 Anything else answers `503 checkout_closed` from checkout, license and account, and `/api/health` shows `checkout: false`. The Production deployment never takes a test key, with or without the flag, and no other deployment takes a live key.
 
-Before turning it on, the owner's checklist (`docs/launch/OWNER_CHECKLIST_PAYMENTS.md`) needs: a seller of record (see `docs/legal/README.md`), final terms and privacy with one refund rule, and one support address. Then, on Production only, as Sensitive variables: the owner pastes the restricted live key (`rk_live_`, the same permissions as the step 2 test key) into `STRIPE_SECRET_KEY` in the Vercel UI, `TM_LICENSE_PRIVATE_KEY` holds the release private key from step 1, and `TM_CHECKOUT_LIVE` is `1`. Leave `SITE_ORIGIN` unset.
+Before turning it on, the owner's checklist (`docs/launch/OWNER_CHECKLIST_PAYMENTS.md`) needs: a seller of record (see `docs/legal/README.md`), final terms and privacy with one refund rule, and one support address. Then, on Production only, as Sensitive variables: the owner pastes the restricted live key (`rk_live_`, the same permissions as the step 2 test key) into `STRIPE_SECRET_KEY` in the Vercel UI, `TM_LICENSE_PRIVATE_KEY` already holds the release private key (step 1), and `SITE_ORIGIN` is `https://time-machine-site.vercel.app`, the host every network reaches (never `time-machine.company`, which some networks block). Check `/api/health` shows `"releaseKey": true` on Production, then set `TM_CHECKOUT_LIVE` to `1` last.
 
 A session's mode always has to match the key's: a live server never gives a key for a test-mode session (`/api/license` answers `402 test_purchase` and `/api/account` leaves it out), and a test server never gives one for a live-mode session.
 
