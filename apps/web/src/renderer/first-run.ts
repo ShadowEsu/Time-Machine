@@ -1,6 +1,7 @@
-// Onboarding copy and buttons, decided from what the app knows. Pure, so the window and the tests
-// agree. Finish is always one click away.
-import type { HookPreview } from "../shared/api.js";
+// Onboarding copy and buttons, the Welcome page and the connection banner's words, decided from what the app knows. Pure, so
+// the window and the tests agree. Finish is always one click away.
+import { DISCONNECTED, type HookPreview } from "../shared/api.js";
+import { esc } from "../shared/format.js";
 
 export interface HookStepActions {
   /** The filled button. "ob-connect-finish" adds the lines, then finishes. */
@@ -66,4 +67,37 @@ export function welcomeWords(code: boolean, where: string): { how: [string, stri
         ],
         know: [`Runs on ${where}. Your files are not uploaded.`, "Your folder is not touched.", undo],
       };
+}
+
+/**
+ * First run (Welcome), B's layout: the buddy beside the display line and the voice line, no greeting. Try the demo is the one
+ * primary (the ink card), Protect a folder the quiet second with its shortcut, then how it works and Good to know (Design A8).
+ * `buddy` is the hero mark's markup and `addKey` the Protect shortcut as shown ("⌘N").
+ */
+export function welcomePage({ code, where, buddy, addKey }: { code: boolean; where: string; buddy: string; addKey: string }): string {
+  const arrow = '<svg class="wl-arrow" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h11M11 5.5 15.5 10 11 14.5"/></svg>';
+  const play = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M7.2 5.6v8.8l7-4.4z" fill="currentColor"/></svg>';
+  // Agents, tests and branches only once a code project is here; until then, words true for any folder (writer#24).
+  const words = welcomeWords(code, where);
+  return `<div class="welcome wl"><div class="wl-in">
+    <header class="wl-hi">${buddy}<div class="wl-t"><h1>Let’s keep your work safe.</h1><p class="voice welcome-v">Get back the version that worked.</p></div></header>
+    <button class="wl-demo wl-primary" data-act="demo"><span class="wl-demo-ic">${play}</span><span class="wl-demo-t"><b>Try the demo</b><span>Marigold Tips in a temporary folder, broken on purpose. Your projects are not touched.</span></span>${arrow}</button>
+    <div class="wl-own"><button class="btn quiet wl-add" data-act="add">Protect a folder<kbd>${esc(addKey)}</kbd></button><p>Code, documents, research or an agent’s workspace. Any folder works. Git is not needed.</p></div>
+    <div class="wl-cols">
+      <section aria-labelledby="wl-how-h"><h2 id="wl-how-h">How it works</h2><ol class="wl-steps">
+        ${words.how.map(([t, line]) => `<li><b>${esc(t)}</b><span>${esc(line)}</span></li>`).join("")}</ol></section>
+      <section aria-labelledby="wl-know-h"><h2 id="wl-know-h">Good to know</h2><ul class="wl-know">
+        ${words.know.map((line) => `<li>${esc(line)}</li>`).join("")}</ul></section>
+    </div>
+    <p class="foot local-note">Keep <span class="mono">tm ui</span> running in your terminal.</p>
+  </div></div>`;
+}
+
+/** The banner over the app while tm ui can't be reached: null when connected (or not known yet), else its title and line.
+ *  A lost connection says the history is safe and both ways back (Design A10); a link without its token keeps the bridge's
+ *  own sentence. */
+export function connectionText(c: { state: "connecting" | "connected" | "disconnected"; message?: string } | null): { title: string; line: string } | null {
+  if (!c || c.state === "connected") return null;
+  if (c.state === "connecting") return { title: "Connecting to your local app", line: c.message ?? "Keep tm ui running in your terminal. Live history and actions need that connection." };
+  return { title: "Disconnected from tm ui", line: c.message ?? DISCONNECTED };
 }

@@ -20,7 +20,7 @@ import { renderAskPanel } from "./ask-panel.js";
 import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
-import { checkLede, hookStepActions, setupStrip, welcomeWords } from "./first-run.js";
+import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
 import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, RING_MS, VERDICT_MS } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
@@ -781,37 +781,14 @@ function navigation(): string {
 
 /** The link to tm ui: while it connects the strip is sky and says so; once it drops, it says why and offers Reconnect. */
 function connectionBanner(): string {
-  const c = st.connection;
-  if (!c || c.state === "connected") return "";
-  // The title already says "Disconnected"; the bridge's sentence starts by saying it again, so that clause is dropped here.
-  const said = (c.message ?? "Keep tm ui running in your terminal. Live history and actions need that connection.").replace(/^Disconnected from the local app\.\s*/, "");
-  return `<div class="connection-banner" data-state="${c.state}" role="status">${buddy("conn-buddy")}<div><b>${c.state === "connecting" ? "Connecting to your local app" : "Disconnected from your local app"}</b><p>${esc(said)}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
+  const t = connectionText(st.connection);
+  if (!t || !st.connection) return "";
+  return `<div class="connection-banner" data-state="${st.connection.state}" role="status">${buddy("conn-buddy")}<div><b>${esc(t.title)}</b><p>${esc(t.line)}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
 }
 
-/**
- * First run, in the shape of Unvibe's Today: the buddy says hello beside the display line and the voice line, then the two ways
- * in as cards (your own project in ink, the demo outlined), how it works and what to know. Every sentence is one this page, the
- * add steps or the demo sheet already said.
- */
+/** First run (first-run.ts welcomePage): Try the demo as the one primary, Protect a folder the quiet second. */
 function welcome(): string {
-  const hour = new Date().getHours();
-  const hello = hour >= 5 && hour < 12 ? "Good morning." : hour >= 12 && hour < 18 ? "Good afternoon." : "Good evening.";
-  const arrow = '<svg class="wl-arrow" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h11M11 5.5 15.5 10 11 14.5"/></svg>';
-  const play = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M7.2 5.6v8.8l7-4.4z" fill="currentColor"/></svg>';
-  // Agents, tests and branches only once a code project is here; until then, words true for any folder (writer#24).
-  const words = welcomeWords(st.projects.some((p) => p.purpose === "code"), device());
-  return `<div class="welcome wl"><div class="wl-in">
-    <header class="wl-hi">${buddy("hero")}<p class="wl-hello voice">${hello}</p><div class="wl-t"><h1>Let’s keep your work safe.</h1><p class="voice welcome-v">Get back the version that worked.</p></div></header>
-    <section class="wl-go" aria-labelledby="wl-go-h"><div><h2 id="wl-go-h">Something of your own</h2><p>Code, documents, research or an agent’s workspace. Any folder works. Git is not needed.</p></div><button class="btn big wl-add" data-act="add">Protect a folder<kbd>${keys("Mod+N")}</kbd></button></section>
-    <button class="wl-demo" data-act="demo"><span class="wl-demo-ic">${play}</span><span class="wl-demo-t"><b>Try the demo</b><span>Marigold Tips in a temporary folder, broken on purpose. Your projects are not touched.</span></span>${arrow}</button>
-    <div class="wl-cols">
-      <section aria-labelledby="wl-how-h"><h2 id="wl-how-h">How it works</h2><ol class="wl-steps">
-        ${words.how.map(([t, line]) => `<li><b>${esc(t)}</b><span>${esc(line)}</span></li>`).join("")}</ol></section>
-      <section aria-labelledby="wl-know-h"><h2 id="wl-know-h">Good to know</h2><ul class="wl-know">
-        ${words.know.map((line) => `<li>${esc(line)}</li>`).join("")}</ul></section>
-    </div>
-    <p class="foot local-note">Local browser app · Keep <span class="mono">tm ui</span> running in your terminal.</p>
-  </div></div>`;
+  return welcomePage({ code: st.projects.some((p) => p.purpose === "code"), where: device(), buddy: buddy("hero"), addKey: keys("Mod+N") });
 }
 
 /** Who made a save point, as shown on its author chip. */

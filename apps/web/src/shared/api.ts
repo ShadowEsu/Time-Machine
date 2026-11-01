@@ -578,6 +578,9 @@ export type AppEvent =
   | { type: "settings"; settings: Settings }
   | { type: "license"; license: LicenseStatus };
 
+/** What the browser bridge says when it loses tm ui, and the banner's line under "Disconnected from tm ui" (Design A10). */
+export const DISCONNECTED = "Your history is safe on this computer. If tm ui is still running, press Reconnect. If you restarted it, open the new link it printed.";
+
 export interface TmBridge {
   call<M extends Method>(call: CallOf<M>): Promise<Res<Results[M]>>;
   onEvent(cb: (e: AppEvent) => void): () => void;
