@@ -154,12 +154,13 @@ export function setHomes(paths: readonly string[]): void {
 /**
  * A home folder where a path starts, up to a separator or the path's end. A path starts at the start of the text or after a
  * space, a quote, a bracket, "=", ":", ";" or ",", so a home folder's name inside another path ("/backup/Users/me") is left
- * alone. Null when no home is known: nothing is shortened.
+ * alone. A file URL into it (a check's stack trace: "file:///Users/me/…") is taken whole and reads ~ too. Null when no home
+ * is known: nothing is shortened.
  */
 function homeSource(): string | null {
   if (!homes.length) return null;
   const alts = homes.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  return `(?<![^\\s"'\`(\\[<>=:;,])(?:${alts})(?=[/\\\\\\s"'\`<>&;:,)\\]]|\\.(?![\\w-])|$)`;
+  return `(?<![^\\s"'\`(\\[<>=:;,])(?:file://)?(?:${alts})(?=[/\\\\\\s"'\`<>&;:,)\\]]|\\.(?![\\w-])|$)`;
 }
 
 /** Every path in `text` that starts with the home folder, said with ~ ("~/code/tips"). Anything else stays as it is. */

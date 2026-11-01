@@ -43,6 +43,13 @@ describe("home paths", () => {
     expect(homePath("A copy is ready at /Users/me.")).toBe("A copy is ready at ~.");
   });
 
+  test("a file URL into the home folder, as in a check's stack trace, reads ~", () => {
+    setHomes(["/Users/me"]);
+    expect(homePath("at TestContext.<anonymous> (file:///Users/me/code/tips/test/tips.test.js:6:10)")).toBe("at TestContext.<anonymous> (~/code/tips/test/tips.test.js:6:10)");
+    expect(homePath("file:///Users/meg/code")).toBe("file:///Users/meg/code");
+    expect(homePath("file:///backup/Users/me/code")).toBe("file:///backup/Users/me/code");
+  });
+
   test("with no home known nothing changes, and a root is never a home", () => {
     expect(homePath("/Users/me/code")).toBe("/Users/me/code");
     setHomes(["/"]);
