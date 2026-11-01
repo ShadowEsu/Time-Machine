@@ -3,8 +3,8 @@
 // BOX_VERSION names the box wording. Every box sends all three versions, so an older page or app is refused and says why.
 import { reply } from "./waitlist.js";
 
-export const TERMS_VERSION = "terms-2026-10-22";
-export const PRIVACY_VERSION = "privacy-2026-10-28b";
+export const TERMS_VERSION = "terms-2026-10-31";
+export const PRIVACY_VERSION = "privacy-2026-10-31";
 export const BOX_VERSION = "agree-box-2026-10-29";
 
 /**

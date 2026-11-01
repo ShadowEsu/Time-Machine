@@ -11,15 +11,13 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 - **Who:** an adult who can sign contracts, or a company with an adult officer (`docs/legal/README.md`).
 - **Do:** create the Stripe account in that person's or company's name and finish the business details Stripe asks for.
 - **URL:** https://dashboard.stripe.com/register
-- **Then:** stay in test mode. Copy the test secret key (starts with `sk_test_`) from https://dashboard.stripe.com/test/apikeys. Do not copy or use the live key yet.
+- **Then:** stay in test mode. At https://dashboard.stripe.com/test/apikeys, Create restricted key (`rk_test_`) with only: Checkout Sessions **Write**, and **Read** for Checkout Sessions, PaymentIntents, Charges, Refunds and Disputes. The live key in step 7 gets the same permissions. Do not make or use a live key yet.
 
 ## 2. Keypairs
 
 - **Who:** the owner, on their own computer, in the repo.
-- **Command:** `node scripts/license-keygen.mjs` (prints a pair, writes nothing).
-- **Release pair:** the repo already holds a release public key (`LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts`, equal to `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js`). If you hold its private half, keep it and skip making a new one. If nobody holds it, make a new pair, put the new public key in both places in one commit, and run `pnpm vitest run site/api packages/core/test/license.test.ts`. No key has been sold yet, so nothing breaks.
-- **Throwaway pair:** run the command again. This pair is for test mode only.
-- **Where private keys go:** the release private key goes into Vercel only, and only in step 7. Keep your own private backup in `.private/LICENSE_SIGNING_KEY.md`, which is never in the repo. Never paste a private key in chat, an issue or a commit.
+- **Throwaway pair, for test mode:** `node scripts/license-keygen.mjs` (prints a pair, writes nothing). Keep it in `.private/LICENSE_SIGNING_KEY.md`, which is never in the repo.
+- **Release pair, for live mode:** made with the command in `CHECKOUT_SETUP.md` section 1, which sends the private key straight into Vercel's Production settings as a Sensitive variable and prints only the public key. The private key never appears on a screen, in a file, in chat, in an issue or in a commit. Put the printed public key in `LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts` and `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js` in one commit, and run `pnpm vitest run site/api packages/core/test/license.test.ts`. No key has been sold yet, so replacing the public key in the repo breaks nothing. Live checkout refuses any other signing key.
 
 ## 3. Vercel settings, test values first
 
@@ -30,10 +28,11 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 
 | Name | Value now (Preview) | Value at step 7 (Production) |
 |---|---|---|
-| `STRIPE_SECRET_KEY` | the `sk_test_` key from step 1 | the live key |
-| `TM_LICENSE_PRIVATE_KEY` | the throwaway private key from step 2 | the release private key |
+| `STRIPE_SECRET_KEY` | the `rk_test_` key from step 1 | the restricted live key (`rk_live_`), pasted by the owner in the Vercel UI |
+| `TM_LICENSE_PRIVATE_KEY` | the throwaway private key from step 2 | the release private key, piped in by the step 2 command |
+| `TM_CHECKOUT_LIVE` | leave unset | exactly `1` |
 | `SUPABASE_ANON_KEY` | the Supabase project's anon key | same |
-| `SITE_ORIGIN` | leave unset, so the preview's own address is used | `https://time-machine.company` |
+| `SITE_ORIGIN` | leave unset, so the preview's own address is used | leave unset, so buyers return to the host they bought on |
 
 - **Then:** make a preview deployment so the settings apply, and open `/api/health` on it. It should show `"checkout": true`. It shows `"auth": true` only after step 4. Production keeps showing `"checkout": false` until step 9.
 
@@ -44,7 +43,7 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 - **Email templates** (Authentication, Email Templates): put `{{ .Token }}` in both the **Magic Link** and **Confirm signup** templates. Without it the email has only a link, and the site asks for a code.
 - **Custom SMTP** (Authentication, SMTP Settings): set a sender with a neutral name. The built-in sender delivers only to team members and allows 2 emails per hour for the whole project.
 - **Rate limits** (Authentication, Rate Limits): raise the email limit above 2 per hour.
-- **URL configuration:** set Site URL to the `SITE_ORIGIN` value.
+- **URL configuration:** set Site URL to `https://time-machine-site.vercel.app`.
 - **Then:** `/api/health` on the preview deployment should show `"auth": true`.
 
 ## 5. One test-mode run, end to end
@@ -63,7 +62,8 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 ## 7. Turn on live mode
 
 - **Who:** the owner, only after the written approval in step 6.
-- **Do, all at once in Vercel, on Production:** set `STRIPE_SECRET_KEY` to the live key, `TM_LICENSE_PRIVATE_KEY` to the release private key, `SUPABASE_ANON_KEY`, `SITE_ORIGIN`, and `STRIPE_LIVE_OK` to exactly `yes-attorney-cleared`.
+- **Do, all at once in Vercel, on Production only, each as a Sensitive variable:** paste the restricted live key into `STRIPE_SECRET_KEY` yourself, check `TM_LICENSE_PRIVATE_KEY` holds the release private key (step 2), set `TM_CHECKOUT_LIVE` to exactly `1`, and set `SUPABASE_ANON_KEY` if sign-in is on. Leave `SITE_ORIGIN` unset.
+- **The code checks all of it:** live checkout opens only on Production, with `TM_CHECKOUT_LIVE` exactly `1`, an `rk_live_` key and the release signing key (`CHECKOUT_SETUP.md` section 6). Anything else stays closed and calls nothing.
 - **Do not redeploy yet.** Settings apply only to the next deploy.
 
 ## 8. Security GO
@@ -76,4 +76,5 @@ What is built: checkout, the thanks page key, sign-in by email code, the account
 
 - **Who:** the owner.
 - **Command, from `site/`:** `vercel --prod`
-- **Then:** open `/api/health` and check `"checkout": true` and `"auth": true`. Make one real $50 purchase with your own card, check the key works with `tm license <key>` in a normal release, and refund it if you want.
+- **Then:** open `/api/health` and check `"checkout": true` (and `"auth": true` if sign-in is on).
+- **First live purchase, with your own card:** buy once for $50 on the live site, check the `/thanks` key works with `tm license <key>` in a normal release, then refund that payment in full in the Stripe Dashboard (Payments, the payment, Refund), reload the same `/thanks` page and check that it says the purchase was refunded and shows no key.
