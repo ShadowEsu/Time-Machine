@@ -412,7 +412,7 @@
 
   <section class="block" id="pricing" aria-labelledby="pricing-h">
     <div class="block-head">
-      <h2 id="pricing-h" data-type>Pay once</h2>
+      <h2 id="pricing-h" data-type>Pricing</h2>
       <p class="lead">The web app is free for up to 3 projects at a time. One payment of $50 lets it list as many as you like. No subscription.</p>
     </div>
     <div class="plans">
@@ -426,7 +426,7 @@
           <li>No subscription.</li>
           <li>Refund within 14 days by email. <a href="terms.html#license">Terms (draft)</a></li>
         </ul>
-        <p class="plan-closed" data-buy-closed><b>Checkout opens soon.</b> Until then the web app is free for up to 3 projects at a time, and the CLI is free and open source.</p>
+        <p class="plan-closed" data-buy-closed><b>Not on sale yet.</b> Until it is, the web app is free for up to 3 projects, and every restore stays free.</p>
         <a class="btn btn-primary" href="#try" data-buy-closed>Install it free</a>
         <button class="btn btn-primary" type="button" data-buy hidden>Buy once for $50</button>
         <p class="plan-status" data-buy-status role="status" aria-live="polite"></p>
@@ -465,7 +465,7 @@ tm demo</pre>
         <button class="btn btn-ghost btn-sm" type="button" data-copy="ui-cmd" hidden>Copy</button>
         <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
       </div>
-      <p class="install-note"><code translate="no">tm ui</code> opens the web app in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. It is free for up to 3 projects at a time; a one-time key lifts the limit (<code translate="no">tm license &lt;key&gt;</code>, or Settings &gt; License).<span data-checkout-open hidden> <a href="#pricing">Pay once for the key</a>.</span></p>
+      <p class="install-note"><code translate="no">tm ui</code> opens the web app in your browser. It runs on your own computer at <code translate="no">127.0.0.1</code>, not on a website, so your project is never uploaded. Keep the terminal open while you use it. It is free for up to 3 projects at a time; a one-time key lifts the limit (<code translate="no">tm license &lt;key&gt;</code>, or Settings, then Plan and license).<span data-checkout-open hidden> <a href="#pricing">Pay once for the key</a>.</span></p>
     </div>
     <div class="try-side">
       <div class="agent-setup" data-copy-box>
@@ -584,7 +584,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
       <details><summary>Does a PASS mean my app is correct?</summary><p>It means your tests passed. Time Machine never calls a save point working unless your own check passed on it.</p></details>
       <details><summary>What happens after I join?</summary><p>Your email goes on the list. This site sends no email; we write to the list ourselves when the CLI is on npm. If the form says the list isn’t open yet, email preston@unvibe.site instead.</p></details>
       <details><summary>Is the web app hosted?</summary><p>No. <code translate="no">tm ui</code> runs on your computer. Your browser talks to it on <code translate="no">127.0.0.1</code> with a private token that changes each time you start it. Your project is never uploaded, and nothing on it needs a password.</p></details>
-      <details><summary>What does the $50 buy?</summary><p>A license key that lets the web app list as many projects as you like, instead of 3 at a time, on any number of your own computers, with updates while we ship them. One payment, no subscription. Paste the key in <code translate="no">tm ui</code> under Settings, then License, or run <code translate="no">tm license &lt;key&gt;</code>. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall. Checkout is not open yet, so nothing is for sale today.</p></details>
+      <details><summary>What does the $50 buy?</summary><p>A license key that lets the web app list as many projects as you like, instead of 3 at a time, on any number of your own computers, with updates while we ship them. One payment, no subscription. Open <code translate="no">tm ui</code>, go to Settings, then Plan and license, and paste it, or run <code translate="no">tm license &lt;key&gt;</code>. The <code translate="no">tm</code> command line tool is open source (MIT) and stays that way, and restores are never behind the paywall.<span data-buy-closed> Checkout is not open yet, so nothing is for sale today.</span></p></details>
     </div>
 
     <nav class="ft-col" aria-label="Footer">
@@ -594,7 +594,7 @@ Recovery ready for cp-0003. Nothing was pushed, merged or deployed.
         <li><a href="security.html">Security</a></li>
         <li><a href="company.html">Company</a></li>
         <li><a href="blog/index.html">Blog</a></li>
-        <li><a href="#pricing">Pay once</a></li>
+        <li><a href="#pricing" data-open-label="Pay once">Pricing</a></li>
         <li data-checkout-open hidden><a href="account.html">Sign in</a></li>
         <li><a href="changelog.html">Changelog</a></li>
         <li><a href="privacy.html">Privacy (draft)</a></li>
