@@ -63,6 +63,23 @@ describe("security review fixes", () => {
     expect(git(dir, "show", `${snap}:notes/ab.txt`)).toBe("an edit to keep");
   });
 
+  test("H2c an edited tracked file with a secret never reaches Git's object store, not even as an unreachable blob", async () => {
+    const { dir, ctx } = await setupDemo();
+    // .env is not a config path here, so it goes through the tracked-file path of a save rather than the config one.
+    writeConfig(dir, {}, ["config/none.env"]);
+    write(dir, ".env", "PORT=3000\n");
+    git(dir, "add", "-f", ".env", "timemachine.yml");
+    git(dir, "commit", "-q", "-m", "harmless env");
+    // Built at run time, so the source never holds a string a secret scanner would flag.
+    write(dir, ".env", `PORT=3000\n${["DB", "PASSWORD"].join("_")}=${["correct", "horse", "battery", "staple"].join("-")}\n`);
+    write(dir, "config/app.json", `{"key":"${FAKE_SECRET}","edit":"c1"}\n`);
+    const blobs = [git(dir, "hash-object", ".env"), git(dir, "hash-object", "config/app.json")];
+    const r = await tm.checkpoint(ctx, { note: "secret edits in tracked files" });
+    const manual = r.checkpoint.coverage.manual.join("\n");
+    for (const f of [".env", "config/app.json"]) expect(manual).toContain(`${f} has uncommitted changes`);
+    for (const b of blobs) expect(() => git(dir, "cat-file", "-e", b), b).toThrow();
+  });
+
   test("H2b a recovery of that save point lists the edit it could not bring back", async () => {
     const { dir, ctx } = await setupDemo();
     write(dir, "config/app.json", `{"key":"${FAKE_SECRET}"}\n`);
