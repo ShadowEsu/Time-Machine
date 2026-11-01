@@ -140,7 +140,7 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
     switch (call.method) {
       case "bootstrap": {
         const localBrandMarks = env.TM_UI_BRAND_MARKS === "1" && ["claude", "openai", "gemini", "cursor"].every((name) => assets.has(`/agents/${name}.svg`));
-        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, preview: false };
+        const data: Bootstrap = { localBrandMarks, platform: process.platform, settings: state.settings, projects: state.projects, license: engine.license(), storeDir: home, home: homedir(), preview: false };
         return { ok: true, data };
       }
       case "setCredential":
