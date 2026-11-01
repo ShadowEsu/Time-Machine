@@ -43,6 +43,10 @@ it("reports checkout only when the Stripe key and a well formed signing key are 
   expect((await checkHealth({ env: { ...env, TM_LICENSE_PRIVATE_KEY: "tooshort" }, fetch })).checkout).toBe(false);
   expect((await checkHealth({ env: { ...env, STRIPE_SECRET_KEY: "" }, fetch })).checkout).toBe(false);
   expect((await checkHealth({ env: { ...env, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" }, fetch })).checkout).toBe(false);
+  // Live opens only behind the full production gate; the retired approval value opens nothing.
+  const liveRk = "rk_live_" + "synthetic";
+  expect((await checkHealth({ env: { ...env, STRIPE_SECRET_KEY: liveRk, VERCEL_ENV: "production", STRIPE_LIVE_OK: "yes-attorney-cleared" }, fetch })).checkout).toBe(false);
+  expect((await checkHealth({ env: { ...env, STRIPE_SECRET_KEY: liveRk, VERCEL_ENV: "production", TM_CHECKOUT_LIVE: "1" }, fetch })).checkout).toBe(false);
   expect(fetch).not.toHaveBeenCalled();
 });
 

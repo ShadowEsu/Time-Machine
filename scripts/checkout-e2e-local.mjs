@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { handleCheckout } from "../site/api/_lib/checkout.js";
 import { handleLicense } from "../site/api/_lib/license.js";
 import { handleAccount, handleAuth } from "../site/api/_lib/auth.js";
+import { BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "../site/api/_lib/agreement.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = join(ROOT, "packages/cli/dist/tm.js");
@@ -21,7 +22,12 @@ const SESSION = "cs_test_e2eLocalSynthetic0123456789";
 const PI = "pi_test_e2eLocalSynthetic0123";
 const EMAIL = "buyer@example.test";
 const CODE = "123456";
-const TOKEN = "synthetic.e2e.access-token-0123456789";
+// Shaped like a Supabase token (header.payload.signature) whose payload says it signed in with an emailed code, which
+// is the only kind of session /api/account accepts. The signature is synthetic; the fake Supabase below accepts it.
+const b64 = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+const TOKEN = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "00000000-0000-4000-8000-000000000000", amr: [{ method: "otp", timestamp: 1 }] })}.c3ludGhldGljLWUyZQ`;
+// The box before Buy and before Send code, ticked with the current versions, as the site's pages send it.
+const AGREED = { agreed: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, boxVersion: BOX_VERSION };
 
 let failures = 0;
 function check(label, ok, detail = "") {
@@ -84,6 +90,8 @@ async function fakeFetch(input, init = {}) {
     if (method === "POST" && url.pathname === "/auth/v1/verify") {
       return body?.token === CODE && body?.email === EMAIL ? json({ access_token: TOKEN, expires_in: 3600 }) : json({ msg: "Token has expired or is invalid" }, 403);
     }
+    // Verify records the ticked box on the signed-in user.
+    if (method === "PUT" && url.pathname === "/auth/v1/user") return init.headers?.Authorization === `Bearer ${TOKEN}` ? json({}) : json({ msg: "invalid JWT" }, 401);
     if (method === "GET" && url.pathname === "/auth/v1/user") {
       return init.headers?.Authorization === `Bearer ${TOKEN}` ? json({ id: "00000000-0000-4000-8000-000000000000", email: EMAIL, email_confirmed_at: "2026-10-25T00:00:00Z" }) : json({ msg: "invalid JWT" }, 401);
     }
@@ -98,11 +106,11 @@ const jsonBody = (value) => {
 };
 
 // 3. checkout -> license -> auth send -> auth verify -> account.
-const checkout = await handleCheckout({ method: "POST", ...browser }, deps);
+const checkout = await handleCheckout({ method: "POST", ...browser, ...jsonBody(AGREED) }, deps);
 check("POST /api/checkout", checkout.status === 200 && checkout.body.url === `https://checkout.stripe.com/c/pay/${SESSION}`, `${checkout.status} ${checkout.body.url ?? checkout.body.error}`);
 const lifetime = Number(created?.form.expires_at) - (created?.at ?? 0);
-check("  session is $50 one-time, tagged, returns to localhost, expires, promotion codes allowed", created?.form.mode === "payment"
-  && created.form["line_items[0][price_data][unit_amount]"] === "5000" && created.form["metadata[product]"] === "tm-web"
+check("  session is $50 one-time, card only, tagged, returns to localhost, expires, promotion codes allowed", created?.form.mode === "payment"
+  && created.form["payment_method_types[0]"] === "card" && created.form["line_items[0][price_data][unit_amount]"] === "5000" && created.form["metadata[product]"] === "tm-web"
   && created.form.allow_promotion_codes === "true"
   && created.form.success_url === `${ORIGIN}/thanks?session={CHECKOUT_SESSION_ID}` && lifetime >= 30 * 60 && lifetime <= 31 * 60,
   `success_url ${created?.form.success_url}, expires in ${Math.round(lifetime / 60)} min, allow_promotion_codes ${created?.form.allow_promotion_codes}`);
@@ -112,11 +120,11 @@ const license = await handleLicense({ method: "GET", session: SESSION, ip: brows
 const key = license.body.key;
 check("GET /api/license (key minted)", license.status === 200 && /^TM1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key ?? ""), `${license.status} ${key ? short(key) : license.body.error} id ${license.body.id} issued ${license.body.issued}`);
 
-const send = await handleAuth({ method: "POST", ...browser, ...jsonBody({ action: "send", email: EMAIL }) }, deps);
+const send = await handleAuth({ method: "POST", ...browser, ...jsonBody({ ...AGREED, action: "send", email: EMAIL }) }, deps);
 check("POST /api/auth send", send.status === 200 && send.body.ok === true, String(send.status));
-const wrong = await handleAuth({ method: "POST", ...browser, ...jsonBody({ action: "verify", email: EMAIL, code: "000000" }) }, deps);
+const wrong = await handleAuth({ method: "POST", ...browser, ...jsonBody({ ...AGREED, action: "verify", email: EMAIL, code: "000000" }) }, deps);
 check("POST /api/auth verify, wrong code", wrong.status === 401 && wrong.body.error === "bad_code", `${wrong.status} ${wrong.body.error}`);
-const verify = await handleAuth({ method: "POST", ...browser, ...jsonBody({ action: "verify", email: EMAIL, code: CODE }) }, deps);
+const verify = await handleAuth({ method: "POST", ...browser, ...jsonBody({ ...AGREED, action: "verify", email: EMAIL, code: CODE }) }, deps);
 check("POST /api/auth verify", verify.status === 200 && verify.body.token === TOKEN, `${verify.status} expiresIn ${verify.body.expiresIn}`);
 
 const account = await handleAccount({ method: "GET", authorization: `Bearer ${verify.body.token}`, ip: browser.ip }, deps);
@@ -147,10 +155,10 @@ try {
   rmSync(releaseHome, { recursive: true, force: true });
 }
 
-// 5. A live Stripe key opens nothing until the attorney sign-off value is set.
+// 5. A live Stripe key opens nothing off the live gate (Production, TM_CHECKOUT_LIVE=1, rk_live_, the release signing key).
 const liveCalls = calls.length;
-const live = await handleCheckout({ method: "POST", ...browser, ip: "127.0.0.2" }, { ...deps, env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_x" } });
-check("live key without STRIPE_LIVE_OK refused", live.status === 503 && live.body.error === "checkout_closed" && calls.length === liveCalls, `${live.status} ${live.body.error}, Stripe calls ${calls.length - liveCalls}`);
+const live = await handleCheckout({ method: "POST", ...browser, ip: "127.0.0.2", ...jsonBody(AGREED) }, { ...deps, env: { ...ENV, STRIPE_SECRET_KEY: "rk_live_x", TM_CHECKOUT_LIVE: "1" } });
+check("live key off the Production live gate refused", live.status === 503 && live.body.error === "checkout_closed" && calls.length === liveCalls, `${live.status} ${live.body.error}, Stripe calls ${calls.length - liveCalls}`);
 
 process.stdout.write(`\nFake upstream calls (${calls.length}): ${[...new Set(calls)].join(", ")}\n`);
 process.stdout.write(failures === 0 ? "PASS: checkout to app works end to end on this computer, with mocked Stripe and Supabase.\n" : `FAIL: ${failures} step(s) failed.\n`);

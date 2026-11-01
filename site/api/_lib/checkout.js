@@ -21,9 +21,10 @@ export const PRICE_CENTS = 5000;
 export const PRODUCT_NAME = "Time Machine web app (one-time)";
 // Every session this site creates carries this tag, and only tagged sessions become keys.
 export const PRODUCT_TAG = "tm-web";
-// Live mode stays locked until the attorney and the owner approve it in writing (docs/launch/CHECKOUT_SETUP.md, section 6).
-// That approval is recorded by setting STRIPE_LIVE_OK to exactly this value; until then only test keys open checkout.
-export const LIVE_APPROVAL = "yes-attorney-cleared";
+// Test mode takes a test key; live mode takes only a restricted live key (docs/launch/CHECKOUT_SETUP.md, section 6).
+// Both are anchored and case-sensitive, so a stray space, newline or other key type never matches.
+const TEST_KEY = /^(sk|rk)_test_[A-Za-z0-9_]+$/;
+const LIVE_KEY = /^rk_live_[A-Za-z0-9_]+$/;
 // The release public key every Time Machine release checks keys against. Must equal LICENSE_PUBLIC_KEY in
 // packages/core/src/license.ts (a test keeps them equal). Keys signed with its private half work forever,
 // so that private key only ever signs keys for real, live-mode payments.
@@ -43,20 +44,26 @@ export function signsReleaseKeys(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
   return publicKeyOf(env.TM_LICENSE_PRIVATE_KEY) === sellerPublicKey;
 }
 
-// The signing key decodes to 32 raw Ed25519 bytes, and either live mode is approved, or the Stripe key is
-// a test key on a deployment that is not Production and the signing key is NOT the release key (test mode
-// signs with a throwaway keypair, so a test card never buys a key real releases accept, and the live site
-// never takes a test card for a key that release builds reject). Checkout stays closed otherwise: nobody
-// can pay for a key the site cannot sign, and a live key set by mistake takes no money. Used by checkout,
-// license, account and /api/health. `sellerPublicKey` is injectable so tests can stand in for the release key.
+// True when the Stripe key is a restricted live key. Its sessions are live-mode sessions; any other key's are test-mode.
+export function isLiveKey(key) {
+  return typeof key === "string" && LIVE_KEY.test(key);
+}
+
+// The signing key decodes to 32 raw Ed25519 bytes, and then exactly one of two modes holds. Live: the Production
+// deployment, TM_CHECKOUT_LIVE exactly "1", a restricted live key and the release signing key, so real money only ever
+// buys keys every release accepts. Test: any other deployment, a test key, and a signing key that is NOT the release key
+// (test mode signs with a throwaway keypair, so a test card never buys a key real releases accept). Production never
+// takes a test key, and no other deployment ever takes a live key. Checkout stays closed otherwise: nobody can pay for
+// a key the site cannot sign, and a key set by mistake takes no money. Used by checkout, license, account and
+// /api/health. `sellerPublicKey` is injectable so tests can stand in for the release key.
 export function isCheckoutConfigured(env, sellerPublicKey = SELLER_PUBLIC_KEY) {
   if (!env || !env.STRIPE_SECRET_KEY || !env.TM_LICENSE_PRIVATE_KEY) return false;
   if (!/^[A-Za-z0-9_-]{43}$/.test(env.TM_LICENSE_PRIVATE_KEY)) return false;
   if (Buffer.from(env.TM_LICENSE_PRIVATE_KEY, "base64url").length !== 32) return false;
-  if (env.STRIPE_LIVE_OK === LIVE_APPROVAL) return true;
+  const releaseKey = signsReleaseKeys(env, sellerPublicKey);
   // Vercel sets VERCEL_ENV to "production" on the live deployment; previews and local runs keep test mode.
-  if (env.VERCEL_ENV === "production") return false;
-  return /^(sk|rk)_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY) && !signsReleaseKeys(env, sellerPublicKey);
+  if (env.VERCEL_ENV === "production") return env.TM_CHECKOUT_LIVE === "1" && isLiveKey(env.STRIPE_SECRET_KEY) && releaseKey;
+  return TEST_KEY.test(env.STRIPE_SECRET_KEY) && !releaseKey;
 }
 
 export function stripeHeaders(env) {
@@ -113,14 +120,14 @@ export async function handleCheckout(req, deps) {
 
   const form = new URLSearchParams();
   form.set("mode", "payment");
+  // Card only (Apple Pay and Google Pay ride on it). A delayed method such as a bank debit would leave the buyer
+  // without a key for days, and there is no webhook to finish it.
+  form.set("payment_method_types[0]", "card");
+  // Always the $50 price, inline, so the charge always matches the code, the site and the license check.
   form.set("line_items[0][quantity]", "1");
-  if (deps.env.STRIPE_PRICE_ID) {
-    form.set("line_items[0][price]", deps.env.STRIPE_PRICE_ID);
-  } else {
-    form.set("line_items[0][price_data][currency]", "usd");
-    form.set("line_items[0][price_data][unit_amount]", String(PRICE_CENTS));
-    form.set("line_items[0][price_data][product_data][name]", PRODUCT_NAME);
-  }
+  form.set("line_items[0][price_data][currency]", "usd");
+  form.set("line_items[0][price_data][unit_amount]", String(PRICE_CENTS));
+  form.set("line_items[0][price_data][product_data][name]", PRODUCT_NAME);
   form.set("success_url", `${site}/thanks?session={CHECKOUT_SESSION_ID}`);
   form.set("cancel_url", `${site}/#pricing`);
   form.set("allow_promotion_codes", "true");

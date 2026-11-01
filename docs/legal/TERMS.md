@@ -42,7 +42,7 @@ Your code and files stay on your computer. We do not upload them. You own your p
 
 **Free use.** Without a license key, the web app lists up to 3 projects at a time. Restoring or recovering a save point never needs a key. The `tm` command line tool is separate and free under its open source license.
 
-**Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. To see it again, sign in on the website with the email you gave at checkout. Signing in sends a one-time code to that email and keeps no password.
+**Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. Reloading that page shows it again.
 
 **Refunds.** You can get a full refund within 14 days of payment by emailing [Contact]. After that, payments are not refundable except where the law says otherwise. If you are in the EU or UK you also have the legal right to withdraw described at checkout.
 
