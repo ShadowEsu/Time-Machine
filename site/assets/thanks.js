@@ -1,5 +1,7 @@
 /* The page Stripe sends a buyer back to. Reads ?session=cs_... from the address, asks
-   /api/license for the key, and shows it once. The key is never stored or logged by this page. */
+   /api/license for the key, and shows it once. The key is never stored or logged by this page.
+   The page ships with a neutral heading and lead. It thanks the buyer and says the payment went through only
+   after /api/license returned a key, which it does only for a paid session. */
 (function () {
   "use strict";
 
@@ -16,6 +18,11 @@
     closed: "Checkout is not open yet, so no key can be issued. If you did pay, email " + CONTACT + ".",
     upstream: "The license service did not answer. Reload this page in a minute. If it keeps failing, email " + CONTACT + " and we send your key by hand.",
     network: "We could not reach the server. Check your connection and reload this page."
+  };
+  var PAID = {
+    title: "Thank you. Time Machine",
+    h1: "Thank you",
+    lead: "Your payment went through Stripe. Your key for the Time Machine web app is below. It opens the web app on any number of your own computers and projects. Copy it somewhere safe now."
   };
 
   var status = document.querySelector("[data-license-status]");
@@ -55,6 +62,11 @@
       if (r.status === 200 && r.data.ok === true && typeof key === "string" && /^TM1[A-Za-z0-9._-]{8,400}$/.test(key)) {
         keyEl.textContent = key;
         box.hidden = false;
+        var h1 = document.querySelector("[data-thanks-title]");
+        var lead = document.querySelector("[data-thanks-lead]");
+        if (h1) h1.textContent = PAID.h1;
+        if (lead) lead.textContent = PAID.lead;
+        document.title = PAID.title;
         status.textContent = "";
         status.removeAttribute("data-state");
         keyEl.focus();
