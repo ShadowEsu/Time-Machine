@@ -112,14 +112,20 @@
   // ---- clear of the pricing card ----
   // At phone widths the floating dock sat on the pricing card's text (Design gate on #65, 31 Oct), and no corner inset
   // clears a full-width column. So while any of #pricing is on screen the dock is out of view (visibility, so it also
-  // leaves the Tab order), unless keyboard focus is inside it or its panel is open; it comes back as you scroll past.
+  // leaves the Tab order), unless music is playing (.is-on: a listener never loses the stop control), keyboard focus is
+  // inside it or its panel is open. It comes back as you scroll past.
   const pricing = document.getElementById("pricing");
   if (pricing && "IntersectionObserver" in window) {
     let onPricing = false;
     const panel = dock.querySelector(".mus-pop");
-    const away = () => dock.classList.toggle("is-away", onPricing && !dock.contains(document.activeElement) && !(panel && !panel.hidden));
+    const away = () => {
+      const hide = onPricing && !dock.classList.contains("is-on") && !dock.contains(document.activeElement) && !(panel && !panel.hidden);
+      if (hide !== dock.classList.contains("is-away")) dock.classList.toggle("is-away", hide);
+    };
     new IntersectionObserver((entries) => { onPricing = entries[entries.length - 1].isIntersecting; away(); }).observe(pricing);
     dock.addEventListener("focusout", () => setTimeout(away));
+    // Music starting or stopping (render() sets .is-on) and the panel opening or closing both decide again.
+    new MutationObserver(away).observe(dock, { attributes: true, attributeFilter: ["class"] });
     if (panel) new MutationObserver(away).observe(panel, { attributes: true, attributeFilter: ["hidden"] });
   }
 
