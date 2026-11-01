@@ -4,8 +4,8 @@
 // Rules: never log the email, the code, the token, the anon key or the Stripe key. Never fake a key.
 import { z } from "zod";
 import { agreementRecord, agreementRefusal } from "./agreement.js";
-import { isCheckoutConfigured, reply, signsReleaseKeys, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
-import { isTestPurchaseOnReleaseKey, isTmPurchase, licenseFor, paymentStanding, SESSION_EXPAND, SessionSchema } from "./license.js";
+import { isCheckoutConfigured, reply, STRIPE_API, stripeHeaders, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
+import { isSameMode, isTmPurchase, licenseFor, paymentStanding, SESSION_EXPAND, SessionSchema } from "./license.js";
 import { rateLimited } from "./ratelimit.js";
 import { clientId, isAllowedOrigin, isValidEmail, normalizeEmail, readJsonObject, supabaseOrigin } from "./waitlist.js";
 
@@ -176,7 +176,6 @@ export async function handleAccount(req, deps) {
   if (!signedInByCodeOnly(match[1])) return reply(401, { ok: false, error: "unauthorized" });
   const email = user.data.email;
 
-  const releaseKey = signsReleaseKeys(deps.env, deps.sellerPublicKey);
   const licenses = [];
   let after = null;
   for (let page = 0; page < MAX_STRIPE_PAGES; page += 1) {
@@ -203,7 +202,7 @@ export async function handleAccount(req, deps) {
       return reply(502, { ok: false, error: "stripe_error" });
     }
     for (const session of parsed.data.data) {
-      if (!isTmPurchase(session) || isTestPurchaseOnReleaseKey(session, releaseKey)) continue;
+      if (!isTmPurchase(session) || !isSameMode(session, deps.env)) continue;
       // A refunded or disputed purchase is left out (Security L5); only Time Machine purchases cost this lookup.
       const standing = await paymentStanding(session, deps, "account");
       if (standing === "error") return reply(502, { ok: false, error: "stripe_error" });

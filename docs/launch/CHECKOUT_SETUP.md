@@ -10,23 +10,34 @@ The seller of record: an adult account holder, or a company with an adult office
 
 ## 1. Make the keypairs
 
-On your own computer, in the repo:
+Two keypairs, made two different ways.
+
+**A throwaway test keypair**, for test mode. On your own computer, in the repo:
 
 ```sh
 node scripts/license-keygen.mjs
 ```
 
-It prints a public key and a private key and writes nothing. Run it twice:
+It prints a public key and a private key and writes nothing. The private key is what Vercel uses in test mode (step 3). Keys it signs work only with `TM_LICENSE_PUBLIC_KEY` set to its public key, never in a normal release. Keep the pair in `.private/LICENSE_SIGNING_KEY.md` on your computer; that folder is never in the repo.
 
-- **The release keypair**, once. Its public key goes in `LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts` and `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js` (a test keeps them equal); run `pnpm test` and commit that change. Every release accepts keys signed with its private key, forever, so that private key signs keys only for real payments: it goes into Vercel only in step 6.
-- **A throwaway test keypair.** Its private key is what Vercel uses in test mode (step 3). Keys it signs work only with `TM_LICENSE_PUBLIC_KEY` set to its public key, never in a normal release.
-- Save all of them in `.private/LICENSE_SIGNING_KEY.md` on your computer. That folder is never in the repo. Never paste a private key in chat, in an issue, or in a commit.
+**The release keypair**, once, for live mode (step 6). Every release accepts keys signed with its private key, forever, so that private key never appears on a screen, in a file, in chat, in an issue or in a commit. Make it and send the private half straight into Vercel's Production settings, printing only the public half. From `site/`, with the Vercel CLI signed in to the `time-machine-site` project:
+
+```sh
+node -e '
+const { generateKeyPairSync } = require("node:crypto");
+const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+console.error("Release public key (commit this): " + publicKey.export({ type: "spki", format: "der" }).subarray(-32).toString("base64url"));
+process.stdout.write(privateKey.export({ type: "pkcs8", format: "der" }).subarray(-32).toString("base64url"));
+' | npx -y vercel@65.5.0 env add TM_LICENSE_PRIVATE_KEY --environment production --sensitive
+```
+
+The private key goes only through the pipe (`vercel env add` reads a piped value from stdin) and is stored as a Sensitive variable, which Vercel never shows again. Then put the printed public key in `LICENSE_PUBLIC_KEY` in `packages/core/src/license.ts` and `SELLER_PUBLIC_KEY` in `site/api/_lib/checkout.js` (a test keeps them equal), run `pnpm vitest run site/api packages/core/test/license.test.ts`, and commit. Never delete that Vercel variable: the private key exists nowhere else, and a new pair means a release with the new public key, which refuses every key sold before it.
 
 ## 2. Stripe account, test mode first
 
 1. Create or open the Stripe account. Finish the business details Stripe asks for.
-2. Stay in **test mode** for the whole setup. Copy the test secret key (it starts with `sk_test_`).
-3. Optional: make a product and a one-time price of exactly $50 USD and copy its price id (`price_...`). Without it, the site sends the price inline on each checkout. Either way the site tags each session it creates as `tm-web` and only turns tagged, paid, full-price USD sessions into keys, so other products on the same Stripe account never mint a Time Machine key.
+2. Stay in **test mode** for the whole setup. Make a restricted test key (`rk_test_`) under Developers, API keys, Create restricted key, with only: Checkout Sessions **Write**, and **Read** for Checkout Sessions, PaymentIntents, Charges, Refunds and Disputes. The same permissions go on the live key later, so the test run proves them. A test secret key (`sk_test_`) also works.
+3. No product or price is needed. The site sends the $50 price inline on every checkout, card only, tags each session it creates as `tm-web`, and only turns tagged, paid USD sessions at exactly $50 (before any promotion code) into keys, so other products on the same Stripe account never mint a Time Machine key.
 
 ## 3. Vercel settings on `time-machine-site`
 
@@ -34,10 +45,9 @@ Project `time-machine-site`, team `shadowesus-projects`. Settings, Environment V
 
 | Name | Value | Required |
 |---|---|---|
-| `STRIPE_SECRET_KEY` | The Stripe **test** secret key (`sk_test_` or `rk_test_`). Checkout stays closed with any other key, see step 6 | yes |
+| `STRIPE_SECRET_KEY` | The Stripe **test** key (`rk_test_` or `sk_test_`). Checkout stays closed with any other key, see step 6 | yes |
 | `TM_LICENSE_PRIVATE_KEY` | The **throwaway** test private key from step 1. With a test Stripe key, checkout stays closed if this is the release private key | yes |
-| `SITE_ORIGIN` | The preview deployment's address, or leave it unset | no. Without it the site uses the request host |
-| `STRIPE_PRICE_ID` | The `price_...` id from step 2 | no |
+| `SITE_ORIGIN` | Leave it unset | no. Without it the site sends the buyer back to the host they bought on |
 
 Redeploy after saving. Environment variables apply to new deployments only.
 
@@ -53,15 +63,20 @@ Open `/api/health` on the preview deployment. It must show `"checkout": true`. I
 4. On your computer run `TM_LICENSE_PUBLIC_KEY=<throwaway public key> tm license <key>`. It must print `License saved on this computer.` and `TM_LICENSE_PUBLIC_KEY=<throwaway public key> tm license` must then say `Licensed`. Without that setting the key is refused, which is right: a test purchase never unlocks a normal release.
 5. `tm license --remove` forgets it again.
 
-## 6. Live mode: locked
+## 6. Live mode: behind an exact Production gate
 
-Live mode is locked. Do not put a live key (`sk_live_` or `rk_live_`) in Vercel, and do not take real payments, until the attorney and the owner both approve it in writing. That needs, at least: a seller of record who can sign (see `docs/legal/README.md`) and lawyer-reviewed terms and privacy with one refund rule.
+Live checkout opens only when all four of these hold, checked by `isCheckoutConfigured` in `site/api/_lib/checkout.js` before any Stripe call:
 
-The code enforces this: `isCheckoutConfigured` in `site/api/_lib/checkout.js` refuses any Stripe key that is not a test key, refuses a test key on the Production deployment (`VERCEL_ENV` is `production`), and refuses a test key paired with the release private key, so checkout, license and account answer `checkout_closed` and never call Stripe. The written approval is recorded by setting `STRIPE_LIVE_OK` to `yes-attorney-cleared` in Vercel. Nobody sets it before that approval exists.
+1. The deployment is Production (`VERCEL_ENV` is `production`). Preview and local runs are never live.
+2. `TM_CHECKOUT_LIVE` is exactly `1`.
+3. `STRIPE_SECRET_KEY` is a restricted live key: it starts with `rk_live_`, with nothing before it and no space or newline. A live secret key (`sk_live_`) is refused.
+4. `TM_LICENSE_PRIVATE_KEY` is the release private key from step 1, so real money only ever buys keys every release accepts.
 
-After that approval, and only then, set together: the live Stripe key, `TM_LICENSE_PRIVATE_KEY` to the release private key from step 1, and `STRIPE_LIVE_OK`. Even then, a session Stripe marks as test mode (`livemode: false`) never gets a key signed with the release key: `/api/license` answers `402 test_purchase` and `/api/account` leaves it out.
+Anything else answers `503 checkout_closed` from checkout, license and account, and `/api/health` shows `checkout: false`. The Production deployment never takes a test key, with or without the flag, and no other deployment takes a live key.
 
-Until then, everything above runs in Stripe test mode only, with test keys (`sk_test_`), test cards and the throwaway keypair.
+Before turning it on, the owner's checklist (`docs/launch/OWNER_CHECKLIST_PAYMENTS.md`) needs: a seller of record (see `docs/legal/README.md`), final terms and privacy with one refund rule, and one support address. Then, on Production only, as Sensitive variables: the owner pastes the restricted live key (`rk_live_`, the same permissions as the step 2 test key) into `STRIPE_SECRET_KEY` in the Vercel UI, `TM_LICENSE_PRIVATE_KEY` holds the release private key from step 1, and `TM_CHECKOUT_LIVE` is `1`. Leave `SITE_ORIGIN` unset.
+
+A session's mode always has to match the key's: a live server never gives a key for a test-mode session (`/api/license` answers `402 test_purchase` and `/api/account` leaves it out), and a test server never gives one for a live-mode session.
 
 ## 7. Sign-in so a buyer can see their key again
 
@@ -79,7 +94,7 @@ The site has no license database. When a buyer signs in, the site asks Stripe fo
 - Accept the shared sign-in pool. Simplest. Both apps then see the same users table, and a change to Auth settings affects both.
 - Move the Time Machine site to its own Supabase project. Cleaner, but the free organization allows 2 projects and both are used, so one would need to go or the plan would change. The waitlist schema would move with it (`docs/launch/SUPABASE_SETUP.md`).
 
-Until one is chosen and `SUPABASE_ANON_KEY` is set, sign-in answers `503 auth_closed` and the thanks page remains the only place a key is shown. The built-in email sender limit above applies either way.
+Until one is chosen and `SUPABASE_ANON_KEY` is set, sign-in answers `503 auth_closed`, `/api/health` shows `auth: false`, the site's Sign in links stay hidden, and the thanks page remains the only place a key is shown. The built-in email sender limit above applies either way.
 6. Test it: on the site, open the sign-in page, enter the email used for the test purchase, enter the code from the mail, and check that the same `TM1.` key appears.
 7. Before sign-in opens, run the takeover test once on a test Supabase project with a test purchase. First sign up the buyer's email with a password (`POST /auth/v1/signup`). Then sign in as the buyer with the emailed code. Then sign in with that password (`POST /auth/v1/token?grant_type=password`) and call `/api/account` with its token. It must answer `401`. The account page refuses any session whose `amr` is not only `otp`, because a password set before the buyer confirmed the email survives that confirmation.
 
@@ -90,7 +105,8 @@ A sign-in only ever shows keys for the email that paid. Codes expire after the t
 - It never stores the buyer's name or email. Stripe keeps the payment record, Supabase Auth keeps the sign-in email, and the site keeps nothing.
 - It never emails the key. The thanks page is the only place it appears, and reloading it works.
 - It never returns Stripe's error text or any secret to the browser. Those go to the Vercel function log only.
-- It never signs a key for a session that is not `paid` in `payment` mode, not tagged `tm-web`, or below the $50 price, and never signs a release key for a test-mode session.
+- It never signs a key for a session that is not `paid` in `payment` mode, not tagged `tm-web`, or not opened at exactly the $50 price, or whose mode (test or live) differs from the Stripe key's.
+- It never offers a payment method that settles later: checkout is card only (Apple Pay and Google Pay ride on cards), so a paid session has its key at once.
 - It never shows a key for a payment that is fully refunded, or that has a dispute or inquiry open or lost. The thanks page and sign-in read that state from Stripe on every request, so a partial refund, a won dispute or a closed inquiry shows the key again, and a status Stripe adds later shows no key until the rule is updated. A key already saved on a computer keeps working: keys are checked offline and cannot be taken back.
 - It never lets one client keep asking Stripe: per IP, `/api/checkout` allows 10 sessions and `/api/license` 30 lookups per 10 minutes, then answers `429 rate_limited` without calling Stripe. Counts live in each function instance only. An unpaid checkout page closes after 31 minutes.
 

@@ -2,7 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LICENSE_PUBLIC_KEY, parseLicenseKey, signLicense as coreSign } from "../../packages/core/src/license.ts";
 import { GET } from "./license.js";
-import { LIVE_APPROVAL, publicKeyOf, SELLER_PUBLIC_KEY } from "./_lib/checkout.js";
+import { publicKeyOf, SELLER_PUBLIC_KEY } from "./_lib/checkout.js";
 import { handleLicense, issuedDate, purchaseId, signLicense } from "./_lib/license.js";
 import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
@@ -16,6 +16,8 @@ function keys() {
 }
 const K = keys();
 const ENV = { STRIPE_SECRET_KEY: "sk_test_synthetic_secret", TM_LICENSE_PRIVATE_KEY: K.priv };
+// A synthetic restricted live key, built at run time so it never reads as a real one to a secret scanner.
+const LIVE_RK = "rk_live_" + "synthetic";
 const SESSION = "cs_test_a1B2c3D4e5F6g7H8i9J0synthetic";
 // The date comes from Stripe's created time, never from the clock.
 const CREATED = Math.floor(Date.UTC(2026, 9, 22, 7, 0, 0) / 1000);
@@ -103,6 +105,9 @@ describe("license handler", () => {
       { metadata: { product: "tm-web" }, currency: "eur" },
       { metadata: { product: "tm-web" }, amount_subtotal: 100, amount_total: 100 },
       { metadata: { product: "tm-web" }, amount_subtotal: null },
+      // Exactly the $50 price: a session opened at any other price never becomes a key.
+      { metadata: { product: "tm-web" }, amount_subtotal: 5100, amount_total: 5100 },
+      { metadata: { product: "tm-web" }, amount_subtotal: 4999, amount_total: 4999 },
     ];
     for (const extra of foreign) {
       const { deps } = setup({ response: () => paid(extra) });
@@ -113,10 +118,12 @@ describe("license handler", () => {
     expect((await handleLicense(request(), promo.deps)).status).toBe(200);
   });
 
-  it("never asks Stripe with a live key until live mode is approved", async () => {
-    const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" } });
-    expect(await handleLicense(request(), live.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
-    expect(live.fetch).not.toHaveBeenCalled();
+  it("never asks Stripe with a live key off the live gate", async () => {
+    for (const extra of [{}, { TM_CHECKOUT_LIVE: "1" }, { VERCEL_ENV: "production", TM_CHECKOUT_LIVE: "1" }, { VERCEL_ENV: "preview", TM_CHECKOUT_LIVE: "1" }]) {
+      const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: LIVE_RK, ...extra } });
+      expect(await handleLicense(request(), live.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+      expect(live.fetch).not.toHaveBeenCalled();
+    }
   });
 
   it("never asks Stripe with a test key on the Production deployment", async () => {
@@ -126,10 +133,11 @@ describe("license handler", () => {
     expect((await handleLicense(request(), setup({ env: { ...ENV, VERCEL_ENV: "preview" } }).deps)).status).toBe(200);
   });
 
-  it("never signs a release key for a test-mode purchase", async () => {
+  it("gives a key only when the session's mode matches the server key's mode", async () => {
     expect(SELLER_PUBLIC_KEY).toBe(LICENSE_PUBLIC_KEY);
     expect(publicKeyOf(K.priv)).toBe(K.pub);
     // K stands in for the release keypair here, since its real private half is not in the repo.
+    const LIVE = { STRIPE_SECRET_KEY: LIVE_RK, TM_LICENSE_PRIVATE_KEY: K.priv, VERCEL_ENV: "production", TM_CHECKOUT_LIVE: "1" };
     const asRelease = (env, response = paid) => {
       const s = setup({ env, response });
       return { ...s, deps: { ...s.deps, sellerPublicKey: K.pub } };
@@ -137,11 +145,16 @@ describe("license handler", () => {
     const closed = asRelease(ENV);
     expect(await handleLicense(request(), closed.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
     expect(closed.fetch).not.toHaveBeenCalled();
-    const approved = { ...ENV, STRIPE_LIVE_OK: LIVE_APPROVAL };
-    expect(await handleLicense(request(), asRelease(approved).deps)).toEqual({ status: 402, headers: {}, body: { ok: false, error: "test_purchase" } });
-    const live = await handleLicense(request(), asRelease(approved, () => paid({ livemode: true })).deps);
+    // Live server, test-mode session: never a key real releases accept.
+    expect(await handleLicense(request(), asRelease(LIVE).deps)).toEqual({ status: 402, headers: {}, body: { ok: false, error: "test_purchase" } });
+    const live = await handleLicense(request(), asRelease(LIVE, () => paid({ livemode: true })).deps);
     expect(live.status).toBe(200);
     expect(parseLicenseKey(live.body.key, K.pub).plan).toBe("web");
+    // Test server, live-mode session: Stripe never returns one, so it is a fault, answered generically and logged.
+    const crossed = setup({ response: () => paid({ livemode: true }) });
+    expect(await handleLicense(request(), crossed.deps)).toEqual({ status: 502, headers: {}, body: { ok: false, error: "stripe_error" } });
+    expect(crossed.log).toHaveBeenCalledWith("license: stripe session mode does not match the key's mode");
+    expect(crossed.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("validates the session id, the method, and the Stripe shape before signing", async () => {

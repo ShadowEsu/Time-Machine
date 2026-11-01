@@ -4,7 +4,7 @@
 // signs it, so the CLI and the web app verify it offline with the embedded public key.
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
-import { isCheckoutConfigured, PKCS8_HEADER, PRICE_CENTS, PRODUCT_TAG, reply, signsReleaseKeys, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
+import { isCheckoutConfigured, isLiveKey, PKCS8_HEADER, PRICE_CENTS, PRODUCT_TAG, reply, stripeHeaders, STRIPE_API, UPSTREAM_TIMEOUT_MS } from "./checkout.js";
 import { instanceClient, rateLimited } from "./ratelimit.js";
 import { rateLimitReply } from "./waitlist.js";
 
@@ -28,19 +28,18 @@ export const SessionSchema = z.object({
 // The expansion both Stripe reads ask for: one session, and every session in a list.
 export const SESSION_EXPAND = "payment_intent.latest_charge";
 
-// A paid one-time Time Machine purchase: made by this site's checkout (the product tag), in dollars, for
-// the full price before any promotion code (amount_subtotal is the amount before discounts). Any other
-// paid session on the same Stripe account never becomes a key.
+// A paid one-time Time Machine purchase: made by this site's checkout (the product tag), in dollars, at exactly
+// the $50 price before any promotion code (amount_subtotal is the amount before discounts). Any other paid session
+// on the same Stripe account never becomes a key.
 export function isTmPurchase(session) {
   return session.mode === "payment" && session.payment_status === "paid" && session.metadata?.product === PRODUCT_TAG
-    && session.currency === "usd" && typeof session.amount_subtotal === "number" && session.amount_subtotal >= PRICE_CENTS;
+    && session.currency === "usd" && session.amount_subtotal === PRICE_CENTS;
 }
 
-// A test-mode session never gets a key signed with the release key, which every release accepts forever.
-// isCheckoutConfigured already keeps that pair closed; this holds per session too, for example when live
-// mode is approved while a test key is still set. `releaseKey` is signsReleaseKeys for this request.
-export function isTestPurchaseOnReleaseKey(session, releaseKey) {
-  return releaseKey && session.livemode !== true;
+// A session's mode must match the server key's: live keys read live sessions and test keys test sessions. The live
+// gate signs with the release key only, so a test-mode session never gets a key every release accepts forever.
+export function isSameMode(session, env) {
+  return session.livemode === isLiveKey(env.STRIPE_SECRET_KEY);
 }
 
 // Signs {v:1,id,plan,issued} in that key order with the raw Ed25519 private key (32 bytes, base64url).
@@ -157,7 +156,12 @@ export async function handleLicense(req, deps) {
     return reply(502, { ok: false, error: "stripe_error" });
   }
   if (!isTmPurchase(parsed.data)) return reply(402, { ok: false, error: "not_paid" });
-  if (isTestPurchaseOnReleaseKey(parsed.data, signsReleaseKeys(deps.env, deps.sellerPublicKey))) return reply(402, { ok: false, error: "test_purchase" });
+  if (!isSameMode(parsed.data, deps.env)) {
+    if (!parsed.data.livemode) return reply(402, { ok: false, error: "test_purchase" });
+    // Stripe never gives a test key a live session, so this is a fault: answered generically, kept in the log.
+    log("license: stripe session mode does not match the key's mode");
+    return reply(502, { ok: false, error: "stripe_error" });
+  }
   const standing = await paymentStanding(parsed.data, deps, "license");
   if (standing === "error") return reply(502, { ok: false, error: "stripe_error" });
   if (standing !== "ok") return reply(402, { ok: false, error: standing });

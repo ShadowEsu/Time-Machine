@@ -105,15 +105,22 @@ describe("account handler", () => {
     expect(await handleAccount(request(), deps)).toEqual({ status: 200, headers: {}, body: { ok: true, email: EMAIL, licenses: [] } });
   });
 
-  it("lists no release key for a test-mode purchase", async () => {
+  it("lists only sessions whose mode matches the server key's mode", async () => {
     // PUB stands in for the release key, since its real private half is not in the repo.
-    const pages = [{ data: [session("cs_test_one1234567890"), session("cs_live_two1234567890", { livemode: true })], has_more: false }];
-    const s = setup({ env: { ...ENV, STRIPE_LIVE_OK: "yes-attorney-cleared" }, pages });
+    const pages = () => [{ data: [session("cs_test_one1234567890"), session("cs_live_two1234567890", { livemode: true })], has_more: false }];
+    const LIVE = { ...ENV, STRIPE_SECRET_KEY: "rk_live_" + "synthetic", VERCEL_ENV: "production", TM_CHECKOUT_LIVE: "1" };
+    const s = setup({ env: LIVE, pages: pages() });
     const res = await handleAccount(request(), { ...s.deps, sellerPublicKey: PUB });
     expect(res.body.licenses.map((l) => l.id)).toEqual([purchaseId("cs_live_two1234567890")]);
-    const closed = setup();
-    expect((await handleAccount(request(), { ...closed.deps, sellerPublicKey: PUB })).body.error).toBe("checkout_closed");
-    expect(closed.fetch).not.toHaveBeenCalled();
+    // A test server lists only its test sessions.
+    const test = setup({ pages: pages() });
+    expect((await handleAccount(request(), test.deps)).body.licenses.map((l) => l.id)).toEqual([purchaseId("cs_test_one1234567890")]);
+    // The live gate without the release signer is closed, and Stripe is never asked.
+    for (const env of [ENV, LIVE]) {
+      const closed = setup({ env });
+      expect((await handleAccount(request(), env === ENV ? { ...closed.deps, sellerPublicKey: PUB } : closed.deps)).body.error).toBe("checkout_closed");
+      expect(closed.fetch).not.toHaveBeenCalled();
+    }
   });
 
   it("is 401 for a missing, malformed or rejected token, and Stripe is never asked", async () => {

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./checkout.js";
 import { BOX_VERSION, PRIVACY_VERSION, TERMS_VERSION } from "./_lib/agreement.js";
-import { handleCheckout, isCheckoutConfigured, LIVE_APPROVAL, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, publicKeyOf, siteOrigin } from "./_lib/checkout.js";
+import { handleCheckout, isCheckoutConfigured, PRICE_CENTS, PRODUCT_NAME, PRODUCT_TAG, publicKeyOf, siteOrigin } from "./_lib/checkout.js";
 import { LIMITS, resetRateLimits } from "./_lib/ratelimit.js";
 
 // Synthetic values only. The signing key is 32 arbitrary bytes; it never signs anything here.
@@ -47,6 +47,8 @@ describe("checkout handler", () => {
     const form = Object.fromEntries(new URLSearchParams(init.body));
     expect(form).toEqual({
       mode: "payment",
+      // Card only (Apple Pay and Google Pay ride on it): no delayed method leaves a buyer waiting days for a key.
+      "payment_method_types[0]": "card",
       "line_items[0][quantity]": "1",
       "line_items[0][price_data][currency]": "usd",
       "line_items[0][price_data][unit_amount]": String(PRICE_CENTS),
@@ -108,12 +110,13 @@ describe("checkout handler", () => {
     expect((await handleCheckout(request({ ip: "203.0.113.7" }), deps)).status).toBe(200);
   });
 
-  it("uses a Stripe price id and SITE_ORIGIN when they are set", async () => {
+  it("always sends the $50 price inline, never a configured price id, and uses SITE_ORIGIN when it is set", async () => {
     const { fetch, deps } = setup({ env: { ...ENV, STRIPE_PRICE_ID: "price_synthetic", SITE_ORIGIN: "https://tm.example.test/" } });
     expect((await handleCheckout(request(), deps)).status).toBe(200);
     const form = Object.fromEntries(new URLSearchParams(fetch.mock.calls[0][1].body));
-    expect(form["line_items[0][price]"]).toBe("price_synthetic");
-    expect(Object.keys(form).some((k) => k.includes("price_data"))).toBe(false);
+    expect(form["line_items[0][price]"]).toBeUndefined();
+    expect(form["line_items[0][price_data][currency]"]).toBe("usd");
+    expect(form["line_items[0][price_data][unit_amount]"]).toBe("5000");
     expect(form.success_url).toBe("https://tm.example.test/thanks?session={CHECKOUT_SESSION_ID}");
     expect(form.cancel_url).toBe("https://tm.example.test/#pricing");
   });
@@ -128,9 +131,9 @@ describe("checkout handler", () => {
     expect(isCheckoutConfigured(ENV)).toBe(true);
   });
 
-  it("stays closed with a live or unknown Stripe key until live mode is approved, and calls nothing", async () => {
+  it("stays closed with a live or unknown Stripe key off the live gate, and calls nothing", async () => {
     for (const key of ["sk_live_SYNTHETIC0123456789", "rk_live_SYNTHETIC0123456789", "pk_test_SYNTHETIC0123456789", "sk_SYNTHETIC", "sk_test_"]) {
-      for (const env of [{ ...ENV, STRIPE_SECRET_KEY: key }, { ...ENV, STRIPE_SECRET_KEY: key, STRIPE_LIVE_OK: "yes" }]) {
+      for (const env of [{ ...ENV, STRIPE_SECRET_KEY: key }, { ...ENV, STRIPE_SECRET_KEY: key, TM_CHECKOUT_LIVE: "1" }]) {
         const { fetch, deps } = setup({ env });
         expect(isCheckoutConfigured(env)).toBe(false);
         expect(await handleCheckout(request(), deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
@@ -138,7 +141,6 @@ describe("checkout handler", () => {
       }
     }
     expect(isCheckoutConfigured({ ...ENV, STRIPE_SECRET_KEY: "rk_test_Synthetic0123" })).toBe(true);
-    expect(isCheckoutConfigured({ ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789", STRIPE_LIVE_OK: LIVE_APPROVAL })).toBe(true);
   });
 
   it("stays closed in test mode when the signing key is the release key, so a test card never buys a real key", async () => {
@@ -147,18 +149,22 @@ describe("checkout handler", () => {
     expect(isCheckoutConfigured(ENV, releasePub)).toBe(false);
     expect(await handleCheckout(request(), { ...deps, sellerPublicKey: releasePub })).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
     expect(fetch).not.toHaveBeenCalled();
-    expect(isCheckoutConfigured({ ...ENV, STRIPE_LIVE_OK: LIVE_APPROVAL }, releasePub)).toBe(true);
   });
 
-  it("stays closed with a test key on the Production deployment, so the live site never takes a test card", async () => {
-    const prod = { ...ENV, VERCEL_ENV: "production" };
-    const { fetch, deps } = setup({ env: prod });
-    expect(isCheckoutConfigured(prod)).toBe(false);
-    expect(await handleCheckout(request(), deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
-    expect(fetch).not.toHaveBeenCalled();
+  it("stays closed with a test key on the Production deployment, with or without the live flag, so the live site never takes a test card", async () => {
+    const releasePub = publicKeyOf(SIGNING);
+    for (const extra of [{}, { TM_CHECKOUT_LIVE: "1" }]) {
+      for (const key of ["sk_test_synthetic_secret", "rk_test_Synth01"]) {
+        const prod = { ...ENV, STRIPE_SECRET_KEY: key, VERCEL_ENV: "production", ...extra };
+        const { fetch, deps } = setup({ env: prod });
+        expect(isCheckoutConfigured(prod)).toBe(false);
+        expect(isCheckoutConfigured(prod, releasePub)).toBe(false);
+        expect(await handleCheckout(request(), deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+        expect(fetch).not.toHaveBeenCalled();
+      }
+    }
     expect(isCheckoutConfigured({ ...ENV, VERCEL_ENV: "preview" })).toBe(true);
     expect(isCheckoutConfigured({ ...ENV, VERCEL_ENV: "development" })).toBe(true);
-    expect(isCheckoutConfigured({ ...prod, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789", STRIPE_LIVE_OK: LIVE_APPROVAL })).toBe(true);
   });
 
   it("refuses other methods and other origins before calling Stripe", async () => {
@@ -224,5 +230,58 @@ describe("checkout handler", () => {
     for (const words of ['"I agree to the "', 'link("terms.html", "Terms (draft)")', '" and have read the "', 'link("privacy.html", "Privacy Policy (draft)")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
     expect(script).not.toMatch(/box\.checked = true/);
     expect(script).toContain("agreement_outdated");
+  });
+});
+
+// Live checkout opens only when every one of these holds: the Production deployment, TM_CHECKOUT_LIVE exactly "1",
+// a restricted live key (rk_live_), and the release signing key. Everything else answers 503 before any Stripe call.
+describe("live gate", () => {
+  const RELEASE = publicKeyOf(SIGNING); // stands in for the release key, whose private half is not in the repo
+  // A synthetic restricted live key, built at run time so it never reads as a real one to a secret scanner.
+  const LIVE_RK = "rk_live_" + "synthetic";
+  const LIVE = { STRIPE_SECRET_KEY: LIVE_RK, TM_LICENSE_PRIVATE_KEY: SIGNING, VERCEL_ENV: "production", TM_CHECKOUT_LIVE: "1" };
+
+  async function expectClosed(env, sellerPublicKey = RELEASE) {
+    const { fetch, deps } = setup({ env });
+    expect(isCheckoutConfigured(env, sellerPublicKey), JSON.stringify({ ...env, TM_LICENSE_PRIVATE_KEY: "…" })).toBe(false);
+    expect(await handleCheckout(request(), { ...deps, sellerPublicKey })).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
+    expect(fetch).not.toHaveBeenCalled();
+  }
+
+  it("opens on Production with the exact flag, a restricted live key and the release signing key", async () => {
+    expect(isCheckoutConfigured(LIVE, RELEASE)).toBe(true);
+    const { fetch, deps } = setup({ env: LIVE });
+    expect(await handleCheckout(request(), { ...deps, sellerPublicKey: RELEASE })).toEqual({ status: 200, headers: {}, body: { ok: true, url: LINK } });
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe(`Bearer ${LIVE.STRIPE_SECRET_KEY}`);
+  });
+
+  it("stays closed when any one of the four conditions is missing", async () => {
+    const { TM_CHECKOUT_LIVE: _flag, ...noFlag } = LIVE;
+    const { VERCEL_ENV: _env, ...noEnv } = LIVE;
+    await expectClosed(noFlag);
+    await expectClosed(noEnv);
+    await expectClosed({ ...LIVE, STRIPE_SECRET_KEY: "sk_test_synthetic_secret" });
+    await expectClosed(LIVE, publicKeyOf(Buffer.alloc(32, 9).toString("base64url"))); // a throwaway signer, not the release key
+  });
+
+  it("never opens live on a Preview or development deployment, or any other VERCEL_ENV", async () => {
+    for (const VERCEL_ENV of ["preview", "development", "Production", "production ", ""]) await expectClosed({ ...LIVE, VERCEL_ENV });
+  });
+
+  it("needs TM_CHECKOUT_LIVE to be exactly 1", async () => {
+    for (const TM_CHECKOUT_LIVE of ["true", "1 ", " 1", "01", "yes", "yes-attorney-cleared", ""]) await expectClosed({ ...LIVE, TM_CHECKOUT_LIVE });
+  });
+
+  it("takes only an anchored restricted live key: no secret, publishable, organization or malformed key", async () => {
+    for (const STRIPE_SECRET_KEY of ["sk_live_SYNTH01", "RK_LIVE_SYNTH01", " rk_live_SYNTH01", "rk_live_SYNTH01\n", "rk_live_SYN 01", "rk_live_", "pk_live_SYNTH01", "sk_org_SYNTH01", "xrk_live_SYNTH01"]) {
+      await expectClosed({ ...LIVE, STRIPE_SECRET_KEY });
+    }
+  });
+
+  it("ignores the retired STRIPE_LIVE_OK approval value", async () => {
+    const { TM_CHECKOUT_LIVE: _flag, ...noFlag } = LIVE;
+    await expectClosed({ ...noFlag, STRIPE_LIVE_OK: "yes-attorney-cleared" });
+    await expectClosed({ ...noFlag, STRIPE_SECRET_KEY: "sk_live_" + "synthetic", STRIPE_LIVE_OK: "yes-attorney-cleared" });
+    await expectClosed({ ...ENV, VERCEL_ENV: "preview", STRIPE_SECRET_KEY: LIVE_RK, STRIPE_LIVE_OK: "yes-attorney-cleared" });
   });
 });
