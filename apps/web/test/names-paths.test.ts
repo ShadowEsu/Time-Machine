@@ -1,7 +1,8 @@
 // Save point names (their message, else "Save at 2:58:48 AM", seconds on every time) and the one home-folder shortener
 // (a path that starts with the home folder, as given or after realpath, at a "/" boundary, reads ~).
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { clock, homeHtml, homePath, nameLine, namePhrase, namePoint, pointClock, pointMessage, setHomes, when } from "../src/shared/format.ts";
+import { renderUnlinkedDeploys } from "../src/renderer/deploys.ts";
 import { goBackLabel, projectStatus } from "../src/renderer/status.ts";
 
 const seconds = (iso: string): string => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
@@ -60,6 +61,28 @@ describe("home paths", () => {
     setHomes(["/Users/me/"]);
     const html = '<span class="path" title="/Users/me/code">/Users/me/code</span><button data-act="reveal-dir" data-path="/Users/me/code" aria-label="Show /Users/me/code">Show</button><input value="/Users/me/a" placeholder="/Users/me/b"><textarea>/Users/me/c</textarea><p>&quot;/Users/me/d&quot;</p>';
     expect(homeHtml(html)).toBe('<span class="path" title="~/code">~/code</span><button data-act="reveal-dir" data-path="/Users/me/code" aria-label="Show ~/code">Show</button><input value="/Users/me/a" placeholder="/Users/me/b"><textarea>/Users/me/c</textarea><p>&quot;~/d&quot;</p>');
+  });
+
+  test("page HTML: a home folder whose name the markup escapes (an apostrophe, an ampersand) still reads ~", () => {
+    setHomes(["/home/o'neil & co"]);
+    const html = '<button data-path="/home/o&#39;neil &amp; co/tips" title="/home/o&#39;neil &amp; co/tips">Can’t find tips at /home/o&#39;neil &amp; co/tips.</button>';
+    expect(homeHtml(html)).toBe('<button data-path="/home/o&#39;neil &amp; co/tips" title="~/tips">Can’t find tips at ~/tips.</button>');
+  });
+
+  test("the deploys list under History, drawn outside the page render, reads ~ too", async () => {
+    setHomes(["/Users/me"]);
+    vi.stubGlobal("document", { addEventListener: () => undefined, removeEventListener: () => undefined, activeElement: null });
+    const host = { innerHTML: "", querySelectorAll: () => [] } as unknown as HTMLElement;
+    const api = { call: async () => ({ ok: false as const, error: { kind: "usage" as const, message: "We can't find tips at /Users/me/code/tips." } }) };
+    try {
+      const stop = renderUnlinkedDeploys(host, "6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b", api);
+      await vi.waitFor(() => expect(host.innerHTML).toContain("tips at"));
+      expect(host.innerHTML).toContain("We can&#39;t find tips at ~/code/tips.");
+      expect(host.innerHTML).not.toContain("/Users/me");
+      stop();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

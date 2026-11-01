@@ -154,12 +154,13 @@ export function setHomes(paths: readonly string[]): void {
 /**
  * A home folder where a path starts, up to a separator or the path's end. A path starts at the start of the text or after a
  * space, a quote, a bracket, "=", ":", ";" or ",", so a home folder's name inside another path ("/backup/Users/me") is left
- * alone. A file URL into it (a check's stack trace: "file:///Users/me/…") is taken whole and reads ~ too. Null when no home
- * is known: nothing is shortened.
+ * alone. A file URL into it (a check's stack trace: "file:///Users/me/…") is taken whole and reads ~ too. In HTML (`html`) the
+ * home is also matched as `esc` writes it ("o&#39;neil"). Null when no home is known: nothing is shortened.
  */
-function homeSource(): string | null {
+function homeSource(html = false): string | null {
   if (!homes.length) return null;
-  const alts = homes.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const forms = html ? [...new Set([...homes, ...homes.map(esc)])].sort((a, b) => b.length - a.length) : homes;
+  const alts = forms.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
   return `(?<![^\\s"'\`(\\[<>=:;,])(?:file://)?(?:${alts})(?=[/\\\\\\s"'\`<>&;:,)\\]]|\\.(?![\\w-])|$)`;
 }
 
@@ -174,7 +175,7 @@ export function homePath(text: string): string {
  * button acts on (any data- attribute), what someone typed (a field's value, a textarea) and a placeholder keep the real text.
  */
 export function homeHtml(html: string): string {
-  const src = homeSource();
+  const src = homeSource(true);
   if (!src) return html;
   const re = new RegExp(`(<textarea\\b[\\s\\S]*?</textarea>|\\b(?:data-[\\w-]+|value|placeholder)="[^"]*")|${src}`, "g");
   return html.replace(re, (_m, keep: string | undefined) => keep ?? "~");
