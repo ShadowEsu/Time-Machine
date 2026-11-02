@@ -1,6 +1,6 @@
 # Time Machine Privacy Policy
 
-**DRAFT. Not in effect. Needs lawyer review.** Last updated: [date].
+Last updated: 2 November 2026.
 
 Short version: your code stays on your computer. Features you turn on may send a summary of your history to Google, or read your deploys from Vercel, as described below. We collect as little as we can and we never sell it. Save points never store secret values. Keys for features you connect are read from your own environment and never stored by the web app.
 
@@ -45,7 +45,7 @@ Billing records: as long as tax law requires. Waitlist emails: until you ask us 
 
 ## 6. Your rights
 
-You can ask to see, correct, export or delete your data. Email [Contact]. We answer within 30 days. If you live in California, the EU, the UK or another place with privacy laws, you have the rights those laws give you, and we will not treat you differently for using them.
+You can ask to see, correct, export or delete your data. Email support@unvibe.site. We answer within 30 days. If you live in California, the EU, the UK or another place with privacy laws, you have the rights those laws give you, and we will not treat you differently for using them.
 
 ## 7. Children
 
@@ -65,4 +65,4 @@ We will post changes here at least 30 days before they take effect.
 
 ## 11. Contact
 
-[Operator], [Contact]
+Unvibe, support@unvibe.site

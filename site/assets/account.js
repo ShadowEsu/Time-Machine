@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var CONTACT = "preston@unvibe.site";
+  var CONTACT = "support@unvibe.site";
   var TOKEN_KEY = "tm-account-token";
   var TOKEN_RE = /^[A-Za-z0-9._-]{20,4000}$/;
   var KEY_RE = /^TM1[A-Za-z0-9._-]{8,400}$/;

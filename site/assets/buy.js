@@ -6,10 +6,10 @@
 (function () {
   "use strict";
 
-  var CONTACT = "preston@unvibe.site";
+  var CONTACT = "support@unvibe.site";
   // Must equal TERMS_VERSION, PRIVACY_VERSION and BOX_VERSION in site/api/_lib/agreement.js (a test keeps them equal).
-  var TERMS_VERSION = "terms-2026-10-31b";
-  var PRIVACY_VERSION = "privacy-2026-10-31";
+  var TERMS_VERSION = "terms-2026-11-02";
+  var PRIVACY_VERSION = "privacy-2026-11-02";
   var BOX_VERSION = "agree-box-2026-10-29";
   var MSG = {
     soon: "The price is set. Checkout is not open yet, so nothing is for sale today.",
@@ -48,9 +48,9 @@
   box.setAttribute("data-box-version", BOX_VERSION);
   var words = document.createElement("span");
   words.appendChild(document.createTextNode("I agree to the "));
-  words.appendChild(link("terms.html", "Terms (draft)"));
+  words.appendChild(link("terms.html", "Terms"));
   words.appendChild(document.createTextNode(" and have read the "));
-  words.appendChild(link("privacy.html", "Privacy Policy (draft)"));
+  words.appendChild(link("privacy.html", "Privacy Policy"));
   words.appendChild(document.createTextNode(". I am 18 or older, or I am the parent or guardian paying."));
   agree.appendChild(box);
   agree.appendChild(words);
