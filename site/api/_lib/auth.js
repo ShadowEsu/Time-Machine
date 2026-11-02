@@ -145,11 +145,12 @@ export async function handleAuth(req, deps) {
  */
 export async function handleAccount(req, deps) {
   const log = deps.log ?? (() => {});
-  if (req.method !== "GET") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "GET" });
+  if (req.method !== "GET" && req.method !== "DELETE") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "GET, DELETE" });
   if (!isAuthConfigured(deps.env)) return reply(503, { ok: false, error: "auth_closed" });
   const match = /^Bearer ([A-Za-z0-9._-]{20,4000})$/.exec(typeof req.authorization === "string" ? req.authorization.trim() : "");
   if (!match) return reply(401, { ok: false, error: "unauthorized" });
   if (rateLimited("account", clientId(req.ip, deps.env.SUPABASE_ANON_KEY))) return rateLimitReply();
+  if (req.method === "DELETE") return signOut(match[1], deps, log);
 
   let user;
   try {
@@ -214,4 +215,21 @@ export async function handleAccount(req, deps) {
     after = last.id;
   }
   return reply(200, { ok: true, email, licenses });
+}
+
+// Ends this session at Supabase (scope=local: this sign-in only), so the token is refused from then on everywhere.
+// A session that is already gone (401/403) counts as signed out.
+async function signOut(token, deps, log) {
+  try {
+    const res = await deps.fetch(`${supabaseOrigin(deps.env)}/auth/v1/logout?scope=local`, {
+      method: "POST",
+      headers: authHeaders(deps.env, token),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+    if (res.ok || res.status === 401 || res.status === 403) return reply(200, { ok: true });
+    log(`account: supabase logout returned status ${res.status}`);
+  } catch (err) {
+    log(`account: supabase logout failed (${err && err.name ? err.name : "Error"})`);
+  }
+  return reply(502, { ok: false, error: "auth_error" });
 }

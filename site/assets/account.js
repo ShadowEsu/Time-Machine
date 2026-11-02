@@ -207,8 +207,11 @@
     });
   }
 
+  // Clears this tab at once, and asks the server to end the session so the token stops working anywhere.
   function signOut() {
+    var token = store();
     store(null);
+    if (token && TOKEN_RE.test(token)) call("account", { method: "DELETE", headers: { Authorization: "Bearer " + token } });
     list.textContent = "";
     who.textContent = "";
     email = "";

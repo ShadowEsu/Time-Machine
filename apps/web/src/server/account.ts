@@ -13,7 +13,7 @@ const TIMEOUT_MS = 10_000;
 const LOCAL_HOSTS: Readonly<Record<string, true>> = { localhost: true, "127.0.0.1": true, "[::1]": true };
 
 export interface AccountFetchInit {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   headers: Record<string, string>;
   body?: string;
   signal: AbortSignal;
@@ -95,7 +95,7 @@ export class Account {
     this.now = io.now ?? Date.now;
   }
 
-  private async request<T>(method: "GET" | "POST", path: "/api/health" | "/api/auth" | "/api/account", schema: z.ZodType<T>, opts: { body?: unknown; token?: string } = {}): Promise<T> {
+  private async request<T>(method: "GET" | "POST" | "DELETE", path: "/api/health" | "/api/auth" | "/api/account", schema: z.ZodType<T>, opts: { body?: unknown; token?: string } = {}): Promise<T> {
     const site = this.io.site();
     const headers: Record<string, string> = { accept: "application/json" };
     // The site's /api/auth takes calls from its own origin only, as its sign-in page sends them.
@@ -149,9 +149,12 @@ export class Account {
     return { ok: true };
   }
 
-  /** Forgets the token. The site keeps no session to end, so nothing is sent. */
-  signOut(): { ok: true } {
+  /** Forgets the token, then asks the site to end that session so the token stops working anywhere. The app is
+   *  signed out either way; a failed request only means the token lives until it expires (at most an hour). */
+  async signOut(): Promise<{ ok: true }> {
+    const token = this.#token;
     this.#token = null;
+    if (token && this.now() < token.expires) await this.request("DELETE", "/api/account", z.unknown(), { token: token.value }).catch(() => undefined);
     return { ok: true };
   }
 

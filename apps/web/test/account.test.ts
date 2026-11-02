@@ -100,14 +100,24 @@ describe("account", () => {
     expect(JSON.stringify([verified, listed, account])).not.toContain(TOKEN);
   });
 
-  test("signOut forgets the token without asking the site, and is fine when already signed out", async () => {
+  test("signOut forgets the token and asks the site to end that session; signed out already sends nothing", async () => {
     const { fetch, account } = site();
     expect(await account.signOut()).toEqual({ ok: true });
+    expect(fetch).not.toHaveBeenCalled();
     await account.verifyCode(EMAIL, "123456", AGREED);
     const calls = fetch.mock.calls.length;
     expect(await account.signOut()).toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledTimes(calls + 1);
+    const [url, init] = fetch.mock.calls[calls]!;
+    expect(url).toBe(`${SITE}/api/account`);
+    expect(init.method).toBe("DELETE");
+    expect(init.headers.authorization).toBe(`Bearer ${TOKEN}`);
     expect(await account.accountLicenses()).toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(calls);
+    // A site that can't be reached still leaves the app signed out.
+    const down = site({ account: () => { throw new TypeError("fetch failed"); } });
+    await down.account.verifyCode(EMAIL, "123456", AGREED);
+    expect(await down.account.signOut()).toEqual({ ok: true });
+    expect(await down.account.accountLicenses()).toBeNull();
   });
 
   test("a token the site no longer accepts is forgotten, so the app shows signed out", async () => {
