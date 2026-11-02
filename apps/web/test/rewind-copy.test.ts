@@ -1,6 +1,6 @@
 // What going back says it will do: a plain folder (no Git) is never promised a branch (Design gate MF2).
 import { describe, expect, test } from "vitest";
-import { afterBanner, anywayBody, bringBackView, railLine, REVIEW_KEY, reviewKey, goBackSteps, unprovenLine, type AfterView } from "../src/renderer/rewind-copy.ts";
+import { afterBanner, anywayBody, bringBackView, railLine, REVIEW_KEY, reviewKey, goBackSteps, undoneLine, unprovenLine, type AfterView } from "../src/renderer/rewind-copy.ts";
 
 describe("rewind wording", () => {
   test("a plain folder: save, then a copy; no branch anywhere", () => {
@@ -98,7 +98,7 @@ describe("after a bring back: a banner on History, not a toast (B4)", () => {
       ["undo-rewind", "Undo this bring back"],
       ["undo-dismiss", "Keep it"],
       ["reveal-dir", "Show in Finder"],
-      ["verify-one", "Check it works"],
+      ["verify-one", "Check this version"],
       ["pick", "Show it in History"],
     ]);
     expect(html).toMatch(/data-act="reveal-dir" data-path="\/Users\/me\/tmp\/marigold-tips-recovered-cp-0003"/);
@@ -148,5 +148,21 @@ describe("after a bring back: a banner on History, not a toast (B4)", () => {
   test("the sidebar says a working copy is ready next to the verdict until Keep it or Undo", () => {
     expect(railLine("Broken", true)).toBe("Broken · copy ready");
     expect(railLine("Broken", false)).toBe("Broken");
+  });
+
+  test("its check button names its own target, Check this version, and is gone when that version already passed (Design #72 M1)", () => {
+    const unproven = afterBanner(view());
+    expect(buttons(unproven).filter((b) => b[0] === "verify-one")).toEqual([["verify-one", "Check this version"]]);
+    expect(unproven).not.toContain("Check it works");
+    const proven = afterBanner(view({ proven: true }));
+    expect(buttons(proven).map((b) => b[0])).toEqual(["undo-rewind", "undo-dismiss", "reveal-dir", "pick"]);
+    expect(buttons(afterBanner(view({ proven: true, open: false }))).map((b) => b[0])).not.toContain("verify-one");
+  });
+
+  test("after Undo the live region says what Undo really removed (Design #72 M2)", () => {
+    expect(undoneLine({ removedBranch: "tm/recover/cp-0003", removedCopy: "/x/app-recovered-cp-0003" })).toBe("Undone. The copy and branch are removed.");
+    expect(undoneLine({ removedBranch: "", removedCopy: "/x/app-recovered-cp-0003" })).toBe("Undone. The copy is removed.");
+    expect(undoneLine({ removedBranch: "tm/recover/cp-0003", removedCopy: null })).toBe("Undone. The branch is removed; its copy was already gone.");
+    expect(undoneLine({ removedBranch: "", removedCopy: null })).toBe("Undone. Its copy was already gone.");
   });
 });

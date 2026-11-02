@@ -91,15 +91,17 @@ export interface AfterView {
   undoKey: string;
   /** Show in Finder, in this computer's words. */
   reveal: string;
-  /** The version Check it works checks, in a copy of its own; null for a project with no check. */
+  /** The version Check this version checks, in a copy of its own; null for a project with no check. */
   checkId: string | null;
+  /** That version already passed its check: no button to check it again here (the status says it works). */
+  proven?: boolean;
   /** The broken version saved before going back, as History names it, so the banner can take you to its row. */
   broken: { id: string; title: string } | null;
 }
 
 /**
  * A banner, not a toast: nothing about it goes away on its own. It says where the working version went (the branch and the
- * copy) and, once, that your folder was not touched, with Show in Finder and Check it works; links your broken version's
+ * copy) and, once, that your folder was not touched, with Show in Finder and Check this version (unless it already passed); links your broken version's
  * row; and, while it is open, Undo (always in view, with its shortcut) and Keep it, each with what it does under it.
  */
 export function afterBanner(v: AfterView): string {
@@ -112,7 +114,8 @@ export function afterBanner(v: AfterView): string {
   const tries = [
     v.copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(v.copyDir)}">${esc(v.reveal)}</button>` : "",
     !v.open && v.branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(v.branch)}" aria-label="Copy branch name ${esc(v.branch)}">Copy branch name</button>` : "",
-    v.checkId ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(v.checkId)}"${off}>Check it works</button>` : "",
+    // Named for its own target: the header's Check it works checks the folder (Design #72 M1).
+    v.checkId && !v.proven ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(v.checkId)}"${off}>Check this version</button>` : "",
   ].join("");
   // The row is named in the sentence; the link under it says where it goes.
   const broken = v.broken
@@ -136,4 +139,11 @@ export function afterBanner(v: AfterView): string {
 /** The sidebar's line for a project: its verdict, and while a bring back is open (not kept or undone), that a working copy is ready. */
 export function railLine(word: string, ready: boolean): string {
   return ready ? `${word} · copy ready` : word;
+}
+
+/** What the polite live region says after Undo, from what the engine reports it removed (Design #72 M2). */
+export function undoneLine(r: { removedBranch: string; removedCopy: string | null }): string {
+  if (r.removedBranch && r.removedCopy) return "Undone. The copy and branch are removed.";
+  if (r.removedCopy) return "Undone. The copy is removed.";
+  return r.removedBranch ? "Undone. The branch is removed; its copy was already gone." : "Undone. Its copy was already gone.";
 }

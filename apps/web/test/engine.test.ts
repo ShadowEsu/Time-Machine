@@ -1,6 +1,6 @@
 // Adding a project the app is not allowed to read, adding one with no test command, and the free project limit.
 import { generateKeyPairSync } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { signLicense, status, type RecoverResult } from "@timetm/core";
@@ -191,6 +191,66 @@ test("a recovery stays findable after the app restarts: its branch and copy are 
 
     expect(await engine.run({ method: "undoRecover", projectId, id: "cp-0001", branch: rec.branch, copyDir: rec.copyDir })).toMatchObject({ ok: true });
     expect(await later.run({ method: "recoveries", projectId })).toEqual({ ok: true, data: [] });
+  });
+});
+
+test("undoable marks the copy this session's rewind made when Git lists it by its real path, the way a symlink like macOS /var does (Security #72)", async () => {
+  const dir = tempDir("engineundoable");
+  // The copy's folder is reached through a symlink, like macOS /var to /private/var: Git lists the copy by its real path,
+  // and the session knows it by the path it made it at.
+  const real = join(dir, "copies-real");
+  mkdirSync(real);
+  const link = join(dir, "copies");
+  symlinkSync(real, link);
+  const project = join(dir, "app");
+  write(project, "index.js", "1;\n");
+  git(dir, "init", "-q", "-b", "main", project);
+  git(project, "add", "-A");
+  git(project, "commit", "-q", "-m", "first");
+  await withStore(dir, async () => {
+    const engine = newEngine(dir);
+    const added = await engine.run({ method: "addProject", path: project });
+    if (!added.ok) throw new Error(added.error.message);
+    const projectId = (added.data as ProjectEntry).id;
+    expect(await engine.run({ method: "checkpoint", projectId, note: "Works" })).toMatchObject({ ok: true });
+    write(project, "index.js", "2;\n");
+    expect(await engine.run({ method: "checkpoint", projectId, note: "Broke it" })).toMatchObject({ ok: true });
+    const r = await engine.run({ method: "recover", projectId, id: "cp-0001", dest: link });
+    if (!r.ok) throw new Error(r.error.message);
+    const rec = r.data as RecoverResult;
+    expect(rec.copyDir.startsWith(link)).toBe(true);
+
+    const own = await engine.run({ method: "recoveries", projectId });
+    if (!own.ok) throw new Error(own.error.message);
+    expect(own.data).toEqual([{ id: "cp-0001", branch: rec.branch, copyDir: rec.copyDir, undoable: true }]);
+  });
+});
+
+test("a recovery copy later added as a project of its own is not undoable: only copies a rewind of this session made are (Security #72)", async () => {
+  const dir = tempDir("enginecopyproject");
+  const folder = join(dir, "notes");
+  write(folder, "a.md", "First.\n");
+  await withStore(dir, async () => {
+    const engine = newEngine(dir);
+    const added = await engine.run({ method: "addProject", path: folder });
+    if (!added.ok) throw new Error(added.error.message);
+    const projectId = (added.data as ProjectEntry).id;
+    expect(await engine.run({ method: "checkpoint", projectId, note: "First" })).toMatchObject({ ok: true });
+    write(folder, "a.md", "Second.\n");
+    expect(await engine.run({ method: "checkpoint", projectId, note: "Second" })).toMatchObject({ ok: true });
+    const r = await engine.run({ method: "recover", projectId, id: "cp-0001" });
+    if (!r.ok) throw new Error(r.error.message);
+    const rec = r.data as RecoverResult;
+
+    // The copy, added as a project, is a folder the app may read. A later session did not make it, so it is not undoable there.
+    const later = newEngine(dir);
+    const asProject = await later.run({ method: "addProject", path: rec.copyDir });
+    if (!asProject.ok) throw new Error(asProject.error.message);
+    expect(await later.run({ method: "recoveries", projectId })).toMatchObject({ ok: true, data: [{ id: "cp-0001", undoable: false }] });
+    // And again after a restart, when the copy is one of the projects the app loads.
+    expect(await newEngine(dir).run({ method: "recoveries", projectId })).toMatchObject({ ok: true, data: [{ id: "cp-0001", undoable: false }] });
+    // The session that made it still can.
+    expect(await engine.run({ method: "recoveries", projectId })).toMatchObject({ ok: true, data: [{ id: "cp-0001", undoable: true }] });
   });
 });
 

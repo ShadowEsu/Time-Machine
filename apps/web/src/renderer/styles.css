@@ -330,7 +330,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .after .mono { font-size: 14px; color: var(--ink); }
 .after-broken { display: grid; gap: 2px; justify-items: start; }
 .after-broken b { color: var(--ink); }
-.after-ch { display: flex; flex-wrap: wrap; gap: 12px 28px; padding: 2px 0 14px; border-bottom: 1px solid var(--line); }
+.after-ch { display: flex; flex-wrap: wrap; align-items: start; gap: 12px 28px; padding: 2px 0 14px; border-bottom: 1px solid var(--line); }
 .after-c { flex: 1 1 240px; max-width: 360px; display: grid; gap: 6px; justify-items: start; }
 .after-c small { font-size: 14px; line-height: 1.45; color: var(--ink-3); }
 @media (max-width: 480px) {

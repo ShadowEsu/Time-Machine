@@ -12,7 +12,7 @@ import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, keepTimes
 import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
-import { afterBanner, anywayBody, bringBackView, goBackSteps, railLine, REVIEW_KEY, reviewKey, unprovenLine } from "./rewind-copy.js";
+import { afterBanner, anywayBody, bringBackView, goBackSteps, railLine, REVIEW_KEY, reviewKey, undoneLine, unprovenLine } from "./rewind-copy.js";
 import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
 import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem, type Recovery } from "./history-list.js";
 import { resetProjectCaches } from "./project-caches.js";
@@ -257,6 +257,8 @@ let root: HTMLElement;
 let toastHost: HTMLElement;
 const toastTimer = new ToastTimer(() => dismissToast());
 let announcer: HTMLElement;
+/** The last thing an action said in the polite live region (after Undo), until the next bring back. */
+let spoken = "";
 const dialogFocus = new DialogFocus();
 let addReturn: { screen: Screen; focus: string | null } | null = null;
 
@@ -1047,7 +1049,7 @@ function history(): string {
   const after = rec
     ? afterBanner({
       name: pointName(rec.id), branch: rec.branch, copyDir: rec.copyDir, open: !!u, working: !!u?.working, busy: !!st.busy, undoKey: keys("Mod+Z"), reveal: revealLabel(),
-      checkId: checks && entry(rec.id) ? rec.id : null, broken: saved ? { id: saved.id, title: title(saved) } : null,
+      checkId: checks && entry(rec.id) ? rec.id : null, proven: entry(rec.id)?.verdict === "PASS", broken: saved ? { id: saved.id, title: title(saved) } : null,
     })
     : "";
   if (!pts.length) {
@@ -3244,7 +3246,7 @@ function render(): void {
   const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${checkReason(st.check.result.reason)}`
       : st.check ? "Checking your project in a copy…"
-        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : "");
+        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : spoken);
   const heard = homePath(announcement);
   if (announcer.textContent !== heard) announcer.textContent = heard;
   placeLeaving(leaving);
@@ -3728,6 +3730,7 @@ async function rewindDo(): Promise<void> {
   try {
     r.result = await api({ method: "recover", projectId: p.id, id: r.target });
     st.undo = { projectId: p.id, rec: { id: r.result.id, branch: r.result.branch, copyDir: r.result.copyDir }, working: false, savedBefore: r.result.savedBefore };
+    spoken = "";
     r.step = "done";
   } catch (e) {
     r.error = msg(e);
@@ -3770,9 +3773,12 @@ async function undoRewind(): Promise<void> {
       exitRewind();
     }
     await loadTimeline();
+    // Focus goes to History's list on the row that was brought back, at every width (Design #72 M2), and the polite live region
+    // says what Undo removed, from the engine's answer. No toast: it would say it a second time.
+    if (st.screen === "history" && entry(u.rec.id)) st.selected = u.rec.id;
+    spoken = undoneLine(r);
     render();
-    refocusList();
-    toast(r.removedBranch ? `Bring back undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Bring back undone. Removed the copy. Every save point is still here.`);
+    root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: false });
   } catch (e) {
     u.working = false;
     st.busy = null;
