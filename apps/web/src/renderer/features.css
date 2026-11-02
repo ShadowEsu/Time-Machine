@@ -80,7 +80,7 @@ button.ft-deploy:hover { color: var(--ink); border-color: var(--ink-3); }
 
 /* Settings > Features. */
 .ft-settings { display: grid; }
-.ft-sec { font: 400 16px/1.2 var(--display); color: var(--ink); padding: 14px 0 4px; }
+.ft-sec { font: 600 16px/1.35 var(--font); color: var(--ink); padding: 14px 0 4px; }
 .ft-sec:first-child { padding-top: 0; }
 .ft-ro-note { font-size: 14px; color: var(--ink-2); padding-bottom: 6px; }
 .ft-stack { display: grid; gap: 8px; min-width: 0; }

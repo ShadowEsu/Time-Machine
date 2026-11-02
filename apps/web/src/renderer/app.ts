@@ -38,7 +38,7 @@ import { ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defau
 import { licenseAfterSave, planPage, resendLabel, resendWait, settingsLicense, SIGNED_OUT, type AccountView } from "./plan.js";
 import { SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { filterCounts, filtered, nameCount, noneShown, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
-import { addRecent, filterMenu, menuStep, moreItems, SETTINGS_SECTIONS, settingsBack, type RecentItem } from "./shell.js";
+import { addRecent, crumbHtml, filterMenu, menuItem, menuStep, moreItems, moreRows, projectRow, recentRows, SETTINGS_SECTIONS, settingsBack, type RecentItem } from "./shell.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
 
 export interface StartOptions {
@@ -785,11 +785,12 @@ function shellIcon(name: keyof typeof SHELL_ICONS, cls = "nav-ic"): string {
   return `<svg class="${cls}" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${SHELL_ICONS[name]}</svg>`;
 }
 
-/** A labelled icon button (S2): its name for a screen reader and, on hover, as a tooltip with its shortcut. */
-function iconButton(act: string, icon: keyof typeof SHELL_ICONS, label: string, shortcut = "", extra = ""): string {
+/** A labelled icon (S2): its name for a screen reader and in a tooltip with its shortcut. With `word`, the name also shows
+ *  beside the icon at 1024 px and up (Check it works, Compare). */
+function iconButton(act: string, icon: keyof typeof SHELL_ICONS, label: string, shortcut = "", extra = "", word = ""): string {
   const tip = shortcut ? `${label} (${keys(shortcut)})` : label;
   const aria = shortcut ? ` aria-keyshortcuts="${esc(shortcut.replace("Mod+", isMac() ? "Meta+" : "Control+"))}"` : "";
-  return `<button class="ib" data-act="${act}" aria-label="${esc(label)}" title="${esc(tip)}"${aria} ${extra}>${shellIcon(icon, "ib-ic")}</button>`;
+  return `<button class="ib${word ? " lab" : ""}" data-act="${act}" aria-label="${esc(label)}" title="${esc(tip)}"${aria} ${extra}>${shellIcon(icon, "ib-ic")}${word ? `<span class="ib-t">${esc(word)}</span>` : ""}</button>`;
 }
 
 /** A small page icon before what a save point changed. Decorative: the file names beside it carry the meaning. */
@@ -851,8 +852,7 @@ function sidebar(mobile = false): string {
       const on = p.id === st.projectId && inProject;
       // The verdict in words, with its shape and colour (S6): ✓ Works, ✕ Broken, ○ the others.
       const vk = verdictKey(s?.problem ? "ERROR" : v);
-      return `<button class="it project-it${on ? " on" : ""}" data-act="project" data-id="${p.id}" ${on ? 'aria-current="page"' : ""} title="${esc(s?.problem && s.problemKind !== "missing" ? s.problem : p.path)}">
-        <span class="pj-ic">${purposeIcon(p.purpose, "sm")}</span><span class="nm"><span>${esc(p.name)}</span><small class="project-verdict v-${vk}">${s && !s.problem && s.newest && checks ? vIcon(v) : ""}<span>${esc(label)}</span></small></span></button>`;
+      return projectRow({ id: p.id, name: p.name, title: s?.problem && s.problemKind !== "missing" ? s.problem : p.path, label, vk, on, icon: purposeIcon(p.purpose, "sm"), verdictIcon: s && !s.problem && s.newest && checks ? vIcon(v) : "" });
     })
     .join("");
   const working = !!st.agents && claudeChannel(st.agents, st.lastTurn).state === "working";
@@ -867,7 +867,7 @@ function sidebar(mobile = false): string {
     ${navRow('data-act="agents"', shellIcon("agents"), "Agents", st.screen === "agents", working ? '<i class="breath" aria-hidden="true"></i><span class="sr-only">, Claude Code is working</span>' : "")}
     <div class="group"><span>Protected</span>${iconButton("add", "plus", full ? "Protect a folder. The free plan is full." : "Protect a folder", "Mod+N", st.screen === "onboarding" ? 'aria-current="page"' : "")}</div>
     ${items || '<p class="side-empty">Nothing protected yet.</p>'}
-    ${recent.length ? `<div class="group"><span>Recent</span></div>${recent.map((r) => `<button class="rec" data-act="recent" data-id="${esc(r.id)}" data-v="${esc(r.projectId)}">${esc(r.label)}</button>`).join("")}` : ""}
+    ${recentRows(recent)}
     <div class="side-foot">
       <button class="it acct" data-act="settings" title="${esc(`Settings (${keys("Mod+,")})`)}">${setIcon("gear")}<span class="nm"><span>Settings</span><small>${esc(plan)}</small></span></button>
     </div>
@@ -2804,7 +2804,7 @@ function toolbar(): string {
   const p = project();
   const inProject = !!p && PROJECT_SCREENS.includes(st.screen);
   const page: { [K in Screen]: string } = { welcome: "Welcome", overview: "Overview", onboarding: "Protect a folder", history: "History", rewind: "History", compare: "What changed", agents: "Agents", storage: "Storage", settings: "Settings", plan: "Plan", sources: "Sources" };
-  const crumb = inProject ? `<button class="cr-p" data-act="history">${esc(p.name)}</button><span class="cr-pg" aria-hidden="true">/</span><span class="cr-pg">${esc(page[st.screen])}</span>` : `<span>${esc(page[st.screen])}</span>`;
+  const crumb = crumbHtml(inProject ? p.name : null, page[st.screen]);
   const newest = points().at(-1);
   const past = inProject && showsBackToNow(st.screen);
   const busy = st.busy ? "disabled" : "";
@@ -2814,17 +2814,18 @@ function toolbar(): string {
   const checks = live && checksOn(p);
   const onHistory = live && st.screen === "history";
   // Check it works steps aside while a save point's sheet is open: the sheet has its own Check it again.
-  const check = onHistory && checks && !st.drawer ? iconButton("check", "run", "Check it works", "Mod+Enter", busy) : "";
-  const compare = onHistory ? iconButton("compare", "compare", "Compare with now", "Mod+Shift+C") : "";
+  const check = onHistory && checks && !st.drawer ? iconButton("check", "run", "Check it works", "Mod+Enter", busy, "Check it works") : "";
+  const compare = onHistory ? iconButton("compare", "compare", "Compare with now", "Mod+Shift+C", "", "Compare") : "";
   const sel = st.screen === "history" ? entry(st.selected) : null;
   const n = sel ? named(sel) : null;
   const first = moreItems({ project: inProject ? p.id : null, askOpen: st.askOpen, selected: sel && n ? { id: sel.id, name: n.time ? n.name : namePhrase(n), pinned: !!st.notes.get(sel.id)?.pinned } : null });
-  const item = (act: string, label: string, key = "", extra = ""): string => `<button role="menuitem" data-act="${act}" ${extra}>${esc(label)}${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
+  const item = (act: string, label: string, key = "", extra = ""): string => menuItem(act, label, key ? keys(key) : "", extra);
   const rest = [
     ...(live ? [item("save", "Save now", "Mod+S", busy), ...(checks ? [item("find", "Find the last working version", "", busy)] : []), item("inspector", "Open Inspector", "Mod+I")] : []),
     item("keys", "Keyboard shortcuts", "?"),
   ];
-  const more = menuButton("tools", "More", [...first.map((i) => item(i.act, i.label, i.key, i.id ? `data-id="${esc(i.id)}"` : "")), ...(first.length ? ['<div class="mn-sep" role="separator"></div>'] : []), ...rest]);
+  // Settings holds no project actions, so its header has no More (Design's gate on #74).
+  const more = st.screen === "settings" || st.screen === "storage" ? "" : menuButton("tools", "More", [...moreRows(first, keys), ...rest]);
   const phone = window.innerWidth < RAIL_MIN;
   const side = phone
     ? `<button class="ib nav-toggle" data-act="nav-toggle" aria-label="Open sidebar" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>${shellIcon("menu", "ib-ic")}</button>`

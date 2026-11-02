@@ -4,7 +4,8 @@
 import { describe, expect, test } from "vitest";
 import type { RunNote } from "../src/shared/api.ts";
 import { filterCounts, filtered } from "../src/renderer/runs.ts";
-import { addRecent, filterChoices, filterMenu, menuStep, moreItems, RECENT_MAX, settingsBack, SETTINGS_SECTIONS, SIDEBAR_WIDTH, trapStep, type RecentItem } from "../src/renderer/shell.ts";
+import { addRecent, crumbHtml, filterChoices, filterMenu, menuItem, menuStep, moreItems, moreRows, projectRow, RECENT_MAX, recentRows, settingsBack, SETTINGS_SECTIONS, SIDEBAR_WIDTH, trapStep, type ProjectRowView, type RecentItem } from "../src/renderer/shell.ts";
+import { esc } from "../src/shared/format.ts";
 
 const pts = [
   { id: "cp-0001", verdict: null },
@@ -120,5 +121,41 @@ describe("a modal's Tab (the phone's drawer, the confirm)", () => {
     // Focus outside it comes back in at the first (or, going back, the last) control.
     expect(trapStep(5, -1, false)).toBe(0);
     expect(trapStep(5, -1, true)).toBe(4);
+  });
+});
+
+// Security SHOULD-74a: save-point titles come from `tm checkpoint -m`, which an agent writes, and project names and paths from
+// the folder. Every field that reaches the shell's markup goes in as an attack on its own, so dropping any one esc() fails.
+const ATTACK = `<img src=x onerror=alert(1)>"'&`;
+const safe = (html: string): void => {
+  expect(html).not.toContain("<img");
+  expect(html).not.toMatch(/="[^"]*"[^\s>]/); // no attribute broken out of its quotes
+  expect(html).toContain("&lt;img");
+};
+
+describe("the shell escapes what it is given", () => {
+  test("Recent: the label, the save point's id and the project's id", () => {
+    for (const r of [{ projectId: "p1", id: "cp-1", label: ATTACK }, { projectId: "p1", id: ATTACK, label: "x" }, { projectId: ATTACK, id: "cp-1", label: "x" }]) safe(recentRows([r]));
+    expect(recentRows([{ projectId: "p1", id: "cp-1", label: ATTACK }])).toContain(`>${esc(ATTACK)}</button>`);
+  });
+  test("More: each label, id and shortcut, from a save point's name and a project's id", () => {
+    safe(moreRows(moreItems({ project: ATTACK, askOpen: false, selected: { id: ATTACK, name: ATTACK, pinned: false } }), (k) => k).join(""));
+    safe(moreRows([{ act: "ask", label: "Ask", key: ATTACK }], (k) => k).join(""));
+    safe(menuItem(ATTACK, "x"));
+    safe(menuItem("save", ATTACK));
+    safe(menuItem("save", "Save now", ATTACK));
+  });
+  test("the sidebar's project row: its id, name, path and verdict words", () => {
+    const row: ProjectRowView = { id: "p1", name: "tips", title: "~/tips", label: "Works", vk: "pass", on: true, icon: "", verdictIcon: "" };
+    for (const k of ["id", "name", "title", "label", "vk"] as const) safe(projectRow({ ...row, [k]: ATTACK }));
+    expect(projectRow({ ...row, name: ATTACK })).toContain(`<span>${esc(ATTACK)}</span>`);
+  });
+  test("the crumb: the project's name and the page", () => {
+    safe(crumbHtml(ATTACK, "History"));
+    safe(crumbHtml("tips", ATTACK));
+    safe(crumbHtml(null, ATTACK));
+  });
+  test("the All ▾ menu carries only its own words", () => {
+    expect(filterMenu("all", { all: 3, works: 1, named: 0, pinned: 0 }, "code", true)).not.toContain("<img");
   });
 });

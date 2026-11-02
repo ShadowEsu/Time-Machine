@@ -163,6 +163,12 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .ib:active:not([disabled]) { background: var(--press); }
 .ib[disabled] { opacity: .45; cursor: default; }
 .ib-ic { width: 20px; height: 20px; }
+/* Check it works and Compare show their words beside the icon at 1024 px and up, ghost style, 14/600 (S2). */
+.ib-t { display: none; }
+@media (min-width: 1024px) {
+  .ib.lab { width: auto; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .ib.lab .ib-t { display: inline; }
+}
 .search { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 8px 0 10px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 14px; cursor: pointer; text-align: left; transition: border-color var(--t-hover) var(--ease); }
 .search .s-ic { width: 18px; height: 18px; flex: none; }
 .search span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -938,7 +944,7 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .rw .steps .n { width: 24px; height: 24px; font-size: 14px; }
 .rw .steps .bar { width: 20px; }
 .tv-read { display: grid; gap: 18px; align-content: start; padding: 22px 0 30px; }
-.rw-kicker { font: 400 30px/1.1 var(--font); color: var(--ink-3); margin-bottom: -10px; }
+.rw-kicker { font: 600 16px/1.35 var(--font); color: var(--ink-3); margin-bottom: -10px; }
 .rw .tv-head { font-size: 30px; line-height: 1.02; }
 .rw .tv-head .voice { display: block; margin-top: 2px; line-height: 1.1; color: var(--ink-2); }
 .rw-meta { margin-top: -8px; font-size: 14px; color: var(--ink-3); }
@@ -970,7 +976,7 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .rw-loc .v { grid-column: 1; font: 400 14px/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
 .rw-loc .btn { grid-column: 2; grid-row: 1 / span 2; }
 .report { display: grid; gap: 14px; padding: 18px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
-.report h3 { font: 400 30px/1.15 var(--font); }
+.report h3 { font: 600 16px/1.35 var(--font); }
 .report .tv-cols { border-top: 0; padding-top: 0; }
 .endline { padding-top: 12px; border-top: 1px solid var(--hair); font-size: 14px; line-height: 1.5; color: var(--ink-3); }
 .rw-undo-note { font-size: 14px; line-height: 1.5; color: var(--ink-3); }
@@ -1172,7 +1178,7 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .path-form .field { height: 44px; font-size: 14px; }
 .path-form .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--fail-fg); }
 .launch-error { max-width: 580px; height: 100%; margin: auto; padding: 40px 24px; display: flex; flex-direction: column; gap: 18px; justify-content: center; align-items: flex-start; overflow: auto; }
-.launch-error h1 { font: 400 30px/1.1 var(--display); }
+.launch-error h1 { font: 600 30px/1.1 var(--display); }
 .connection-banner { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line-2); color: var(--ink); font-size: 14px; }
 .connection-banner > div { flex: 1; min-width: 0; }
 .connection-banner p { color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }

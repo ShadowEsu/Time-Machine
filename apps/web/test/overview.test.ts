@@ -367,3 +367,13 @@ describe("names an agent or a person wrote are text, never markup (Security SHOU
     expect(ready).toContain(`data-act="ov-copy" data-id="${E}">Show the copy</button>`);
   });
 });
+
+// Security SHOULD-74a: Overview's first sentence carries the trust line, which names the Ask provider; it is escaped whole.
+describe("Overview's first sentence is escaped", () => {
+  test("an attack in the trust line shows as text", () => {
+    const ATTACK = `<img src=x onerror=alert(1)>"'&`;
+    const head = /<header class="b9-head">([\s\S]*?)<\/header>/.exec(page({ projects: [entry("a", "thesis-notes", "folder", "documents")], trust: ATTACK }))?.[1] ?? "";
+    expect(head).not.toContain("<img");
+    expect(head).toContain("&lt;img src=x onerror=alert(1)&gt;");
+  });
+});

@@ -22,6 +22,51 @@ export function addRecent(list: readonly RecentItem[], item: RecentItem): Recent
   return [item, ...list.filter((x) => x.projectId !== item.projectId || x.id !== item.id)].slice(0, RECENT_MAX);
 }
 
+/** Recent in the sidebar (S1): its group name and one quiet row per save point, or nothing when it is empty. */
+export function recentRows(recent: readonly RecentItem[]): string {
+  if (!recent.length) return "";
+  return `<div class="group"><span>Recent</span></div>${recent.map((r) => `<button class="rec" data-act="recent" data-id="${esc(r.id)}" data-v="${esc(r.projectId)}">${esc(r.label)}</button>`).join("")}`;
+}
+
+/** A project in the sidebar, as app.ts has worked it out. `icon` and `verdictIcon` are the app's own SVG markup. */
+export interface ProjectRowView {
+  id: string;
+  name: string;
+  /** The path, or the reason it can't save, for the tooltip. */
+  title: string;
+  /** Its verdict or state in words. */
+  label: string;
+  /** The verdict's class key (pass, fail, …). */
+  vk: string;
+  on: boolean;
+  icon: string;
+  verdictIcon: string;
+}
+
+/** A project row: its purpose icon, its name, then its verdict in words with its shape and colour (S1, S6). */
+export function projectRow(r: ProjectRowView): string {
+  return `<button class="it project-it${r.on ? " on" : ""}" data-act="project" data-id="${esc(r.id)}" ${r.on ? 'aria-current="page"' : ""} title="${esc(r.title)}">
+         <span class="pj-ic">${r.icon}</span><span class="nm"><span>${esc(r.name)}</span><small class="project-verdict v-${esc(r.vk)}">${r.verdictIcon}<span>${esc(r.label)}</span></small></span></button>`;
+}
+
+/** Where you are, in the header (S2): the project, which opens its History, then the page; or the page alone. */
+export function crumbHtml(projectName: string | null, page: string): string {
+  return projectName !== null
+    ? `<button class="cr-p" data-act="history">${esc(projectName)}</button><span class="cr-pg" aria-hidden="true">/</span><span class="cr-pg">${esc(page)}</span>`
+    : `<span>${esc(page)}</span>`;
+}
+
+/** One row of a menu: its words and, when it has one, its shortcut as a keycap. `keyText` is the shortcut as shown. */
+export function menuItem(act: string, label: string, keyText = "", extra = ""): string {
+  return `<button role="menuitem" data-act="${esc(act)}" ${extra}>${esc(label)}${keyText ? `<kbd>${esc(keyText)}</kbd>` : ""}</button>`;
+}
+
+/** More's first rows (Ask, Pin, Rename, Project settings) and the rule under them; `keys` shows a shortcut. */
+export function moreRows(items: readonly MoreItem[], keys: (key: string) => string): string[] {
+  if (!items.length) return [];
+  return [...items.map((i) => menuItem(i.act, i.label, i.key ? keys(i.key) : "", i.id ? `data-id="${esc(i.id)}"` : "")), '<div class="mn-sep" role="separator"></div>'];
+}
+
 /** How many save points each filter shows. `works` is null for a project with no check, which has no Works filter. */
 export interface FilterCounts {
   all: number;
