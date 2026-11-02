@@ -1096,10 +1096,11 @@ function verdictSentence(c: TimelineEntry): string {
  * What the check said, in its own words: the command, its exit code, the engine's reason, the end of what it printed
  * and where its log is kept. From a check that ran in this session, or the save point's newest sealed record; with
  * neither it says so. Never test counts: the engine reports how the check exited, not what its tests were.
+ * `heading` is false inside the preview sheet, whose row already says "What the check said" and the time.
  */
-function checkWords(vr: VerdictRecord | null, v: Verdict | null, withReason = true): string {
+function checkWords(vr: VerdictRecord | null, v: Verdict | null, withReason = true, heading = true): string {
   if (!v) return "";
-  if (!vr) return `<div class="cw none"><b>What the check said</b><p>Check it again to see what it printed here.</p></div>`;
+  if (!vr) return `<div class="cw none">${heading ? "<b>What the check said</b>" : ""}<p>Check it again to see what it printed here.</p></div>`;
   // A check that never started (nothing set up) has no exit code and no time worth showing.
   const ran = vr.exitCode !== null || !!vr.log;
   // Said already by the sheet's card, with nothing else to add: no empty block.
@@ -1107,7 +1108,7 @@ function checkWords(vr: VerdictRecord | null, v: Verdict | null, withReason = tr
   const p = project();
   if (vr.log && p && !st.logTails.has(vr.log)) void loadLogTail(p.id, vr);
   return `<section class="cw v-${verdictKey(v)}" aria-label="What the check said">
-    <div class="cw-h"><b>What the check said</b>${ran && withReason ? `<span class="mono">${esc(seconds(vr.durationMs))}</span>` : ""}</div>
+    ${heading ? `<div class="cw-h"><b>What the check said</b>${ran && withReason ? `<span class="mono">${esc(seconds(vr.durationMs))}</span>` : ""}</div>` : ""}
     ${checkBodyHtml(vr, ran, withReason)}
     ${vr.log ? tailHtml(vr.log, st.logTails.get(vr.log)) : ""}
     ${vr.log ? `<button class="btn link small" data-act="reveal" data-path="${esc(vr.log)}">Copy the log’s path</button>` : ""}
@@ -1317,7 +1318,7 @@ function sheet(c: TimelineEntry): string {
   };
   const ran = !!same && (same.exitCode !== null || !!same.log);
   const checkHint = !same ? "" : ran && c.verdict === "PASS" ? `Passed in ${seconds(same.durationMs)}` : ran && c.verdict === "FAIL" ? `Failed in ${seconds(same.durationMs)}` : verdictWord(c.verdict);
-  const checkPart = damaged || c.verdict === null ? "" : part("check", "What the check said", checkHint, checkWords(same, c.verdict));
+  const checkPart = damaged || c.verdict === null ? "" : part("check", "What the check said", checkHint, checkWords(same, c.verdict, true, false));
   const compare = compareButton(c, p);
   const copy = damaged ? "" : `<button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button>`;
   const moreHint = ["Rename", "pin", compare ? "compare" : "", copy ? "open a copy" : ""].filter(Boolean).join(", ");
