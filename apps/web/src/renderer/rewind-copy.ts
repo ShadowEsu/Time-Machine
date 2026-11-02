@@ -47,3 +47,28 @@ export function anywayBody(why: string, folder: boolean): string {
     ? `${why} We save your current version first. Your folder is not touched, and you can undo it.`
     : `${why} We save your current version first and put this one on a new local branch. Your folder and branch are not touched, and you can undo it.`;
 }
+
+/** What a version's recorded verdict says about it, in one line, when it is not proven to work. */
+const UNPROVEN: Record<Exclude<Verdict, "PASS">, string> = {
+  FAIL: "This version failed its check, so it may not work.",
+  INCOMPLETE: "Its check didn’t finish, so it isn’t proven to work.",
+  BLOCKED: "Its check couldn’t start, so it isn’t proven to work.",
+  ERROR: "Its check crashed, so it isn’t proven to work.",
+};
+
+/**
+ * The bring back confirm's one extra line for a version that isn't proven: never checked, or a check that failed or did not
+ * finish. None for a version that passed, and none for a project with no check, which only saves versions (Design gate MF4).
+ */
+export function unprovenLine(checks: boolean, verdict: Verdict | null): string | null {
+  if (!checks || verdict === "PASS") return null;
+  return verdict ? UNPROVEN[verdict] : "This version hasn’t been checked, so we don’t know if it works.";
+}
+
+/**
+ * Where a bring back opens. The one confirm, for a version already chosen. The dial stays only for a project whose folder is
+ * missing or when the save point you were on is damaged: then there is no version in hand, and the dial is how to choose one.
+ */
+export function bringBackView({ folderMissing, damaged }: { folderMissing: boolean; damaged: boolean }): "confirm" | "dial" {
+  return folderMissing || damaged ? "dial" : "confirm";
+}

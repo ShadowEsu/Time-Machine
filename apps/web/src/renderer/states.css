@@ -531,3 +531,31 @@ section > .b9-lede { margin: -2px 0 16px; }
 .th-list { list-style: none; margin: 0; padding: 8px 12px; display: grid; gap: 4px; max-height: 240px; overflow: auto; border-radius: var(--r-md); background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 .th-list li { display: flex; gap: 12px; min-width: 0; }
 .th-list .mono { flex: none; font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Bringing a version back: one confirm, whatever opened it (B3, Calm 4a). In the middle of the whole window, over the rail
+   too, like the other confirms. What comes back and What does not come back stay full size, with no card around them; the
+   buttons name the outcome. On a phone (the .phone sheet, below the rail's 861 px) it is a bottom sheet with full-width
+   buttons, Bring it back on top and Never mind last. It rises in over --t-enter; it leaves over LEAVE_MS (--t-exit) through
+   placeLeaving; under Reduce motion (the computer's or .rm) it only fades. */
+.app > .scrim.bb-scrim { z-index: 45; place-items: center; padding: 24px; }
+.sheet.bb { width: min(640px, 100%); gap: 18px; padding: 28px 32px 26px; }
+.sheet.bb h2 { font-size: 30px; line-height: 1.12; }
+.bb-lede { font-size: 15.5px; line-height: 1.55; color: var(--ink-2); }
+.bb-unproven { font: 500 15px/1.5 var(--font); color: var(--ink); }
+.bb-lists { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; }
+.bb-list h3 { margin-bottom: 10px; font: 600 15px/1.3 var(--font); color: var(--ink); }
+.bb-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.bb-list li { display: flex; gap: 10px; min-width: 0; font-size: 15px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+.bb-list li::before { content: "✓" / ""; width: 14px; flex: none; color: var(--works); font-weight: 700; }
+.bb-list.no li::before { content: "○" / ""; color: var(--ink-3); font-weight: 400; }
+.bb-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.app > .scrim.bb-scrim:has(> .bb.phone) { place-items: end stretch; padding: 24px 0 0; }
+.sheet.bb.phone { width: 100%; max-height: 100%; padding: 26px 20px max(20px, env(safe-area-inset-bottom)); border-bottom: 0; border-radius: var(--r-pop) var(--r-pop) 0 0; box-shadow: none; }
+.sheet.bb.phone h2 { font-size: 26px; }
+.bb.phone .bb-lists { grid-template-columns: minmax(0, 1fr); }
+.bb.phone .bb-btns { flex-direction: column; align-items: stretch; }
+.bb.phone .bb-btns .btn { width: 100%; min-height: 52px; }
+.scrim.enter .sheet.bb.phone { animation-name: bb-rise; }
+@keyframes bb-rise { from { transform: translateY(24px); opacity: 0; } }
+.rm .scrim.enter .sheet.bb.phone { animation-name: fade; }
+@media (prefers-reduced-motion: reduce) { .scrim.enter .sheet.bb.phone { animation-name: fade; } }
