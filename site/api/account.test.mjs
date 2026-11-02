@@ -221,4 +221,28 @@ describe("account handler", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  // Sign out ends the session at Supabase, so a copied token stops working everywhere, not only in this tab.
+  it("DELETE signs the session out at Supabase and answers 200; a bad token is 401 and calls nothing", async () => {
+    const s = setup();
+    s.fetch.mockImplementation(async () => new Response(null, { status: 204 }));
+    expect(await handleAccount(request({ method: "DELETE" }), s.deps)).toEqual({ status: 200, headers: {}, body: { ok: true } });
+    expect(s.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = s.fetch.mock.calls[0];
+    expect(url).toBe("https://fake-project.supabase.test/auth/v1/logout?scope=local");
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe(AUTH);
+    expect(init.headers.apikey).toBe(ENV.SUPABASE_ANON_KEY);
+    // An already-ended session is signed out too.
+    const gone = setup();
+    gone.fetch.mockImplementation(async () => json({ msg: "session not found" }, 403));
+    expect((await handleAccount(request({ method: "DELETE" }), gone.deps)).status).toBe(200);
+    const junk = setup();
+    expect((await handleAccount(request({ method: "DELETE", authorization: "Bearer x" }), junk.deps)).status).toBe(401);
+    expect(junk.fetch).not.toHaveBeenCalled();
+    const down = setup();
+    down.fetch.mockImplementation(async () => { throw new TypeError("fetch failed"); });
+    expect((await handleAccount(request({ method: "DELETE" }), down.deps)).status).toBe(502);
+    expect((await handleAccount(request({ method: "PUT" }), setup().deps)).status).toBe(405);
+  });
 });
