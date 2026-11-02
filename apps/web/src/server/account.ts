@@ -66,7 +66,7 @@ const BAD_CODE = "That code didn't match.";
 const TOO_MANY = "Too many tries, wait a minute.";
 const NO_CHECKOUT = "Buying is not open yet, so there are no keys to list.";
 const TROUBLE = "The Time Machine site had a problem. Try again in a minute.";
-const UNDELIVERABLE = "Couldn't send a code to that address. Check it and try again.";
+const UNDELIVERABLE = "Couldn't send a code to that address. Check it, or try again in a few minutes.";
 const MALFORMED = "The Time Machine site sent an answer the app did not expect.";
 
 /** A short plain sentence for a site error. The site's own text is never shown. */

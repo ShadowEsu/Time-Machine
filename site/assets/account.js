@@ -26,7 +26,7 @@
     rateLimited: "Too many tries. Wait a minute, then try again.",
     upstream: "We couldn't do that just now. Try again in a minute, or email " + CONTACT + ".",
     network: "We couldn't reach the server. Check your connection and try again.",
-    undeliverable: "We couldn't send a code to that address. Check it and try again.",
+    undeliverable: "We couldn't send a code to that address. Check it, or try again in a few minutes.",
     none: "No purchase found for this email. Use the email you gave at checkout."
   };
 

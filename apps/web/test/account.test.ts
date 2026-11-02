@@ -147,7 +147,7 @@ describe("account", () => {
     const busy = site({ send: () => json({ ok: false, error: "rate_limited" }, 429) });
     expect((await failure(busy.account.signIn(EMAIL, AGREED))).message).toBe("Too many tries, wait a minute.");
     const bounced = site({ send: () => json({ ok: false, error: "undeliverable" }, 422) });
-    expect((await failure(bounced.account.signIn(EMAIL, AGREED))).message).toBe("Couldn't send a code to that address. Check it and try again.");
+    expect((await failure(bounced.account.signIn(EMAIL, AGREED))).message).toBe("Couldn't send a code to that address. Check it, or try again in a few minutes.");
     const unticked = site({ send: () => json({ ok: false, error: "agreement_required" }, 400) });
     expect((await failure(unticked.account.signIn(EMAIL, AGREED))).message).toBe("Tick the box to agree to the Terms first.");
     const outdated = site({ send: () => json({ ok: false, error: "agreement_outdated" }, 400) });
