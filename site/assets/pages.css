@@ -489,3 +489,7 @@
 .account-none { margin: 20px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); line-height: 1.5; }
 .account-help { margin-top: 32px; color: var(--ink-2); }
 .account-help a { color: var(--ink); }
+/* 404 page */
+.not-found main { padding-top: 112px; }
+.not-found h1 { text-wrap: balance; }
+.not-found .nf-actions { display: flex; flex-wrap: wrap; gap: 12px; }
