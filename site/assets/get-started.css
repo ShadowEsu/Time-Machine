@@ -1,0 +1,141 @@
+/* Get started (/get-started): the quiet page after "Install from source" (spec: boss-handoff agents/design/specs/
+   thanks-for-downloading-2026-11-02.md §4). Home's light theme, so the page doesn't jump to the dark subpages:
+   paper #f4f2ed and ink #141414 (s5.css's values), Instrument Serif h1, Bricolage text, IBM Plex Mono commands,
+   Departure Mono digits. One column, no nav, three step cards. Loads after site.css and s5.css (the faces). */
+
+@font-face {
+  font-family: "Departure Mono";
+  src: url("fonts/departure-mono-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root:has(> body.gs) { color-scheme: light; }
+body.gs {
+  /* Text on paper: ink 17.1:1, ink-2 11.4:1, ink-3 5.4:1 (s5.css). On the white card ink-3 is 6.1:1. */
+  --paper: #f4f2ed;
+  --card: #ffffff;
+  --mist: #e9e6df;
+  --hairline: #e4e0d7;
+  --line: #e4e0d7;
+  --line-2: rgba(20, 20, 20, .24);
+  --ink: #141414;
+  --ink-2: #3a3936;
+  --ink-3: #66635d;
+  --accent: #141414;
+  --accent-tint: #cfe6ff;
+  --term-bg: #141414;
+  --term-fg: #f4f2ed;
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans: "Bricolage Grotesque", "Bricolage fallback", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pixel: "Departure Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  display: flex;
+  flex-direction: column;
+  background-image: none;
+  font-family: var(--sans);
+  font-feature-settings: normal;
+  color: var(--ink);
+}
+
+body.gs main { flex: 1 0 auto; }
+body.gs main:focus { outline: none; }
+body.gs a { text-decoration-color: var(--ink-3); text-underline-offset: 2px; transition: text-decoration-color .15s; }
+@media (hover: hover) and (pointer: fine) { body.gs a:hover { text-decoration-color: var(--ink); } }
+
+/* Top: the mark only, 24 px high and 32 px from the top, linking home. */
+.gs-top { display: flex; justify-content: center; padding: 32px 20px 0; }
+.gs-mark { display: inline-flex; align-items: center; gap: 8px; min-height: 24px; font: 700 17px/24px var(--sans); letter-spacing: -.03em;
+  color: var(--ink); text-decoration: none; }
+.gs-mark svg { flex: none; width: 24px; height: 24px; }
+
+.gs-col { width: min(960px, 100%); margin: 0 auto; padding: 96px max(24px, env(safe-area-inset-left, 0px)) 0 max(24px, env(safe-area-inset-right, 0px));
+  text-align: center; }
+
+/* The pill reads like a status, not a button. */
+.gs-pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; margin: 0; padding: 0 4px 0 10px; border: 1px solid var(--line-2);
+  border-radius: 999px; background: var(--card); color: var(--ink-2); font: 500 12px/1 var(--sans); white-space: nowrap; }
+.gs-glyph { flex: none; width: 12px; height: 12px; }
+.gs-tag { display: inline-flex; align-items: center; height: 20px; margin-left: 2px; padding: 0 7px; border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--ink-3); color: var(--ink-2); font: 500 11px/1 var(--font-mono); }
+
+.gs-h1 { margin: 20px 0 0; font: 400 34px/38px var(--serif); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+.gs-h1-2 { color: var(--ink-2); }
+.gs-br { display: none; }
+@media (min-width: 360px) { .gs-h1 { font-size: 40px; line-height: 44px; } }
+@media (min-width: 640px) { .gs-br { display: inline; } .gs-h1 { font-size: 48px; line-height: 52px; } }
+@media (min-width: 1024px) { .gs-h1 { font-size: 56px; line-height: 60px; } }
+
+.gs-line { max-width: 560px; margin: 16px auto 0; font-size: 17px; line-height: 26px; color: var(--ink-2); text-wrap: pretty; }
+.gs-win { display: none; margin-top: 4px; color: var(--ink-3); }
+html.os-windows .gs-win { display: block; }
+
+/* Steps: three cards. One DOM for both layouts: the li is a grid, its ::before draws the card under the art and the
+   caption, and the number sits above the card (wide) or left of the caption (narrow). */
+.gs-steps { display: grid; gap: 32px; margin: 64px 0 0; padding: 0; list-style: none; text-align: left; }
+.gs-step { position: relative; isolation: isolate; display: grid; grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "art art" "num cap"; min-width: 0; }
+.gs-step::before { content: ""; z-index: -1; grid-column: 1 / -1; grid-row: 1 / 3; border: 1px solid var(--hairline); border-radius: 20px; background: var(--card); }
+.gs-num { grid-area: num; align-self: start; display: grid; place-items: center; width: 32px; height: 32px; margin: 18px 0 0 20px; border-radius: 50%;
+  background: var(--ink); color: var(--paper); font: 400 22px/1 var(--pixel); font-variant-numeric: tabular-nums; }
+.gs-art { grid-area: art; display: flex; flex-direction: column; justify-content: center; gap: 12px; min-width: 0; aspect-ratio: 16 / 9; margin: 1px 1px 0;
+  padding: 16px; border-radius: 19px 19px 0 0; background: var(--mist); }
+.gs-art-term { align-items: center; }
+.gs-art-term svg { width: min(240px, 100%); height: auto; }
+.gs-cap { grid-area: cap; min-width: 0; padding: 20px 20px 22px 14px; }
+.gs-cap p { margin: 0; font-size: 16px; line-height: 24px; color: var(--ink); }
+.gs-cap b { font-weight: 600; overflow-wrap: anywhere; }
+.gs-cap .gs-note { margin-top: 6px; font-size: 14px; line-height: 20px; color: var(--ink-3); }
+.gs-cap code { padding: 1px 5px; border-radius: 5px; background: var(--mist); color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+
+@media (min-width: 1024px) {
+  .gs-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto auto auto; gap: 0 24px; }
+  .gs-step { grid-row: span 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; grid-template-areas: "num" "art" "cap"; }
+  .gs-step::before { grid-row: 2 / 4; }
+  .gs-num { justify-self: center; margin: 0 0 16px; }
+  .gs-art { aspect-ratio: 4 / 3; }
+  .gs-cap { padding: 20px 24px 24px; }
+}
+
+/* The command wells: the "illustration" is the thing you copy. They wrap instead of scrolling. */
+.gs-well { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--term-bg); color: var(--term-fg);
+  font: 400 12px/19px var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.gs-well-one { padding: 14px 16px; font-size: 15px; line-height: 22px; }
+.gs-copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 36px; }
+.gs-copy { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border: 1.5px solid var(--ink); border-radius: 999px;
+  background: var(--card); color: var(--ink); font: 600 14px/1 var(--sans); cursor: pointer; }
+.gs-copy[hidden] { display: none; }
+.gs-copy:active { background: var(--paper); }
+.gs-status { margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+
+/* The one alternative: Claude Code does the steps from install.md. */
+.gs-alt { max-width: 640px; margin: 56px auto 0; }
+.gs-alt-h { margin: 0; font-size: 16px; line-height: 24px; color: var(--ink-2); }
+.gs-prompt { margin: 10px 0 0; padding: 12px 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--card); color: var(--ink);
+  font: 400 14px/21px var(--font-mono); overflow-wrap: anywhere; text-align: left; }
+.gs-alt .gs-copy-row { justify-content: center; margin-top: 10px; }
+
+.gs-help { margin: 16px 0 0; font-size: 14px; line-height: 20px; color: var(--ink-3); }
+.gs-help a { padding-block: 4px; color: var(--ink); }
+
+.gs-foot { padding: 96px 20px 32px; text-align: center; }
+.gs-foot p { margin: 0; font-size: 13px; line-height: 20px; color: var(--ink-3); }
+.gs-foot a { padding-block: 4px; color: var(--ink-3); }
+
+@media (max-width: 420px) {
+  .gs-col { padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px)); }
+}
+
+/* Enter, once: pill, h1, line, then the cards, 280 ms each, 50 ms apart; all in by 540 ms. Opacity and transform only.
+   Reduced motion or the stored "Pause motion" choice: everything is simply there. */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.motion-paused) :is(.gs-pill, .gs-h1, .gs-line, .gs-step) { animation: gs-in .28s var(--ease) both; }
+  html:not(.motion-paused) .gs-h1 { animation-delay: 50ms; }
+  html:not(.motion-paused) .gs-line { animation-delay: .1s; }
+  html:not(.motion-paused) .gs-step:nth-child(1) { animation-delay: .16s; }
+  html:not(.motion-paused) .gs-step:nth-child(2) { animation-delay: .21s; }
+  html:not(.motion-paused) .gs-step:nth-child(3) { animation-delay: .26s; }
+}
+@keyframes gs-in { from { opacity: 0; transform: translateY(8px); } }
