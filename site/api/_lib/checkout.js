@@ -133,6 +133,12 @@ export async function handleCheckout(req, deps) {
   form.set("line_items[0][price_data][currency]", "usd");
   form.set("line_items[0][price_data][unit_amount]", String(PRICE_CENTS));
   form.set("line_items[0][price_data][product_data][name]", PRODUCT_NAME);
+  // Stripe Tax: off until the owner enables it in the Dashboard and sets TM_STRIPE_TAX exactly "1". Tax is then added
+  // on top of the $50, so amount_subtotal (what the license check reads) stays the $50 price.
+  if (deps.env.TM_STRIPE_TAX === "1") {
+    form.set("line_items[0][price_data][tax_behavior]", "exclusive");
+    form.set("automatic_tax[enabled]", "true");
+  }
   form.set("success_url", `${site}/thanks?session={CHECKOUT_SESSION_ID}`);
   form.set("cancel_url", `${site}/#pricing`);
   form.set("allow_promotion_codes", "true");
