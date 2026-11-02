@@ -148,7 +148,7 @@ function vercelProjectRow(v: FeatureSettingsView): string {
 
 /** The rows for one state. Pure, so it can be tested without a window. */
 export function featureSettingsHtml(v: FeatureSettingsView): string {
-  if (v.phase === "loading") return `<span class="spin" role="status" aria-label="Loading"></span>`;
+  if (v.phase === "loading") return `<div class="sk-lines" role="status" aria-label="Loading"><i class="sk sk-l"></i><i class="sk sk-m"></i><i class="sk sk-l"></i></div>`;
   if (v.phase === "unavailable") return `<p class="ft-err" role="alert">${esc(v.problem ?? "Couldn’t read the settings.")}</p><button type="button" class="btn" data-fa="reload">Try again</button>`;
   const dis = v.busy ? " disabled" : "";
   const status = v.problem ? `<p class="ft-err" role="alert">${esc(v.problem)}</p>` : v.status ? `<p class="ft-status" role="status">${esc(v.status)}</p>` : "";

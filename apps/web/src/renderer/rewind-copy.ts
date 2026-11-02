@@ -107,10 +107,10 @@ export interface AfterView {
 export function afterBanner(v: AfterView): string {
   const off = v.busy || v.working ? " disabled" : "";
   const mono = (s: string): string => `<span class="mono sel-text">${esc(s)}</span>`;
-  const where = v.branch && v.copyDir ? `It is on ${v.open ? "the new" : "the"} branch ${mono(v.branch)}, with a copy at ${mono(v.copyDir)}.`
-    : v.branch ? `It is on the branch ${mono(v.branch)}. Its copy is not there anymore.`
-    : v.copyDir ? `It is in a copy at ${mono(v.copyDir)}.`
-    : "Its copy is not there anymore.";
+  // Two lines, branch then copy, each arriving on its own in the bring-back moment (B6 §3.3.2). A plain folder has no branch line.
+  const branch = v.branch ? `On ${v.open ? "the new" : "the"} branch ${mono(v.branch)}.` : "";
+  const copy = v.copyDir ? `In a copy at ${mono(v.copyDir)}.` : "Its copy is not there anymore.";
+  const where = [branch, `${copy} Your folder was not touched.`].filter(Boolean).map((l) => `<p class="after-l">${l}</p>`).join("");
   const tries = [
     v.copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(v.copyDir)}">${esc(v.reveal)}</button>` : "",
     !v.open && v.branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(v.branch)}" aria-label="Copy branch name ${esc(v.branch)}">Copy branch name</button>` : "",
@@ -131,7 +131,7 @@ export function afterBanner(v: AfterView): string {
   // Undo and Keep it come right after where it went, so Undo is in view from the first frame, on a phone too (B6 S10, §3.3).
   return `<section class="after${v.open ? "" : " kept"}" aria-labelledby="after-h">
     <h2 class="after-h" id="after-h" tabindex="-1">${esc(sentenceStart(v.open ? `${v.name} is back, in a copy` : `${v.name} was brought back`))}</h2>
-    <p class="after-where">${where} Your folder was not touched.</p>
+    <div class="after-where">${where}</div>
     ${choices}${tries ? `<div class="row-btns after-try">${tries}</div>` : ""}${broken}
   </section>`;
 }

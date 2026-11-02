@@ -23,7 +23,7 @@ import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
-import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RING_MS, VERDICT_MS } from "./motion.js";
+import { blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, HERO_MS, LEAVE_MS, liftFrom, MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RETURN_MS, RING_MS, ROLL_MS, rolledDigits, ROW_IN_MS, rowDelay, SETTLE_MS, undoReturn, type CheckRun, type ScreenBox } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
@@ -82,9 +82,12 @@ interface RewindState {
   step: "find" | "review" | "done";
   /** True when this Rewind started with a search, so the step bar shows Find. */
   searched: boolean;
-  /** "confirm" is every bring back: Review is the one confirm, and a search or Done is the plain sheet, with no dial. The dial stays
-   *  only for a missing folder or a damaged save point (bringBackView): "scene" is the Time View, "sheet" the same steps for Simple rewind. */
+  /** "confirm" is every bring back: Review is the one confirm, a search runs in History's own list (inList), and a search that
+   *  finds nothing, or Done, is the plain sheet, with no dial. The dial stays only for a missing folder or a damaged save point
+   *  (bringBackView): "scene" is the Time View, "sheet" the same steps for Simple rewind. */
   mode: "confirm" | "scene" | "sheet";
+  /** The project whose History shows this search in its own list, row by row as the engine reports (B6 §3.2). */
+  inList?: string;
   returnTo: ReturnPoint;
   target: string | null;
   finding: boolean;
@@ -869,7 +872,7 @@ function sidebar(mobile = false): string {
     ${items || '<p class="side-empty">Nothing protected yet.</p>'}
     ${recentRows(recent)}
     <div class="side-foot">
-      <button class="it acct" data-act="settings" title="${esc(`Settings (${keys("Mod+,")})`)}">${setIcon("gear")}<span class="nm"><span>Settings</span><small>${esc(plan)}</small></span></button>
+      <button class="it acct" data-act="settings" title="${esc(`Settings (${keys("Mod+,")})`)}">${setIcon("gear")}<span class="nm"><span>Settings</span><small data-roll="plan">${esc(plan)}</small></span></button>
     </div>
   </${tag}>`;
 }
@@ -881,11 +884,19 @@ function navigation(): string {
   return st.navOpen ? `<div class="scrim nav-scrim ${once("scrim:nav")}" data-leave="navigation">${sidebar(true)}</div>` : "";
 }
 
-/** The link to tm ui: while it connects the strip is sky and says so; once it drops, it says why and offers Reconnect. */
+/** When the link to tm ui came back after it dropped: the banner says Reconnected for 3 s, then goes (B6 §3.1). */
+let reconnectedAt: number | null = null;
+const RECONNECTED_MS = 3000;
+
+/** The link to tm ui: while it connects the strip is sky and says so; once it drops, it says why and offers Reconnect. It enters
+ *  once, by opacity; while the link is down its mark breathes, as the bridge retries on its own; back, it says so for 3 s. */
 function connectionBanner(): string {
+  if (st.connection?.state === "connected" && reconnectedAt !== null && Date.now() - reconnectedAt < RECONNECTED_MS) {
+    return `<div class="connection-banner" data-state="connected" role="status"><div><b>Reconnected</b></div></div>`;
+  }
   const t = connectionText(st.connection);
   if (!t || !st.connection) return "";
-  return `<div class="connection-banner" data-state="${st.connection.state}" role="status">${buddy("conn-buddy")}<div><b>${esc(t.title)}</b><p>${esc(t.line)}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
+  return `<div class="connection-banner ${once("connection")}" data-state="${st.connection.state}" role="status">${buddy("conn-buddy")}<div><b>${esc(t.title)}</b><p>${esc(t.line)}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
 }
 
 /** First run (first-run.ts welcomePage): Try the demo as the one primary, Protect a folder the quiet second. */
@@ -951,22 +962,40 @@ function checksOn(p: ProjectEntry | null, pts?: readonly DigestPoint[]): boolean
   return hasCheck(null, ever);
 }
 
+/** The answer of the last search History ran in its list, from the engine's own list of what it checked (B6 §3.2). While
+ *  `open`, it is said in the place the search's progress line held; after a bring back it only keeps the list unfolded, so
+ *  no row the search reached folds away under the reader. Replaced by the next search. */
+let runDone: (CheckRun & { projectId: string; open: boolean }) | null = null;
+
+/**
+ * The search History runs in its own list (B6 §3.2): what the engine has reported so far, result by result, or null when no
+ * search runs there. A search from the dial or the plain sheet shows in that view instead.
+ */
+function listRun(): CheckRun | null {
+  const r = st.rewind;
+  if (!r?.inList || r.inList !== st.projectId || st.screen === "rewind") return null;
+  return checkRun(points().map((c) => c.id), r.progress, r.finding);
+}
+
 /**
  * One option in History's list: the save point's message and its time, then its verdict as an icon, a word and a colour,
- * never the colour alone. The last version that works and the save point it broke at are marked in words.
+ * never the colour alone. The last version that works and the save point it broke at are marked in words. While History
+ * runs a search, a row shows the engine's result for it as it arrives, and the one being checked breathes.
  */
-function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntry | null): string {
+function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntry | null, run: CheckRun | null): string {
   const running = checkRunning();
-  const checking = c.id === running || (running === "new" && c.id === points().at(-1)?.id);
+  const checking = c.id === running || (running === "new" && c.id === points().at(-1)?.id) || c.id === run?.checking;
   const damaged = damagedReason(c);
+  const live = run?.done.get(c.id);
   // The broken version saved before going back, never checked, shows the verdict it carries from the save before it (B4).
-  const verdict = c.trigger === "recover" && c.verdict === null ? carriedVerdict(points(), c.id, st.changes) : c.verdict;
+  const verdict = live ? asVerdict(live) : c.trigger === "recover" && c.verdict === null ? carriedVerdict(points(), c.id, st.changes) : c.verdict;
   const v = rowVerdict(verdict, { checks: checksOn(project()), checking, damaged: !!damaged });
   const mark = v.icon === "verdict" ? vIcon(verdict) : v.icon === "glyph" ? '<i class="g" aria-hidden="true"></i>' : "";
   const on = !st.foldAt && c.id === st.selected;
   const tag = c.id === lw?.id ? '<span class="lp-tag lw">Last version that works</span>' : c.id === broke?.id ? '<span class="lp-tag br">Broke here</span>' : "";
   const pin = st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : "";
-  return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(verdict)}"${damaged ? ` title="${esc(damaged)}"` : ""}>
+  // data-vs is what the row shows (Checking included), so a result that lands settles once even when it repeats the old verdict.
+  return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(verdict)}" data-vs="${esc(v.key)}"${damaged ? ` title="${esc(damaged)}"` : ""}>
     <span class="lp-t"><span class="lp-tt">${esc(title(c, authorOf(c)))}</span>${pin}</span><span class="lp-when">${esc(ptClock(c))}</span><span class="lp-m"><span class="lp-v v-${v.key}">${mark}<span>${esc(v.word)}</span></span>${tag}</span></div>`;
 }
 
@@ -981,10 +1010,15 @@ function foldRow(key: string, rows: readonly TimelineEntry[], checks: boolean, u
 /**
  * The mini-ruler in the list's header: the save points at a glance, oldest on the left and the newest on the right, in
  * Overview's shapes with their glyphs. A picture, not a control: the rows are the targets and say it all in words, so
- * screen readers skip it. When there are more marks than room, the oldest go first.
+ * screen readers skip it. When there are more marks than room, the oldest go first. While History runs a search, each tick
+ * takes its row's result in step, and the one being checked breathes with its row.
  */
-function rulerStrip(pts: TimelineEntry[], lw: TimelineEntry | null): string {
-  const marks = rulerMarks(pts, st.selected, lw?.id ?? null).map((m) => `<i class="spk v-${m.key}${m.on ? " on" : ""}${m.lw ? " lw" : ""}">${m.glyph ? vIcon(m.v) : ""}</i>`).join("");
+function rulerStrip(pts: TimelineEntry[], lw: TimelineEntry | null, run: CheckRun | null): string {
+  const shown = run ? pts.map((c) => (run.done.has(c.id) ? { id: c.id, verdict: asVerdict(run.done.get(c.id) ?? "") } : c)) : pts;
+  const marks = rulerMarks(shown, st.selected, lw?.id ?? null).map((m) => {
+    const key = m.id === run?.checking ? "checking" : m.key;
+    return `<i class="spk v-${key}${m.on ? " on" : ""}${m.lw ? " lw" : ""}" data-vid="tick:${esc(m.id)}" data-vs="${key}">${m.glyph && key !== "checking" ? vIcon(m.v) : ""}</i>`;
+  }).join("");
   return `<span class="spark" aria-hidden="true">${marks}</span>`;
 }
 
@@ -1095,14 +1129,27 @@ function history(): string {
   // The demo says so once, here.
   const sub = [p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : "", command ? `Checks with <code class="mono">${esc(command)}</code> in a copy.` : "", working ? "Claude Code is working now. We check again when its turn ends." : "", st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""].filter(Boolean).join(" ");
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
+  const run = listRun();
+  // The answer of the search History just ran, until the next search, a bring back or another project.
+  const ran = run ?? (runDone?.projectId === p.id && runDone.open && !u ? runDone : null);
+  // The version the search found is the way back the moment its result lands, before the timeline is read again.
+  const found = ran?.found && ran.found !== newest?.id ? entry(ran.found) : null;
+  const way = found ?? behind;
   // Bring back the version that works, right under the status, while no preview sheet is open: an open sheet holds the
   // page's one primary. Not after a bring back, and not for a version that already has a recovery on disk (the card below
-  // says where that one is).
-  const go = behind && !u && !gone && !st.drawer && !damagedReason(behind) && !st.recoveries.get(p.id)?.some((r) => r.id === behind.id)
-    ? `<div class="lp-go">${bringBackButton(behind, "btn big dark", st.busy ? "disabled" : "", bringTarget(entry(st.selected))?.id === behind.id)}</div>` : "";
+  // says where that one is). While History searches, the same place says Checking… until the engine has its answer (B6 §3.2).
+  const go = run?.checking ? '<div class="lp-go"><button class="btn big dark running" disabled><span>Checking…</span></button></div>'
+    : way && !u && !gone && !st.drawer && !damagedReason(way) && !st.recoveries.get(p.id)?.some((r) => r.id === way.id)
+      ? `<div class="lp-go">${bringBackButton(way, "btn big dark", st.busy ? "disabled" : "", bringTarget(entry(st.selected))?.id === way.id)}</div>` : "";
+  // What the search is doing, in words, as the engine reports it: the save point it checks now and how far it got; then its
+  // answer, in the same place, so nothing under it moves.
+  const runText = run?.checking ? `Checking ${pointName(run.checking)}, ${run.n} of up to ${run.of}, newest first.`
+    : found && ran ? `${sentenceStart(pointName(found.id))} works. We checked ${plural(ran.done.size, "save point")}, newest first, each in a copy.` : "";
+  const runLine = runText
+    ? `<p class="lp-run"><span class="lp-run-t">${keepTimes(esc(runText))}</span>${run?.checking ? ' <button class="btn link" data-act="stop-check">Stop the search</button>' : ""}</p>` : "";
   const status = `<section class="lp-status" data-vid="hero" data-v="${esc(s.head)}">
     <h1 class="lp-h"><span class="lp-mark v-${verdictKey(now)}" aria-hidden="true">${vIcon(now)}</span><span>${keepTimes(esc(line))}</span></h1>
-    ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${goneCard}${go}
+    ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${runLine}${goneCard}${go}
   </section>`;
   // After a bring back, a banner, not a toast: where it went and, while it is open, Undo and Keep it (B4). After Keep it, or for
   // a recovery this tm ui did not make, the newest one on disk still says where it is.
@@ -1133,10 +1180,12 @@ function history(): string {
   // Your broken versions saved before each bring back are named rows: they never fold with quiet ones. Bringing versions back
   // again and again leaves the newest as a row and folds the ones before it under it (foldRepeats).
   const brokenIds = brokenNumbers(pts);
-  const quiet = (c: TimelineEntry): boolean => c.verdict === null && !brokenIds.has(c.id) && !damagedReason(c) && c.id !== st.selected && c.id !== running && !st.notes.get(c.id)?.title?.trim() && !st.notes.get(c.id)?.pinned;
+  // While History searches, and after, nothing folds: a row the search reaches never unfolds under the reader (CLS 0, B6 §4).
+  const searched = !!run || runDone?.projectId === p.id;
+  const quiet = (c: TimelineEntry): boolean => !searched && c.verdict === null && !brokenIds.has(c.id) && !damagedReason(c) && c.id !== st.selected && c.id !== running && !st.notes.get(c.id)?.title?.trim() && !st.notes.get(c.id)?.pinned;
   const groups = days.map((d) => ({ d, items: foldRepeats(foldRuns(rows.filter((c) => dayOf(c) === d), quiet, st.folds), (c) => brokenIds.has(c.id), (c) => st.folds.has(c.id) || c.id === st.selected) }));
   if (st.foldAt && !groups.some((g) => g.items.some((x) => "fold" in x && x.fold === st.foldAt))) st.foldAt = null;
-  const itemsHtml = (items: ListItem<TimelineEntry>[]): string => items.map((x) => ("fold" in x ? foldRow(x.fold, x.rows, checks, units, x.repeat) : listRow(x.row, behind, broke))).join("");
+  const itemsHtml = (items: ListItem<TimelineEntry>[]): string => items.map((x) => ("fold" in x ? foldRow(x.fold, x.rows, checks, units, x.repeat) : listRow(x.row, behind, broke, run))).join("");
   // One day needs no groups: the list's header names it. More days group under their names.
   const options = days.length <= 1
     ? itemsHtml(groups[0]?.items ?? [])
@@ -1145,11 +1194,11 @@ function history(): string {
   const active = st.foldAt ? `opt-fold-${st.foldAt}` : sel && rows.includes(sel) ? `opt-${sel.id}` : "";
   // The list is what opens the sheet: it says whether the sheet is open and, while it is, which element it is.
   const listbox = rows.length
-    ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys" aria-expanded="${st.drawer}"${st.drawer ? ' aria-controls="lp-sheet"' : ""}${active ? ` aria-activedescendant="${esc(active)}"` : ""}>${options}</div>
+    ? `<div class="lp-list${searched ? " ran" : ""}" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys" aria-expanded="${st.drawer}"${st.drawer ? ' aria-controls="lp-sheet"' : ""}${active ? ` aria-activedescendant="${esc(active)}"` : ""}>${options}</div>
       <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}. F2 renames it. Esc closes it.</p>`
     : `<div class="lp-list lp-empty">${filter === "all" ? "" : noneShown(filter, p.purpose)}</div>`;
   // One All ▾ menu (S3): All, Works, Named and Pinned, each with how many it shows.
-  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${filterMenu(filter, { all: pts.length, ...filterCounts(readable, st.notes, checks) }, p.purpose, st.menu === "filter", st.menu === "filter" ? once("menu:filter") : "")}${rulerStrip(pts, behind)}</div>`;
+  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n" data-roll="lp-n">${esc(String(pts.length))}</span>${filterMenu(filter, { all: pts.length, ...filterCounts(readable, st.notes, checks) }, p.purpose, st.menu === "filter", st.menu === "filter" ? once("menu:filter") : "")}${rulerStrip(pts, behind, run)}</div>`;
   return `<div class="page proj lp${st.drawer && sheetBeside() ? " has-sheet" : ""}"><div class="doc lp-doc">${status}${after}
     ${setupView(p, pts)}
     <section class="lp-col" aria-labelledby="lp-ht">${head}${listbox}</section>
@@ -1568,7 +1617,7 @@ function checkSheet(): string {
   // One duration: from the press to the verdict, saving, copying and checking together, so it matches the clock.
   const took = done && c.result && c.endedAt !== null ? `<p class="ck-took">Took <span class="mono">${esc(seconds(c.endedAt - c.startedAt))}</span> (save + copy + check)</p>` : "";
   const list = `<div class="steplist">${rows
-    .map((r) => `<div class="r">${r.state === "run" ? '<span class="spin" aria-hidden="true"></span>' : r.state === "ok" ? '<span class="ok" aria-hidden="true">✓</span>' : r.state === "no" ? '<span class="ok muted" aria-hidden="true">–</span>' : '<span class="ok muted" aria-hidden="true">·</span>'}<span>${esc(r.label)}</span><span class="t">${esc(r.t)}</span></div>`)
+    .map((r) => `<div class="r">${r.state === "run" ? '<i class="g run" aria-hidden="true"></i>' : r.state === "ok" ? '<span class="ok" aria-hidden="true">✓</span>' : r.state === "no" ? '<span class="ok muted" aria-hidden="true">–</span>' : '<span class="ok muted" aria-hidden="true">·</span>'}<span>${esc(r.label)}</span><span class="t">${esc(r.t)}</span></div>`)
     .join("")}</div>${took}`;
   const lw = lastWorking();
   const target = c.cp ? entry(c.cp) : null;
@@ -2044,7 +2093,7 @@ function compare(): string {
     return `<label class="cmp-l"><span class="cmp-lt">${label}</span><span class="cmp-pick"><span class="cmp-face" aria-hidden="true">${face}</span><select data-model="${model}">${opt(sel)}</select></span></label>`;
   };
   let body = "";
-  if (c.loading) body = '<div class="cmp-wait" role="status"><span class="spin" aria-hidden="true"></span><span>Comparing…</span></div>';
+  if (c.loading) body = '<div class="cmp-wait" role="status"><span>Comparing…</span><span class="sk-lines" aria-hidden="true"><i class="sk sk-l"></i><i class="sk sk-m"></i><i class="sk sk-l"></i></span></div>';
   else if (c.error) body = `<div class="note bad">${esc(c.error)}</div>`;
   else if (c.result) {
     const d = c.result;
@@ -2099,7 +2148,7 @@ function compare(): string {
     ${body}</div></div>`;
 }
 
-const LOADING = '<span class="spin" role="status" aria-label="Loading"></span>';
+const LOADING = '<span class="sk-lines sk-one" role="status" aria-label="Loading"><i class="sk sk-m"></i></span>';
 /** An empty project list: one line that says what to do, and the button that does it. No illustration, no dead end. */
 const NO_PROJECTS = '<div class="empty-dir"><p>Protect a folder to see it here.</p><button class="btn" data-act="add">Protect a folder</button></div>';
 /** A list while it reads (Agents, Storage): quiet rows in the card's own shape, announced once as Loading. */
@@ -2190,7 +2239,7 @@ function storageScreen(): string {
     // The clean-up choice goes on its own line under the row, away from the row's Remove from app.
     const asking = st.cleanup?.projectId === r.projectId && !st.cleanup.working && !!st.cleanup.result?.files.length && !st.cleanup.result.applied;
     return `<div class="b9-row b9-st"><p class="b9-t">${esc(r.name)}</p>${st.settings.showGitDetails ? `<p class="mono b9-path sel-text">${esc(r.storeDir)}</p>` : ""}
-      <span class="b9-num mono">${esc(bytes(r.bytes))}<span class="sr-only"> on ${device()}</span></span>
+      <span class="b9-num mono"><span data-roll="store:${esc(r.projectId)}">${esc(bytes(r.bytes))}</span><span class="sr-only"> on ${device()}</span></span>
       <span class="row-btns b9-acts">${asking ? "" : cleanRow(r.projectId)}<button class="btn ghost" data-act="remove" data-id="${r.projectId}">Remove from app</button></span>${asking ? `<div class="b9-ask">${cleanRow(r.projectId)}</div>` : ""}${thinRow(r.projectId)}</div>`;
   });
   // The total is the whole store on disk, removed projects' history included, so it matches what the disk says; what it
@@ -2415,7 +2464,7 @@ function onboarding(): string {
         <div class="path-in${pick ? " has-pick" : ""}"><input id="local-project-path" class="field" data-model="ob-path" type="text" value="${esc(o.path ?? "")}" placeholder="${esc(example)}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="4096" aria-describedby="local-project-help${err ? " onboarding-path-error" : ""}" aria-invalid="${!!err}" ${o.working ? "disabled" : ""}>
         ${err ? `<p id="onboarding-path-error" class="path-err" role="alert">${esc(err)}</p>` : ""}
         <p id="local-project-help" class="path-help small muted">${pick ? "Choose it, or type its path." : "Type its path."} <span class="mono">~</span> is your home folder.</p>${pick}</div>
-        <div class="row-btns"><button type="submit" class="btn dark" ${o.working ? "disabled" : ""}>${o.working ? "Reading the folder…" : "Next: choose the check"}</button><button type="button" class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button>${o.working ? '<span class="spin" role="status" aria-label="Reading the folder"></span>' : ""}</div>
+        <div class="row-btns"><button type="submit" class="btn dark${o.working ? " running" : ""}" ${o.working ? "disabled" : ""}>${o.working ? "Reading the folder…" : "Next: choose the check"}</button><button type="button" class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button>${o.working ? '<span class="sr-only" role="status">Reading the folder</span>' : ""}</div>
       </form>
       <p class="small muted">${esc(pathSetupNote(purpose))}</p></div>`;
   } else if (o.step === 3 && o.preview) {
@@ -2447,8 +2496,8 @@ function onboarding(): string {
         ${code ? skipRow : ""}
         ${o.choice === "none" ? "" : `${setup ? `<p class="small muted">Installs first with <span class="mono">${esc(setup)}</span>, then runs the check.</p>` : ""}
         <p class="small muted">Checks run in a copy, never in your folder.${ck.network === "deny" ? " The internet is off during checks." : ` The internet stays on during checks on ${device()}, because no sandbox was found.`}</p>
-        <div class="row-btns"><button class="btn" data-act="ob-try" ${o.trying || o.working ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
-          ${o.trying ? '<span class="spin"></span>' : o.tryResult ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${reasonHtml(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
+        <div class="row-btns"><button class="btn${o.trying ? " running" : ""}" data-act="ob-try" ${o.trying || o.working ? "disabled" : ""}>${o.trying ? "Checking…" : "Try it now"}</button>
+          ${o.tryResult && !o.trying ? `${badge(o.tryResult.verdict, stampOnce(`ob:${o.tryResult.at}`))}<span class="small muted">${reasonHtml(o.tryResult.reason)} ${esc(seconds(o.tryResult.durationMs))}</span>` : ""}</div>
         ${o.tryResult && o.tryResult.verdict === "FAIL" ? `<div class="note">It doesn’t pass right now. That’s OK. We’ll save it as Broken, and the next version that passes becomes your first working save point.</div>` : o.project || o.trying ? "" : `<p class="small muted">${esc(`Try it now adds ${p.name} to Time Machine and saves a version to check. Back takes it out again.`)}</p>`}
         ${o.tryResult && !o.tryResult.stopped ? verdictTip() : ""}`}
       </div>
@@ -2651,7 +2700,7 @@ function busyScrim(): string {
   if (!st.demoBusy) return "";
   return `<div class="scrim ${once("scrim:demo")}" data-leave="demo"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="demo-title" aria-describedby="demo-description" aria-busy="true">
     <h2 id="demo-title">Building the demo…</h2>
-    <div class="steplist"><div class="r"><span class="spin" aria-hidden="true"></span><span id="demo-description">Making Marigold Tips in a temporary folder, then breaking it on purpose. The real engine checks each save point to find the newest one that passes. You choose whether to bring it back.</span></div></div>
+    <div class="steplist"><div class="r"><i class="g run" aria-hidden="true"></i><span id="demo-description">Making Marigold Tips in a temporary folder, then breaking it on purpose. The real engine checks each save point to find the newest one that passes. You choose whether to bring it back.</span></div></div>
     <p class="small muted">Your projects are not touched.</p></div></div>`;
 }
 
@@ -3064,6 +3113,8 @@ let lastPress = { x: 0, y: 0, at: -Infinity };
 const BLOCK_IN_MS = 300;
 /** Projects whose History has been drawn: a save point new to one of them arrives with a landing, the first draw does not. */
 const verdictProjects = new Set<string>();
+/** When History's rows were first drawn on the page on screen (pageIn.at): they rise one after another from then, once. */
+let rowsIn = { page: -1, at: 0 };
 
 /** A verdict mark whose verdict differs from the last draw is noted, so its change plays once wherever it is drawn; so is
  *  a save point that arrives while its project is on screen (a save, a hook). While the check sheet is open its own card
@@ -3075,7 +3126,8 @@ function trackVerdicts(now: number): void {
   const marks = root.querySelectorAll<HTMLElement>("[data-vid]");
   marks.forEach((el) => {
     const key = `${pid} ${el.dataset.vid ?? ""}`;
-    const v = el.dataset.v ?? "";
+    // What the mark shows: a row's Checking too, so a result that repeats the old verdict still settles (B6 §3.2).
+    const v = el.dataset.vs ?? el.dataset.v ?? "";
     const was = shownVerdicts.get(key);
     if (was === undefined ? known : was !== v) verdictIn.set(key, now);
     shownVerdicts.set(key, v);
@@ -3084,8 +3136,9 @@ function trackVerdicts(now: number): void {
 }
 
 /**
- * A new page fades in and its blocks rise one after another; a verdict that changed lands once. A sheet, menu or column
- * that opens from a press grows from where the press was. Redraws continue all of it.
+ * A new page fades in and its blocks rise one after another, and History's rows on first load; a verdict that changed
+ * settles once. A sheet or column that opens from a press grows from where the press was; a menu grows from its button's
+ * corner. Redraws continue all of it.
  */
 function applyEntrances(scene: boolean): void {
   const now = performance.now();
@@ -3101,20 +3154,26 @@ function applyEntrances(scene: boolean): void {
   };
   const sincePage = now - pageIn.at;
   const page = root.querySelector<HTMLElement>(".main > .toolbar + *");
-  // The page's own blocks: History's status and its list, the sections of Agents and Storage. A feature host keeps its state, so it stays still.
-  const blocks = page ? [...page.querySelectorAll<HTMLElement>(":scope > .doc > *, :scope > .b9 > *")].filter((el) => !el.classList.contains("mount")) : [];
+  // The page's own blocks: History's status and its list, the sections of Agents and Storage. A feature host keeps its state, so
+  // it stays still. History's list does not rise as a block once it has rows: its rows rise instead.
+  const blocks = page ? [...page.querySelectorAll<HTMLElement>(":scope > .doc > *, :scope > .b9 > *")].filter((el) => !el.classList.contains("mount") && !el.querySelector("#list .lp-row")) : [];
   if (page) enter(page, blocks.length ? "page-fade" : "page-in", entranceDelay(0, sincePage, PAGE_IN_MS));
   blocks.forEach((el, i) => enter(el, "block-in", blockDelay(i, sincePage, BLOCK_IN_MS)));
+  // History's rows rise 40 ms apart, the first 8, the first time they are drawn on this page: never on a filter, a search or a
+  // refresh, which redraw the same page (B6 §3.1).
+  const rows = st.screen === "history" ? [...root.querySelectorAll<HTMLElement>("#list .lp-row")] : [];
+  if (rows.length && rowsIn.page !== pageIn.at) rowsIn = { page: pageIn.at, at: now };
+  rows.forEach((el, i) => enter(el, "row-in", rowDelay(i, now - rowsIn.at, ROW_IN_MS)));
   if (!st.projectId || scene) return;
   root.querySelectorAll<HTMLElement>("[data-vid]").forEach((el) => {
     const at = verdictIn.get(`${st.projectId ?? ""} ${el.dataset.vid ?? ""}`);
-    const delay = at === undefined ? null : entranceDelay(0, now - at, VERDICT_MS);
+    const delay = at === undefined ? null : entranceDelay(0, now - at, el.dataset.vid === "hero" ? HERO_MS : SETTLE_MS);
     if (delay === null) return;
     el.classList.add("v-land");
     el.style.setProperty("--vd", `${delay}ms`);
   });
   if (now - lastPress.at < 700) {
-    root.querySelectorAll<HTMLElement>(".scrim.enter > .sheet, .scrim.enter > .pal, .rcol.enter, .drawer.enter, .mn-l.enter").forEach((el) => {
+    root.querySelectorAll<HTMLElement>(".scrim.enter > .sheet, .scrim.enter > .pal, .rcol.enter, .drawer.enter").forEach((el) => {
       const r = el.getBoundingClientRect();
       el.style.transformOrigin = `${Math.round(lastPress.x - r.left)}px ${Math.round(lastPress.y - r.top)}px`;
     });
@@ -3145,10 +3204,200 @@ function placeLeaving(old: Leaving[]): void {
       const timing: KeyframeAnimationOptions = { duration: LEAVE_MS, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" };
       const sheet = el.querySelector<HTMLElement>(":scope > .sheet, :scope > .pal");
       sheet?.animate([{ transform: "none" }, { transform: "scale(.97)" }], timing);
-      const to = el.classList.contains("drawer") ? "translateX(24px)" : "none";
+      // The phone's sidebar goes back out to the left over --t-exit as its veil fades (B6 §3.1).
+      el.querySelector<HTMLElement>(":scope.nav-scrim > .side")?.animate([{ transform: "none" }, { transform: "translateX(-100%)" }], timing);
+      // The Inspector and History's side sheet leave the way they came, to the right.
+      const to = el.classList.contains("drawer") || el.classList.contains("lp-sheet") ? "translateX(24px)" : "none";
       el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: to }], timing).onfinish = () => el.remove();
     }
     host.append(el);
+  }
+}
+
+/** An element's box on screen, or null when it is not drawn. */
+function boxOf(el: Element | null): ScreenBox | null {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width || r.height ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+}
+
+/** The document timeline's time: the clock the animations run on, so one carried across redraws stays on its own frame. */
+function animClock(): number {
+  const t = document.timeline.currentTime;
+  return typeof t === "number" ? t : performance.now();
+}
+
+/**
+ * What left the page shows where it went (B6 §3): a still copy of `el`, drawn where it was, inert and hidden from screen
+ * readers, that plays `keyframes` and is removed. It sits outside the app's root, so redraws never cut it; `hostClass` is the
+ * class of the parent its rules need (the card's `.doc`).
+ */
+function ghost(el: HTMLElement, box: ScreenBox, keyframes: Keyframe[], timing: KeyframeAnimationOptions, hostClass = "", origin = "0 0"): void {
+  const host = document.createElement("div");
+  host.className = hostClass;
+  host.inert = true;
+  host.setAttribute("aria-hidden", "true");
+  Object.assign(host.style, { position: "fixed", inset: "0", margin: "0", padding: "0", maxWidth: "none", zIndex: "60", pointerEvents: "none" });
+  const g = el.cloneNode(true) as HTMLElement;
+  for (const x of [g, ...g.querySelectorAll("[id]")]) x.removeAttribute("id");
+  g.classList.remove("enter", "lifting");
+  Object.assign(g.style, { position: "fixed", left: `${box.left}px`, top: `${box.top}px`, right: "auto", bottom: "auto", width: `${box.width}px`, height: `${box.height}px`, margin: "0", transformOrigin: origin });
+  host.append(g);
+  document.body.append(host);
+  g.animate(keyframes, { ...timing, fill: "forwards" }).onfinish = () => host.remove();
+}
+
+/** History's parts that move when the card comes or goes, by a key that finds them again after a draw: the page's blocks
+ *  under the status, and the list's rows, folds and day labels. */
+function slideParts(): Map<string, HTMLElement> {
+  const out = new Map<string, HTMLElement>();
+  root.querySelectorAll<HTMLElement>(".lp-doc > :not(.after):not(.mount):not(.lp-status)").forEach((el) => out.set(`doc:${el.classList[0] ?? el.tagName}`, el));
+  root.querySelectorAll<HTMLElement>("#list .lp-row, #list .lp-day").forEach((el) => out.set(el.dataset.id ? `row:${el.dataset.id}` : el.dataset.fold ? `fold:${el.dataset.fold}` : `day:${el.textContent ?? ""}`, el));
+  return out;
+}
+
+/** Where each of those parts was on screen, before a draw that adds or removes the card. */
+function slideTops(): Map<string, number> {
+  return new Map([...slideParts()].map(([k, el]) => [k, el.getBoundingClientRect().top]));
+}
+
+/**
+ * The card coming or going, played as a move instead of a jump, so nothing on the page shifts (B6 §4, CLS 0): when it began
+ * on the animation clock, how long it runs, how far each part starts from its new place, and for a bring back, where the
+ * card starts (null when its row was not on screen). The list makes room over the same time the card glides.
+ */
+interface Slide {
+  at: number;
+  duration: number;
+  flips: Map<string, number>;
+  card: { dx: number; dy: number } | null | undefined;
+}
+let slide: Slide | null = null;
+
+/** Starts a slide after the draw that moved things: `tops` from before it; `row` is where a bring back's row was (undefined for Undo). */
+function startSlide(tops: Map<string, number>, row: ScreenBox | null | undefined): void {
+  const parts = slideParts();
+  const shift = (k: string): number | null => {
+    const before = tops.get(k);
+    const el = parts.get(k);
+    return before === undefined || !el ? null : before - el.getBoundingClientRect().top;
+  };
+  // Rows move inside their column, which moves too: each keeps only its own part of the move.
+  const col = shift("doc:lp-col") ?? 0;
+  const flips = new Map<string, number>();
+  for (const k of parts.keys()) {
+    const dy = (shift(k) ?? 0) - (k.startsWith("doc:") ? 0 : col);
+    if (Math.abs(dy) >= 0.5) flips.set(k, Math.round(dy));
+  }
+  const box = boxOf(root.querySelector(".doc > .after:not(.kept)"));
+  slide = { at: animClock(), duration: row === undefined ? RETURN_MS : MOMENT_MS, flips, card: row === undefined || !box ? undefined : liftFrom(row, box, window.innerHeight) };
+  applySlide();
+}
+
+/**
+ * The bring-back moment (B6 §3.3): the card lifts out of its row and glides to its place over --t-moment; its two lines then
+ * "Your broken version is safe" arrive by opacity. Undo is in the card from its first frame, at full opacity, and never
+ * animates. The list makes room as it goes. A redraw mid-move carries every part on from the same frame. Reduced motion:
+ * no move at all; the parts that moved fade in where they now are, over --t-snap or less.
+ */
+function applySlide(): void {
+  const s = slide;
+  if (!s) return;
+  const t = animClock() - s.at;
+  const reduced = reducedMotion();
+  if (t >= (reduced ? CROSSFADE_MS : s.duration)) {
+    slide = null;
+    return;
+  }
+  const parts = slideParts();
+  for (const [k, dy] of s.flips) {
+    const el = parts.get(k);
+    if (!el) continue;
+    const a = reduced ? el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: CROSSFADE_MS, easing: EASE }) : el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: s.duration, easing: EASE });
+    a.currentTime = t;
+  }
+  const card = root.querySelector<HTMLElement>(".doc > .after:not(.kept)");
+  if (s.card === undefined || !card) return;
+  // Over the list while it glides up from the row.
+  card.classList.add("lifting");
+  for (const step of bringBackMoment(s.card, card.querySelectorAll(".after-l").length, reduced)) {
+    const el = step.part === "card" ? card : step.part === "line" ? card.querySelectorAll<HTMLElement>(".after-l")[step.index] : card.querySelector<HTMLElement>(".after-broken");
+    if (!el) continue;
+    const a = el.animate(step.keyframes, { duration: step.duration, delay: step.delay, easing: step.easing, fill: "backwards" });
+    a.currentTime = t;
+    if (step.part === "card") a.onfinish = () => card.classList.remove("lifting");
+  }
+  if (reduced) card.classList.remove("lifting");
+}
+
+/** Each count's text as last drawn, the digits that changed and when, so a count rolls once when it changes (B6 §3.1). */
+const rolls = new Map<string, { text: string; at: number; digits: number[] }>();
+
+/**
+ * Counts marked data-roll roll the digits that changed, over 240 ms, in tabular digits: a number that changes moves instead of
+ * jumping. Its words stay put, and under reduced motion it changes in place. A project's counts are its own.
+ */
+function applyRolls(): void {
+  const now = animClock();
+  const still = reducedMotion();
+  root.querySelectorAll<HTMLElement>("[data-roll]").forEach((el) => {
+    const key = `${el.closest(".side") ? "" : (st.projectId ?? "")}:${el.dataset.roll ?? ""}`;
+    const text = el.textContent ?? "";
+    const was = rolls.get(key);
+    const r = was && was.text === text ? was : { text, at: now, digits: rolledDigits(was?.text ?? null, text) };
+    rolls.set(key, r);
+    const t = now - r.at;
+    if (still || !r.digits.length || t >= ROLL_MS) return;
+    el.textContent = "";
+    [...text].forEach((ch, i) => {
+      if (!r.digits.includes(i)) return void el.append(ch);
+      const d = document.createElement("span");
+      d.className = "rd";
+      d.textContent = ch;
+      el.append(d);
+      d.animate([{ transform: "translateY(.6em)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: ROLL_MS, easing: EASE }).currentTime = t;
+    });
+  });
+}
+
+/** When the working dot first showed, on the animation clock: it breathes three times from then and rests (B6 §3.1). */
+let breathAt: number | null = null;
+function applyBreath(): void {
+  const dots = root.querySelectorAll<HTMLElement>(".breath");
+  if (!dots.length) {
+    breathAt = null;
+    return;
+  }
+  const now = animClock();
+  const at = breathAt ?? now;
+  breathAt = at;
+  dots.forEach((d) => (d.style.animationDelay = `${at - now}ms`));
+}
+
+/** The one primary's words as last drawn on this page, so a change crossfades over --t-snap instead of jumping (B6 §3.2). */
+let goWas: { page: number; label: string | null } = { page: -1, label: null };
+function applyGo(): void {
+  const label = root.querySelector<HTMLElement>(".lp-go .btn > span");
+  const words = label?.textContent?.trim() ?? null;
+  const was = goWas.page === pageIn.at ? goWas.label : words;
+  goWas = { page: pageIn.at, label: words };
+  if (label && words !== was && !reducedMotion()) label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: CROSSFADE_MS, easing: EASE });
+}
+
+/** All ▾ and More that were open before a draw, with where they were. */
+interface OpenMenu {
+  el: HTMLElement;
+  key: string;
+  box: ScreenBox | null;
+}
+
+/** A menu that closed with this draw shrinks back toward its button's corner and fades over --t-snap (B6 §3.1). */
+function closeMenus(open: OpenMenu[]): void {
+  if (reducedMotion()) return;
+  for (const m of open) {
+    const button = root.querySelector<HTMLElement>(`.mn-b[data-v="${CSS.escape(m.key)}"]`);
+    if (!m.box || button?.parentElement?.querySelector(".mn-l")) continue;
+    ghost(m.el, m.box, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.96)" }], { duration: MENU_OUT_MS, easing: EASE }, "", m.key === "filter" ? "0 0" : "100% 0");
   }
 }
 
@@ -3242,6 +3491,7 @@ function render(): void {
   }
   captureCarry();
   const leaving: Leaving[] = [...root.querySelectorAll<HTMLElement>("[data-leave]")].map((el) => ({ el, parent: el.parentElement?.classList.contains("main") ? ".main" : ".app" }));
+  const menus: OpenMenu[] = [...root.querySelectorAll<HTMLElement>(".mn-l")].map((el) => ({ el, key: el.parentElement?.querySelector<HTMLElement>(".mn-b")?.dataset.v ?? "", box: boxOf(el) }));
   drawOnce = new Set();
   const scene = st.screen === "rewind" && st.rewind?.mode === "scene";
   const main =
@@ -3292,6 +3542,11 @@ function render(): void {
   applyCarry();
   applyFlash();
   applyEntrances(scene);
+  applySlide();
+  applyRolls();
+  applyBreath();
+  applyGo();
+  closeMenus(menus);
   dialogFocus.sync(root, focus);
   // A redrawn heading has no tabindex, so the focus sync can't take it: it gets one and the focus back.
   if (focus === "main h1" && (document.activeElement === document.body || document.activeElement === null)) {
@@ -3309,7 +3564,8 @@ function render(): void {
   const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${checkReason(st.check.result.reason)}`
       : st.check ? "Checking your project in a copy…"
-        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : spoken);
+        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ")
+          : root.querySelector(".lp-run-t")?.textContent?.trim() || spoken);
   const heard = homePath(announcement);
   if (announcer.textContent !== heard) announcer.textContent = heard;
   placeLeaving(leaving);
@@ -3570,7 +3826,7 @@ async function startRewind(target?: string, search = false): Promise<void> {
   if (!p) return;
   // A search that is still running in the background: step back into it.
   if (st.rewind?.finding && !target) {
-    st.screen = "rewind";
+    st.screen = st.rewind.inList ? "history" : "rewind";
     render();
     return;
   }
@@ -3606,13 +3862,27 @@ async function findGood(): Promise<void> {
   const p = project();
   if (!p || st.busy || !checksOn(p)) return;
   const back = st.rewind?.returnTo ?? here();
-  st.rewind = { ...newRewind(null, back, st.rewind?.mode ?? rewindMode(back, false)), finding: true, searched: true };
+  const mode = st.rewind?.mode ?? rewindMode(back, false);
+  // The one-confirm flow searches in History's own list (B6 §3.2): no sheet over it, each row checks as its result arrives.
+  const inList = mode === "confirm" ? p.id : undefined;
+  st.rewind = { ...newRewind(null, back, mode), finding: true, searched: true, inList };
+  runDone = null;
+  if (inList) {
+    st.screen = "history";
+    st.drawer = false;
+    st.menu = null;
+  }
   st.busy = "Finding";
   render();
+  if (inList) refocusList();
   void loadChanges();
   try {
     const r = await api({ method: "findGood", projectId: p.id });
-    st.rewind = { ...st.rewind, finding: false, find: r, target: r.found, step: r.found ? "review" : "find" };
+    // The engine's own list of what it checked, in its order, is the record from here on: a result whose event is still on its
+    // way shows now, and nothing is shown that the engine did not report.
+    const progress = r.tried.map((t) => ({ checkpoint: t.id, verdict: t.verdict }));
+    st.rewind = { ...st.rewind, finding: false, find: r, target: r.found, step: r.found ? "review" : "find", progress };
+    if (inList && r.found) runDone = { ...checkRun(points().map((c) => c.id), progress, false), projectId: p.id, open: true };
     void loadChangeOf(r.found);
   } catch (e) {
     st.rewind = { ...st.rewind, finding: false, error: msg(e) };
@@ -3620,10 +3890,22 @@ async function findGood(): Promise<void> {
   st.busy = null;
   await loadTimeline();
   await refreshStatuses();
-  if (st.screen !== "rewind" && st.rewind) {
+  const onHistory = st.screen === "history" && st.projectId === p.id;
+  if (inList && st.rewind?.inList === p.id && onHistory) {
+    // Found: it stays selected in the list and the one primary under the verdict becomes its Bring back; nothing opens on its
+    // own. Nothing found, stopped or failed: the plain sheet says why, as before.
     const found = st.rewind.find?.found;
-    if (found) toast(`Found it. ${sentenceStart(pointName(found))} is the last one that works. Press ${keys("Mod+Shift+R")} to see it.`, "PASS");
-    else toast(st.rewind.find?.stopped ? "Search stopped. No save point was marked as working." : "We could not find a version that passes its check.");
+    if (found) {
+      st.rewind = null;
+      st.selected = found;
+    } else st.screen = "rewind";
+    return render();
+  }
+  if (st.screen !== "rewind" && st.rewind) {
+    const find = st.rewind.find;
+    if (inList) st.rewind = null;
+    if (find?.found) toast(`Found it. ${sentenceStart(pointName(find.found))} is the last one that works. Press ${keys("Mod+Shift+R")} to see it.`, "PASS");
+    else toast(find?.stopped ? "Search stopped. No save point was marked as working." : "We could not find a version that passes its check.");
     return;
   }
   render();
@@ -3641,13 +3923,24 @@ function exitRewind(): void {
   const ids = points().map((c) => c.id);
   if (back.selected && ids.includes(back.selected)) st.selected = back.selected;
   // After a bring back, the detail would offer the same Bring back again. History leads with the banner instead.
-  if (finished) st.drawer = false;
+  if (finished) {
+    st.drawer = false;
+    // The search's answer has been acted on: its line goes with the card's arrival. The list keeps its rows unfolded.
+    if (runDone) runDone.open = false;
+  }
+  // The biggest moment (B6 §3.3): the row it came from, where it is on screen now, is where the card lifts out of, and the
+  // list's parts make room from where they are now.
+  const row = finished ? boxOf(root.querySelector(`#opt-${CSS.escape(finished.id)}`)) : null;
+  const tops = finished ? slideTops() : null;
+  // The confirm goes at once rather than fading over the card: nothing veils Undo on the card's first frame (S10).
+  if (finished) root.querySelectorAll(".scrim[data-leave]").forEach((el) => el.removeAttribute("data-leave"));
   render();
   const list = document.getElementById("list");
   if (list) list.scrollTop = back.listScroll;
   const page = document.querySelector(".page");
   // After a bring back the page starts at its top, where the banner is, so Undo is in view (B4); else exactly where you were.
   if (page) page.scrollTop = finished ? 0 : back.pageScroll;
+  if (tops) startSlide(tops, row);
   // Never mind: DialogFocus gives focus back to what opened the Rewind. Opened by a shortcut with focus nowhere, it goes to the list.
   if (!finished) return refocusList();
   // A banner, not a toast: its heading takes focus, so it is read out, and Tab goes on to Show in Finder, Undo and Keep it.
@@ -3796,6 +4089,9 @@ async function rewindDo(): Promise<void> {
     if (back) st.recent = addRecent(st.recent, { projectId: p.id, id: back.id, label: `Brought back “${title(back)}”` });
     spoken = "";
     r.step = "done";
+    // History is read before the card is drawn, so the card and your broken version's new row arrive in one draw and move
+    // together, instead of the list jumping again a moment later.
+    if (r.mode === "confirm") await loadTimeline();
   } catch (e) {
     r.error = msg(e);
   }
@@ -3829,6 +4125,10 @@ async function undoRewind(): Promise<void> {
   render();
   try {
     const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.rec.id, branch: u.rec.branch, copyDir: u.rec.copyDir });
+    // The card and the list as they were on screen, so the card can shrink into its row and the list close up after the redraw (B6 §3.3.5).
+    const card = root.querySelector<HTMLElement>(".doc > .after");
+    const cardBox = boxOf(card);
+    const tops = slideTops();
     st.undo = null;
     st.recoveries.set(u.projectId, (st.recoveries.get(u.projectId) ?? []).filter((x) => x.branch !== u.rec.branch || x.copyDir !== u.rec.copyDir));
     st.busy = null;
@@ -3843,6 +4143,10 @@ async function undoRewind(): Promise<void> {
     spoken = undoneLine(r);
     render();
     root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: false });
+    // Where its row is now, before the list starts closing up from where it was.
+    const back = card && cardBox ? undoReturn(cardBox, boxOf(root.querySelector(`#opt-${CSS.escape(u.rec.id)}`)), reducedMotion()) : null;
+    startSlide(tops, undefined);
+    if (card && cardBox && back) ghost(card, cardBox, back.keyframes, { duration: back.duration, easing: back.easing }, "doc");
   } catch (e) {
     u.working = false;
     st.busy = null;
@@ -5345,6 +5649,8 @@ function onEvent(ev: AppEvent): void {
     case "progress":
       if (st.rewind?.finding && ev.projectId === st.projectId) {
         st.rewind.progress.push({ checkpoint: ev.checkpoint, verdict: ev.verdict });
+        // The first Works lands selected in History's list, in step with its verdict (B6 §3.2).
+        if (st.rewind.inList && ev.verdict === "PASS" && !st.drawer) st.selected = ev.checkpoint;
         render();
       }
       return;
@@ -5570,8 +5876,21 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   window.addEventListener("tm:connection", (e) => {
     const before = st.connection?.state;
     st.connection = (e as CustomEvent<NonNullable<State["connection"]>>).detail;
+    const back = st.connection.state === "connected" && before === "disconnected";
+    if (back) {
+      // Reconnected stays 3 s, then fades over --t-exit and goes; under reduced motion it just goes.
+      const at = Date.now();
+      reconnectedAt = at;
+      window.setTimeout(() => {
+        if (reconnectedAt !== at) return;
+        reconnectedAt = null;
+        const shown = root.querySelector<HTMLElement>('.connection-banner[data-state="connected"]');
+        if (!shown || reducedMotion()) return render();
+        shown.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE_MS, easing: EASE, fill: "forwards" }).onfinish = () => render();
+      }, RECONNECTED_MS);
+    }
     render();
-    if (st.connection.state === "connected" && before === "disconnected") {
+    if (back) {
       void (async () => {
         const fresh = await bridge.call({ method: "bootstrap" });
         if (fresh.ok) {

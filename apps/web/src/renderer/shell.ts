@@ -100,10 +100,11 @@ export function filterMenu(filter: JournalFilter, counts: FilterCounts, purpose:
   const u = unitWords(purpose);
   const choices = filterChoices(filter, counts);
   const cur = choices.find((x) => x.on) ?? choices[0]!;
-  const n = (k: number): string => `<span class="jf-n">${k}</span>`;
+  // Each count rolls its digits when it changes (app.ts applyRolls, B6 §3.1), keyed by its choice.
+  const n = (k: number, key: string): string => `<span class="jf-n" data-roll="${key}">${k}</span>`;
   const chev = '<svg class="fm-chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const button = `<button class="mn-b fm-b" data-act="menu" data-v="filter" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(`Show: ${cur.label}, ${cur.count} ${cur.count === 1 ? u.one : u.many}`)}"><span>${esc(cur.label)}</span>${n(cur.count)}${chev}</button>`;
-  const items = choices.map((x) => `<button role="menuitemradio" aria-checked="${x.on}" data-act="journal-filter" data-v="${x.v}">${x.v === "pinned" ? pinIcon(true) : ""}<span class="fm-l">${esc(x.label)}</span>${n(x.count)}</button>`).join("");
+  const button = `<button class="mn-b fm-b" data-act="menu" data-v="filter" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(`Show: ${cur.label}, ${cur.count} ${cur.count === 1 ? u.one : u.many}`)}"><span>${esc(cur.label)}</span>${n(cur.count, `fm:${cur.v}`)}${chev}</button>`;
+  const items = choices.map((x) => `<button role="menuitemradio" aria-checked="${x.on}" data-act="journal-filter" data-v="${x.v}">${x.v === "pinned" ? pinIcon(true) : ""}<span class="fm-l">${esc(x.label)}</span>${n(x.count, `fm-${x.v}`)}</button>`).join("");
   return `<span class="mn fm">${button}${open ? `<div class="mn-l fm-menu${enter ? ` ${enter}` : ""}" role="menu" aria-label="${esc(`Show ${u.many}`)}">${items}</div>` : ""}</span>`;
 }
 
