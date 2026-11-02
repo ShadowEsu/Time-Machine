@@ -108,6 +108,12 @@ export async function handleAuth(req, deps) {
   if (res.status === 429) return rateLimitReply();
   if (send) {
     if (res.ok) return reply(200, { ok: true });
+    // Supabase says this when the mail server refused the address (seen 2 Nov): the address, not an outage.
+    const problem = await res.json().catch(() => null);
+    if (res.status === 500 && problem && /^Error sending (confirmation|magic link) email$/.test(problem.msg)) {
+      log("auth: supabase could not email that address");
+      return reply(422, { ok: false, error: "undeliverable" });
+    }
     log(`auth: supabase otp returned status ${res.status}`);
     return reply(502, { ok: false, error: "auth_error" });
   }

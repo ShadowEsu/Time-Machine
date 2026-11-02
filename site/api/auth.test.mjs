@@ -55,6 +55,19 @@ describe("auth handler", () => {
     expect(log).not.toHaveBeenCalled();
   });
 
+  // Seen on production 2 Nov: Supabase answers 500 "Error sending confirmation email" when the mail server refuses the
+  // address. That is the person's address, not an outage, so it is a calm 422 the page can explain.
+  it("send answers 422 undeliverable when Supabase could not email the address, and 502 for anything else", async () => {
+    for (const msg of ["Error sending confirmation email", "Error sending magic link email"]) {
+      const s = setup({ response: () => json({ code: 500, error_code: "unexpected_failure", msg }, 500) });
+      expect(await handleAuth(request(SEND), s.deps)).toEqual({ status: 422, headers: {}, body: { ok: false, error: "undeliverable" } });
+      expect(JSON.stringify(s.log.mock.calls)).not.toContain("example.test");
+    }
+    for (const reply of [() => json({ msg: "Database error saving new user" }, 500), () => json({}, 503), () => new Response("oops", { status: 500 })]) {
+      expect((await handleAuth(request(SEND), setup({ response: reply }).deps)).status).toBe(502);
+    }
+  });
+
   it("verify trades the code for a token and expiry, and a wrong code is 401 without detail", async () => {
     const { fetch, deps } = setup({ response: (url) => (url.endsWith("/user") ? json({ id: "u1" }) : json({ access_token: TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: "r", user: { email: NORMALIZED } })) });
     const res = await handleAuth(request({ action: "verify", email: EMAIL, code: "123456", ...AGREED }), deps);
