@@ -23,6 +23,12 @@ it("no shipped file shows a personal address, a DRAFT label or an [Operator] pla
   }
 });
 
+it("the pages a buyer reads around a purchase never call the terms a draft", () => {
+  for (const f of ["site/terms.html", "site/privacy.html", "site/thanks.html", "site/account.html", "site/assets/buy.js"]) {
+    expect(readFileSync(join(ROOT, f), "utf8"), f).not.toMatch(/draft/i);
+  }
+});
+
 it("the Terms name the seller and the support mailbox", () => {
   const terms = readFileSync(join(ROOT, "site/terms.html"), "utf8");
   expect(terms).toContain('between you and Unvibe ("we")');
