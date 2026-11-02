@@ -108,7 +108,7 @@ describe("account", () => {
     const calls = fetch.mock.calls.length;
     expect(await account.signOut()).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(calls + 1);
-    const [url, init] = fetch.mock.calls[calls];
+    const [url, init] = fetch.mock.calls[calls]!;
     expect(url).toBe(`${SITE}/api/account`);
     expect(init.method).toBe("DELETE");
     expect(init.headers.authorization).toBe(`Bearer ${TOKEN}`);

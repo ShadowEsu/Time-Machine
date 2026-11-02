@@ -13,7 +13,7 @@ const TIMEOUT_MS = 10_000;
 const LOCAL_HOSTS: Readonly<Record<string, true>> = { localhost: true, "127.0.0.1": true, "[::1]": true };
 
 export interface AccountFetchInit {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   headers: Record<string, string>;
   body?: string;
   signal: AbortSignal;
