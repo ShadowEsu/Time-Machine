@@ -273,7 +273,7 @@ describe("live gate", () => {
   });
 
   it("takes only an anchored restricted live key: no secret, publishable, organization or malformed key", async () => {
-    for (const STRIPE_SECRET_KEY of ["sk_live_SYNTH01", "RK_LIVE_SYNTH01", " rk_live_SYNTH01", "rk_live_SYNTH01\n", "rk_live_SYN 01", "rk_live_", "pk_live_SYNTH01", "sk_org_SYNTH01", "xrk_live_SYNTH01"]) {
+    for (const STRIPE_SECRET_KEY of ["sk_live_SYNTH01", "RK_LIVE_SYNTH01", " rk_live_SYNTH01", "rk_live_SYNTH01\n", "rk_live_SYN 01", "rk_live_", "pk_live_SYNTH01", "sk_org_SYNTH01", "xrk_live_SYNTH01", "rk_live__SYNTH01", "rk_live_SYN_01", "rk_live_SYN-01"]) {
       await expectClosed({ ...LIVE, STRIPE_SECRET_KEY });
     }
   });

@@ -6,7 +6,7 @@
 // so Production can prove it signs keys every release accepts without anyone reading the key.
 // `auth` says SUPABASE_URL and SUPABASE_ANON_KEY are both present, so sign-in can be offered.
 import { isAuthConfigured } from "./auth.js";
-import { isCheckoutConfigured, signsReleaseKeys } from "./checkout.js";
+import { isCheckoutConfigured, isLiveKey, signsReleaseKeys } from "./checkout.js";
 import { isConfigured, supabaseHeaders, supabaseOrigin } from "./waitlist.js";
 
 const UPSTREAM_TIMEOUT_MS = 3000;
@@ -17,7 +17,7 @@ const PROBE_CODE = "";
 /**
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch,
  *           log?: (message: string) => void, sellerPublicKey?: string }} deps
- * @returns {Promise<{ ok: true, waitlist: boolean, database: "reachable"|"unreachable"|"not_configured", email: false, checkout: boolean, auth: boolean, releaseKey: boolean }>}
+ * @returns {Promise<{ ok: true, waitlist: boolean, database: "reachable"|"unreachable"|"not_configured", email: false, checkout: boolean, auth: boolean, releaseKey: boolean, billing: "off"|"test"|"live", webhookConfigured: false }>}
  */
 export async function checkHealth(deps) {
   const log = deps.log ?? (() => {});
@@ -25,7 +25,11 @@ export async function checkHealth(deps) {
   const checkout = isCheckoutConfigured(deps.env, deps.sellerPublicKey);
   const auth = isAuthConfigured(deps.env);
   const releaseKey = signsReleaseKeys(deps.env, deps.sellerPublicKey);
-  if (!waitlist) return { ok: true, waitlist, database: "not_configured", email: false, checkout, auth, releaseKey };
+  // The mode the open gate admitted: a key the gate refuses reads "off". Values only, never a key.
+  const billing = !checkout ? "off" : isLiveKey(deps.env.STRIPE_SECRET_KEY) ? "live" : "test";
+  // Time Machine has no Stripe webhook by design (billing READINESS L2): keys are derived from Stripe's records on request.
+  const flags = { email: false, checkout, auth, releaseKey, billing, webhookConfigured: false };
+  if (!waitlist) return { ok: true, waitlist, database: "not_configured", ...flags };
 
   let database = "unreachable";
   try {
@@ -41,5 +45,5 @@ export async function checkHealth(deps) {
   } catch (err) {
     log(`health: upstream request failed (${err && err.name ? err.name : "Error"})`);
   }
-  return { ok: true, waitlist, database, email: false, checkout, auth, releaseKey };
+  return { ok: true, waitlist, database, ...flags };
 }

@@ -24,7 +24,8 @@ export const PRODUCT_TAG = "tm-web";
 // Test mode takes a test key; live mode takes only a restricted live key (docs/launch/CHECKOUT_SETUP.md, section 6).
 // Both are anchored and case-sensitive, so a stray space, newline or other key type never matches.
 const TEST_KEY = /^(sk|rk)_test_[A-Za-z0-9_]+$/;
-const LIVE_KEY = /^rk_live_[A-Za-z0-9_]+$/;
+// Stripe's live restricted keys are letters and digits after the prefix (Security L3: ^rk_live_[A-Za-z0-9]+$).
+const LIVE_KEY = /^rk_live_[A-Za-z0-9]+$/;
 // The release public key every Time Machine release checks keys against. Must equal LICENSE_PUBLIC_KEY in
 // packages/core/src/license.ts (a test keeps them equal). Keys signed with its private half work forever,
 // so that private key only ever signs keys for real, live-mode payments. Made on 2026-11-01; its private half
