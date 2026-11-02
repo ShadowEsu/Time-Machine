@@ -15,21 +15,6 @@ export function legendItems(checks: boolean, shown: readonly (Verdict | null)[])
   return [...(["PASS", "FAIL", null] as const), ...extra].map((v) => ({ v, word: verdictWord(v) }));
 }
 
-/** How long ago, in the rail's plain words: "just now", "3 min", "2 h" (today), "Yesterday", "4 days", then the date. */
-export function railAge(iso: string, now = Date.now()): string {
-  const at = new Date(iso);
-  const m = Math.max(0, Math.floor((now - at.getTime()) / 60_000));
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} min`;
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((today.getTime() - at.getTime()) / 86_400_000);
-  if (days <= 0) return `${Math.floor(m / 60)} h`;
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days`;
-  return at.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-}
-
 export type StatusPoint = Pick<TimelineEntry, "id" | "verdict" | "createdAt" | "note" | "trigger" | "agent" | "subject">;
 
 /** What names a save point: its message. By default the save point's own; the app adds the names people give. */

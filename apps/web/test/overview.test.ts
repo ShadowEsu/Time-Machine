@@ -90,7 +90,7 @@ const entry = (id: string, name: string, kind: ProjectEntry["kind"], purpose: Pr
 });
 const status = (id: string, newest: DigestPoint | null): ProjectStatus => ({ projectId: id, newest: newest && { id: newest.id, verdict: newest.verdict, createdAt: newest.createdAt }, lastWorking: null, problem: null, problemKind: null });
 const page = (over: Partial<OverviewInput>): string => overviewPage({
-  projects: [], statuses: new Map(), timelines: new Map(), checks: new Set(), now, badge: (v) => `<span class="vb">${verdictWord(v)}</span>`, freeLimit: 3, enter: "", ...over,
+  projects: [], statuses: new Map(), timelines: new Map(), checks: new Set(), now, badge: (v) => `<span class="vb">${verdictWord(v)}</span>`, freeLimit: 3, enter: "", trust: "History is saved on this computer.", ...over,
 });
 
 describe("project cards", () => {
@@ -174,6 +174,23 @@ describe("project cards", () => {
     const many = spread(Array.from({ length: 40 }, () => 100), 4);
     expect(Math.min(...many)).toBeGreaterThanOrEqual(0);
     expect(new Set(many.map((x) => x.toFixed(3))).size).toBe(40);
+  });
+});
+
+// B6a S1: the sidebar's trust line is Overview's first sentence now, and protecting a folder and the folders found on this
+// computer are the sidebar's + and Sources, so the page holds only the projects and their one way back.
+describe("the Calm Overview", () => {
+  const one = [entry("a", "thesis-notes", "folder", "documents")];
+  test("its first sentence says how many things are protected and where their history is kept, Ask included", () => {
+    const html = page({ projects: one, trust: "History is saved on this computer. Ask sends titles and changes to Claude." });
+    const head = /<header class="b9-head">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? "";
+    expect(head.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).toBe("Overview 1 thing protected. History is saved on this computer. Ask sends titles and changes to Claude.");
+  });
+  test("has no Protect a folder or Sources buttons of its own; with the free plan full it still points to Storage", () => {
+    const html = page({ projects: one });
+    expect(html).not.toMatch(/data-act="(add|sources)"/);
+    const full = page({ projects: [...one, entry("b", "b", "git", "code"), entry("c", "c", "git", "code")] });
+    expect(full).toContain('data-act="storage"');
   });
 });
 

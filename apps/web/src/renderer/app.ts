@@ -9,7 +9,7 @@ import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from 
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
 import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, keepTimes, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, setHomes, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
-import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
+import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, projectStatus, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
 import { afterBanner, anywayBody, bringBackView, goBackSteps, railLine, REVIEW_KEY, reviewKey, undoneLine, unprovenLine } from "./rewind-copy.js";
@@ -34,10 +34,11 @@ import { tailHtml, type LogTailView } from "./log-tail.js";
 import { acceptRecord, checkBodyHtml } from "./check-record.js";
 import { overviewPage, saveState, type DigestPoint } from "./overview.js";
 import { hasCheck, PURPOSES, purposeIcon } from "./purpose.js";
-import { ADD_FULL, ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathErrorWords, pathLede, pathProblem, pathSetupNote, purposeCards, savedOnlyToast, skipNote, type AddStep } from "./add-flow.js";
-import { licenseAfterSave, planPage, resendLabel, resendWait, settingsLicense, SIGNED_OUT, usage, type AccountView } from "./plan.js";
+import { ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathErrorWords, pathLede, pathProblem, pathSetupNote, purposeCards, savedOnlyToast, skipNote, type AddStep } from "./add-flow.js";
+import { licenseAfterSave, planPage, resendLabel, resendWait, settingsLicense, SIGNED_OUT, type AccountView } from "./plan.js";
 import { SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
-import { filterBar, filterCounts, filtered, nameCount, noneShown, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
+import { filterCounts, filtered, nameCount, noneShown, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
+import { addRecent, filterMenu, menuStep, moreItems, SETTINGS_SECTIONS, settingsBack, type RecentItem } from "./shell.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
 
 export interface StartOptions {
@@ -151,7 +152,14 @@ interface State {
   /** b is "now" to compare with the project folder as it is: we save it first (only if something changed). */
   compare: { a: string | null; b: string | null; now: { id: string; skipped: boolean } | null; result: DiffResult | null; loading: boolean; error: string | null };
   onboarding: OnboardingState;
+  /** The sidebar as the drawer over a veil, below 861 px (S9). */
   navOpen: boolean;
+  /** The sidebar is hidden beside the page (Hide sidebar, ⌘\), at 861 px and wider. Kept on this computer. */
+  sideHidden: boolean;
+  /** Save points opened or brought back in this window, newest first: the sidebar's Recent (S1). */
+  recent: RecentItem[];
+  /** The screen Settings was opened from: where its ← Back goes (S8). */
+  settingsFrom: string | null;
   connection: { state: "connecting" | "connected" | "disconnected"; message?: string } | null;
   pageError: string | null;
   inspector: boolean;
@@ -370,14 +378,6 @@ async function pollStatuses(): Promise<void> {
   if (!st.busy) render();
 }
 
-/** The rail's "3 min" and "2 h" move on without a redraw. */
-function tickAges(): void {
-  root.querySelectorAll<HTMLElement>(".pj-age[data-at]").forEach((el) => {
-    const age = railAge(el.dataset.at ?? "");
-    if (el.textContent !== age) el.textContent = age;
-  });
-}
-
 /** Which service Ask would send to, from the keys set, so the rail never says Ask sends anything while no key exists. */
 async function loadAskProvider(): Promise<void> {
   const r = await bridge.call({ method: "credentials" });
@@ -472,6 +472,33 @@ function saveKept(): void {
   } catch {
     // Storage can be off; Keep it then lasts until a reload.
   }
+}
+
+/** Where Hide sidebar is remembered on this computer. */
+const SIDE_KEY = "tm.sideHidden";
+function readSideHidden(): boolean {
+  try {
+    return localStorage.getItem(SIDE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Hide sidebar or Show sidebar (⌘\): beside the page it hides or comes back; below 861 px it is the drawer, which closes. */
+function toggleSidebar(): void {
+  if (window.innerWidth < RAIL_MIN) {
+    st.navOpen = !st.navOpen;
+    return render();
+  }
+  st.sideHidden = !st.sideHidden;
+  try {
+    localStorage.setItem(SIDE_KEY, st.sideHidden ? "1" : "0");
+  } catch {
+    // Storage can be off; the sidebar then comes back on a reload.
+  }
+  render();
+  // Focus stays on the control that does the same thing on the other side.
+  root.querySelector<HTMLElement>(st.sideHidden ? '.toolbar [data-act="side-toggle"]' : 'aside.side [data-act="side-toggle"]')?.focus({ preventScroll: true });
 }
 
 /** Deploy chips for the journal, matched by recorded commit in the deploys module. Empty when nothing is linked. */
@@ -739,13 +766,30 @@ function otherFiles(n: number): string {
 
 // Views
 
-/** A rail destination's small line icon, drawn in the text colour. The label beside it carries the meaning. */
-function navIcon(name: "overview" | "sources"): string {
-  const paths = {
-    overview: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4"/>',
-    sources: '<ellipse cx="10" cy="5.5" rx="6" ry="2.3"/><path d="M4 5.5v4.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V5.5M4 10v4.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V10"/>',
-  };
-  return `<svg class="nav-ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+/** The shell's small line icons (sidebar, header, drawer), drawn in the text colour. A label or an accessible name beside
+ *  each carries the meaning. */
+const SHELL_ICONS = {
+  overview: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4"/>',
+  sources: '<ellipse cx="10" cy="5.5" rx="6" ry="2.3"/><path d="M4 5.5v4.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V5.5M4 10v4.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V10"/>',
+  agents: '<path d="M7.5 2.5v4M12.5 2.5v4"/><path d="M5 6.5h10v2.5a5 5 0 0 1-10 0z"/><path d="M10 14v3.5"/>',
+  panel: '<rect x="2.9" y="3.7" width="14.2" height="12.6" rx="2.2"/><path d="M7.9 3.7v12.6"/>',
+  menu: '<path d="M3.5 6h13M3.5 10h13M3.5 14h13"/>',
+  plus: '<path d="M10 4.5v11M4.5 10h11"/>',
+  back: '<path d="M12 4.5 6.5 10l5.5 5.5"/>',
+  run: '<circle cx="10" cy="10" r="7"/><path d="M7.1 10.2l2 2 3.8-4.1"/>',
+  compare: '<path d="M4 6.5h10.5M11.5 3.5l3 3-3 3"/><path d="M16 13.5H5.5M8.5 10.5l-3 3 3 3"/>',
+  more: '<circle cx="4.6" cy="10" r="1.1" fill="currentColor"/><circle cx="10" cy="10" r="1.1" fill="currentColor"/><circle cx="15.4" cy="10" r="1.1" fill="currentColor"/>',
+  search: '<circle cx="8.8" cy="8.8" r="5.3"/><path d="M16.5 16.5l-3.9-3.9"/>',
+} as const;
+function shellIcon(name: keyof typeof SHELL_ICONS, cls = "nav-ic"): string {
+  return `<svg class="${cls}" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${SHELL_ICONS[name]}</svg>`;
+}
+
+/** A labelled icon button (S2): its name for a screen reader and, on hover, as a tooltip with its shortcut. */
+function iconButton(act: string, icon: keyof typeof SHELL_ICONS, label: string, shortcut = "", extra = ""): string {
+  const tip = shortcut ? `${label} (${keys(shortcut)})` : label;
+  const aria = shortcut ? ` aria-keyshortcuts="${esc(shortcut.replace("Mod+", isMac() ? "Meta+" : "Control+"))}"` : "";
+  return `<button class="ib" data-act="${act}" aria-label="${esc(label)}" title="${esc(tip)}"${aria} ${extra}>${shellIcon(icon, "ib-ic")}</button>`;
 }
 
 /** A small page icon before what a save point changed. Decorative: the file names beside it carry the meaning. */
@@ -759,8 +803,36 @@ function newestVerdict(p: ProjectEntry): Verdict | null {
   return mine?.trigger === "recover" ? carriedVerdict(points(), mine.id, st.changes) : (s?.newest?.verdict ?? null);
 }
 
-/** The rail: the buddy and the name, Jump to, Overview, what is protected with its verdict, the agents, then where the history lives, the plan, Storage and Settings. */
+/** History stays on this computer; Ask, when a project has it on, sends titles and changes to the service its key is for,
+ *  so the sentence says so. Until a key exists nothing can be sent, and it says that instead (dev#26). Overview's first
+ *  sentence (S1). */
+function trustLine(): string {
+  const askOn = st.askProvider !== undefined && st.projects.some((x) => askConsentValid(x.features, st.askProvider ?? null));
+  const ask = !askOn || st.askProvider === undefined ? "" : st.askProvider === null ? " Ask is on, but needs a key." : ` Ask sends titles and changes to ${st.askProvider === "gemini" ? "Gemini" : "Claude"}.`;
+  return `History is saved on ${device()}.${ask}`;
+}
+
+/**
+ * The sidebar (S1): the name and Hide sidebar, Jump to…, Overview, Sources and Agents, what is Protected (+ protects a
+ * folder), Recent, and at the foot Settings with the plan line. In Settings it lists Settings' own sections under ← Back
+ * instead (S8). Below 861 px the same sidebar is the drawer (`mobile`), a modal dialog over a veil (S9).
+ */
 function sidebar(mobile = false): string {
+  // A modal panel is a div: an aside may be a region, never a dialog.
+  const tag = mobile ? "div" : "aside";
+  const inSettings = st.screen === "settings" || st.screen === "storage";
+  const name = inSettings ? "Settings" : "Navigation";
+  const attrs = mobile ? `id="mobile-navigation" role="dialog" aria-modal="true" aria-label="${name}"` : `aria-label="${name}"`;
+  const brand = `<div class="brand">${buddy()}<span class="bn">Time Machine</span>${iconButton("side-toggle", "panel", "Hide sidebar", "Mod+\\")}</div>`;
+  const navRow = (act: string, icon: string, label: string, on: boolean, extra = ""): string =>
+    `<button class="it nav-it${on ? " on" : ""}" ${act}${on ? ' aria-current="page"' : ""}>${icon}<span class="nm">${label}</span>${extra}</button>`;
+  if (inSettings) {
+    const cur = st.screen === "storage" ? "storage" : settingsSection;
+    const rows = SETTINGS_SECTIONS.map((s) => navRow(s.id === "storage" ? 'data-act="storage"' : `data-act="settings-section" data-v="${s.id}"`, setIcon(s.id), esc(s.label), s.id === cur)).join("");
+    return `<${tag} class="side side-set${mobile ? " mobile-side" : ""}" ${attrs}>${brand}
+    <button class="it nav-it back-it" data-act="settings-back">${shellIcon("back")}<span class="nm">Back</span></button>
+    <div class="group"><span>Settings</span></div>${rows}</${tag}>`;
+  }
   const inProject = PROJECT_SCREENS.includes(st.screen);
   const items = st.projects
     .map((p) => {
@@ -771,51 +843,33 @@ function sidebar(mobile = false): string {
       // project's broken version carries (newestVerdict).
       const ready = copyReady(p.id, st.undo, st.recoveries.get(p.id) ?? [], st.kept);
       const v = !checks ? null : newestVerdict(p);
-      // Before the statuses arrive the rail says it is reading, never "No save points yet" (cli#27). A store that can't be
+      // Before the statuses arrive the sidebar says it is reading, never "No save points yet" (cli#27). A store that can't be
       // written is not a missing folder: it says so, and the server's sentence is in the title (cli#5).
       // The open project's time is told the way its rows and header tell it: seconds only when another save shares the minute.
       const shown = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
       const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : railLine(checks ? verdictWord(v) : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest), ready);
-      const age = s?.newest && !s.problem ? `<span class="pj-age" data-at="${esc(s.newest.createdAt)}" title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(railAge(s.newest.createdAt))}</span>` : "";
       const on = p.id === st.projectId && inProject;
-      // The purpose icon carries the status dot on its corner. The name gets the whole first line; the status and the age
-      // share the second, the age on the right.
+      // The verdict in words, with its shape and colour (S6): ✓ Works, ✕ Broken, ○ the others.
+      const vk = verdictKey(s?.problem ? "ERROR" : v);
       return `<button class="it project-it${on ? " on" : ""}" data-act="project" data-id="${p.id}" ${on ? 'aria-current="page"' : ""} title="${esc(s?.problem && s.problemKind !== "missing" ? s.problem : p.path)}">
-        <span class="pj-ic">${purposeIcon(p.purpose, "sm")}<span class="dot v-${verdictKey(s?.problem ? "ERROR" : v)}" aria-hidden="true"></span></span><span class="nm"><span>${esc(p.name)}</span><small class="project-verdict"><span>${esc(label)}</span>${age}</small></span></button>`;
+        <span class="pj-ic">${purposeIcon(p.purpose, "sm")}</span><span class="nm"><span>${esc(p.name)}</span><small class="project-verdict v-${vk}">${s && !s.problem && s.newest && checks ? vIcon(v) : ""}<span>${esc(label)}</span></small></span></button>`;
     })
     .join("");
-  const claude = claudeChannel(st.agents ?? [], st.lastTurn);
-  const agent = (ch: Channel): string =>
-    `<button class="it ag" data-act="agents" title="${esc(`${ch.name}: ${ch.line}`)}">${agentMark(ch.name)}<span class="nm"><span>${esc(ch.name)}</span><small>${esc(ch.short)}</small></span>${ch.state === "working" ? '<i class="breath" aria-hidden="true"></i>' : ""}</button>`;
-  const total = st.storage?.storeBytes;
+  const working = !!st.agents && claudeChannel(st.agents, st.lastTurn).state === "working";
+  const recent = st.recent.filter((r) => st.projects.some((p) => p.id === r.projectId));
   const lic = st.license.status;
-  const used = st.projects.length;
-  // The plan card: the free plan's projects against its limit, or the license. It opens Plan, where the license lives.
-  const planAttrs = st.screen === "plan" ? 'class="plan on" aria-current="page"' : 'class="plan"';
-  const plan = lic.active
-    ? `<button ${planAttrs} data-act="plan"><span class="plan-r"><span>License</span><b>Active</b></span><small>Every restore stays free</small></button>`
-    : `<button ${planAttrs} data-act="plan"><span class="plan-r"><span>Free plan</span><b>${esc(`${used} of ${plural(lic.freeProjectLimit, "project")}`)}</b></span><span class="bar" aria-hidden="true"><i style="width:${usage(used, lic.freeProjectLimit)}%"></i></span><small>See what a license adds</small></button>`;
-  // History itself stays here; Ask, when a project has it on, sends titles and changes to the service its key is for, so
-  // the rail says so. Until a key exists nothing can be sent, and the rail says that instead (dev#26).
-  const askOn = st.askProvider !== undefined && st.projects.some((x) => askConsentValid(x.features, st.askProvider ?? null));
-  const askWords = !askOn || st.askProvider === undefined ? "" : st.askProvider === null ? " · Ask is on, but needs a key" : ` · Ask sends titles and changes to ${st.askProvider === "gemini" ? "Gemini" : "Claude"}`;
-  // A modal panel is a div: an aside may be a region, never a dialog.
-  const tag = mobile ? "div" : "aside";
-  return `<${tag} class="side${mobile ? " mobile-side" : ""}" ${mobile ? 'id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navigation"' : 'aria-label="Navigation"'}>
-    <div class="brand">${buddy()}<span>Time Machine</span>${mobile ? '<button class="btn quiet nav-close" data-act="nav-close" aria-label="Close navigation">Close</button>' : ""}</div>
-    <button class="search" data-act="palette"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Jump to…</span><kbd class="kc">${esc(keys("Mod+K"))}</kbd></button>
-    ${st.projects.length ? `<button class="it nav-it${st.screen === "overview" ? " on" : ""}" data-act="overview"${st.screen === "overview" ? ' aria-current="page"' : ""}>${navIcon("overview")}<span class="nm">Overview</span></button>` : ""}
-    <div class="group">Protected</div>
-    ${items || '<div class="side-empty">No folders yet. Protect one below.</div>'}
-    <button class="it add${st.screen === "onboarding" ? " on" : ""}" data-act="add"${addFull() ? ` title="${esc(ADD_FULL)}"` : ""}><span class="plus" aria-hidden="true">+</span>${addFull() ? '<span class="nm"><span>Protect a folder</span><small>The free plan is full.</small></span>' : '<span class="nm">Protect a folder</span>'}<kbd>${keys("Mod+N")}</kbd></button>
-    <button class="it nav-it${st.screen === "sources" ? " on" : ""}" data-act="sources"${st.screen === "sources" ? ' aria-current="page"' : ""}>${navIcon("sources")}<span class="nm">Sources</span></button>
-    <button class="group group-b${st.screen === "agents" ? " on" : ""}" data-act="agents">Agents</button>
-    ${st.agents ? agent(claude) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
+  const plan = lic.active ? "License active" : `Free plan, ${st.projects.length} of ${plural(lic.freeProjectLimit, "project")}`;
+  const full = addFull();
+  return `<${tag} class="side${mobile ? " mobile-side" : ""}" ${attrs}>${brand}
+    <button class="search" data-act="palette">${shellIcon("search", "s-ic")}<span>Jump to…</span><kbd class="kc">${esc(keys("Mod+K"))}</kbd></button>
+    ${st.projects.length ? navRow('data-act="overview"', shellIcon("overview"), "Overview", st.screen === "overview") : ""}
+    ${navRow('data-act="sources"', shellIcon("sources"), "Sources", st.screen === "sources")}
+    ${navRow('data-act="agents"', shellIcon("agents"), "Agents", st.screen === "agents", working ? '<i class="breath" aria-hidden="true"></i><span class="sr-only">, Claude Code is working</span>' : "")}
+    <div class="group"><span>Protected</span>${iconButton("add", "plus", full ? "Protect a folder. The free plan is full." : "Protect a folder", "Mod+N", st.screen === "onboarding" ? 'aria-current="page"' : "")}</div>
+    ${items || '<p class="side-empty">Nothing protected yet.</p>'}
+    ${recent.length ? `<div class="group"><span>Recent</span></div>${recent.map((r) => `<button class="rec" data-act="recent" data-id="${esc(r.id)}" data-v="${esc(r.projectId)}">${esc(r.label)}</button>`).join("")}` : ""}
     <div class="side-foot">
-      <div class="stored">${esc(`History is saved on ${device()}${askWords}`)}</div>
-      ${plan}
-      <button class="it${st.screen === "storage" ? " on" : ""}" data-act="storage"><span class="nm">Storage</span>${total !== undefined ? `<small class="ct">${esc(bytes(total))}</small>` : ""}</button>
-      <button class="it${st.screen === "settings" ? " on" : ""}" data-act="settings"><span class="nm">Settings</span><kbd>${keys("Mod+,")}</kbd></button>
+      <button class="it acct" data-act="settings" title="${esc(`Settings (${keys("Mod+,")})`)}">${setIcon("gear")}<span class="nm"><span>Settings</span><small>${esc(plan)}</small></span></button>
     </div>
   </${tag}>`;
 }
@@ -1094,7 +1148,8 @@ function history(): string {
     ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys" aria-expanded="${st.drawer}"${st.drawer ? ' aria-controls="lp-sheet"' : ""}${active ? ` aria-activedescendant="${esc(active)}"` : ""}>${options}</div>
       <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}. F2 renames it. Esc closes it.</p>`
     : `<div class="lp-list lp-empty">${filter === "all" ? "" : noneShown(filter, p.purpose)}</div>`;
-  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${filterBar(filter, filterCounts(readable, st.notes, checks), p.purpose)}${rulerStrip(pts, behind)}</div>`;
+  // One All ▾ menu (S3): All, Works, Named and Pinned, each with how many it shows.
+  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${filterMenu(filter, { all: pts.length, ...filterCounts(readable, st.notes, checks) }, p.purpose, st.menu === "filter", st.menu === "filter" ? once("menu:filter") : "")}${rulerStrip(pts, behind)}</div>`;
   return `<div class="page proj lp${st.drawer && sheetBeside() ? " has-sheet" : ""}"><div class="doc lp-doc">${status}${after}
     ${setupView(p, pts)}
     <section class="lp-col" aria-labelledby="lp-ht">${head}${listbox}</section>
@@ -1470,10 +1525,10 @@ function detail(): string {
   </${tag}>`;
 }
 
-/** A ⋯ button with a small menu. One menu is open at a time. `cls` marks a menu that only phones show. */
-function menuButton(key: string, label: string, items: string[], cls = ""): string {
+/** More (S2): a labelled icon with a menu. One menu is open at a time; its items take ↑ and ↓ (menuKey). */
+function menuButton(key: string, label: string, items: string[]): string {
   const open = st.menu === key;
-  return `<span class="mn${cls ? ` ${cls}` : ""}"><button class="btn ghost mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" aria-expanded="${open}">⋯</button>${open ? `<div class="mn-l ${once(`menu:${key}`)}" role="group" aria-label="${esc(label)}">${items.join("")}</div>` : ""}</span>`;
+  return `<span class="mn"><button class="ib mn-b" data-act="menu" data-v="${key}" aria-label="${esc(label)}" title="${esc(label)}" aria-haspopup="menu" aria-expanded="${open}">${shellIcon("more", "ib-ic")}</button>${open ? `<div class="mn-l ${once(`menu:${key}`)}" role="menu" aria-label="${esc(label)}">${items.join("")}</div>` : ""}</span>`;
 }
 
 /** Minutes and seconds since a check started, for the running sheet: "0:07". */
@@ -2163,20 +2218,21 @@ function storageScreen(): string {
   </div></div>`;
 }
 
-/** Which Settings section is open. A wide page shows one at a time beside the section list; a narrow one stacks them all. */
-let settingsSection = "appearance";
+/** Which Settings section is open (S8): Settings' own sidebar lists them, and the page shows that one. Storage is a page of
+ *  its own under the same sidebar. */
+let settingsSection = "license";
 
-/** A section's small line icon in the Settings list. Drawn in the text colour; the label carries the meaning. */
+/** A section's small line icon in Settings' sidebar, and Settings' own. Drawn in the text colour; the label carries the meaning. */
 function setIcon(name: string): string {
   const paths: { [icon: string]: string } = {
     appearance: '<circle cx="10" cy="10" r="6.5"/><path d="M10 3.5a6.5 6.5 0 0 1 0 13z" fill="currentColor" stroke="none"/>',
-    rewind: '<path d="M4.6 10.6a5.6 5.6 0 1 0 1.9-4.6"/><path d="M5.2 3.4v3.2h3.2"/>',
-    project: '<path d="M3 6.6A1.6 1.6 0 0 1 4.6 5h3.1l1.7 1.8h6A1.6 1.6 0 0 1 17 8.4v6A1.6 1.6 0 0 1 15.4 16H4.6A1.6 1.6 0 0 1 3 14.4z"/>',
-    local: '<rect x="3" y="4.5" width="14" height="11" rx="2.2"/><path d="M6.6 8.4l2.1 1.6-2.1 1.6M10.6 12h3"/>',
-    checks: '<circle cx="10" cy="10" r="6.5"/><path d="M7 10.2l2.1 2.1 4-4.3"/>',
+    storage: '<ellipse cx="10" cy="5.5" rx="6" ry="2.3"/><path d="M4 5.5v4.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V5.5M4 10v4.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3V10"/>',
+    agents: '<path d="M7.5 2.5v4M12.5 2.5v4"/><path d="M5 6.5h10v2.5a5 5 0 0 1-10 0z"/><path d="M10 14v3.5"/>',
+    about: '<circle cx="10" cy="10" r="6.5"/><path d="M10 9v4.5M10 6.6v.2"/>',
     license: '<circle cx="7" cy="10" r="3.3"/><path d="M10.3 10h6.4M14.2 10v2.6M16.7 10v2"/>',
+    gear: '<circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2M10 15.2v2M2.8 10h2M15.2 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/>',
   };
-  return `<svg class="set-ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${paths[name] ?? ""}</svg>`;
+  return `<svg class="set-ic nav-ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${paths[name] ?? ""}</svg>`;
 }
 
 /** One Settings row: the name and what it does on the left, its control on the right. */
@@ -2187,7 +2243,7 @@ function setRow(label: string, desc: string, control = ""): string {
 function settings(): string {
   if (st.pageError) return pageFailure("Settings");
   const s = st.settings;
-  // A theme is a tile with a small picture of the app in it: the rail, a heading, two lines and the main button.
+  // A theme is a tile with a small picture of the app in it: the sidebar, a heading, two lines and the main button.
   // System shows both halves, light on the left, dark on the right.
   const preview = '<span class="tt-side"><i></i><i></i><i></i></span><span class="tt-main"><i class="tt-h"></i><i class="tt-l"></i><i class="tt-l"></i><i class="tt-pill"></i></span>';
   const tile = (v: Settings["theme"], label: string): string =>
@@ -2198,30 +2254,27 @@ function settings(): string {
   const network = !iso ? LOADING
     : iso.networkSandbox ? `When a project turns the network off for checks, ${esc(iso.networkSandbox)} blocks it.`
       : `Nothing on ${device()} can block the network during a check. A project that asks for no network gets Needs something, never Works.`;
-  // Plan and license holds the key field itself, one hop from Settings (Design A6).
+  // Plan and license holds the meter and the key field itself, one hop from Settings (Design A6).
   const license = settingsLicense(st.license, st.projects.length, st.account.site);
-  const sections: { id: string; group: string; label: string; title: string; intro: string; icon: string; body: string }[] = [
-    { id: "appearance", group: "Preferences", label: "Appearance", title: "Appearance", intro: "How Time Machine looks on this computer. A change applies at once.", icon: "appearance", body:
+  const sections: { [id: string]: { title: string; intro: string; body: string } } = {
+    license: { title: "Plan and license", intro: license.intro, body: license.body },
+    appearance: { title: "Appearance", intro: "How Time Machine looks on this computer. A change applies at once.", body:
       `<div class="set-row set-theme"><div class="set-t"><span class="set-l" id="theme-l">Theme</span><p class="set-d">System follows your computer’s light or dark setting.</p></div><div class="theme-tiles" role="group" aria-labelledby="theme-l">${tile("system", "System")}${tile("light", "Light")}${tile("dark", "Dark")}</div></div>`
       + setRow("Show Git details", "Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.", sw("showGitDetails", s.showGitDetails, "Show Git details"))
-      + setRow("Reduce motion", `Nothing moves on its own: no breathing dot, no spinning dial, no gliding rows. A check still shows its progress. ${osCalm ? "Your computer already asks for less motion, so Time Machine stays still either way." : "When this is off, Time Machine follows your computer’s own Reduce motion setting."}`, sw("reduceMotion", s.reduceMotion, "Reduce motion")) },
-    { id: "rewind", group: "Preferences", label: "Bringing back", title: "Bringing back", intro: "Every bring back asks once, with what comes back and what does not. When the folder is missing or a save point is damaged, you choose a version first: on a dial, or Simple.", icon: "rewind", body:
-      setRow("How choosing a version looks", "Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.",
+      + setRow("Reduce motion", `Nothing moves on its own: no breathing dot, no spinning dial, no gliding rows. A check still shows its progress. ${osCalm ? "Your computer already asks for less motion, so Time Machine stays still either way." : "When this is off, Time Machine follows your computer’s own Reduce motion setting."}`, sw("reduceMotion", s.reduceMotion, "Reduce motion"))
+      + setRow("How choosing a version looks", "Every bring back asks once, with what comes back and what does not. When the folder is missing or a save point is damaged, you choose a version first: on a dial, or Simple, the same steps as a plain sheet. With Reduce motion on, the dial does not spin.",
         `<div class="seg" role="group" aria-label="How choosing a version looks"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
-    ...st.projects.map((p) => ({ id: `features:${p.id}`, group: "Projects", label: esc(p.name), title: esc(p.name), intro: "Its check, when it saves, and optional extras.", icon: "project", body: `<div class="mount" data-mount="features:${esc(p.id)}"></div>` })),
-    { id: "local", group: "Time Machine", label: "Local browser app", title: "Local browser app", intro: "Time Machine runs in your browser, served from this computer.", icon: "local", body:
-      `<div class="browser-capabilities"><p class="set-p">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="set-p muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>` },
-    { id: "checks", group: "Time Machine", label: "Checks", title: "Checks", intro: "Where your checks run and what they can reach.", icon: "checks", body:
+    agents: { title: "Agents", intro: "Where checks run, and each project’s check, when it saves, and Ask.", body:
       setRow("Where checks run", `In a copy on ${device()}, never in your folder. Checks use the tools installed on ${device()}.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}`)
-      + setRow("Network during checks", network) },
-    { id: "license", group: "Time Machine", label: "Plan and license", title: "Plan and license", intro: license.intro, icon: "license", body: license.body },
-  ];
-  if (!sections.some((x) => x.id === settingsSection)) settingsSection = "appearance";
-  const nav = sections.map((x, i) => `${x.group !== sections[i - 1]?.group ? `<p class="set-g">${x.group}</p>` : ""}<button class="set-it${x.id === settingsSection ? " on" : ""}" data-act="settings-section" data-v="${esc(x.id)}"${x.id === settingsSection ? ' aria-current="true"' : ""}>${setIcon(x.icon)}<span>${x.label}</span></button>`).join("");
-  const body = sections.map((x, i) => `<section class="set-sec${x.id === settingsSection ? " on" : ""}" data-sec="${esc(x.id)}" aria-labelledby="set-h-${i}"><h2 class="set-h" id="set-h-${i}" tabindex="-1">${x.title}</h2><p class="set-intro">${esc(x.intro)}</p>${x.body}</section>`).join("");
-  return `<div class="page set-page"><div class="set-grid">
-    <nav class="set-nav" aria-label="Settings sections"><h1 tabindex="-1">Settings</h1>${nav}</nav>
-    <div class="set-body">${body}</div>
+      + setRow("Network during checks", network)
+      + st.projects.map((p) => `<section class="set-proj" aria-labelledby="set-p-${esc(p.id)}"><h2 class="set-p-h" id="set-p-${esc(p.id)}" tabindex="-1">${esc(p.name)}</h2><div class="mount" data-mount="features:${esc(p.id)}"></div></section>`).join("") },
+    about: { title: "About", intro: "Time Machine runs in your browser, served from this computer.", body:
+      `<div class="browser-capabilities"><p class="set-p">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="set-p muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>` },
+  };
+  if (!sections[settingsSection]) settingsSection = "license";
+  const x = sections[settingsSection]!;
+  return `<div class="page set-page"><div class="set-col" data-sec="${esc(settingsSection)}">
+    <h1 class="set-h" tabindex="-1">${x.title}</h1><p class="set-intro">${esc(x.intro)}</p>${x.body}
   </div></div>`;
 }
 
@@ -2523,6 +2576,10 @@ function pick(id: string | null, open: boolean): void {
   st.selected = id;
   st.foldAt = null;
   if (open) {
+    // A save point opened from the list goes to the top of the sidebar's Recent; arrowing with the sheet open does not.
+    const p = project();
+    const c = entry(id);
+    if (!st.drawer && p && c) st.recent = addRecent(st.recent, { projectId: p.id, id, label: title(c) });
     st.drawer = true;
     st.askOpen = false;
   }
@@ -2705,11 +2762,9 @@ function focusKey(): string | null {
   const menu = !st.menu && a.closest(".mn-l") ? a.closest(".mn")?.querySelector<HTMLElement>(".mn-b")?.dataset.v : undefined;
   if (menu) return `.mn-b[data-v="${CSS.escape(menu)}"]`;
   if (a.dataset.act) {
-    // Every data attribute that tells same-act controls apart: two switches share "toggle", Put it back rows share an id. The
-    // phone bar's main button repeats an action the page also has, so it is told apart too (Design 9d76bd5 P2).
+    // Every data attribute that tells same-act controls apart: two switches share "toggle", Put it back rows share an id.
     const part = (k: "id" | "v" | "key" | "path"): string => (a.dataset[k] ? `[data-${k}="${CSS.escape(a.dataset[k] ?? "")}"]` : "");
-    const bar = a.classList.contains("tb-main") ? ".tb-main" : ":not(.tb-main)";
-    return `[data-act="${CSS.escape(a.dataset.act)}"]${part("id")}${part("v")}${part("key")}${part("path")}${bar}`;
+    return `[data-act="${CSS.escape(a.dataset.act)}"]${part("id")}${part("v")}${part("key")}${part("path")}`;
   }
   if (a.dataset.model) return `[data-model="${CSS.escape(a.dataset.model)}"]`;
   if (a.id) return `#${CSS.escape(a.id)}`;
@@ -2728,8 +2783,8 @@ function refocus(sel: string): void {
   if (back && !back.matches("button, a, input, select, textarea, [tabindex]")) back.tabIndex = -1;
   back?.focus({ preventScroll: true });
 }
-/** What opens Ask: its toolbar button, or ⋯ on a phone, where Ask sits in that menu. */
-const ASK_BACK = ".toolbar .ask-t, .toolbar .mn-b";
+/** What opens Ask: More in the header, where Ask sits (S2). */
+const ASK_BACK = '.toolbar .mn-b[data-v="tools"]';
 
 /** Ask opened from its button or ⌘J. Beside the page (≥ 1100 px) focus goes into the column, as it does into a sheet: to the
  *  question field when it takes typing, else the column's heading. On a phone Ask is a dialog and takes focus itself. */
@@ -2739,48 +2794,44 @@ function focusAsk(): void {
   (field ?? root.querySelector<HTMLElement>("#ask-h"))?.focus({ preventScroll: true });
 }
 
-/** The bar above every screen: where you are, Back to now when you are looking at the past, Ask, Check it works, and ⋯ for the rest.
- *  On phones it is the buddy, a project switcher that opens the rail, Jump to and ⋯; Ask and the shortcuts move into ⋯. */
+/**
+ * The header (S2): where you are and Back to now while you look at the past, then labelled icons (Check it works, Compare
+ * with now) and More: Ask, Pin, Rename and the project's settings first, then Save now and the rest. The page under it says
+ * the verdict in words and holds the one primary. Below 861 px, or with the sidebar hidden, it starts with the button that
+ * shows the sidebar (the drawer on a phone, S9), and Jump to is an icon of its own.
+ */
 function toolbar(): string {
   const p = project();
   const inProject = !!p && PROJECT_SCREENS.includes(st.screen);
   const page: { [K in Screen]: string } = { welcome: "Welcome", overview: "Overview", onboarding: "Protect a folder", history: "History", rewind: "History", compare: "What changed", agents: "Agents", storage: "Storage", settings: "Settings", plan: "Plan", sources: "Sources" };
-  const crumb = inProject ? `<button class="cr-p" data-act="history">${esc(p.name)}</button><span aria-hidden="true">/</span><span>${esc(page[st.screen])}</span>` : `<span>${esc(page[st.screen])}</span>`;
+  const crumb = inProject ? `<button class="cr-p" data-act="history">${esc(p.name)}</button><span class="cr-pg" aria-hidden="true">/</span><span class="cr-pg">${esc(page[st.screen])}</span>` : `<span>${esc(page[st.screen])}</span>`;
   const newest = points().at(-1);
   const past = inProject && showsBackToNow(st.screen);
   const busy = st.busy ? "disabled" : "";
   // A folder that is gone has nothing to save or check: its page offers "Choose where it is now…" and "Bring back a copy…" instead.
-  const tools = inProject && newest && !folderMissing(p)
-    ? [
-        `<button data-act="save" ${busy}>Save now<kbd>${esc(keys("Mod+S"))}</kbd></button>`,
-        // A project with no check is never offered one: running it would store a verdict and turn the project into a checked one.
-        ...(checksOn(p) ? [`<button data-act="check" ${busy}>Check it works<kbd>${esc(keys("Mod+Enter"))}</kbd></button>`, `<button data-act="find" ${busy}>Find the last working version</button>`] : []),
-        `<button data-act="compare">Compare with now<kbd>${esc(keys("Mod+Shift+C"))}</kbd></button>`,
-        `<button data-act="inspector">Open Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`,
-      ]
-    : [];
-  const phoneOnly = [
-    '<button class="mn-phone" data-act="palette">Jump to…</button>',
-    inProject ? `<button class="mn-phone" data-act="ask-toggle">${st.askOpen ? "Hide Ask" : "Ask"}</button>` : "",
-    '<button class="mn-phone" data-act="keys">Keyboard shortcuts</button>',
+  const live = inProject && !!newest && !folderMissing(p);
+  // A project with no check is never offered one: running it would store a verdict and turn the project into a checked one.
+  const checks = live && checksOn(p);
+  const onHistory = live && st.screen === "history";
+  // Check it works steps aside while a save point's sheet is open: the sheet has its own Check it again.
+  const check = onHistory && checks && !st.drawer ? iconButton("check", "run", "Check it works", "Mod+Enter", busy) : "";
+  const compare = onHistory ? iconButton("compare", "compare", "Compare with now", "Mod+Shift+C") : "";
+  const sel = st.screen === "history" ? entry(st.selected) : null;
+  const n = sel ? named(sel) : null;
+  const first = moreItems({ project: inProject ? p.id : null, askOpen: st.askOpen, selected: sel && n ? { id: sel.id, name: n.time ? n.name : namePhrase(n), pinned: !!st.notes.get(sel.id)?.pinned } : null });
+  const item = (act: string, label: string, key = "", extra = ""): string => `<button role="menuitem" data-act="${act}" ${extra}>${esc(label)}${key ? `<kbd>${esc(keys(key))}</kbd>` : ""}</button>`;
+  const rest = [
+    ...(live ? [item("save", "Save now", "Mod+S", busy), ...(checks ? [item("find", "Find the last working version", "", busy)] : []), item("inspector", "Open Inspector", "Mod+I")] : []),
+    item("keys", "Keyboard shortcuts", "?"),
   ];
-  const more = menuButton("tools", "More actions", [...phoneOnly, ...tools], tools.length ? "" : "mn-phone-only");
-  const ask = inProject ? `<button class="btn quiet ask-t${st.askOpen ? " on" : ""}" data-act="ask-toggle" aria-pressed="${st.askOpen}"><span>Ask</span><kbd class="kc">${esc(keys("Mod+J"))}</kbd></button>` : "";
-  // History has no big Check button of its own, so the toolbar's Check it works stays put. It steps aside only while a save
-  // point's sheet is open: the sheet has its own Check it again. It stays in ⋯.
-  const ready = inProject && !!newest && !folderMissing(p) && st.screen === "history" && !st.drawer;
-  const checkFirst = ready && checksOn(p);
-  const check = checkFirst ? `<button class="btn tb-check" data-act="check" ${busy}>Check it works</button>` : "";
-  // A phone keeps one action beside ⋯ (dev#36): Check it works, or Save now for a folder with no check.
-  // It comes after ⋯ in the markup, so Tab follows the eye: right of ⋯ on a wider phone, a row of its own under it at 440 px.
-  const phoneMain = ready ? (checkFirst ? `<button class="btn tb-main" data-act="check" ${busy}>Check it works</button>` : `<button class="btn tb-main" data-act="save" ${busy}>Save now</button>`) : "";
-  const v = p ? (st.statuses.get(p.id)?.newest?.verdict ?? null) : null;
-  // The phone's project switcher names the project, so its accessible name starts with what it shows.
-  const switcher = `<button class="nav-toggle" data-act="nav-toggle" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>${p ? `<span class="dot v-${verdictKey(v)}" aria-hidden="true"></span><span class="nt-n">${esc(p.name)}</span><span class="sr-only">, open projects</span>` : '<span class="nt-n">Projects</span>'}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
-  return `<div class="toolbar">${buddy("tb-buddy")}${switcher}<nav class="crumb" aria-label="Where you are">${crumb}</nav>
+  const more = menuButton("tools", "More", [...first.map((i) => item(i.act, i.label, i.key, i.id ? `data-id="${esc(i.id)}"` : "")), ...(first.length ? ['<div class="mn-sep" role="separator"></div>'] : []), ...rest]);
+  const phone = window.innerWidth < RAIL_MIN;
+  const side = phone
+    ? `<button class="ib nav-toggle" data-act="nav-toggle" aria-label="Open sidebar" aria-expanded="${st.navOpen}" ${st.navOpen ? 'aria-controls="mobile-navigation"' : ""}>${shellIcon("menu", "ib-ic")}</button>`
+    : st.sideHidden ? iconButton("side-toggle", "panel", "Show sidebar", "Mod+\\") : "";
+  return `<div class="toolbar">${side}<nav class="crumb" aria-label="Where you are">${crumb}</nav>
     ${past ? `<button class="pill" data-act="now">Back to now<kbd>${esc(keys("Mod+↑"))}</kbd></button>` : ""}
-    <span class="tb-sp"></span>
-    <button class="icon-b jump" data-act="palette" aria-label="Jump to…"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>${ask}${check}${more}${phoneMain}</div>`;
+    <span class="tb-sp"></span>${phone ? iconButton("palette", "search", "Jump to…", "Mod+K") : ""}${check}${compare}${more}</div>`;
 }
 
 /** Everything "Jump to…" can reach: actions first, then projects, then recent save points. */
@@ -2932,19 +2983,20 @@ const mounts = new Map<string, { el: HTMLElement; cleanup: (() => void) | null }
 
 function mountFeature(key: string, el: HTMLElement): (() => void) | null {
   const [kind, projectId = ""] = key.split(":");
-  if (kind === "ask") return renderAskPanel(el, { projectId, api: bridge, onCite: cite, onOpenSettings: () => void openAskSettings(projectId) });
+  if (kind === "ask") return renderAskPanel(el, { projectId, api: bridge, onCite: cite, onOpenSettings: () => void openProjectSettings(projectId, `#ft-ask-${CSS.escape(projectId)}`) });
   if (kind === "unlinked") return renderUnlinkedDeploys(el, projectId, bridge);
   if (kind === "features") return renderFeatureSettings(el, projectId, bridge);
   return null;
 }
 
-/** Settings > <project>, at its Ask row (dev#25). The row is drawn once the project's settings are read, so focus waits for it. */
-async function openAskSettings(projectId: string): Promise<void> {
-  settingsSection = `features:${projectId}`;
+/** Settings › Agents at one project's settings: its heading (More's Project settings), or its Ask row (dev#25). The rows are
+ *  drawn once the project's settings are read, so focus waits for them. */
+async function openProjectSettings(projectId: string, at = `#set-p-${CSS.escape(projectId)}`): Promise<void> {
+  settingsSection = "agents";
   await openPage("settings");
   const deadline = performance.now() + 3000;
   const land = (): void => {
-    const row = root.querySelector<HTMLElement>(`#ft-ask-${CSS.escape(projectId)}`);
+    const row = root.querySelector<HTMLElement>(at);
     if (row) {
       row.scrollIntoView({ block: "start" });
       row.focus({ preventScroll: true });
@@ -3213,17 +3265,18 @@ function render(): void {
   const right = !inProject || st.hookSheet || st.demoBusy ? ""
     : sel && st.drawer && !onHistory ? detail() : st.askOpen ? askColumn() : "";
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
-  // Below 861 px the rail lives only in the navigation sheet (nav-toggle). It is not drawn hidden as well, so every
-  // destination exists once, in the sheet, and nothing finds a copy that cannot be seen or pressed.
-  const rail = window.innerWidth < RAIL_MIN ? "" : scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar();
+  // Below 861 px the sidebar lives only in the drawer (S9). It is not drawn hidden as well, so every destination exists once,
+  // in the drawer, and nothing finds a copy that cannot be seen or pressed. Hide sidebar (⌘\) takes it away beside the page.
+  const rail = window.innerWidth < RAIL_MIN || st.sideHidden ? "" : scene ? sidebar().replace('<aside class="side"', '<aside inert class="side"') : sidebar();
   // The first Tab stop skips the rail and the bar to the page itself (writer#26). A button, not a #link: the URL's hash is the bridge's.
   // Every path on screen, in a title or in an accessible name reads ~ for the home folder (homeHtml), so no username shows in
   // the app, a still or a screenshot. What a button acts on (data-path, data-text) keeps the full path.
   root.innerHTML = homeHtml(`<div class="shell"><button class="skip" data-act="skip">Skip to the page</button>
     ${opts.preview ? `<aside class="banner" aria-label="Preview"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</aside>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${sheetHtml}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : st.rewind?.mode === "confirm" && st.rewind.step === "review" ? bringConfirm() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
-  // The toast sits over the work area: past the rail, and short of a right column or a sheet beside the list when one is open.
+    ${connectionBanner()}<div class="app ${appCls}${rail ? "" : " no-side"}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${sheetHtml}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : st.rewind?.mode === "confirm" && st.rewind.step === "review" ? bringConfirm() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
+  // The toast sits over the work area: past the sidebar, and short of a right column or a sheet beside the list when one is open.
   toastHost.dataset.right = sheetHtml && sheetBeside() ? "has-sheet" : appCls;
+  toastHost.dataset.side = rail ? "" : "none";
   seenOnce = drawOnce;
   applyOnce();
   const page = document.querySelector(".page");
@@ -3393,10 +3446,8 @@ function applyAppearance(): void {
 async function saveNow(): Promise<void> {
   const p = project();
   if (!p || st.busy) return;
-  // Save now is disabled while it runs, which drops its focus; the one that had focus (the phone bar's or the page's) gets
-  // it back once enabled (Design c1e5296 and 9d76bd5 P2).
-  const had = document.activeElement instanceof HTMLElement && document.activeElement.matches('[data-act="save"]') ? document.activeElement : null;
-  const back = had ? (had.matches(".tb-main") ? '.tb-main[data-act="save"]' : '[data-act="save"]:not(.tb-main)') : null;
+  // Save now is disabled while it runs, which drops its focus; it gets it back once enabled (Design c1e5296).
+  const back = document.activeElement instanceof HTMLElement && document.activeElement.matches('[data-act="save"]') ? '[data-act="save"]' : null;
   st.busy = "Saving";
   render();
   try {
@@ -3740,6 +3791,8 @@ async function rewindDo(): Promise<void> {
   try {
     r.result = await api({ method: "recover", projectId: p.id, id: r.target });
     st.undo = { projectId: p.id, rec: { id: r.result.id, branch: r.result.branch, copyDir: r.result.copyDir }, working: false, savedBefore: r.result.savedBefore };
+    const back = entry(r.result.id);
+    if (back) st.recent = addRecent(st.recent, { projectId: p.id, id: back.id, label: `Brought back “${title(back)}”` });
     spoken = "";
     r.step = "done";
   } catch (e) {
@@ -4217,6 +4270,7 @@ function overviewScreen(): string {
     // The sidebar's "copy ready", from the same source.
     ready: new Set(st.projects.filter((p) => copyReady(p.id, st.undo, st.recoveries.get(p.id) ?? [], st.kept)).map((p) => p.id)),
     shown: new Map(st.projects.map((p) => [p.id, newestVerdict(p)])),
+    trust: trustLine(),
   });
 }
 
@@ -4245,6 +4299,9 @@ async function overviewCopy(projectId: string): Promise<void> {
 
 /** A failed read stays an error, never an invented empty list. */
 async function openPage(screen: AppPage): Promise<void> {
+  // Settings' ← Back goes to where Settings was opened from (S8); moving between its own sections keeps that.
+  const inSettings = (s: Screen): boolean => s === "settings" || s === "storage";
+  if (inSettings(screen) && !inSettings(st.screen)) st.settingsFrom = st.screen;
   st.screen = screen;
   st.drawer = false;
   st.pageError = null;
@@ -4497,8 +4554,36 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "nav-toggle":
       st.navOpen = !st.navOpen;
       return render();
-    case "nav-close":
+    case "side-toggle":
+      // In the drawer, Hide sidebar closes it (done above); beside the page it hides or shows the sidebar.
+      if (window.innerWidth < RAIL_MIN) return render();
+      return toggleSidebar();
+    case "settings-back": {
+      const to = settingsBack(st.settingsFrom, st.projects.length > 0) as Screen;
+      st.settingsFrom = null;
+      if (isAppPage(to)) return openPage(to);
+      if (PROJECT_SCREENS.includes(to) && project()) {
+        st.screen = "history";
+        await loadTimeline();
+        return render();
+      }
+      st.screen = to;
       return render();
+    }
+    case "recent":
+      if (d.id && d.v) await openSavePoint(d.v, d.id);
+      return;
+    case "rename": {
+      // More's Rename: the save point's sheet with its name field in focus, as F2 does.
+      if (!d.id || !entry(d.id)) return;
+      st.sheetParts = { ...st.sheetParts, more: true };
+      pick(d.id, true);
+      root.querySelector<HTMLElement>("#rn-title")?.focus({ preventScroll: true });
+      return;
+    }
+    case "project-settings":
+      if (d.id) await openProjectSettings(d.id);
+      return;
     case "reconnect":
       window.location.reload();
       return;
@@ -4506,7 +4591,10 @@ async function onClick(el: HTMLElement): Promise<void> {
       return cancelAdd();
     case "menu":
       st.menu = st.menu === d.v ? null : (d.v ?? null);
-      return render();
+      render();
+      // An open menu takes focus on the item in force, else its first (WAI-ARIA menu button).
+      if (st.menu) (root.querySelector<HTMLElement>('.mn-l [aria-checked="true"]') ?? root.querySelector<HTMLElement>('.mn-l [role^="menuitem"]:not([disabled])'))?.focus({ preventScroll: true });
+      return;
     case "palette":
       return openPalette();
     case "keys":
@@ -4541,7 +4629,7 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "journal-filter":
       st.journalFilter = d.v === "works" || d.v === "named" || d.v === "pinned" ? d.v : "all";
       render();
-      return refocus(`[data-act="journal-filter"][data-v="${st.journalFilter}"]`);
+      return refocus('.mn-b[data-v="filter"]');
     case "add":
       return startAdd();
     case "demo":
@@ -4554,18 +4642,15 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "settings":
       return openPage(d.act);
     case "settings-section": {
-      settingsSection = d.v ?? "appearance";
+      settingsSection = d.v ?? "license";
       if (st.screen === "settings") {
         render();
         document.querySelector(".page")?.scrollTo(0, 0);
         return;
       }
-      // Arriving from elsewhere (Paste a key): that section in view, at its key field or its heading. On a phone the
-      // sections stack, so without this Settings would open on Appearance (Design A15).
+      // Arriving from elsewhere (Paste a key): that section, at its key field or its heading (Design A15).
       await openPage("settings");
-      const sec = root.querySelector<HTMLElement>(`[data-sec="${CSS.escape(settingsSection)}"]`);
-      sec?.scrollIntoView({ block: "start" });
-      (sec?.querySelector<HTMLElement>("#license-key:not([disabled])") ?? sec?.querySelector<HTMLElement>(".set-h"))?.focus({ preventScroll: true });
+      (root.querySelector<HTMLElement>("#license-key:not([disabled])") ?? root.querySelector<HTMLElement>(".set-h"))?.focus({ preventScroll: true });
       return;
     }
     case "now":
@@ -4963,8 +5048,8 @@ function shortcut(action: ShortcutAction): void {
     case "inspector":
       return toggleInspector();
     case "settings":
-      // Focus lands on the page's heading, so Tab goes into Settings instead of walking the rail first.
-      void openPage("settings").then(() => root.querySelector<HTMLElement>(".set-nav h1")?.focus());
+      // Focus lands on the page's heading, so Tab goes into the section instead of walking Settings' sidebar first.
+      void openPage("settings").then(() => root.querySelector<HTMLElement>(".set-page h1")?.focus());
       return;
     case "add":
       return startAdd();
@@ -5089,6 +5174,26 @@ function sheetKeys(e: KeyboardEvent, typing: boolean): boolean {
   return true;
 }
 
+/** Inside an open menu (More, All ▾): ↑, ↓, Home and End move round its items (menuStep); Tab closes it and goes on from its
+ *  button. Esc is onKey's, with the other menus. True when the key was used. */
+function menuKey(e: KeyboardEvent): boolean {
+  const t = e.target;
+  if (!st.menu || !(t instanceof HTMLElement) || !t.closest(".mn-l") || e.altKey || e.ctrlKey || e.metaKey) return false;
+  if (e.key === "Tab") {
+    const menu = st.menu;
+    st.menu = null;
+    render();
+    root.querySelector<HTMLElement>(`.mn-b[data-v="${CSS.escape(menu)}"]`)?.focus({ preventScroll: true });
+    return true;
+  }
+  const items = [...root.querySelectorAll<HTMLElement>('.mn-l [role^="menuitem"]:not([disabled])')];
+  const to = menuStep(e.key, items.indexOf(t), items.length);
+  if (to === null) return false;
+  e.preventDefault();
+  items[to]?.focus();
+  return true;
+}
+
 function onKey(e: KeyboardEvent): void {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   const k = e.key.toLowerCase();
@@ -5097,6 +5202,7 @@ function onKey(e: KeyboardEvent): void {
   if (dialogFocus.trapTab(e)) return;
   if (paletteKey(e)) return;
   if (roveKey(e)) return;
+  if (menuKey(e)) return;
   if (st.keysSheet && (k === "escape" || k === "?")) {
     st.keysSheet = false;
     render();
@@ -5125,6 +5231,7 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (mod && k === "k") return void (e.preventDefault(), openPalette());
+  if (mod && e.key === "\\") return void (e.preventDefault(), toggleSidebar());
   if (mod && k === "j" && PROJECT_SCREENS.includes(st.screen) && st.screen !== "rewind" && project()) {
     e.preventDefault();
     st.askOpen = !st.askOpen;
@@ -5182,7 +5289,7 @@ function onKey(e: KeyboardEvent): void {
     else if (st.askOpen && t instanceof Element && t.closest(".ask-col")) {
       // Beside the page Ask stays open: Esc from inside it goes back to the Ask button, as Hide and ⌘J do.
       render();
-      return void root.querySelector<HTMLElement>(".toolbar .ask-t")?.focus({ preventScroll: true });
+      return void root.querySelector<HTMLElement>(ASK_BACK)?.focus({ preventScroll: true });
     } else if (st.askOpen && window.innerWidth < 1100 && PROJECT_SCREENS.includes(st.screen)) {
       st.askOpen = false;
       render();
@@ -5296,7 +5403,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "overview" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
     compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false, sheetParts: { check: false, more: false },
-    navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
+    navOpen: false, sideHidden: readSideHidden(), recent: [], settingsFrom: null, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
     askOpen: false, lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, overview: new Map(), overviewNotes: new Map(), sources: null, notes: new Map(), journalFilter: "all", folds: new Set(), foldAt: null, noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
@@ -5535,23 +5642,12 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     tvStep(e.deltaY > 0 ? "forward" : "back");
   }, { passive: false });
   document.addEventListener(FEATURES_CHANGED, () => void loadDeployChips());
-  void bridge.call({ method: "storage" }).then((r) => {
-    if (r.ok && !st.storage) {
-      st.storage = r.data;
-      render();
-    }
-  });
   b.onEvent(onEvent);
-  // A folder that vanishes sends no event: the statuses are read again every 5 s while the tab is shown, so the rail says
-  // "Can't find it" within 5 s (writer#2). The rail's ages tick in place every 30 s, and at once when the tab is shown
-  // again, since a hidden tab's timers are held back (writer#19).
+  // A folder that vanishes sends no event: the statuses are read again every 5 s while the tab is shown, so the sidebar says
+  // "Can't find it" within 5 s (writer#2).
   window.setInterval(() => {
     if (!document.hidden && !st.busy && st.connection?.state !== "disconnected") void pollStatuses();
   }, 5000);
-  window.setInterval(tickAges, 30_000);
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) tickAges();
-  });
   void loadAskProvider();
   document.addEventListener(FEATURES_CHANGED, () => void loadAskProvider());
   // A check set or emptied in Settings changes whether a project checks at all (checksOn), so each project's check is read again.
