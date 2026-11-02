@@ -26,11 +26,11 @@ describe("get-started page", () => {
     expect(copied("gs-install")).toBe(cmd);
   });
 
-  it("copies tm ui and the same Claude Code prompt as the home page", () => {
+  it("copies tm ui, and the home page's Claude Code prompt on the vercel.app host (Security SHOULD-TD3)", () => {
     expect(copied("gs-ui")).toBe("tm ui");
     const home = (read("index.html").match(/<p id="agent-prompt"[^>]*>([^<]*)<\/p>/) ?? [])[1];
-    expect(home).toBeTruthy();
-    expect(copied("gs-agent")).toBe(decode(home ?? ""));
+    expect(home).toContain("https://time-machine.company/install.md");
+    expect(copied("gs-agent")).toBe(decode(home ?? "").replace("https://time-machine.company/", "https://time-machine-site.vercel.app/"));
   });
 
   it("has no inline script and loads copy.js", () => {
