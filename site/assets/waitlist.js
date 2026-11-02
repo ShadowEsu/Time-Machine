@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var CONTACT = "preston@unvibe.site";
+  var CONTACT = "support@unvibe.site";
   var CODE_RE = /^[a-z0-9]{10}$/;
   var MSG = {
     ok: "Saved as pending and unconfirmed. No email has been sent.",

@@ -1,8 +1,8 @@
 # Time Machine Terms of Service
 
-**DRAFT. Not in effect. Needs lawyer review.** Last updated: [date].
+Last updated: 2 November 2026.
 
-These terms are an agreement between you and [Operator] ("we"). They cover the Time Machine website, the Time Machine web app, and its one-time license. The free `tm` command line tool is covered by its own open source license.
+These terms are an agreement between you and Unvibe ("we"). They cover the Time Machine website, the Time Machine web app, and its one-time license. The free `tm` command line tool is covered by its own open source license.
 
 ## 1. Who can use Time Machine
 
@@ -44,7 +44,7 @@ Your code and files stay on your computer. We do not upload them. You own your p
 
 **Your key.** After payment we show you a license key on the purchase page. It holds a purchase id, the plan and the date, nothing else. Reloading that page shows it again.
 
-**Refunds.** You can get a full refund within 14 days of payment by emailing [Contact]. After that, payments are not refundable except where the law says otherwise. Once a purchase is refunded, the website no longer shows its key. A key already saved on a computer keeps working, because keys are checked on that computer and cannot be taken back. If you are in the EU or UK you also have the legal right to withdraw described at checkout.
+**Refunds.** You can get a full refund within 14 days of payment by emailing support@unvibe.site. After that, payments are not refundable except where the law says otherwise. Once a purchase is refunded, the website no longer shows its key. A key already saved on a computer keeps working, because keys are checked on that computer and cannot be taken back. If you are in the EU or UK you also have the legal right to withdraw described at checkout.
 
 ## 7. Acceptable use
 
@@ -84,4 +84,4 @@ California law applies, without regard to its conflict of law rules. You can bri
 
 ## 16. Contact
 
-[Contact]
+Unvibe, support@unvibe.site

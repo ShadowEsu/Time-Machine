@@ -3,7 +3,7 @@
 (function () {
   "use strict";
 
-  var CONTACT = "preston@unvibe.site";
+  var CONTACT = "support@unvibe.site";
   var SESSION_RE = /^cs_[A-Za-z0-9_]{10,200}$/;
   var MSG = {
     loading: "Fetching your key…",
