@@ -3,7 +3,8 @@ import * as tm from "@timetm/core";
 import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
-import { fmtCheckpoint, fmtDemo, fmtDiff, fmtDoctor, fmtFindGood, fmtForget, fmtHookInstall, fmtInit, fmtLicense, fmtList, fmtLog, fmtOpen, fmtRecover, fmtRelink, fmtRestore, fmtStatus, fmtThin, fmtTimeline, fmtUndoRecover, fmtVerify, makeStyle } from "./format.js";
+import { homePath, setHomes } from "../../../apps/web/src/shared/format.js";
+import { fmtCheckpoint, fmtDemo, fmtDiff, fmtDoctor, fmtFindGood, fmtForget, fmtHookInstall, fmtInit, fmtLicense, fmtList, fmtLog, fmtOpen, fmtRecover, fmtRelink, fmtRestore, fmtStatus, fmtThin, fmtTimeline, fmtUndoRecover, fmtVerify, homeRoots, makeStyle } from "./format.js";
 import { serveMcp } from "./mcp.js";
 import { VERSION } from "./version.js";
 import { runUi } from "./ui/server.js";
@@ -183,6 +184,8 @@ function parseError(e: unknown, argv: string[]): UsageError {
 }
 
 export async function main(argv: string[], io: Io): Promise<number> {
+  // What a person reads says a path under the home folder as ~/… (a screen recording shows no username); --json stays exact.
+  setHomes(homeRoots(io.env));
   try {
     let parsed;
     try {
@@ -216,7 +219,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
     const ctx: tm.Ctx = { cwd: project !== undefined ? resolve(io.cwd, project) : io.cwd, env: io.env };
     const style = makeStyle(io.isTTY && !io.env.NO_COLOR);
     const json = values.json === true;
-    const print = (result: unknown, human: string): void => io.stdout(json ? `${JSON.stringify(result, null, 2)}\n` : `${human}\n`);
+    /** `exact` keeps the text as it is, for output that shortens its own paths (fmtHookInstall). */
+    const print = (result: unknown, human: string, exact = false): void => io.stdout(json ? `${JSON.stringify(result, null, 2)}\n` : `${exact ? human : homePath(human)}\n`);
     const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
     /** INCOMPLETE when the copy lacks something the save point had. */
     const complete = (missing: string[]): number => (missing.length ? tm.EXIT_CODES.INCOMPLETE : 0);
@@ -361,7 +365,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
           if (values["if-initialized"] !== undefined) throw new UsageError("--if-initialized does not apply to hook install.");
           const hook = hookCommand(io);
           const r = { ...(await tm.hookInstall(ctx, { command: hook.command })), ...hook };
-          print(r, fmtHookInstall(r));
+          print(r, fmtHookInstall(r), true);
           return 0;
         }
         if (event !== "prompt" && event !== "pre-bash" && event !== "stop") throw new UsageError(`Unknown hook "${event}". Use install, prompt, pre-bash or stop.`);
@@ -409,14 +413,14 @@ export async function main(argv: string[], io: Io): Promise<number> {
     throw new UsageError(`Unknown command "${command}".`);
   } catch (e) {
     if (e instanceof UsageError) {
-      io.stderr(`tm: ${e.message}\n`);
+      io.stderr(`tm: ${homePath(e.message)}\n`);
       return tm.EXIT_USAGE;
     }
     if (e instanceof tm.TmError) {
-      io.stderr(`tm: ${e.message}\n`);
+      io.stderr(`tm: ${homePath(e.message)}\n`);
       return e.exitCode;
     }
-    io.stderr(`tm: internal error: ${(e as Error).message}\n`);
+    io.stderr(`tm: internal error: ${homePath((e as Error).message)}\n`);
     return 4;
   }
 }

@@ -72,7 +72,7 @@ tm init
 ```
 
 ```
-Created /home/you/my-app/timemachine.yml
+Created ~/my-app/timemachine.yml
   Check     npm test
   Setup     npm ci --prefer-offline --no-audit --no-fund   (runs first in each fresh copy)
   Network   on during checks
@@ -111,7 +111,7 @@ tm verify cp-0003
 ```
 PASS       cp-0003 works (host mode, network on, 1.4 s)
            The check passed.
-           Log: /home/you/.timemachine/projects/9f2c41d07a3be815/logs/cp-0003-2026-10-15T10-42-07-311Z.log
+           Log: ~/.timemachine/projects/9f2c41d07a3be815/logs/cp-0003-2026-10-15T10-42-07-311Z.log
 ```
 
 **Step 4. When something breaks, find the last working version.**
@@ -138,7 +138,7 @@ tm recover cp-0003
 ```
 Recovery ready for cp-0003. Nothing was pushed, merged or deployed. Your folder and branch were not touched.
   Branch          tm/recover/cp-0003
-  Recovery copy   /home/you/my-app-recovered-cp-0003
+  Recovery copy   ~/my-app-recovered-cp-0003
   Saved first     cp-0007, your state before this recovery
   Last check      PASS
 Restored
@@ -150,10 +150,12 @@ Not restored
 Manual steps
   Set PORT in .env in the recovery copy.
   Set STRIPE_SECRET_KEY in .env in the recovery copy.
-  Review the recovery copy at /home/you/my-app-recovered-cp-0003.
+  Review the recovery copy at ~/my-app-recovered-cp-0003.
   Keep working in the recovery copy. Review and commit the restored files you want to keep before moving or removing it.
-Report: /home/you/.timemachine/projects/9f2c41d07a3be815/reports/recover-cp-0003-2026-10-15T10-45-12-004Z.md
+Report: ~/.timemachine/projects/9f2c41d07a3be815/reports/recover-cp-0003-2026-10-15T10-45-12-004Z.md
 ```
+
+A path under your home folder prints as `~/…`, so a screen recording does not show your username. A shell expands `~/` when you paste it. `--json` prints every path in full. One line stays in full: `tm hook install`'s "The hooks run:" command, because a shell does not expand `~` inside its quotes.
 
 Your broken state was saved first as cp-0007, so you can always come back to it.
 
@@ -194,7 +196,7 @@ Each save point also records which agent made it, when one did: `agent: { name, 
 `timeline` rows look like this:
 
 ```
-History of /Users/you/my-app (times in PDT)
+History of ~/my-app (times in PDT)
 cp-0004   FAIL        2026-10-15 10:51  8a03f6e  Agent: fixed lint warnings
 cp-0003   PASS        2026-10-15 10:42  4e1d0b7  Added dark mode
 ```
