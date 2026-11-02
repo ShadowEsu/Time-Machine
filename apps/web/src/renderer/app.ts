@@ -181,6 +181,8 @@ interface State {
   agents: AgentRow[] | null;
   /** Every project's save points for Overview, oldest first; "error" when one could not be read. Read when Overview opens. */
   overview: Map<string, DigestPoint[] | "error">;
+  /** Every project's names given in History, by save point id, read with `overview` so Overview names save points as History does. */
+  overviewNotes: Map<string, Map<string, RunNote>>;
   /** Well-known folders on this computer for Sources: null while read, "error" when they could not be. */
   sources: SourceRow[] | null | "error";
   /** Names, notes and pins of the selected project's save points, by id. Read after the timeline, and again after each change. */
@@ -3575,7 +3577,8 @@ function exitRewind(): void {
   const back = r?.returnTo ?? { screen: "history" as Screen, selected: st.selected, listScroll: 0, pageScroll: 0 };
   // A running search keeps going in the background. Everything else is let go.
   if (!r?.finding) st.rewind = null;
-  st.screen = back.screen;
+  // Opened from a page that is not the project's (Overview), a finished bring back still lands on History, where its banner is.
+  st.screen = finished && !PROJECT_SCREENS.includes(back.screen) ? "history" : back.screen;
   const ids = points().map((c) => c.id);
   if (back.selected && ids.includes(back.selected)) st.selected = back.selected;
   // After a bring back, the detail would offer the same Bring back again. History leads with the banner instead.
@@ -4184,10 +4187,12 @@ type AppPage = "overview" | "agents" | "storage" | "settings" | "plan" | "source
 const APP_PAGES: readonly Screen[] = ["overview", "agents", "storage", "settings", "plan", "sources"];
 const isAppPage = (s: Screen): s is AppPage => APP_PAGES.includes(s);
 
-/** Overview: every project's save points, read straight from the bridge (not recorded). One that can't be read says so on its card. */
+/** Overview: every project's save points and the names given to them, read straight from the bridge (not recorded). One that
+ *  can't be read says so on its card; names that can't be read leave its save points named by their own messages. */
 async function loadOverview(): Promise<void> {
-  const reads = await Promise.all(st.projects.map(async (p) => [p.id, await bridge.call({ method: "timeline", projectId: p.id })] as const));
+  const reads = await Promise.all(st.projects.map(async (p) => [p.id, ...(await Promise.all([bridge.call({ method: "timeline", projectId: p.id }), bridge.call({ method: "notes", projectId: p.id })]))] as const));
   st.overview = new Map(reads.map(([id, r]) => [id, r.ok ? r.data.checkpoints : "error"]));
+  st.overviewNotes = new Map(reads.map(([id, , n]) => [id, new Map(n.ok ? Object.entries(n.data) : [])]));
 }
 
 function overviewScreen(): string {
@@ -4195,7 +4200,21 @@ function overviewScreen(): string {
   const lic = st.license.status;
   const checks = new Set(st.projects.filter((p) => checksOn(p)).map((p) => p.id));
   const strips = st.projects.some((p) => Array.isArray(st.overview.get(p.id)));
-  return overviewPage({ projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "" });
+  // One name per save point: the name given in History (the open project's, as History has it now), else its own message.
+  const given = (pid: string, id: string): string => ((pid === st.projectId ? st.notes : st.overviewNotes.get(pid))?.get(id)?.title ?? "");
+  return overviewPage({
+    projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "",
+    name: (pid, c) => namePoint(c, [c], pointMessage(c, given(pid, c.id))),
+  });
+}
+
+/** Bring back from Overview: the same path as History's Bring back. The project opens, and B3's one confirm asks about its
+ *  newest version that works. Never mind comes back here; once it is back, History's banner says where it went (B4). */
+async function overviewBring(projectId: string, id: string): Promise<void> {
+  if (st.busy || !st.projects.some((p) => p.id === projectId)) return;
+  await selectProject(projectId, "overview");
+  if (!entry(id)) return;
+  await startRewind(id);
 }
 
 /** A failed read stays an error, never an invented empty list. */
@@ -4473,6 +4492,9 @@ async function onClick(el: HTMLElement): Promise<void> {
       return refocus("");
     case "project":
       if (d.id) await selectProject(d.id);
+      return;
+    case "ov-bring":
+      if (d.id && d.v) await overviewBring(d.id, d.v);
       return;
     case "source-add": {
       const row = st.sources !== "error" ? st.sources?.find((x) => x.id === d.id) : undefined;
@@ -5248,7 +5270,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
     askOpen: false, lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
-    agents: null, overview: new Map(), sources: null, notes: new Map(), journalFilter: "all", folds: new Set(), foldAt: null, noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
+    agents: null, overview: new Map(), overviewNotes: new Map(), sources: null, notes: new Map(), journalFilter: "all", folds: new Set(), foldAt: null, noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
     hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), changesFor: "", confirm: null, flash: null, undo: null, recoveries: new Map(), kept: readKept(),
     license: { status: boot.data.license, draft: "", working: false, error: null },
     account: { ...SIGNED_OUT },

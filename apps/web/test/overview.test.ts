@@ -1,14 +1,16 @@
 import { describe, expect, test } from "vitest";
 import type { ProjectEntry, ProjectStatus } from "../src/shared/api.ts";
-import { esc, verdictWord, when } from "../src/shared/format.ts";
+import { clock, esc, keepTimes, namePoint, pointMessage, verdictWord, when } from "../src/shared/format.ts";
 import { activityStrip, digest, digestLine, overviewPage, reportLine, saveState, spread, type DigestPoint, type OverviewInput } from "../src/renderer/overview.ts";
 import { checkRecommended, hasCheck, kindLabel, projectMeta, unitCount } from "../src/renderer/purpose.ts";
 
 const now = new Date(2026, 9, 25, 7, 0).getTime();
 const hoursAgo = (h: number): string => new Date(now - h * 3_600_000).toISOString();
 const pt = (n: number, h: number, verdict: DigestPoint["verdict"], agent = false): DigestPoint => ({
-  id: `cp-${String(n).padStart(4, "0")}`, createdAt: hoursAgo(h), verdict, agent: agent ? { name: "Claude Code", prompt: "fix it" } : null,
+  id: `cp-${String(n).padStart(4, "0")}`, createdAt: hoursAgo(h), verdict, agent: agent ? { name: "Claude Code", prompt: "fix it" } : null, note: "", trigger: "auto", subject: null,
 });
+/** A save point with its own message (a note), so it is named by it. */
+const said = (n: number, h: number, verdict: DigestPoint["verdict"], note: string): DigestPoint => ({ ...pt(n, h, verdict), note });
 
 describe("since you last looked", () => {
   test("counts only the window, and a break only where a pass turned into a fail", () => {
@@ -37,7 +39,10 @@ describe("since you last looked", () => {
     const broke = { name: "app", d: digest([pt(1, 3, "PASS"), pt(2, 2, "FAIL")], now), checks: true };
     const unchecked = { name: "pricing-page", d: digest([pt(1, 4, null), pt(2, 1, null)], now), checks: true };
     const folder = { name: "thesis-notes", d: digest([pt(1, 5, null), pt(2, 3, null), pt(3, 2, null), pt(4, 1, null)], now), checks: false };
-    expect(reportLine([broke, unchecked])).toBe("4 saves in the last 24 hours across 2 projects. 1 break, shown below.");
+    expect(reportLine([broke, unchecked])).toBe("4 saves in the last 24 hours across 2 projects. Broke once, in app.");
+    const twice = { name: "site", d: digest([pt(1, 5, "PASS"), pt(2, 4, "FAIL"), pt(3, 3, "PASS"), pt(4, 2, "FAIL")], now), checks: true };
+    expect(reportLine([broke, twice])).toBe("6 saves in the last 24 hours across 2 projects. Broke 3 times across 2 projects, shown below.");
+    expect(reportLine([twice])).toBe("4 saves in the last 24 hours. Broke twice, in site.");
     expect(reportLine([unchecked, folder])).toBe("6 saves in the last 24 hours across 2 projects. pricing-page has 2 not checked yet.");
     expect(reportLine([folder])).toBe("4 saves in the last 24 hours.");
     expect(reportLine([{ name: "app", d: digest([pt(1, 3, "PASS")], now), checks: true }, folder])).toBe("5 saves in the last 24 hours across 2 projects. Nothing broke.");
@@ -46,8 +51,11 @@ describe("since you last looked", () => {
 
   test("research says runs, and an agent that made every save is named once", () => {
     const d = digest([pt(1, 3, "PASS", true), pt(2, 2, "FAIL", true)], now);
-    expect(digestLine(d, "research")).toBe("2 runs, 2 checked, 1 broke. Claude Code made all of them.");
-    expect(digestLine(d, "documents")).toBe("2 save points, 2 checked, 1 broke. Claude Code made all of them.");
+    // An agent's save point is named by its prompt, as on History.
+    expect(digestLine(d, "research")).toBe(`2 runs, 2 checked (1 works, 1 broken). Broke once, at “Fix it” (${clock(d.brokeAt!.createdAt)}). Claude Code made all of them.`);
+    expect(digestLine(d, "documents")).toBe(`2 save points, 2 checked (1 works, 1 broken). Broke once, at “Fix it” (${clock(d.brokeAt!.createdAt)}). Claude Code made all of them.`);
+    const unnamed = digest([pt(1, 3, "PASS"), pt(2, 2, "FAIL")], now);
+    expect(digestLine(unnamed, "code")).toBe(`2 save points, 2 checked (1 works, 1 broken). Broke once, at the save at ${clock(unnamed.brokeAt!.createdAt)}.`);
   });
 
   test("a project that can't be read is said by name, never counted as a quiet day (writer#3)", () => {
@@ -105,7 +113,7 @@ describe("project cards", () => {
     const html = page({ projects: [p], statuses: new Map([["a", status("a", last)]]), timelines: new Map([["a", [last]]]) });
     expect(saveState(last, now)).toBe(`Saved ${when(last.createdAt, new Date(now))}`);
     expect(saveState(null, now)).toBe("Nothing saved yet");
-    expect(html).toContain(esc(saveState(last, now)));
+    expect(html).toContain(keepTimes(esc(saveState(last, now))));
     expect(html).not.toContain("Not checked yet");
     expect(html).not.toMatch(/not checked|None of them checked/i);
     // A code project keeps its verdict badge.
@@ -165,5 +173,108 @@ describe("project cards", () => {
     const many = spread(Array.from({ length: 40 }, () => 100), 4);
     expect(Math.min(...many)).toBeGreaterThanOrEqual(0);
     expect(new Set(many.map((x) => x.toFixed(3))).size).toBe(40);
+  });
+});
+
+// B5: what the card says agrees with what it draws, names a break the way History names it, and offers the way back.
+const dots = (html: string, kind: string): number => (html.match(new RegExp(`class="ovs-dot b-${kind}"`, "g")) ?? []).length;
+const card = (id: string, tl: DigestPoint[], extra: Partial<OverviewInput> = {}): string => page({
+  projects: [entry(id, `p-${id}`, "git", "code")], statuses: new Map([[id, status(id, tl.at(-1) ?? null)]]), timelines: new Map([[id, tl]]), checks: new Set([id]), ...extra,
+});
+
+describe("the count matches the diamonds", () => {
+  test("every broken mark on the strip is counted in the line beside it, and only those", () => {
+    // The demo's shape: a pass, then four fails in a row. One break, four red diamonds.
+    const tl = [pt(1, 6, null), pt(2, 5, null), pt(3, 4, "PASS"), said(4, 3, "FAIL", "Agent: fixed lint warnings"), pt(5, 3, "FAIL"), pt(6, 2, "FAIL"), pt(7, 1, "FAIL")];
+    const html = card("a", tl);
+    expect(dots(html, "fail")).toBe(4);
+    expect(html).toContain("7 save points, 5 checked (1 works, 4 broken).");
+    expect(html).not.toContain("1 broke.");
+  });
+
+  test("a save point a few seconds ahead of this clock is drawn and counted alike", () => {
+    // The engine's clock can run a little ahead of the window's: the line and the strip take the same save points.
+    const ahead: DigestPoint = { ...pt(3, 0, "FAIL"), createdAt: new Date(now + 30_000).toISOString() };
+    const tl = [pt(1, 2, "PASS"), pt(2, 1, "FAIL"), ahead];
+    const d = digest(tl, now);
+    const strip = activityStrip(tl, now);
+    expect(strip.match(/class="ovs-dot /g)).toHaveLength(d.saves);
+    expect(dots(strip, "fail")).toBe(d.fails);
+    expect(card("a", tl)).toContain("3 save points, 3 checked (1 works, 2 broken).");
+  });
+
+  test("a project that works counts its green marks in words too", () => {
+    const html = card("a", [pt(1, 3, null), pt(2, 2, "PASS")]);
+    expect(dots(html, "pass")).toBe(1);
+    expect(html).toContain("2 save points, 1 checked (1 works).");
+  });
+
+  test("for any history, the dots and the counts in words agree", () => {
+    const verdicts: DigestPoint["verdict"][] = ["PASS", "FAIL", null, "ERROR", "BLOCKED", "INCOMPLETE"];
+    let seed = 7;
+    const rnd = (n: number): number => (seed = (seed * 1103515245 + 12345) % 2 ** 31) % n;
+    for (let run = 0; run < 40; run++) {
+      const tl = Array.from({ length: 1 + rnd(12) }, (_, i) => ({ ...pt(i + 1, 30 - i * 2.4 - rnd(3) / 10, verdicts[rnd(verdicts.length)] ?? null), createdAt: new Date(now - (26 - i * 2.4) * 3_600_000 + rnd(90) * 1000).toISOString() }));
+      const d = digest(tl, now);
+      const strip = activityStrip(tl, now);
+      expect((strip.match(/class="ovs-dot /g) ?? []).length).toBe(d.saves);
+      expect(dots(strip, "fail")).toBe(d.fails);
+      expect(dots(strip, "pass")).toBe(d.works);
+    }
+  });
+});
+
+describe("a project that broke offers the way back", () => {
+  const tl = [said(1, 4, "PASS", "Added dark mode"), said(2, 3, "FAIL", "Agent: fixed lint warnings"), pt(3, 2, "FAIL")];
+
+  test("it says where it broke by the save point's name, and how many since fail", () => {
+    const d = digest(tl, now);
+    expect(d.brokeAt?.id).toBe("cp-0002");
+    const html = card("a", tl);
+    expect(html).toContain(`Broke once, at “Agent: fixed lint warnings” (<span class="nw">${esc(clock(tl[1]!.createdAt))}</span>); the 1 save point since fails its check.`);
+    const mixed = digest([pt(1, 4, "PASS"), pt(2, 3, "FAIL"), pt(3, 2, null), pt(4, 1, "FAIL")], now);
+    expect(digestLine(mixed, "code")).toContain("; 1 of the 2 save points since fails its check.");
+    const twice = digest([pt(1, 5, "PASS"), pt(2, 4, "FAIL"), pt(3, 3, "PASS"), said(4, 2, "FAIL", "Swapped the loader")], now);
+    expect(digestLine(twice, "code")).toContain(`Broke twice, last at “Swapped the loader” (${clock(twice.brokeAt!.createdAt)}).`);
+  });
+
+  test("Bring back is the card's one primary, for the newest version that works, named as History names it", () => {
+    const html = card("a", tl);
+    expect(html.match(/class="btn dark/g)).toHaveLength(1);
+    expect(html).toContain('data-act="ov-bring" data-id="a" data-v="cp-0001"');
+    expect(html).toContain(`Bring back “Added dark mode” <span class="b-sub"><span class="nw">${esc(clock(tl[0]!.createdAt))}</span></span>`);
+    // A name someone gave it in History is the name here too.
+    const given = card("a", tl, { name: (pid, p) => namePoint(p, tl, pointMessage(p, pid === "a" && p.id === "cp-0001" ? "Dark mode, final" : ""), new Date(now)) });
+    expect(given).toContain("Bring back “Dark mode, final”");
+  });
+
+  test("a working project, one with no check, one with a problem, or one that never worked offers no Bring back", () => {
+    expect(card("a", [pt(1, 3, "FAIL"), pt(2, 2, "PASS")])).not.toContain('data-act="ov-bring"');
+    expect(card("a", [pt(1, 3, "FAIL"), pt(2, 2, "FAIL")])).not.toContain('data-act="ov-bring"');
+    expect(card("a", tl, { checks: new Set() })).not.toContain('data-act="ov-bring"');
+    const sick: ProjectStatus = { ...status("a", tl.at(-1)!), problem: "We can't find p-a at /srv/code/p-a. Its history is safe in the store.", problemKind: "missing" };
+    expect(card("a", tl, { statuses: new Map([["a", sick]]) })).not.toContain('data-act="ov-bring"');
+  });
+
+  test("two projects' Bring back buttons are told apart by project, though their save point ids repeat", () => {
+    const html = page({
+      projects: [entry("a", "one", "git", "code"), entry("b", "two", "git", "code")],
+      statuses: new Map([["a", status("a", tl.at(-1)!)], ["b", status("b", tl.at(-1)!)]]),
+      timelines: new Map([["a", tl], ["b", tl]]), checks: new Set(["a", "b"]),
+    });
+    expect(html).toContain('data-act="ov-bring" data-id="a" data-v="cp-0001"');
+    expect(html).toContain('data-act="ov-bring" data-id="b" data-v="cp-0001"');
+  });
+});
+
+describe("no mid-token wraps", () => {
+  test("times and paths on a card stay whole; a path breaks only after a slash", () => {
+    const tl = [pt(1, 3, "PASS"), pt(2, 2, "PASS")];
+    const html = card("a", tl);
+    expect(html).toContain(`<span class="nw">${esc(when(tl[1]!.createdAt, new Date(now)))}</span>`);
+    const sick: ProjectStatus = { ...status("a", null), problem: "We can't find p-a at /srv/code/my-app. Its history is safe in the store.", problemKind: "missing" };
+    const gone = card("a", [], { statuses: new Map([["a", sick]]), timelines: new Map() });
+    expect(gone).toContain('<span class="nw">/<wbr>srv/<wbr>code/<wbr>my-app.</span>');
+    expect(gone).toContain('<span class="nw">p-a</span>');
   });
 });
