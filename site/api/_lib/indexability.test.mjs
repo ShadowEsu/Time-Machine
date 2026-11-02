@@ -62,6 +62,19 @@ describe("indexability", () => {
         expect(attr(html, /<link rel="canonical" href="([^"]+)">/), "canonical").toBe(url);
         expect(attr(html, /<meta property="og:url" content="([^"]+)">/), "og:url").toBe(url);
       });
+      it(`${rel}: JSON-LD parses, names this page, and claims no rating or review (Security rule)`, () => {
+        const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+        for (const b of blocks) {
+          expect(JSON.stringify(b)).not.toMatch(/aggregateRating|"review"|ratingValue/);
+          if (b["@type"] === "BlogPosting") {
+            expect(b.url).toBe(url);
+            expect(b.mainEntityOfPage).toBe(url);
+            expect(b.headline).toBe(attr(html, /<meta property="og:title" content="([^"]+)">/));
+            expect(b.datePublished).toBe(attr(html, /<meta property="article:published_time" content="([^"]+)">/));
+          }
+        }
+        if (rel.startsWith("blog/") && rel !== "blog/index.html") expect(blocks.some((b) => b["@type"] === "BlogPosting"), "post has BlogPosting").toBe(true);
+      });
     }
   }
 });
