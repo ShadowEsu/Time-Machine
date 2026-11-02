@@ -135,6 +135,8 @@ describe("license handler", () => {
 
   it("gives a key only when the session's mode matches the server key's mode", async () => {
     expect(SELLER_PUBLIC_KEY).toBe(LICENSE_PUBLIC_KEY);
+    // The release key made on 2026-11-01. Its private half exists only in Vercel Production (TM_LICENSE_PRIVATE_KEY, Sensitive).
+    expect(LICENSE_PUBLIC_KEY).toBe("FP-N-EN2DqV2TAYj_d6DAozkwnyX5vzGtmfEi0RUJfY");
     expect(publicKeyOf(K.priv)).toBe(K.pub);
     // K stands in for the release keypair here, since its real private half is not in the repo.
     const LIVE = { STRIPE_SECRET_KEY: LIVE_RK, TM_LICENSE_PRIVATE_KEY: K.priv, VERCEL_ENV: "production", TM_CHECKOUT_LIVE: "1" };
