@@ -68,7 +68,7 @@ This opens the Time Machine web app in your browser. The server runs on your own
 
 Open the full address that `tm ui` prints. It includes a private session key. Do not share it.
 
-The web app is free for up to 3 projects at a time. A $50 one-time license lifts that limit. Checkout is not open yet. The `tm` command line tool is open source (MIT) and never needs a key.
+The web app is free for up to 3 projects at a time. A $50 one-time license lifts that limit: buy it at https://time-machine-site.vercel.app/#pricing. The `tm` command line tool is open source (MIT) and never needs a key.
 
 ## 5. Enter your license key
 
