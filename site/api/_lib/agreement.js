@@ -4,7 +4,7 @@
 import { reply } from "./waitlist.js";
 
 export const TERMS_VERSION = "terms-2026-11-02";
-export const PRIVACY_VERSION = "privacy-2026-11-02";
+export const PRIVACY_VERSION = "privacy-2026-11-02b";
 export const BOX_VERSION = "agree-box-2026-10-29";
 
 /**
