@@ -3270,6 +3270,8 @@ interface Slide {
   at: number;
   duration: number;
   flips: Map<string, number>;
+  /** Parts new with this draw (your broken version's row): they ride with their column and fade in where they land. */
+  fresh: Set<string>;
   card: { dx: number; dy: number } | null | undefined;
 }
 let slide: Slide | null = null;
@@ -3285,12 +3287,18 @@ function startSlide(tops: Map<string, number>, row: ScreenBox | null | undefined
   // Rows move inside their column, which moves too: each keeps only its own part of the move.
   const col = shift("doc:lp-col") ?? 0;
   const flips = new Map<string, number>();
+  const fresh = new Set<string>();
   for (const k of parts.keys()) {
-    const dy = (shift(k) ?? 0) - (k.startsWith("doc:") ? 0 : col);
+    const own = shift(k);
+    if (own === null) {
+      fresh.add(k);
+      continue;
+    }
+    const dy = own - (k.startsWith("doc:") ? 0 : col);
     if (Math.abs(dy) >= 0.5) flips.set(k, Math.round(dy));
   }
   const box = boxOf(root.querySelector(".doc > .after:not(.kept)"));
-  slide = { at: animClock(), duration: row === undefined ? RETURN_MS : MOMENT_MS, flips, card: row === undefined || !box ? undefined : liftFrom(row, box, window.innerHeight) };
+  slide = { at: animClock(), duration: row === undefined ? RETURN_MS : MOMENT_MS, flips, fresh, card: row === undefined || !box ? undefined : liftFrom(row, box, window.innerHeight) };
   applySlide();
 }
 
@@ -3315,6 +3323,10 @@ function applySlide(): void {
     if (!el) continue;
     const a = reduced ? el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: CROSSFADE_MS, easing: EASE }) : el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: s.duration, easing: EASE });
     a.currentTime = t;
+  }
+  for (const k of s.fresh) {
+    const a = parts.get(k)?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduced ? CROSSFADE_MS : s.duration, easing: EASE });
+    if (a) a.currentTime = t;
   }
   const card = root.querySelector<HTMLElement>(".doc > .after:not(.kept)");
   if (s.card === undefined || !card) return;
