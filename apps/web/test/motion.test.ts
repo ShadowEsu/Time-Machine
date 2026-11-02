@@ -8,10 +8,15 @@ import {
   addResult, BLOCK_STAGGER_MAX, BLOCK_STAGGER_MS, blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, entranceDelay, HERO_MS, LEAVE_MS, liftFrom, LINE_STAGGER_MS,
   MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, PRESS_EASE, REDUCE_MOTION_CLASS, RETURN_MS, ROLL_MS, rolledDigits, rowDelay, ROW_STAGGER_MAX, ROW_STAGGER_MS, SETTLE_MS, undoReturn,
 } from "../src/renderer/motion.ts";
-import { SPLASH_FADE_MS, SPLASH_MIN_MS, splashController, splashFadeAt, type SplashHost } from "../src/renderer/splash.ts";
+import {
+  SPLASH_FADE_MS, SPLASH_HELD_CLASS, SPLASH_HOLD_MS, SPLASH_MIN_MS, splashController, splashFadeAt, splashHeld, type SplashHost,
+} from "../src/renderer/splash.ts";
 
-/** A splash on a fake clock. `events` records when it started fading, for how long, and when it went. */
-function fakeSplash(reduced = false, shownAt = 100) {
+/**
+ * A splash on a fake clock, `shownAt` ms after the page started loading. `held` is a reload's splash, kept back at first.
+ * `events` records when it was shown (a held one only), when it started fading and for how long, and when it went.
+ */
+function fakeSplash(reduced = false, shownAt = 100, held = false) {
   let t = shownAt;
   let timers: { at: number; fn: () => void }[] = [];
   const events: string[] = [];
@@ -19,10 +24,11 @@ function fakeSplash(reduced = false, shownAt = 100) {
     now: () => t,
     reduced: () => reduced,
     later: (fn, ms) => void timers.push({ at: t + ms, fn }),
+    show: () => void events.push(`shown at ${t}`),
     fade: (ms) => void events.push(`fade ${ms} at ${t}`),
     remove: () => void events.push(`gone at ${t}`),
   };
-  const splash = splashController(host);
+  const splash = splashController(host, held);
   const advance = (to: number): void => {
     for (;;) {
       const next = timers.filter((x) => x.at <= to).sort((a, b) => a.at - b.at)[0];
@@ -77,6 +83,70 @@ describe("the launch splash", () => {
     expect(splash.phase()).toBe("gone");
     expect(splashFadeAt(100, 160, true)).toBe(160);
     expect(splashFadeAt(100, 160, false)).toBe(100 + SPLASH_MIN_MS);
+  });
+});
+
+describe("a quick reload shows no splash (Design §3.4: skip it on reloads under 1 s)", () => {
+  const dir = join(import.meta.dirname, "../src/renderer");
+
+  test("only a reload holds it back: a first open, a link, and back or forward show it", () => {
+    expect(SPLASH_HOLD_MS).toBe(1000);
+    expect(splashHeld("reload")).toBe(true);
+    for (const type of ["navigate", "back_forward", "prerender", undefined]) expect(splashHeld(type)).toBe(false);
+  });
+
+  test("a reload whose first page is drawn within 1 s never shows it, and nothing lifts", () => {
+    const { splash, events, advance } = fakeSplash(false, 100, true);
+    expect(splash.phase()).toBe("held");
+    advance(700);
+    splash.ready();
+    expect(events).toEqual(["gone at 700"]);
+    expect(splash.phase()).toBe("gone");
+    advance(5000);
+    expect(events).toEqual(["gone at 700"]);
+  });
+
+  test("a reload still loading at 1 s shows it then, for the usual minimum, and then it fades", () => {
+    const { splash, events, advance } = fakeSplash(false, 100, true);
+    advance(SPLASH_HOLD_MS);
+    expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`]);
+    expect(splash.phase()).toBe("showing");
+    advance(1200);
+    splash.ready();
+    advance(5000);
+    const fadeAt = SPLASH_HOLD_MS + SPLASH_MIN_MS;
+    expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`, `fade ${SPLASH_FADE_MS} at ${fadeAt}`, `gone at ${fadeAt + SPLASH_FADE_MS}`]);
+  });
+
+  test("a key or click while it is held back means it never shows", () => {
+    const { splash, events, advance } = fakeSplash(false, 100, true);
+    advance(400);
+    splash.skip();
+    advance(5000);
+    splash.ready();
+    expect(events).toEqual(["gone at 400"]);
+  });
+
+  test("with Reduce motion a slow reload shows it at 1 s with no minimum and no fade", () => {
+    const { splash, events, advance } = fakeSplash(true, 100, true);
+    advance(1100);
+    splash.ready();
+    expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`, "fade 0 at 1100", "gone at 1100"]);
+  });
+
+  test("it is decided before the first paint: a blocking script in the head, and a held splash is not drawn", () => {
+    const html = readFileSync(join(dir, "index.html"), "utf8");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).toMatch(/<script src="splash-gate\.js"><\/script>/);
+    expect(head.indexOf("splash-gate.js")).toBeLessThan(head.indexOf('<link rel="stylesheet"'));
+    const gate = readFileSync(join(dir, "splash-gate.ts"), "utf8");
+    expect(gate).toMatch(/splashHeld\(\(performance\.getEntriesByType\("navigation"\)\[0\] as PerformanceNavigationTiming \| undefined\)\?\.type\)/);
+    expect(gate).toMatch(/document\.documentElement\.classList\.add\(SPLASH_HELD_CLASS\)/);
+    expect(SPLASH_HELD_CLASS).toBe("splash-held");
+    expect(readFileSync(join(dir, "styles.css"), "utf8")).toMatch(/\nhtml\.splash-held \.splash \{ display: none; \}/);
+    // tm ui serves it beside app.js, as a classic script (not a module), so it runs where it stands.
+    const build = readFileSync(join(import.meta.dirname, "../../../packages/cli/scripts/build.mjs"), "utf8");
+    expect(build).toMatch(/entryPoints: \[join\(renderer, "splash-gate\.ts"\)\], outfile: join\(ui, "splash-gate\.js"\), format: "iife"/);
   });
 });
 

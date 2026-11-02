@@ -1,7 +1,9 @@
-// The launch screen: a black stage with the wordmark and a thin loading bar, drawn by index.html
+// The launch screen: the paper window with the wordmark and a thin loading bar, drawn by index.html
 // before any script runs. It stays while the window loads its first real data, at least
 // SPLASH_MIN_MS so it never flashes, then fades. Any key or click skips it. With Reduce motion it
-// does not fade and has no minimum: it goes the moment the data is there.
+// does not fade and has no minimum: it goes the moment the data is there. A reload holds it back
+// (splash-gate.ts decides before the first paint): it shows only if the first page is not drawn
+// within SPLASH_HOLD_MS of the reload, so a quick reload has no splash at all.
 
 /** Shortest time the splash is on screen, so a fast load does not flash it. */
 export const SPLASH_MIN_MS = 600;
@@ -9,14 +11,26 @@ export const SPLASH_MIN_MS = 600;
 export const SPLASH_FADE_MS = 300;
 /** Fired on the window when the splash starts to lift. */
 export const SPLASH_OUT = "tm-splash-out";
+/** A reload whose first page is drawn within this long of the reload shows no splash (Design §3.4). */
+export const SPLASH_HOLD_MS = 1000;
+/** On the page element while a reload holds the splash back. styles.css does not draw a held splash. */
+export const SPLASH_HELD_CLASS = "splash-held";
 
-export type SplashPhase = "showing" | "fading" | "gone";
+export type SplashPhase = "held" | "showing" | "fading" | "gone";
+
+/** Whether the page's navigation (PerformanceNavigationTiming.type) holds the splash back: a reload only. */
+export function splashHeld(navigationType: string | undefined): boolean {
+  return navigationType === "reload";
+}
 
 /** What the splash needs from the window. The tests drive it with a fake clock. */
 export interface SplashHost {
+  /** Milliseconds since the page started loading. */
   now(): number;
   reduced(): boolean;
   later(fn: () => void, ms: number): void;
+  /** Draw a held splash. */
+  show(): void;
   /** Start fading over `ms`. From here on the splash no longer takes clicks. */
   fade(ms: number): void;
   remove(): void;
@@ -35,9 +49,10 @@ export function splashFadeAt(shownAt: number, readyAt: number, reduced: boolean)
   return reduced ? readyAt : Math.max(readyAt, shownAt + SPLASH_MIN_MS);
 }
 
-export function splashController(host: SplashHost): Splash {
-  const shownAt = host.now();
-  let phase: SplashPhase = "showing";
+/** `held`: a reload's splash, not drawn yet. It shows SPLASH_HOLD_MS after the reload unless the page is drawn first. */
+export function splashController(host: SplashHost, held = false): Splash {
+  let shownAt = host.now();
+  let phase: SplashPhase = held ? "held" : "showing";
   const leave = (): void => {
     if (phase !== "showing") return;
     phase = "fading";
@@ -50,15 +65,32 @@ export function splashController(host: SplashHost): Splash {
     if (ms) host.later(done, ms);
     else done();
   };
+  /** A held splash that is no longer needed goes without ever being drawn, so nothing lifts. */
+  const drop = (): void => {
+    phase = "gone";
+    host.remove();
+  };
+  if (held) {
+    host.later(() => {
+      if (phase !== "held") return;
+      phase = "showing";
+      shownAt = host.now();
+      host.show();
+    }, Math.max(0, SPLASH_HOLD_MS - shownAt));
+  }
   return {
     ready() {
+      if (phase === "held") return drop();
       if (phase !== "showing") return;
       const now = host.now();
       const wait = splashFadeAt(shownAt, now, host.reduced()) - now;
       if (wait > 0) host.later(leave, wait);
       else leave();
     },
-    skip: leave,
+    skip() {
+      if (phase === "held") drop();
+      else leave();
+    },
     phase: () => phase,
   };
 }
@@ -67,11 +99,16 @@ export function splashController(host: SplashHost): Splash {
 export function mountSplash(): Splash {
   const el = document.getElementById("splash");
   if (!el) return { ready() {}, skip() {}, phase: () => "gone" };
+  const page = document.documentElement;
   const onKey = (): void => splash.skip();
   const splash = splashController({
     now: () => performance.now(),
     reduced: () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     later: (fn, ms) => void setTimeout(fn, ms),
+    show() {
+      performance.mark("tm-splash-show");
+      page.classList.remove(SPLASH_HELD_CLASS);
+    },
     fade(ms) {
       performance.mark("tm-splash-fade");
       window.removeEventListener("keydown", onKey, true);
@@ -80,8 +117,12 @@ export function mountSplash(): Splash {
       // The window's arrivals (the page, its ruler, its rows) play as the splash lifts, not hidden under it.
       window.dispatchEvent(new Event(SPLASH_OUT));
     },
-    remove: () => el.remove(),
-  });
+    remove() {
+      window.removeEventListener("keydown", onKey, true);
+      el.remove();
+      page.classList.remove(SPLASH_HELD_CLASS);
+    },
+  }, page.classList.contains(SPLASH_HELD_CLASS));
   // The key still reaches the window, so a shortcut pressed during the splash works.
   window.addEventListener("keydown", onKey, true);
   el.addEventListener("pointerdown", () => splash.skip());
