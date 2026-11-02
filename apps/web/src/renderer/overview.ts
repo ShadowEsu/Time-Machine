@@ -6,6 +6,7 @@ import type { ProjectEntry, ProjectStatus, Purpose, Verdict } from "../shared/ap
 import { esc, homePath, keepTimes, namePhrase, namePoint, plural, pointMessage, verdictKey, when, type PointName } from "../shared/format.js";
 import { ADD_FULL } from "./add-flow.js";
 import { projectMeta, purposeIcon, unitCount } from "./purpose.js";
+import { railLine } from "./rewind-copy.js";
 import { lastWorking as lastWorkingOf } from "./status.js";
 
 /** The report looks back this far. */
@@ -234,6 +235,11 @@ export interface OverviewInput {
   enter: string;
   /** Names a project's save point as History does, with the name given there first. By default, its own message. */
   name?: (projectId: string, p: DigestPoint) => PointName;
+  /** The projects whose brought back copy is ready, not yet kept or undone (copyReady), as the sidebar says. */
+  ready?: ReadonlySet<string>;
+  /** The verdict the app shows for a project's newest save point, where it differs from the status's: your broken version,
+   *  never checked, carries the verdict of the saves before it when no file changed (carriedVerdict, as the sidebar). */
+  shown?: ReadonlyMap<string, Verdict | null>;
 }
 
 /** A sentence with a path or a hyphenated name in it, as HTML: each stays whole on its line, and a path breaks only after a "/". */
@@ -247,10 +253,13 @@ function card(p: ProjectEntry, i: number, input: OverviewInput): string {
   const checks = input.checks.has(p.id);
   // A missing folder, a store that can't be written and any other problem each say what they are (cli#5).
   const problem = s?.problemKind === "missing" ? "Can’t find it" : s?.problemKind === "permission" ? "Can’t save" : s?.problem ? "Needs a look" : "";
+  // After a bring back, until Keep it or Undo, the row says a working copy is ready, in the sidebar's words. The chip keeps its
+  // verdict: the folder has not changed.
+  const ready = !problem && !!s && !!input.ready?.has(p.id);
+  const verdict = input.shown?.has(p.id) ? (input.shown.get(p.id) ?? null) : (s?.newest?.verdict ?? null);
   const status = problem ? `<span class="vb v-error">${problem}</span>`
     : !s ? '<i class="sk ov-sk-pill" aria-hidden="true"></i>'
-      : s.newest && checks ? input.badge(s.newest.verdict)
-        : `<span class="vb v-none">${keepTimes(esc(saveState(s.newest ?? null, input.now)))}</span>`;
+      : `${s.newest && checks ? input.badge(verdict) : `<span class="vb v-none">${keepTimes(esc(saveState(s.newest ?? null, input.now)))}</span>`}${ready ? `<span class="ov-ready">${esc(railLine("", true))}</span>` : ""}`;
   const head = `<button class="ov-open" data-act="project" data-id="${esc(p.id)}" title="${esc(p.path)}">${purposeIcon(p.purpose)}<span class="ov-name"><b>${esc(p.name)}</b><small>${esc(projectMeta(p))}</small></span><span class="ov-status">${status}</span></button>`;
   const said = s?.problem ? `<p class="ov-dig">${keepWhole(s.problem)}</p>` : "";
   let body: string;
@@ -263,12 +272,15 @@ function card(p: ProjectEntry, i: number, input: OverviewInput): string {
     const d = digest(tl, input.now);
     const at = new Date(input.now);
     const name: NameOf = (c) => input.name?.(p.id, c) ?? namePoint(c, tl, pointMessage(c), at);
-    // While it is still broken, the way back is the newest version that works, the one History's Bring back opens on.
-    const back = checks && !s?.problem && d.newest?.verdict === "FAIL" ? lastWorkingOf([...tl]) : null;
+    // While it is still broken, the way back is the newest version that works, the one History's Bring back opens on. While a
+    // copy from a bring back is ready, the one primary shows it instead (History's banner, with Undo and Keep it), so the same
+    // version is never brought back twice.
+    const back = !ready && checks && !s?.problem && verdict === "FAIL" ? lastWorkingOf([...tl]) : null;
     const n = back ? name(back) : null;
-    const bring = back && n
-      ? `<div class="ov-go"><button class="btn dark" data-act="ov-bring" data-id="${esc(p.id)}" data-v="${esc(back.id)}"><span>${esc(`Bring back ${n.time ? n.name : namePhrase(n)}`)}${n.time ? ` <span class="b-sub">${keepTimes(esc(n.time))}</span>` : ""}</span></button></div>`
-      : "";
+    const bring = ready ? `<div class="ov-go"><button class="btn dark" data-act="ov-copy" data-id="${esc(p.id)}">Show the copy</button></div>`
+      : back && n
+        ? `<div class="ov-go"><button class="btn dark" data-act="ov-bring" data-id="${esc(p.id)}" data-v="${esc(back.id)}"><span>${esc(`Bring back ${n.time ? n.name : namePhrase(n)}`)}${n.time ? ` <span class="b-sub">${keepTimes(esc(n.time))}</span>` : ""}</span></button></div>`
+        : "";
     // A project with a check says how its versions stand, unless Bring back already names the way back; one without a
     // check already said when it was saved.
     const working = d.lastWorking && d.lastWorking !== d.newest ? `Last working version: ${namePhrase(name(d.lastWorking))}` : "";

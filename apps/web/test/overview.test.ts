@@ -3,6 +3,7 @@ import type { ProjectEntry, ProjectStatus } from "../src/shared/api.ts";
 import { clock, esc, keepTimes, namePoint, pointMessage, verdictWord, when } from "../src/shared/format.ts";
 import { activityStrip, digest, digestLine, overviewPage, reportLine, saveState, spread, type DigestPoint, type OverviewInput } from "../src/renderer/overview.ts";
 import { checkRecommended, hasCheck, kindLabel, projectMeta, unitCount } from "../src/renderer/purpose.ts";
+import { railLine } from "../src/renderer/rewind-copy.ts";
 
 const now = new Date(2026, 9, 25, 7, 0).getTime();
 const hoursAgo = (h: number): string => new Date(now - h * 3_600_000).toISOString();
@@ -256,6 +257,41 @@ describe("a project that broke offers the way back", () => {
     expect(card("a", tl, { statuses: new Map([["a", sick]]) })).not.toContain('data-act="ov-bring"');
   });
 
+  test("while a brought back copy is ready, the row says so beside Broken, as the sidebar does, and its one primary shows the copy", () => {
+    const html = card("a", tl, { ready: new Set(["a"]) });
+    // The chip stays Broken: the folder still is.
+    expect(html).toContain('<span class="vb">Broken</span>');
+    expect(html).toContain(`<span class="ov-ready">${esc(railLine("", true))}</span>`);
+    expect(html.match(/class="btn dark/g)).toHaveLength(1);
+    expect(html).toContain('data-act="ov-copy" data-id="a">Show the copy</button>');
+    expect(html).not.toContain('data-act="ov-bring"');
+  });
+
+  test("after Keep it or Undo, the row is plain again: Bring back while it is still broken, nothing once it works", () => {
+    const html = card("a", tl, { ready: new Set() });
+    expect(html).not.toContain("copy ready");
+    expect(html).not.toContain('data-act="ov-copy"');
+    expect(html).toContain('data-act="ov-bring" data-id="a"');
+    const fixed = card("a", [...tl, pt(4, 1, "PASS")], { ready: new Set() });
+    expect(fixed).not.toContain('data-act="ov-copy"');
+    expect(fixed).not.toContain('data-act="ov-bring"');
+    // Another project's ready copy is not this one's.
+    expect(card("a", tl, { ready: new Set(["b"]) })).not.toContain("copy ready");
+  });
+
+  test("after a bring back, your broken version reads as History reads it: Broken, and Bring back again once the copy is kept", () => {
+    // The save made before going back is never checked; the app says what its row says (carriedVerdict), the folder unchanged.
+    const saved: DigestPoint = { ...pt(4, 1, null), trigger: "recover", note: "Before recovering cp-0001" };
+    const after = [...tl, saved];
+    const kept = card("a", after, { shown: new Map([["a", "FAIL"]]) });
+    expect(kept).toContain('<span class="vb">Broken</span>');
+    expect(kept).toContain('data-act="ov-bring" data-id="a" data-v="cp-0001"');
+    const ready = card("a", after, { shown: new Map([["a", "FAIL"]]), ready: new Set(["a"]) });
+    expect(ready).toContain('<span class="vb">Broken</span><span class="ov-ready">');
+    // Not known (another project's changes are not read): as the sidebar, it is not checked, and nothing is offered.
+    expect(card("a", after)).not.toContain('data-act="ov-bring"');
+  });
+
   test("two projects' Bring back buttons are told apart by project, though their save point ids repeat", () => {
     const html = page({
       projects: [entry("a", "one", "git", "code"), entry("b", "two", "git", "code")],
@@ -276,5 +312,41 @@ describe("no mid-token wraps", () => {
     const gone = card("a", [], { statuses: new Map([["a", sick]]), timelines: new Map() });
     expect(gone).toContain('<span class="nw">/<wbr>srv/<wbr>code/<wbr>my-app.</span>');
     expect(gone).toContain('<span class="nw">p-a</span>');
+  });
+});
+
+describe("names an agent or a person wrote are text, never markup (Security SHOULD-73a)", () => {
+  const H = `<img src=x onerror=alert(1)>"'&`;
+  const E = esc(H);
+  const clean = (html: string): void => {
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain(`"'&`);
+  };
+
+  test("a hostile commit subject, History name and id render escaped in the Bring back label, its data-v, the line and the facts", () => {
+    // The version that works carries a hostile id and a hostile History name; where it broke, a hostile commit subject.
+    const good: DigestPoint = { ...pt(1, 4, "PASS"), id: H };
+    const broke: DigestPoint = { ...pt(2, 3, "FAIL"), subject: H };
+    const named = (_: string, p: DigestPoint) => namePoint(p, [p], pointMessage(p, p.id === H ? H : ""), new Date(now));
+    const html = card("a", [good, broke, pt(3, 2, "FAIL")], { name: named });
+    clean(html);
+    expect(html).toContain(`data-act="ov-bring" data-id="a" data-v="${E}"`);
+    expect(html).toContain(`Bring back “${E}” <span class="b-sub">`);
+    expect(html).toContain(`Broke once, at “${E}” (`);
+    // Not broken now (the newest is not checked yet): the facts name the last version that works.
+    const facts = card("a", [good, pt(2, 2, null)], { name: named });
+    clean(facts);
+    expect(facts).toContain(`Last working version: “${E}” (`);
+  });
+
+  test("a hostile problem sentence and project id render escaped, on the copy-ready row too", () => {
+    const sick: ProjectStatus = { ...status("a", null), problem: `We can't find ${H} at /srv/${H}.`, problemKind: "missing" };
+    const gone = card("a", [], { statuses: new Map([["a", sick]]), timelines: new Map() });
+    clean(gone);
+    expect(gone).toContain(E);
+    const tl = [pt(1, 3, "PASS"), pt(2, 2, "FAIL")];
+    const ready = card(H, tl, { ready: new Set([H]) });
+    clean(ready);
+    expect(ready).toContain(`data-act="ov-copy" data-id="${E}">Show the copy</button>`);
   });
 });

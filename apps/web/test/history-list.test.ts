@@ -1,7 +1,7 @@
 // History as a list: what is selected first, what the status line says, what each row and each mark of the mini-ruler
 // shows, where the keys go, which quiet save points fold, and how the preview sheet opens, follows and closes.
 import { describe, expect, test } from "vitest";
-import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, RULER_MARKS, rulerMarks, SHEET_SIDE_MIN, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, copyReady, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, RULER_MARKS, rulerMarks, SHEET_SIDE_MIN, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -252,5 +252,21 @@ describe("after a bring back (B4)", () => {
     expect(openAfterReload([a, { ...b, undoable: false }], new Set(), "p1")).toBe(null);
     expect(openAfterReload([{ ...a, copyDir: "" }], new Set(), "p1")).toBe(null);
     expect(openAfterReload([], new Set(), "p1")).toBe(null);
+  });
+
+  test("a copy is ready from a bring back until Keep it or Undo, in this session or after a reload, for that project only", () => {
+    const r = { id: "cp-0003", branch: "tm/recover/cp-0003", copyDir: "/x/app-recovered-cp-0003", undoable: true };
+    const undo = { projectId: "p1", rec: { id: r.id, branch: r.branch, copyDir: r.copyDir } };
+    // Just brought back in this session: the banner's Undo is open.
+    expect(copyReady("p1", undo, [r], new Set())).toBe(true);
+    expect(copyReady("p2", undo, [], new Set())).toBe(false);
+    // After a reload, before History opens: the recovery this tm ui made, not kept.
+    expect(copyReady("p1", null, [r], new Set())).toBe(true);
+    // After Keep it: no Undo, and the key is remembered.
+    expect(copyReady("p1", null, [r], new Set([keptKey("p1", r)]))).toBe(false);
+    // After Undo: the copy and the branch are gone from the list.
+    expect(copyReady("p1", null, [], new Set())).toBe(false);
+    // Another project's open bring back does not hide this one's ready copy.
+    expect(copyReady("p1", { ...undo, projectId: "p2" }, [r], new Set())).toBe(true);
   });
 });

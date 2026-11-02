@@ -14,7 +14,7 @@ import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from
 import { dialAngle, dialIndex } from "./dial.js";
 import { afterBanner, anywayBody, bringBackView, goBackSteps, railLine, REVIEW_KEY, reviewKey, undoneLine, unprovenLine } from "./rewind-copy.js";
 import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
-import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem, type Recovery } from "./history-list.js";
+import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, copyReady, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem, type Recovery } from "./history-list.js";
 import { resetProjectCaches } from "./project-caches.js";
 import { claudeChannel, type Channel } from "./channels.js";
 import { renderAskPanel } from "./ask-panel.js";
@@ -751,6 +751,14 @@ function navIcon(name: "overview" | "sources"): string {
 /** A small page icon before what a save point changed. Decorative: the file names beside it carry the meaning. */
 const FILE_ICON = '<svg class="e-fi" viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 2.5h5l3 3v8H4z"/><path d="M9 2.5v3h3"/></svg>';
 
+/** The verdict a project's newest save point shows, in the rail and on Overview. The open project's folder, after a bring back,
+ *  is your broken version, saved first: never checked, it carries the verdict of the saves before it when no file changed. */
+function newestVerdict(p: ProjectEntry): Verdict | null {
+  const s = st.statuses.get(p.id);
+  const mine = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
+  return mine?.trigger === "recover" ? carriedVerdict(points(), mine.id, st.changes) : (s?.newest?.verdict ?? null);
+}
+
 /** The rail: the buddy and the name, Jump to, Overview, what is protected with its verdict, the agents, then where the history lives, the plan, Storage and Settings. */
 function sidebar(mobile = false): string {
   const inProject = PROJECT_SCREENS.includes(st.screen);
@@ -759,11 +767,10 @@ function sidebar(mobile = false): string {
       const s = st.statuses.get(p.id);
       // A project with no check shows when it saved, not a verdict it can never get.
       const checks = checksOn(p);
-      // After a bring back, until Keep it or Undo, the line also says a working copy is ready (B4). The open project's folder is
-      // then your broken version, saved first: never checked, it carries the verdict of the saves before it when no file changed.
-      const ready = st.undo?.projectId === p.id;
-      const mine = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
-      const v = !checks ? null : mine?.trigger === "recover" ? carriedVerdict(points(), mine.id, st.changes) : (s?.newest?.verdict ?? null);
+      // After a bring back, until Keep it or Undo, the line also says a working copy is ready (B4), with the verdict the open
+      // project's broken version carries (newestVerdict).
+      const ready = copyReady(p.id, st.undo, st.recoveries.get(p.id) ?? [], st.kept);
+      const v = !checks ? null : newestVerdict(p);
       // Before the statuses arrive the rail says it is reading, never "No save points yet" (cli#27). A store that can't be
       // written is not a missing folder: it says so, and the server's sentence is in the title (cli#5).
       // The open project's time is told the way its rows and header tell it: seconds only when another save shares the minute.
@@ -4187,12 +4194,14 @@ type AppPage = "overview" | "agents" | "storage" | "settings" | "plan" | "source
 const APP_PAGES: readonly Screen[] = ["overview", "agents", "storage", "settings", "plan", "sources"];
 const isAppPage = (s: Screen): s is AppPage => APP_PAGES.includes(s);
 
-/** Overview: every project's save points and the names given to them, read straight from the bridge (not recorded). One that
- *  can't be read says so on its card; names that can't be read leave its save points named by their own messages. */
+/** Overview: every project's save points, the names given to them and its recoveries, read straight from the bridge (not
+ *  recorded; all read only). One that can't be read says so on its card; names that can't be read leave its save points named
+ *  by their own messages, and recoveries that can't be read leave what the app knew. */
 async function loadOverview(): Promise<void> {
-  const reads = await Promise.all(st.projects.map(async (p) => [p.id, ...(await Promise.all([bridge.call({ method: "timeline", projectId: p.id }), bridge.call({ method: "notes", projectId: p.id })]))] as const));
+  const reads = await Promise.all(st.projects.map(async (p) => [p.id, ...(await Promise.all([bridge.call({ method: "timeline", projectId: p.id }), bridge.call({ method: "notes", projectId: p.id }), bridge.call({ method: "recoveries", projectId: p.id })]))] as const));
   st.overview = new Map(reads.map(([id, r]) => [id, r.ok ? r.data.checkpoints : "error"]));
   st.overviewNotes = new Map(reads.map(([id, , n]) => [id, new Map(n.ok ? Object.entries(n.data) : [])]));
+  for (const [id, , , rec] of reads) if (rec.ok) st.recoveries.set(id, rec.data);
 }
 
 function overviewScreen(): string {
@@ -4205,6 +4214,9 @@ function overviewScreen(): string {
   return overviewPage({
     projects: st.projects, statuses: st.statuses, timelines: st.overview, checks, now: Date.now(), badge: (v) => badge(v), freeLimit: lic.active ? null : lic.freeProjectLimit, enter: strips ? once("ov-strips", "draw") : "",
     name: (pid, c) => namePoint(c, [c], pointMessage(c, given(pid, c.id))),
+    // The sidebar's "copy ready", from the same source.
+    ready: new Set(st.projects.filter((p) => copyReady(p.id, st.undo, st.recoveries.get(p.id) ?? [], st.kept)).map((p) => p.id)),
+    shown: new Map(st.projects.map((p) => [p.id, newestVerdict(p)])),
   });
 }
 
@@ -4215,6 +4227,20 @@ async function overviewBring(projectId: string, id: string): Promise<void> {
   await selectProject(projectId, "overview");
   if (!entry(id)) return;
   await startRewind(id);
+}
+
+/** Show the copy from Overview: the project's History opens on its banner (B4), where it says where the copy is, with Undo,
+ *  Keep it and Check it works, and the banner's heading takes focus so it is read out. */
+async function overviewCopy(projectId: string): Promise<void> {
+  if (!st.projects.some((p) => p.id === projectId)) return;
+  await selectProject(projectId);
+  // After a reload the banner's Undo comes from the recoveries (openAfterReload): read them before focus moves.
+  await loadRecoveries();
+  st.drawer = false;
+  render();
+  const page = document.querySelector(".page");
+  if (page) page.scrollTop = 0;
+  root.querySelector<HTMLElement>("#after-h")?.focus({ preventScroll: true });
 }
 
 /** A failed read stays an error, never an invented empty list. */
@@ -4495,6 +4521,9 @@ async function onClick(el: HTMLElement): Promise<void> {
       return;
     case "ov-bring":
       if (d.id && d.v) await overviewBring(d.id, d.v);
+      return;
+    case "ov-copy":
+      if (d.id) await overviewCopy(d.id);
       return;
     case "source-add": {
       const row = st.sources !== "error" ? st.sources?.find((x) => x.id === d.id) : undefined;
