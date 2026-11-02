@@ -658,8 +658,15 @@ export class Engine {
           this.allowedPaths.add(r.dir);
           return r;
         });
-      case "findGood":
-        return this.serial(p.id, "Finding the last working version", () => this.stoppable(p.id, (signal) => tm.findGood(ctx, { signal })));
+      case "findGood": {
+        // Each result as the engine records it, on the existing progress event with its four fields only (B6 §3.2, Security C1):
+        // the project is this call's, and no reason text goes out. The store watcher's later replay of the same results is a no-op.
+        const onResult = (checkpoint: string, verdict: string): void => {
+          const event: AppEvent = { type: "progress", projectId: p.id, checkpoint, verdict };
+          for (const cb of this.listeners) cb(event);
+        };
+        return this.serial(p.id, "Finding the last working version", () => this.stoppable(p.id, (signal) => tm.findGood(ctx, { signal, onResult })));
+      }
       case "recover":
         return this.serial(p.id, p.kind === "folder" ? "Making a recovery copy" : "Preparing the recovery branch", async () => {
           const r = await tm.recover(ctx, call.id, call.dest === undefined ? undefined : { dest: call.dest });

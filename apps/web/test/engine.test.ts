@@ -6,7 +6,7 @@ import { expect, test } from "vitest";
 import { signLicense, status, type RecoverResult } from "@timetm/core";
 import type { ProjectEntry, SourceRow } from "../src/shared/api.ts";
 import { git, write } from "../../../fixtures/demo/build.ts";
-import { tempDir } from "../../../fixtures/demo/setup.ts";
+import { setupDemo, tempDir } from "../../../fixtures/demo/setup.ts";
 import { Credentials, type Cipher } from "../src/server/credentials.ts";
 import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
@@ -327,5 +327,27 @@ test("sources: reports well-known folders under HOME by checking they exist", as
   } finally {
     if (before === undefined) delete process.env.HOME;
     else process.env.HOME = before;
+  }
+});
+
+test("find-good sends each result as it lands, as the existing progress event with exactly its 4 keys (B6 §3.2, Security C1)", async () => {
+  const { root, dir } = await setupDemo();
+  const before = process.env.TM_HOME;
+  process.env.TM_HOME = join(root, "store");
+  try {
+    const engine = newEngine(root);
+    const projectId = (await engine.addProject(dir)).id;
+    const events: Record<string, unknown>[] = [];
+    engine.onEvent((e) => { if (e.type === "progress") events.push({ ...e }); });
+    const r = await engine.run({ method: "findGood", projectId });
+    expect(r.ok).toBe(true);
+    expect(events.map((e) => [e.checkpoint, e.verdict])).toEqual([["cp-0006", "FAIL"], ["cp-0005", "FAIL"], ["cp-0004", "FAIL"], ["cp-0003", "PASS"]]);
+    for (const e of events) {
+      expect(Object.keys(e).sort()).toEqual(["checkpoint", "projectId", "type", "verdict"]);
+      expect(e.projectId).toBe(projectId);
+    }
+  } finally {
+    if (before === undefined) delete process.env.TM_HOME;
+    else process.env.TM_HOME = before;
   }
 });

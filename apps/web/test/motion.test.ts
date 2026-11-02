@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { afterBanner } from "../src/renderer/rewind-copy.ts";
 import {
-  BLOCK_STAGGER_MAX, BLOCK_STAGGER_MS, blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, entranceDelay, HERO_MS, LEAVE_MS, liftFrom, LINE_STAGGER_MS,
+  addResult, BLOCK_STAGGER_MAX, BLOCK_STAGGER_MS, blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, entranceDelay, HERO_MS, LEAVE_MS, liftFrom, LINE_STAGGER_MS,
   MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, PRESS_EASE, REDUCE_MOTION_CLASS, RETURN_MS, ROLL_MS, rolledDigits, rowDelay, ROW_STAGGER_MAX, ROW_STAGGER_MS, SETTLE_MS, undoReturn,
 } from "../src/renderer/motion.ts";
 import { SPLASH_FADE_MS, SPLASH_MIN_MS, splashController, splashFadeAt, type SplashHost } from "../src/renderer/splash.ts";
@@ -226,6 +226,20 @@ describe("B6 §3.2: the check run follows the engine, result by result", () => {
     expect(r.done.get("cp-0005")).toBeUndefined();
     // The oldest failed: nothing older is left to check.
     expect(checkRun(["cp-0001"], [{ checkpoint: "cp-0001", verdict: "FAIL" }], true).checking).toBeNull();
+  });
+
+  test("progress is display only and idempotent: the audit log's replay adds nothing, and an unknown save point is ignored (Security C4)", () => {
+    const live = [{ checkpoint: "cp-0006", verdict: "FAIL" }, { checkpoint: "cp-0005", verdict: "FAIL" }];
+    let results: { checkpoint: string; verdict: string }[] = [];
+    for (const e of live) results = addResult(results, e, ids);
+    // The store watcher replays the same two while cp-0004 is still being checked.
+    for (const e of live) results = addResult(results, e, ids);
+    results = addResult(results, { checkpoint: "cp-9999", verdict: "PASS" }, ids);
+    expect(results).toEqual(live);
+    const r = checkRun(ids, results, true);
+    // No double rows or counts, and the ring stays on the next older one instead of jumping back.
+    expect([...r.done.keys()]).toEqual(["cp-0006", "cp-0005"]);
+    expect([r.checking, r.n]).toEqual(["cp-0004", 3]);
   });
 });
 

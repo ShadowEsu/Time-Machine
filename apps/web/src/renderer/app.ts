@@ -23,7 +23,7 @@ import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
-import { blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, HERO_MS, LEAVE_MS, liftFrom, MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RETURN_MS, RING_MS, ROLL_MS, rolledDigits, ROW_IN_MS, rowDelay, SETTLE_MS, undoReturn, type CheckRun, type ScreenBox } from "./motion.js";
+import { addResult, blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, HERO_MS, LEAVE_MS, liftFrom, MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RETURN_MS, RING_MS, ROLL_MS, rolledDigits, ROW_IN_MS, rowDelay, SETTLE_MS, undoReturn, type CheckRun, type ScreenBox } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
@@ -5658,14 +5658,19 @@ function onEvent(ev: AppEvent): void {
         }
       })();
       return;
-    case "progress":
-      if (st.rewind?.finding && ev.projectId === st.projectId) {
-        st.rewind.progress.push({ checkpoint: ev.checkpoint, verdict: ev.verdict });
-        // The first Works lands selected in History's list, in step with its verdict (B6 §3.2).
-        if (st.rewind.inList && ev.verdict === "PASS" && !st.drawer) st.selected = ev.checkpoint;
-        render();
-      }
+    case "progress": {
+      // Display only (Security C4): the engine's live result and the store watcher's later replay of it land once; a save
+      // point this list does not know is ignored. Nothing here writes or calls anything.
+      const r = st.rewind;
+      if (!r?.finding || ev.projectId !== st.projectId) return;
+      const next = addResult(r.progress, { checkpoint: ev.checkpoint, verdict: ev.verdict }, points().map((c) => c.id));
+      if (next === r.progress) return;
+      r.progress = next;
+      // The first Works lands selected in History's list, in step with its verdict (B6 §3.2).
+      if (r.inList && ev.verdict === "PASS" && !st.drawer) st.selected = ev.checkpoint;
+      render();
       return;
+    }
     case "changed":
       void refreshStatuses().then(async () => {
         // Do not re-render while an action is running. It re-reads when it ends.

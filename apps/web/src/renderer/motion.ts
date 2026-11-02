@@ -97,6 +97,16 @@ export interface CheckRun {
 }
 
 /**
+ * One progress event added to a search's results, for display only (Security C4): the engine sends each result as it lands,
+ * and the store watcher replays the same ones later, so a result already there, or one for a save point not in `ids`, adds
+ * nothing and the same array comes back.
+ */
+export function addResult(results: readonly RunResult[], e: RunResult, ids: readonly string[]): RunResult[] {
+  if (!ids.includes(e.checkpoint) || results.some((r) => r.checkpoint === e.checkpoint && r.verdict === e.verdict)) return results as RunResult[];
+  return [...results, { checkpoint: e.checkpoint, verdict: e.verdict }];
+}
+
+/**
  * A search's state from the engine's own results, in the order they arrived. `ids` are the save points oldest first; the
  * engine (core findGood) checks them newest first, one at a time, and stops at the first that passes. A row shows a verdict
  * only once its result came in; the one being checked is the next older after the last result, while the search runs.
