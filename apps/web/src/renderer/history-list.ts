@@ -149,8 +149,9 @@ export function rulerMarks(pts: readonly ListPoint[], selected: string | null, l
 /** The shortest run of quiet save points that folds into one row. */
 export const FOLD_MIN = 4;
 
-/** One item of History's list: a save point's row, or a fold of quiet ones keyed by its first (newest) id. */
-export type ListItem<T> = { row: T } | { fold: string; rows: T[] };
+/** One item of History's list: a save point's row, or a fold keyed by its first (newest) id: of quiet ones, or of `repeat`ed
+ *  broken versions saved before going back (foldRepeats). */
+export type ListItem<T> = { row: T } | { fold: string; rows: T[]; repeat?: true };
 
 /**
  * Folds every run of `FOLD_MIN` or more save points next to each other that `quiet` says may fold (in the app:
@@ -176,4 +177,83 @@ export function foldRuns<T extends { id: string }>(rows: readonly T[], quiet: (c
   }
   flush();
   return out;
+}
+
+// After a bring back (B4). Before every bring back the engine saves the folder as it is, with the trigger "recover" and the
+// note "Before recovering <id>" (core recover.ts). That save is your broken version, and History names it so.
+
+/** Each broken version saved before going back, numbered 1, 2, 3 in the order they were made. `pts` are oldest first. */
+export function brokenNumbers(pts: readonly { id: string; trigger: string; note: string }[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const c of pts) if (c.trigger === "recover" && /^Before recovering \S+$/.test(c.note)) out.set(c.id, out.size + 1);
+  return out;
+}
+
+/** The name of the `n`th broken version saved before going back: the first has no number. */
+export function brokenTitle(n: number): string {
+  return `Your broken version${n > 1 ? ` #${n}` : ""}, saved before going back`;
+}
+
+/**
+ * Broken versions saved before going back that sit next to each other in the list (newest first) fold under the newest,
+ * which stays a row: bringing versions back again and again leaves one named row and a fold that says how many more. A run with a row
+ * `keep` names (selected, or of a fold that was opened) stays as rows. Folds already made are left as they are.
+ */
+export function foldRepeats<T extends { id: string }>(items: readonly ListItem<T>[], repeat: (c: T) => boolean, keep: (c: T) => boolean): ListItem<T>[] {
+  const out: ListItem<T>[] = [];
+  let run: T[] = [];
+  const flush = (): void => {
+    const [first, ...rest] = run;
+    if (first) out.push({ row: first });
+    const key = rest[0]?.id;
+    if (key && !rest.some(keep)) out.push({ fold: key, rows: rest, repeat: true });
+    else for (const c of rest) out.push({ row: c });
+    run = [];
+  };
+  for (const x of items) {
+    if ("row" in x && repeat(x.row)) run.push(x.row);
+    else {
+      flush();
+      out.push(x);
+    }
+  }
+  flush();
+  return out;
+}
+
+/**
+ * A save point's verdict, or for one never checked, the verdict of the save points before it while no file changed between
+ * them: the same files, so the same answer. Your broken version, saved before each bring back, is the folder that was just
+ * checked Broken, and bringing back again saves it again unchanged. A change list not read yet is not "nothing changed".
+ * `pts` are oldest first.
+ */
+export function carriedVerdict(pts: readonly ListPoint[], id: string, changes: ReadonlyMap<string, readonly string[]>): Verdict | null {
+  for (let i = pts.findIndex((p) => p.id === id); i >= 0; i--) {
+    const c = pts[i]!;
+    if (c.verdict) return c.verdict;
+    if (changes.get(c.id)?.length !== 0) return null;
+  }
+  return null;
+}
+
+/** A recovery on disk, as the engine lists it: `undoable` when this tm ui made it, so Undo can take it back. */
+export interface Recovery {
+  id: string;
+  branch: string;
+  copyDir: string;
+  undoable?: boolean;
+}
+
+/** What Keep it remembers on this computer, so a reload does not offer Undo again: the project and that recovery's branch and copy. */
+export function keptKey(projectId: string, r: Recovery): string {
+  return JSON.stringify([projectId, r.branch, r.copyDir]);
+}
+
+/**
+ * After a reload, the recovery History's banner offers Undo and Keep it for: the newest one, when this tm ui made it (so
+ * Undo can take it back), its copy is still there, and Keep it was not pressed. Else none, and the banner only says where it is.
+ */
+export function openAfterReload(list: readonly Recovery[], kept: ReadonlySet<string>, projectId: string): Recovery | null {
+  const r = list.at(-1);
+  return r?.undoable && r.copyDir && !kept.has(keptKey(projectId, r)) ? r : null;
 }

@@ -481,7 +481,7 @@ export class FakeEngine implements TmBridge {
       case "recoveries":
         return [...s.copies].map((copyDir) => {
           const id = copyDir.slice(copyDir.lastIndexOf("-recovered-") + "-recovered-".length);
-          return { id, branch: p.kind === "folder" ? "" : `tm/recover/${id}`, copyDir };
+          return { id, branch: p.kind === "folder" ? "" : `tm/recover/${id}`, copyDir, undoable: true };
         });
       case "recover": {
         await wait(700);
@@ -775,7 +775,7 @@ export class FakeEngine implements TmBridge {
       case "recoveries":
         return [...this.branches].map((branch) => {
           const id = /^tm\/recover\/(cp-\d+)/.exec(branch)?.[1] ?? "";
-          return { id, branch, copyDir: `/Users/you/code/marigold-tips-recovered-${id}` };
+          return { id, branch, copyDir: `/Users/you/code/marigold-tips-recovered-${id}`, undoable: true };
         });
       case "recover": {
         await wait(900);

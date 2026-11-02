@@ -45,6 +45,11 @@ describe("the one confirm for a bring back", () => {
     expect(html).not.toMatch(/tv-cols|class="kv|rw-steps|rw-files|dialmod|class="dial/);
   });
 
+  test("the title breaks before the version's name, not inside it, so the name takes the dialog's full width (Design, PR #71)", () => {
+    const h = /<h2 id="bb-h">([\s\S]*?)<\/h2>/.exec(bringBackConfirm(view(), ""))?.[1] ?? "";
+    expect(h).toMatch(/^Bring back <span class="bb-name">“Added dark mode” \(<span class="nw">8:03:18 AM<\/span>\)\?<\/span>$/);
+  });
+
   test("the engine's words are escaped", () => {
     const html = bringBackConfirm(view({ notComes: ["<b>x</b>.env"], name: "“<i>y</i>”" }), "");
     expect(html).not.toContain("<b>x</b>");

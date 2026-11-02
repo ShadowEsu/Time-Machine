@@ -665,9 +665,22 @@ export class Engine {
         });
       case "restorePaths":
         return this.serial(p.id, "Putting files back", () => tm.restorePaths(ctx, call.id, call.paths, call.dryRun ? { dryRun: true } : {}));
-      case "recoveries":
-        // Read only: History names where each recovery is. Undo still takes only a copy made in this session.
-        return tm.recoveries(ctx);
+      case "recoveries": {
+        // Read only: History names where each recovery is. Undo still takes only a copy made in this session: those are
+        // marked undoable, by the exact path Undo takes, so a reload of the page can offer Undo again for them.
+        const real = (path: string): string | null => {
+          try {
+            return realpathSync(path);
+          } catch {
+            return null;
+          }
+        };
+        return tm.recoveries(ctx).map((r) => {
+          const here = r.copyDir ? real(r.copyDir) : null;
+          const made = r.copyDir && this.allowedPaths.has(r.copyDir) ? r.copyDir : here ? [...this.allowedPaths].find((a) => real(a) === here) : undefined;
+          return made ? { ...r, copyDir: made, undoable: true } : { ...r, undoable: false };
+        });
+      }
       case "undoRecover": {
         // Core refuses anything that is not this exact recovery copy. The app also only passes on
         // a copy it made in this session.

@@ -1,7 +1,7 @@
 // What bringing a version back does, said before anyone presses it, in the order the engine does it (recover.ts). A plain folder
 // has no Git, so the engine makes no branch there: its steps and the "Bring it back anyway" confirm never mention one (Design gate MF2).
 import type { Verdict } from "../shared/api.js";
-import { esc } from "../shared/format.js";
+import { esc, sentenceStart } from "../shared/format.js";
 
 /** The Review step's main key. */
 export type ReviewKey = "bring-back" | "copy" | "try" | "try-again";
@@ -71,4 +71,69 @@ export function unprovenLine(checks: boolean, verdict: Verdict | null): string |
  */
 export function bringBackView({ folderMissing, damaged }: { folderMissing: boolean; damaged: boolean }): "confirm" | "dial" {
   return folderMissing || damaged ? "dial" : "confirm";
+}
+
+/** History's banner after a bring back (B4): what it shows, from the recover result or, after a reload, the engine's list. */
+export interface AfterView {
+  /** The version inside a sentence: "“Added dark mode” (8:03:18 AM)". */
+  name: string;
+  /** The branch the engine made; "" for a plain folder, which gets a copy only. */
+  branch: string;
+  /** The copy's full path, "" when it is not there anymore. The page shows it from ~ (homeHtml); Show in Finder keeps it whole. */
+  copyDir: string;
+  /** Undo and Keep it are offered: a bring back this tm ui made, not kept or undone yet. */
+  open: boolean;
+  /** Undo is running. */
+  working: boolean;
+  /** Something else is running: the choices wait. */
+  busy: boolean;
+  /** Undo's shortcut, as this computer writes it ("⌘Z"). */
+  undoKey: string;
+  /** Show in Finder, in this computer's words. */
+  reveal: string;
+  /** The version Check it works checks, in a copy of its own; null for a project with no check. */
+  checkId: string | null;
+  /** The broken version saved before going back, as History names it, so the banner can take you to its row. */
+  broken: { id: string; title: string } | null;
+}
+
+/**
+ * A banner, not a toast: nothing about it goes away on its own. It says where the working version went (the branch and the
+ * copy) and, once, that your folder was not touched, with Show in Finder and Check it works; links your broken version's
+ * row; and, while it is open, Undo (always in view, with its shortcut) and Keep it, each with what it does under it.
+ */
+export function afterBanner(v: AfterView): string {
+  const off = v.busy || v.working ? " disabled" : "";
+  const mono = (s: string): string => `<span class="mono sel-text">${esc(s)}</span>`;
+  const where = v.branch && v.copyDir ? `It is on ${v.open ? "the new" : "the"} branch ${mono(v.branch)}, with a copy at ${mono(v.copyDir)}.`
+    : v.branch ? `It is on the branch ${mono(v.branch)}. Its copy is not there anymore.`
+    : v.copyDir ? `It is in a copy at ${mono(v.copyDir)}.`
+    : "Its copy is not there anymore.";
+  const tries = [
+    v.copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(v.copyDir)}">${esc(v.reveal)}</button>` : "",
+    !v.open && v.branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(v.branch)}" aria-label="Copy branch name ${esc(v.branch)}">Copy branch name</button>` : "",
+    v.checkId ? `<button class="btn quiet" data-act="verify-one" data-id="${esc(v.checkId)}"${off}>Check it works</button>` : "",
+  ].join("");
+  // The row is named in the sentence; the link under it says where it goes.
+  const broken = v.broken
+    ? `<div class="after-broken"><p><b>Your broken version is safe.</b> It is saved in History as “${esc(v.broken.title)}”.</p><button class="btn link" data-act="pick" data-id="${esc(v.broken.id)}">Show it in History</button></div>`
+    : "";
+  const what = v.branch ? "the copy and the branch" : "the copy";
+  const choices = v.open
+    ? `<div class="after-ch">
+      <div class="after-c"><button class="btn" data-act="undo-rewind" data-key="undo" aria-describedby="after-undo-d"${off}>${v.working ? "Undoing…" : "Undo this bring back"}<kbd>${esc(v.undoKey)}</kbd></button><small id="after-undo-d">Removes ${what}. Every save point stays.</small></div>
+      <div class="after-c"><button class="btn quiet" data-act="undo-dismiss" aria-describedby="after-keep-d"${off}>Keep it</button><small id="after-keep-d">Keeps ${what}. Undo goes away.</small></div>
+    </div>`
+    : "";
+  // Undo and Keep it come right after where it went, so Undo is in view from the first frame, on a phone too (B6 S10, §3.3).
+  return `<section class="after${v.open ? "" : " kept"}" aria-labelledby="after-h">
+    <h2 class="after-h" id="after-h" tabindex="-1">${esc(sentenceStart(v.open ? `${v.name} is back, in a copy` : `${v.name} was brought back`))}</h2>
+    <p class="after-where">${where} Your folder was not touched.</p>
+    ${choices}${tries ? `<div class="row-btns after-try">${tries}</div>` : ""}${broken}
+  </section>`;
+}
+
+/** The sidebar's line for a project: its verdict, and while a bring back is open (not kept or undone), that a working copy is ready. */
+export function railLine(word: string, ready: boolean): string {
+  return ready ? `${word} · copy ready` : word;
 }

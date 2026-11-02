@@ -322,15 +322,23 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 /* The way back sits right under the status: the one action that matters, with its shortcut. */
 .lp-go { margin: 10px 0 0 42px; }
 .lp-go .btn { white-space: normal; height: auto; min-height: 52px; padding-block: 10px; text-align: left; }
-/* The undo card after a bring back: a sky card with the way back in it. */
-.doc > .undo-card { margin: 28px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-radius: var(--r-lg); background: var(--sky); border: 1.5px solid var(--sky-line); color: var(--sky-ink); font-size: 15px; line-height: 1.5; }
-.undo-card > .g { flex: none; width: 10px; height: 10px; }
-.undo-card > p { flex: 1 1 300px; min-width: 0; overflow-wrap: anywhere; }
-.undo-card .row-btns { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; }
+/* After a bring back: a banner, not a toast (B4). Where it went, then Undo and Keep it, each with what it does under it. */
+.doc > .after { margin: 28px 0 0; display: grid; gap: 12px; padding: 18px 20px; border-radius: var(--r-lg); background: var(--surface); border: 1.5px solid var(--sky-line); color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+.doc > .after.kept { border-color: var(--line); }
+.after-h { font: 700 22px/1.25 var(--display); letter-spacing: -.02em; color: var(--ink); }
+.after-where, .after-broken p { min-width: 0; overflow-wrap: anywhere; }
+.after .mono { font-size: 14px; color: var(--ink); }
+.after-broken { display: grid; gap: 2px; justify-items: start; }
+.after-broken b { color: var(--ink); }
+.after-ch { display: flex; flex-wrap: wrap; gap: 12px 28px; padding: 2px 0 14px; border-bottom: 1px solid var(--line); }
+.after-c { flex: 1 1 240px; max-width: 360px; display: grid; gap: 6px; justify-items: start; }
+.after-c small { font-size: 14px; line-height: 1.45; color: var(--ink-3); }
 @media (max-width: 480px) {
-  .undo-card .row-btns { flex: 1 1 100%; }
-  .undo-card .row-btns > .btn { flex: 1 1 100%; justify-content: center; }
+  .after-c > .btn { width: 100%; justify-content: center; }
+  .after-c { max-width: none; }
 }
+/* Your broken version's own card in its preview: what it is, and Open your folder. */
+.sh-broken { display: grid; gap: 10px; }
 /* A folder that is gone: its notice and the two ways out sit where the main action was. */
 .lp-status .gone-card { display: grid; gap: 12px; margin: 8px 0 0 42px; }
 .gone-card > p { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -1136,7 +1144,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .project-it .nm small, .it.ag .nm small { margin: 0; font-size: 13.5px; font-weight: 400; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; }
 /* A project's second line: its status on the left, its age on the right, so the name has the whole first line. */
 .project-it .nm small.project-verdict { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.project-verdict > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* It may take two lines ("Broken · copy ready", B4), never cut: words wrap, a single long word still ends in an ellipsis. */
+.project-verdict > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; white-space: normal; }
 .pj-age { flex: none; font: 500 13px/1.3 var(--font); color: var(--faint); font-variant-numeric: tabular-nums; }
 /* A confirm and Check it works open in the middle of the whole window, over the rail too. */
 .app > .scrim.confirm-scrim, .app > .scrim.ck-scrim { place-items: center; padding: 24px; }
