@@ -118,8 +118,9 @@ describe("account handler", () => {
     // The live gate without the release signer is closed, and Stripe is never asked.
     for (const env of [ENV, LIVE]) {
       const closed = setup({ env });
-      expect((await handleAccount(request(), env === ENV ? { ...closed.deps, sellerPublicKey: PUB } : closed.deps)).body.error).toBe("checkout_closed");
-      expect(closed.fetch).not.toHaveBeenCalled();
+      const res = await handleAccount(request(), env === ENV ? { ...closed.deps, sellerPublicKey: PUB } : closed.deps);
+      expect(res.body).toEqual({ ok: true, email: EMAIL, licenses: [], purchases: "closed" });
+      expect(sessionCalls(closed.fetch)).toHaveLength(0);
     }
   });
 
@@ -171,18 +172,25 @@ describe("account handler", () => {
     expect((await handleAccount(request(), setup().deps)).status).toBe(200);
   });
 
-  it("is closed with the right 503 when sign-in or checkout is not set up", async () => {
+  it("is closed with 503 when sign-in is not set up, and calls nothing", async () => {
     const noAuth = setup({ env: { ...ENV, SUPABASE_ANON_KEY: "" } });
     expect(await handleAccount(request(), noAuth.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "auth_closed" } });
-    const noStripe = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "" } });
-    expect(await handleAccount(request(), noStripe.deps)).toEqual({ status: 503, headers: {}, body: { ok: false, error: "checkout_closed" } });
-    const noSigning = setup({ env: { ...ENV, TM_LICENSE_PRIVATE_KEY: "" } });
-    expect((await handleAccount(request(), noSigning.deps)).body.error).toBe("checkout_closed");
     expect(noAuth.fetch).not.toHaveBeenCalled();
-    expect(noStripe.fetch).not.toHaveBeenCalled();
-    const live = setup({ env: { ...ENV, STRIPE_SECRET_KEY: "sk_live_SYNTHETIC0123456789" } });
-    expect((await handleAccount(request(), live.deps)).body.error).toBe("checkout_closed");
-    expect(live.fetch).not.toHaveBeenCalled();
+  });
+
+  // Sign-in works before checkout opens: the person is signed in and told there is nothing to look up yet,
+  // and Stripe is never asked. A bad or password session is still refused the same way.
+  it("signs in while checkout is closed, lists no purchases and never calls Stripe", async () => {
+    for (const env of [{ ...ENV, STRIPE_SECRET_KEY: "" }, { ...ENV, TM_LICENSE_PRIVATE_KEY: "" }, { ...ENV, STRIPE_SECRET_KEY: "sk_live_" + "SYNTHETIC0123456789" }]) {
+      const s = setup({ env });
+      expect(await handleAccount(request(), s.deps)).toEqual({ status: 200, headers: {}, body: { ok: true, email: EMAIL, licenses: [], purchases: "closed" } });
+      expect(sessionCalls(s.fetch)).toHaveLength(0);
+      expect(s.fetch.mock.calls.filter(([url]) => String(url).startsWith("https://api.stripe.com"))).toHaveLength(0);
+      const bad = setup({ env, userReply: () => json({ msg: "bad jwt" }, 401) });
+      expect((await handleAccount(request(), bad.deps)).status).toBe(401);
+      const password = setup({ env });
+      expect((await handleAccount(request({ authorization: `Bearer ${tokenWith({ ...OTP_SESSION, amr: [{ method: "password", timestamp: CREATED }] })}` }), password.deps)).status).toBe(401);
+    }
   });
 
   it("answers 502 on Stripe trouble with the secret kept out of the log, and limits per client", async () => {

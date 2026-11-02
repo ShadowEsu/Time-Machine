@@ -12,6 +12,7 @@
   var MSG = {
     closed: "Sign-in is not open yet.",
     checkoutClosed: "Checkout is not open yet, so there are no purchases to sign in to.",
+    noneYet: "Checkout is not open yet, so there are no purchases to show. Keys you buy will appear here.",
     email: "Please enter a valid email address.",
     code: "Please enter the 6-digit code from the email.",
     agree: "Please tick the box to get a code.",
@@ -186,7 +187,7 @@
     if (!licenses.length) {
       var none = document.createElement("p");
       none.className = "account-none";
-      none.textContent = MSG.none;
+      none.textContent = data.purchases === "closed" ? MSG.noneYet : MSG.none;
       list.appendChild(none);
     } else {
       for (var i = 0; i < licenses.length; i++) list.appendChild(keyBlock(licenses[i], i));

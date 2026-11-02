@@ -138,7 +138,8 @@ export async function handleAuth(req, deps) {
 }
 
 /**
- * GET with Authorization: Bearer <token> lists the keys for the signed-in email.
+ * GET with Authorization: Bearer <token> lists the keys for the signed-in email. While checkout is closed there can
+ * be no purchase to list, so a valid sign-in answers 200 with no licenses and purchases: "closed", and Stripe is never asked.
  * @param {{ method: string, authorization?: string|null, ip?: string|null }} req
  * @param {{ env: Record<string, string|undefined>, fetch: typeof fetch, log?: (message: string) => void, sellerPublicKey?: string }} deps
  */
@@ -146,7 +147,6 @@ export async function handleAccount(req, deps) {
   const log = deps.log ?? (() => {});
   if (req.method !== "GET") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "GET" });
   if (!isAuthConfigured(deps.env)) return reply(503, { ok: false, error: "auth_closed" });
-  if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(503, { ok: false, error: "checkout_closed" });
   const match = /^Bearer ([A-Za-z0-9._-]{20,4000})$/.exec(typeof req.authorization === "string" ? req.authorization.trim() : "");
   if (!match) return reply(401, { ok: false, error: "unauthorized" });
   if (rateLimited("account", clientId(req.ip, deps.env.SUPABASE_ANON_KEY))) return rateLimitReply();
@@ -175,6 +175,7 @@ export async function handleAccount(req, deps) {
   if (!user.data.email_confirmed_at) return reply(401, { ok: false, error: "unauthorized" });
   if (!signedInByCodeOnly(match[1])) return reply(401, { ok: false, error: "unauthorized" });
   const email = user.data.email;
+  if (!isCheckoutConfigured(deps.env, deps.sellerPublicKey)) return reply(200, { ok: true, email, licenses: [], purchases: "closed" });
 
   const licenses = [];
   let after = null;
