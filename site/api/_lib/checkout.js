@@ -24,7 +24,8 @@ export const PRODUCT_TAG = "tm-web";
 // Test mode takes a test key; live mode takes only a restricted live key (docs/launch/CHECKOUT_SETUP.md, section 6).
 // Both are anchored and case-sensitive, so a stray space, newline or other key type never matches.
 const TEST_KEY = /^(sk|rk)_test_[A-Za-z0-9_]+$/;
-const LIVE_KEY = /^rk_live_[A-Za-z0-9_]+$/;
+// Stripe's live restricted keys are letters and digits after the prefix (Security L3: ^rk_live_[A-Za-z0-9]+$).
+const LIVE_KEY = /^rk_live_[A-Za-z0-9]+$/;
 // The release public key every Time Machine release checks keys against. Must equal LICENSE_PUBLIC_KEY in
 // packages/core/src/license.ts (a test keeps them equal). Keys signed with its private half work forever,
 // so that private key only ever signs keys for real, live-mode payments. Made on 2026-11-01; its private half
@@ -132,6 +133,12 @@ export async function handleCheckout(req, deps) {
   form.set("line_items[0][price_data][currency]", "usd");
   form.set("line_items[0][price_data][unit_amount]", String(PRICE_CENTS));
   form.set("line_items[0][price_data][product_data][name]", PRODUCT_NAME);
+  // Stripe Tax: off until the owner enables it in the Dashboard and sets TM_STRIPE_TAX exactly "1". Tax is then added
+  // on top of the $50, so amount_subtotal (what the license check reads) stays the $50 price.
+  if (deps.env.TM_STRIPE_TAX === "1") {
+    form.set("line_items[0][price_data][tax_behavior]", "exclusive");
+    form.set("automatic_tax[enabled]", "true");
+  }
   form.set("success_url", `${site}/thanks?session={CHECKOUT_SESSION_ID}`);
   form.set("cancel_url", `${site}/#pricing`);
   form.set("allow_promotion_codes", "true");

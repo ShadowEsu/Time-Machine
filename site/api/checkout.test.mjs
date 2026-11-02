@@ -121,6 +121,26 @@ describe("checkout handler", () => {
     expect(form.cancel_url).toBe("https://tm.example.test/#pricing");
   });
 
+  // Stripe Tax stays off until the owner turns it on in the Dashboard and sets TM_STRIPE_TAX=1. Then tax is added on
+  // top of the $50 (exclusive), so the subtotal the license check reads stays $50.
+  it("asks Stripe to add tax only when TM_STRIPE_TAX is exactly 1", async () => {
+    const formWith = async (env) => {
+      resetRateLimits();
+      const { fetch, deps } = setup({ env });
+      expect((await handleCheckout(request(), deps)).status).toBe(200);
+      return Object.fromEntries(new URLSearchParams(fetch.mock.calls[0][1].body));
+    };
+    const on = await formWith({ ...ENV, TM_STRIPE_TAX: "1" });
+    expect(on["automatic_tax[enabled]"]).toBe("true");
+    expect(on["line_items[0][price_data][tax_behavior]"]).toBe("exclusive");
+    expect(on["line_items[0][price_data][unit_amount]"]).toBe("5000");
+    for (const TM_STRIPE_TAX of [undefined, "", "true", "yes", "1 "]) {
+      const off = await formWith({ ...ENV, TM_STRIPE_TAX });
+      expect(off["automatic_tax[enabled]"], String(TM_STRIPE_TAX)).toBeUndefined();
+      expect(off["line_items[0][price_data][tax_behavior]"], String(TM_STRIPE_TAX)).toBeUndefined();
+    }
+  });
+
   it("is closed with 503 until both the Stripe key and a well formed signing key are set, and calls nothing", async () => {
     for (const env of [{}, { STRIPE_SECRET_KEY: ENV.STRIPE_SECRET_KEY }, { TM_LICENSE_PRIVATE_KEY: SIGNING }, { ...ENV, TM_LICENSE_PRIVATE_KEY: "not-a-key" }]) {
       const { fetch, deps } = setup({ env });
@@ -273,7 +293,7 @@ describe("live gate", () => {
   });
 
   it("takes only an anchored restricted live key: no secret, publishable, organization or malformed key", async () => {
-    for (const STRIPE_SECRET_KEY of ["sk_live_SYNTH01", "RK_LIVE_SYNTH01", " rk_live_SYNTH01", "rk_live_SYNTH01\n", "rk_live_SYN 01", "rk_live_", "pk_live_SYNTH01", "sk_org_SYNTH01", "xrk_live_SYNTH01"]) {
+    for (const STRIPE_SECRET_KEY of ["sk_live_SYNTH01", "RK_LIVE_SYNTH01", " rk_live_SYNTH01", "rk_live_SYNTH01\n", "rk_live_SYN 01", "rk_live_", "pk_live_SYNTH01", "sk_org_SYNTH01", "xrk_live_SYNTH01", "rk_live__SYNTH01", "rk_live_SYN_01", "rk_live_SYN-01"]) {
       await expectClosed({ ...LIVE, STRIPE_SECRET_KEY });
     }
   });
