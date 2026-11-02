@@ -20,6 +20,10 @@ Sign-in (the site's `/account` page and the app's Plan screen) and Buy each need
 3. **Lawyer review** of liability limits, the "yours to keep" license, and California automatic renewal rules (Bus. & Prof. Code 17600 and AB 2863).
 4. **Support email** for the `[Contact]` placeholder.
 
+## Applying the answers
+
+The seller name, the support mailbox and the end of the DRAFT label are applied in one step. Fill `site/legal-identity.json` (`seller`, `supportEmail`, `final`, `lastUpdated`, `termsVersion`, `privacyVersion`), run `node scripts/apply-legal-identity.mjs --check`, then without `--check`. The script rewrites the legal pages, every footer link label, the agree boxes on the site and in the app, the consent versions, and every support address. If a rule finds fewer matches than expected, it stops and writes nothing. `site/api/_lib/legal-identity.test.mjs` runs it on a copy of the repo.
+
 ## Rules these drafts follow
 
 - Plain words. Short sentences. No em dashes.
