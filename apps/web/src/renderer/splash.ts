@@ -15,6 +15,11 @@ export const SPLASH_OUT = "tm-splash-out";
 export const SPLASH_HOLD_MS = 1000;
 /** On the page element while a reload holds the splash back. styles.css does not draw a held splash. */
 export const SPLASH_HELD_CLASS = "splash-held";
+/** The wordmark's face. splash-gate.ts starts loading it before the first paint. */
+export const SPLASH_FONT = '600 1em "Bricolage Grotesque"';
+/** On the page element until SPLASH_FONT is there. styles.css keeps the wordmark out of layout meanwhile, so the face
+ *  arriving never moves it: it is laid out once, in its own face (CLS 0). */
+export const SPLASH_FONT_CLASS = "splash-font";
 
 export type SplashPhase = "held" | "showing" | "fading" | "gone";
 

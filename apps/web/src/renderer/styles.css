@@ -124,6 +124,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 @media (prefers-reduced-motion: reduce) { .splash-bar i { animation: none; width: 100%; opacity: .5; } }
 /* A reload holds the splash back (splash-gate.ts): not drawn at all, so a quick reload has none. Shown late, it rises as at launch. */
 html.splash-held .splash { display: none; }
+/* The wordmark is laid out once its face is there (splash-gate.ts), so the face arriving never moves it: CLS 0. */
+html.splash-font .splash-word { display: none; }
 
 /* Arrivals. A new page fades in and rises 8 px; a project's journal rows rise in one after another,
    the first time only. motion.ts sets the delays, so a redraw continues them instead of restarting. The fill is backwards

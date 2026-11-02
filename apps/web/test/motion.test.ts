@@ -9,7 +9,8 @@ import {
   MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, PRESS_EASE, REDUCE_MOTION_CLASS, RETURN_MS, ROLL_MS, rolledDigits, rowDelay, ROW_STAGGER_MAX, ROW_STAGGER_MS, SETTLE_MS, undoReturn,
 } from "../src/renderer/motion.ts";
 import {
-  SPLASH_FADE_MS, SPLASH_HELD_CLASS, SPLASH_HOLD_MS, SPLASH_MIN_MS, splashController, splashFadeAt, splashHeld, type SplashHost,
+  SPLASH_FADE_MS, SPLASH_FONT, SPLASH_FONT_CLASS, SPLASH_HELD_CLASS, SPLASH_HOLD_MS, SPLASH_MIN_MS, splashController, splashFadeAt, splashHeld,
+  type SplashHost,
 } from "../src/renderer/splash.ts";
 
 /**
@@ -134,19 +135,31 @@ describe("a quick reload shows no splash (Design §3.4: skip it on reloads under
     expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`, "fade 0 at 1100", "gone at 1100"]);
   });
 
-  test("it is decided before the first paint: a blocking script in the head, and a held splash is not drawn", () => {
+  test("it is decided before the first paint: a blocking script at the end of the head, and a held splash is not drawn", () => {
     const html = readFileSync(join(dir, "index.html"), "utf8");
     const head = html.slice(0, html.indexOf("</head>"));
     expect(head).toMatch(/<script src="splash-gate\.js"><\/script>/);
-    expect(head.indexOf("splash-gate.js")).toBeLessThan(head.indexOf('<link rel="stylesheet"'));
+    // After the stylesheets, so their @font-face rules are there for the gate's font load (a classic script waits for them).
+    expect(head.trimEnd().endsWith('<script src="splash-gate.js"></script>')).toBe(true);
     const gate = readFileSync(join(dir, "splash-gate.ts"), "utf8");
     expect(gate).toMatch(/splashHeld\(\(performance\.getEntriesByType\("navigation"\)\[0\] as PerformanceNavigationTiming \| undefined\)\?\.type\)/);
-    expect(gate).toMatch(/document\.documentElement\.classList\.add\(SPLASH_HELD_CLASS\)/);
+    expect(gate).toMatch(/const page = document\.documentElement;/);
+    expect(gate).toMatch(/page\.classList\.add\(SPLASH_HELD_CLASS\)/);
     expect(SPLASH_HELD_CLASS).toBe("splash-held");
     expect(readFileSync(join(dir, "styles.css"), "utf8")).toMatch(/\nhtml\.splash-held \.splash \{ display: none; \}/);
     // tm ui serves it beside app.js, as a classic script (not a module), so it runs where it stands.
     const build = readFileSync(join(import.meta.dirname, "../../../packages/cli/scripts/build.mjs"), "utf8");
     expect(build).toMatch(/entryPoints: \[join\(renderer, "splash-gate\.ts"\)\], outfile: join\(ui, "splash-gate\.js"\), format: "iife"/);
+  });
+
+  test("the wordmark is laid out only once its face is there, so the face arriving never moves it (CLS 0)", () => {
+    // Measured on #83's first run: one 0.0012 shift on every load that drew the splash, none on a quick reload.
+    expect(SPLASH_FONT).toBe('600 1em "Bricolage Grotesque"');
+    expect(SPLASH_FONT_CLASS).toBe("splash-font");
+    const gate = readFileSync(join(dir, "splash-gate.ts"), "utf8");
+    expect(gate).toMatch(/page\.classList\.add\(SPLASH_FONT_CLASS\);\nvoid document\.fonts\.load\(SPLASH_FONT\)\.finally\(\(\) => page\.classList\.remove\(SPLASH_FONT_CLASS\)\);/);
+    // Hidden from layout, not just from sight, and only while the gate has run: without JavaScript the wordmark stays.
+    expect(readFileSync(join(dir, "styles.css"), "utf8")).toMatch(/\nhtml\.splash-font \.splash-word \{ display: none; \}/);
   });
 });
 
