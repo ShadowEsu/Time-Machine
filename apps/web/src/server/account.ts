@@ -66,6 +66,7 @@ const BAD_CODE = "That code didn't match.";
 const TOO_MANY = "Too many tries, wait a minute.";
 const NO_CHECKOUT = "Buying is not open yet, so there are no keys to list.";
 const TROUBLE = "The Time Machine site had a problem. Try again in a minute.";
+const UNDELIVERABLE = "Couldn't send a code to that address. Check it, or try again in a few minutes.";
 const MALFORMED = "The Time Machine site sent an answer the app did not expect.";
 
 /** A short plain sentence for a site error. The site's own text is never shown. */
@@ -74,6 +75,7 @@ function sentence(status: number, error: string | null): string {
   if (status === 503 && error === "auth_closed") return NOT_OPEN;
   if (status === 503 && error === "checkout_closed") return NO_CHECKOUT;
   if (status === 401 && error === "bad_code") return BAD_CODE;
+  if (status === 422 && error === "undeliverable") return UNDELIVERABLE;
   if (status === 400 && error === "agreement_required") return AGREE_FIRST;
   if (status === 400 && error === "agreement_outdated") return AGREEMENT_OUTDATED;
   return TROUBLE;

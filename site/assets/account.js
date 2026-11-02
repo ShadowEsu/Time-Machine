@@ -26,6 +26,7 @@
     rateLimited: "Too many tries. Wait a minute, then try again.",
     upstream: "We couldn't do that just now. Try again in a minute, or email " + CONTACT + ".",
     network: "We couldn't reach the server. Check your connection and try again.",
+    undeliverable: "We couldn't send a code to that address. Check it, or try again in a few minutes.",
     none: "No purchase found for this email. Use the email you gave at checkout."
   };
 
@@ -136,6 +137,7 @@
     if (r.status === 400 && r.data.error === "agreement_outdated") return MSG.outdated;
     if (r.status === 401) return MSG.badCode;
     if (r.status === 429) return MSG.rateLimited;
+    if (r.status === 422 && r.data.error === "undeliverable") return MSG.undeliverable;
     if (r.status === 503 && r.data.error === "auth_closed") return MSG.closed;
     if (r.status === 503 && r.data.error === "checkout_closed") return MSG.checkoutClosed;
     return MSG.upstream;
