@@ -254,8 +254,6 @@
 .ob-page .path-form > label { font: 600 16px/1.35 var(--font); }
 .ob-page .field { height: 48px; padding: 0 14px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1.5px var(--line-2); font-size: 14px; }
 .ob-page .field:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
-/* The folder field asks for input; an orange ring there read as an error before anything was typed (writer#37). Errors get their own red line. */
-.ob-page .path-form .field:focus-visible { outline-color: color-mix(in srgb, var(--ink) 30%, transparent); }
 .ob-page .path-form .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--broken); }
 /* The field, then its error and help, then Choose a folder (the markup's order). Wide: Choose sits beside the field and the
    error and help run under both. Phone: one column, so the error lands right under the field, not under the button (A2). */
@@ -432,7 +430,7 @@ section > .b9-lede { margin: -2px 0 16px; }
 .ov-list.draw .ovs-tick, .ov-list.draw .ovs-dot { animation: ovs-land .24s var(--ease) both; animation-delay: calc(var(--in, 0ms) + var(--i, 0) * 60ms + var(--t, 0) * 600ms); }
 @keyframes ovs-line { from { transform: scaleX(0); } }
 @keyframes ovs-land { from { opacity: 0; scale: .4; } }
-.calm .ov-list.draw .ovs-axis::before, .calm .ov-list.draw .ovs-tick, .calm .ov-list.draw .ovs-dot { animation: none; }
+.rm .ov-list.draw .ovs-axis::before, .rm .ov-list.draw .ovs-tick, .rm .ov-list.draw .ovs-dot { animation: none; }
 @media (prefers-reduced-motion: reduce) { .ov-list.draw .ovs-axis::before, .ov-list.draw .ovs-tick, .ov-list.draw .ovs-dot { animation: none; } }
 
 /* The Add flow's first step: four choices as calm cards, two by two. The picked one wears ink and the small hard shadow,

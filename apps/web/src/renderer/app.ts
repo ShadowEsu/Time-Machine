@@ -13,7 +13,7 @@ import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from
 import { dialAngle, dialIndex } from "./dial.js";
 import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
 import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
-import { brokeAt, defaultPick, foldRuns, listMove, rowVerdict, rulerMarks, statusLine, type ListItem } from "./history-list.js";
+import { brokeAt, changedSince, defaultPick, foldRuns, listMove, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem } from "./history-list.js";
 import { resetProjectCaches } from "./project-caches.js";
 import { claudeChannel, type Channel } from "./channels.js";
 import { renderAskPanel } from "./ask-panel.js";
@@ -22,7 +22,7 @@ import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
-import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, RING_MS, VERDICT_MS } from "./motion.js";
+import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RING_MS, VERDICT_MS } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
@@ -153,9 +153,11 @@ interface State {
   connection: { state: "connecting" | "connected" | "disconnected"; message?: string } | null;
   pageError: string | null;
   inspector: boolean;
-  /** The detail for `selected` as a sheet over the page: on History when the window is narrow, on Compare as the right
-   *  column too. A wide History shows the selected save point's detail beside the list without it. */
+  /** The selected save point's preview is open: on History the sheet opened from its row (beside the list when the window
+   *  is wide, a page of its own when it is narrow), on Compare the detail column or sheet. */
   drawer: boolean;
+  /** The preview sheet's two rows that open in place: What the check said, and More. Closed again when the sheet closes. */
+  sheetParts: { check: boolean; more: boolean };
   /** The Ask column on the right of project screens. ⌘J shows or hides it. */
   askOpen: boolean;
   /** A row of History's list briefly tinted after a citation brought it into view. */
@@ -502,15 +504,15 @@ async function togglePin(id: string): Promise<void> {
   root.querySelector<HTMLElement>(`[data-act="pin"][data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
 }
 
-/** Opens one save point's detail in its project's History, from anywhere (a toast's "See what"). */
+/** Opens one save point's preview sheet in its project's History, from anywhere (a toast's "See what"). */
 async function openSavePoint(projectId: string, id: string): Promise<void> {
   if (st.projectId !== projectId || !PROJECT_SCREENS.includes(st.screen)) await selectProject(projectId);
   else await loadTimeline();
   st.screen = "history";
   st.selected = id;
-  // Beside a wide list the detail follows the selection, in Ask's place; a narrow window opens it as a sheet.
-  if (detailBeside()) st.askOpen = false;
-  else st.drawer = true;
+  // The sheet takes Ask's place: one panel on the right at a time.
+  st.drawer = true;
+  st.askOpen = false;
   render();
 }
 
@@ -883,9 +885,9 @@ function rulerStrip(pts: TimelineEntry[], lw: TimelineEntry | null): string {
   return `<span class="spark" aria-hidden="true">${marks}</span>`;
 }
 
-/** From this window width a save point's detail sits beside History's list; narrower, it opens as a sheet over the page. */
-function detailBeside(): boolean {
-  return window.innerWidth >= 1100;
+/** The preview sheet sits beside History's list at this window width; narrower, it is a page of its own over History. */
+function sheetBeside(): boolean {
+  return sheetLayout(window.innerWidth).mode === "side";
 }
 
 /**
@@ -931,9 +933,9 @@ function setupView(p: ProjectEntry, pts: TimelineEntry[]): string {
 }
 
 /**
- * The project page: one status line (with the way back under it when the detail beside the list does not carry it),
- * then the save points as a list, newest first, each with its verdict in words. A wide window shows the selected save
- * point's detail beside the list; a narrow one opens it as a sheet from its row.
+ * The project page: one status line (with the way back under it while no preview sheet is open), then the save points as
+ * a list, newest first, each with its verdict in words. A row opens the selected save point's preview sheet (sheet()):
+ * beside the list on a wide window, so the list stays in sight, and as a page of its own on a narrow one.
  */
 function history(): string {
   const p = project();
@@ -987,11 +989,10 @@ function history(): string {
   // The demo says so once, here.
   const sub = [p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : "", command ? `Checks with <code class="mono">${esc(command)}</code> in a copy.` : "", working ? "Claude Code is working now. We check again when its turn ends." : "", st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""].filter(Boolean).join(" ");
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
-  // Bring back the version that works, right under the status: on a phone and wherever the detail beside the list is not
-  // already showing it. Not after a bring back, and not for a version that already has a recovery on disk (the card below
+  // Bring back the version that works, right under the status, while no preview sheet is open: an open sheet holds the
+  // page's one primary. Not after a bring back, and not for a version that already has a recovery on disk (the card below
   // says where that one is).
-  const beside = detailBeside() && !st.askOpen && st.selected === behind?.id;
-  const go = behind && !u && !gone && !beside && !damagedReason(behind) && !st.recoveries.get(p.id)?.some((r) => r.id === behind.id)
+  const go = behind && !u && !gone && !st.drawer && !damagedReason(behind) && !st.recoveries.get(p.id)?.some((r) => r.id === behind.id)
     ? `<div class="lp-go">${bringBackButton(behind, "btn big dark", st.busy ? "disabled" : "", bringTarget(entry(st.selected))?.id === behind.id)}</div>` : "";
   const status = `<section class="lp-status" data-vid="hero" data-v="${esc(s.head)}">
     <h1 class="lp-h"><span class="lp-mark v-${verdictKey(newest?.verdict ?? null)}" aria-hidden="true">${vIcon(newest?.verdict ?? null)}</span><span>${keepTimes(esc(line))}</span></h1>
@@ -1032,12 +1033,13 @@ function history(): string {
     : groups.map((g, i) => `<div role="group" aria-labelledby="lp-g${i}"><div class="lp-day" id="lp-g${i}">${esc(g.d)}</div>${itemsHtml(g.items)}</div>`).join("");
   const sel = entry(st.selected);
   const active = st.foldAt ? `opt-fold-${st.foldAt}` : sel && rows.includes(sel) ? `opt-${sel.id}` : "";
+  // The list is what opens the sheet: it says whether the sheet is open and, while it is, which element it is.
   const listbox = rows.length
-    ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys"${active ? ` aria-activedescendant="${esc(active)}"` : ""}>${options}</div>
-      <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}.</p>`
+    ? `<div class="lp-list" id="list" role="listbox" tabindex="0" aria-labelledby="lp-ht" aria-describedby="lp-keys" aria-expanded="${st.drawer}"${st.drawer ? ' aria-controls="lp-sheet"' : ""}${active ? ` aria-activedescendant="${esc(active)}"` : ""}>${options}</div>
+      <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}. F2 renames it. Esc closes it.</p>`
     : `<div class="lp-list lp-empty">${filter === "all" ? "" : noneShown(filter, p.purpose)}</div>`;
   const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${filterBar(filter, filterCounts(readable, st.notes, checks), p.purpose)}${rulerStrip(pts, behind)}</div>`;
-  return `<div class="page proj lp"><div class="doc lp-doc">${status}${undoBar}
+  return `<div class="page proj lp${st.drawer && sheetBeside() ? " has-sheet" : ""}"><div class="doc lp-doc">${status}${undoBar}
     ${setupView(p, pts)}
     <section class="lp-col" aria-labelledby="lp-ht">${head}${listbox}</section>
     <div class="mount" data-mount="unlinked:${esc(p.id)}"></div>
@@ -1214,10 +1216,149 @@ async function putBack(id: string, paths: string[]): Promise<void> {
 }
 
 /**
- * The selected save point's detail: beside History's list when the window is wide (`besideList`, no Close: it follows the
- * selection), else the right column on Compare when the window is wide and a full sheet when it is narrow. Esc closes those.
+ * A save point compared: a broken one with the last version that works (that is what broke it), any other with now. The
+ * newest compares with now too: the folder may have changed since (writer#11). Nothing compares with a folder that is gone.
  */
-function detail(besideList: boolean): string {
+function compareButton(c: TimelineEntry, p: ProjectEntry): string {
+  if (damagedReason(c) || folderMissing(p)) return "";
+  const lw = lastWorking();
+  return c.verdict === "FAIL" && lw && lw.id !== c.id
+    ? `<button class="btn link" data-act="compare" data-a="${esc(lw.id)}" data-b="${esc(c.id)}">${esc(`What changed since ${said(lw)}`)}</button>`
+    : `<button class="btn link" data-act="compare" data-a="${esc(c.id)}" data-b="now">Compare with now</button>`;
+}
+
+/** Where Open a copy put this save point, once it has. */
+function openedNote(c: TimelineEntry): string {
+  const r = st.openResult;
+  return r && r.id === c.id
+    ? `<div class="note">A copy of this version is ready. Your project folder was not touched.${r.missing.length ? ` Missing: ${esc(r.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal-dir" data-path="${esc(r.dir)}">${revealLabel()}</button></div><div class="mono muted sel-text" style="margin-top:6px">${esc(r.dir)}</div></div>`
+    : "";
+}
+
+/**
+ * Git details, when they are on. They name the person's own HEAD and branch; the snapshot commit is Time Machine's, so it
+ * is labelled as such. A plain folder has no Git of its own: only its id, how it was made, and its check command.
+ */
+function gitDetails(c: TimelineEntry, p: ProjectEntry, checks: boolean): string {
+  if (!st.settings.showGitDetails) return "";
+  return `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div>${p.kind === "folder" ? "" : `<div><span class="k">your code</span> ${esc(gitLine(c, p.kind))}</div><div><span class="k">snapshot</span> ${esc(short(c.commit))} (made by Time Machine)</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div>`}<div><span class="k">trigger</span> ${esc(c.trigger)}</div>${checks ? `<div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div>` : ""}</div>`;
+}
+
+/** The name, note and pin of a save point, from its draft while one is being typed. */
+function noteFor(c: TimelineEntry, p: ProjectEntry): string {
+  const note = st.notes.get(c.id);
+  return noteBlock(c.id, note, st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: note?.title ?? "", note: note?.note ?? "" }, p.purpose, st.noteSaving);
+}
+
+/** What's saved and what's not saved with a save point. */
+function savedCols(c: TimelineEntry): string {
+  return `<div class="sp-cols"><div class="kv"><span class="h">What’s saved</span>${li(savedLines(c), "Nothing listed")}</div>
+        <div class="kv no"><span class="h">What’s not saved</span>${li(notSavedLines(c), "Nothing listed")}</div></div>`;
+}
+
+/**
+ * History's preview of the selected save point, as a sheet opened from its row (Calm, on redesign B): the name and its
+ * verdict, the one primary named for its outcome, which files changed since, then two rows that open in place: What the
+ * check said, and More (rename, pin, compare, open a copy, and the record). Beside the list (`side`) it is a dialog that
+ * is not modal: it follows the selection while the arrows keep previewing. On a narrow window it is a modal page over
+ * History with Back at its top and the primary in a bar at its foot. Esc closes both, and focus goes back to the row.
+ */
+function sheet(c: TimelineEntry): string {
+  const p = project();
+  if (!p) return "";
+  const layout = sheetLayout(window.innerWidth);
+  const pts = points();
+  const busy = st.busy ? "disabled" : "";
+  const author = authorOf(c);
+  const isNewest = pts.at(-1)?.id === c.id;
+  const vr = st.verifyResults.get(c.id);
+  const same = (vr && vr.verdict === c.verdict ? vr : null) ?? st.storedChecks.get(storedKey(c)) ?? null;
+  if (!same && c.verdict !== null && !st.storedChecks.has(storedKey(c))) void loadStoredCheck(p.id, c);
+  const lw = lastWorking();
+  const checks = checksOn(p, pts);
+  const gone = folderMissing(p);
+  const damaged = damagedReason(c);
+  const target = bringTarget(c);
+  const bring = (dark: boolean, label: string): string => `<button class="btn ${dark ? "big dark" : "link"}" data-act="use" data-id="${esc(c.id)}" ${busy}><span>${esc(label)}</span>${dark ? `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>` : ""}</button>`;
+  const check = (dark: boolean): string => `<button class="btn ${dark ? "big dark" : "link"}${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>`;
+  // One ink button. A version that works (or any version, with no check) comes back. A broken one brings back the last
+  // version that works, and checking it again is a quiet link. One not checked yet is checked first, and can still come
+  // back. The newest is where you are, so it is only checked. A gone folder brings a copy back somewhere else.
+  const primary = damaged ? ""
+    : gone ? `<button class="btn big dark" data-act="copy-elsewhere" data-id="${esc(c.id)}" ${busy}>Bring back a copy…</button>`
+    : target && target.id !== c.id ? bringBackButton(target, "btn big dark", busy, true)
+    : !target ? (checks ? check(true) : "")
+    : c.verdict === "PASS" || !checks ? bring(true, "Bring back this version")
+    : check(true);
+  const alt = !target || damaged ? ""
+    : target.id !== c.id ? (checks ? check(false) : "")
+    : c.verdict === "PASS" || !checks ? "" : bring(false, "Bring back anyway");
+  const bringsFirst = !!target && (target.id !== c.id || c.verdict === "PASS" || !checks);
+  const outcome = target && bringsFirst && !damaged ? `<p class="lp-out">${esc(`${target.id === c.id ? "It" : sentenceStart(named(target).name)} comes back ${p.kind === "folder" ? "as a copy next to your folder" : "on a new branch and in a copy"}. Your folder is not touched.`)}</p>`
+    : gone && !damaged ? '<p class="lp-out">It comes back as a copy in a folder you choose.</p>' : "";
+  const lead = damaged ? `This save point is damaged: ${damaged} Time Machine won’t check it or bring it back.`
+    : c.id === lw?.id && !isNewest ? `The last version that works. ${verdictSentence(c)}`
+    : isNewest ? (c.verdict === null && !checks ? "Where you are now." : `Where you are now. ${verdictSentence(c)}`)
+    : c.verdict === null && !checks ? "Kept on this computer, outside the folder." : verdictSentence(c);
+  // Which files changed after this version, up to now: what bringing it back sets aside. The newest shows its own changes.
+  const since = changedSince(pts, c.id, st.changes);
+  const own = st.changes.get(c.id);
+  const list = isNewest ? own ?? [] : since.paths;
+  const known = isNewest ? !!own : since.known;
+  const files = `<section class="lp-files" aria-labelledby="sh-fh"><h3 id="sh-fh">${isNewest ? "Changed in this save point" : "Changed since this version"}</h3>${
+    !known && !list.length ? '<p class="muted">Reading what changed…</p>'
+      : !list.length ? `<p class="muted">${isNewest ? "No file changes since the save point before." : "Nothing changed since."}</p>`
+      : `<ul class="lp-fl">${list.slice(0, 8).map((f) => `<li class="sel-text">${esc(f)}</li>`).join("")}</ul>${list.length > 8 ? `<p class="muted">${esc(`and ${list.length - 8} more`)}</p>` : ""}`
+  }</section>`;
+  // A row that opens in place, with what it holds said quietly beside its name. Its contents are drawn only while it is open.
+  const part = (key: keyof State["sheetParts"], label: string, hint: string, body: string): string => {
+    const open = st.sheetParts[key];
+    return `<div class="sh-part"><button class="sh-row" data-act="sheet-part" data-v="${key}" aria-expanded="${open}"${open ? ` aria-controls="sh-${key}"` : ""}><span class="sh-l">${esc(label)}</span><span class="sh-hint">${esc(hint)}</span><svg class="sh-chev" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M4.5 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${open ? `<div class="sh-in" id="sh-${key}">${body}</div>` : ""}</div>`;
+  };
+  const ran = !!same && (same.exitCode !== null || !!same.log);
+  const checkHint = !same ? "" : ran && c.verdict === "PASS" ? `Passed in ${seconds(same.durationMs)}` : ran && c.verdict === "FAIL" ? `Failed in ${seconds(same.durationMs)}` : verdictWord(c.verdict);
+  const checkPart = damaged || c.verdict === null ? "" : part("check", "What the check said", checkHint, checkWords(same, c.verdict));
+  const compare = compareButton(c, p);
+  const copy = damaged ? "" : `<button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button>`;
+  const moreHint = ["Rename", "pin", compare ? "compare" : "", copy ? "open a copy" : ""].filter(Boolean).join(", ");
+  const more = part("more", "More", moreHint, `${compare || copy ? `<div class="sp-links">${compare}${copy}</div>` : ""}
+      ${copy ? '<p class="sp-note">A copy is a separate folder with this version in it. Your project is not touched.</p>' : ""}
+      ${openedNote(c)}
+      ${noteFor(c, p)}
+      ${c.agent ? provenance(c) : ""}
+      ${filesChanged(c)}
+      ${savedCols(c)}
+      ${gitDetails(c, p, checks)}
+      <button class="btn link small" data-act="inspector">Open in Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`);
+  const verdict = damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg");
+  const altRow = alt ? `<div class="sp-links">${alt}</div>` : "";
+  // Beside the list the primary sits under the verdict; on the page it is the bar at the foot, the one action in reach.
+  const acts = layout.bar ? altRow : primary || altRow ? `<div class="sp-acts">${primary}${outcome}${altRow}</div>` : "";
+  const enter = once("lp-sheet");
+  const top = layout.back
+    ? `<button class="btn quiet sh-back" data-act="close-drawer"><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M7.5 3l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>History<span class="sr-only">, back</span></button>`
+    : '<button class="btn quiet" data-act="close-drawer">Close<kbd>Esc</kbd></button>';
+  return `<div id="lp-sheet" class="lp-sheet sh-${layout.mode}${enter ? ` ${enter}` : ""}" data-leave="lp-sheet" role="dialog"${layout.modal ? ' aria-modal="true"' : ""} aria-labelledby="sh-h" data-id="${esc(c.id)}">
+    <header class="sh-top">${top}</header>
+    <div class="sh-body">
+      <p class="lp-eye">${keepTimes(esc([dayLabel(c.createdAt), ptClock(c), c.trigger === "demo" ? "" : author].filter(Boolean).join(" · ")))}</p>
+      <h2 class="sp-h" id="sh-h">${esc(title(c, author))}</h2>
+      ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
+      <div class="meta">${verdict}${authorChip(author)}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span></div>
+      <p class="sp-v">${esc(lead)}</p>
+      ${acts}
+      ${files}
+      <div class="sh-parts">${checkPart}${more}</div>
+    </div>
+    ${layout.bar && primary ? `<footer class="sh-bar">${outcome}${primary}</footer>` : ""}
+  </div>`;
+}
+
+/**
+ * The selected save point's detail on Compare: the right column when the window is wide and a full sheet when it is
+ * narrow. Esc closes it. History shows its preview as a sheet instead (sheet()).
+ */
+function detail(): string {
   const c = entry(st.selected);
   const p = project();
   if (!c || !p) return "";
@@ -1231,7 +1372,6 @@ function detail(besideList: boolean): string {
   const vr = st.verifyResults.get(c.id);
   const same = (vr && vr.verdict === c.verdict ? vr : null) ?? st.storedChecks.get(storedKey(c)) ?? null;
   if (!same && c.verdict !== null && !st.storedChecks.has(storedKey(c))) void loadStoredCheck(p.id, c);
-  const lw = lastWorking();
   // One ink button: bring back a version that works, otherwise check it. A folder without a check brings back any version as a copy.
   // A folder that is gone brings a version back as a copy somewhere else; a damaged save point offers nothing to run.
   const checks = checksOn(p, pts);
@@ -1242,25 +1382,12 @@ function detail(besideList: boolean): string {
     : (c.verdict === "PASS" || !checks) && !isNewest
     ? `<button class="btn big dark" data-act="use" data-id="${esc(c.id)}" ${busy}>Bring back this version${st.screen === "history" && bringTarget(c)?.id === c.id ? `<kbd>${esc(keys("Mod+Shift+R"))}</kbd>` : ""}</button>`
     : checks ? `<button class="btn big dark${checkRunning() === c.id ? " running" : ""}" data-act="verify-one" data-id="${esc(c.id)}" ${busy}>${c.verdict ? "Check it again" : "Check it works"}</button>` : "";
-  // A broken save point compares with the last version that works: that is what broke it. The newest compares with now too:
-  // the folder may have changed since (writer#11). Nothing compares with a folder that is gone.
-  const compare = damaged || gone ? ""
-    : c.verdict === "FAIL" && lw && lw.id !== c.id
-    ? `<button class="btn link" data-act="compare" data-a="${esc(lw.id)}" data-b="${esc(c.id)}">${esc(`What changed since ${said(lw)}`)}</button>`
-    : `<button class="btn link" data-act="compare" data-a="${esc(c.id)}" data-b="now">Compare with now</button>`;
-  const opened = st.openResult && st.openResult.id === c.id
-    ? `<div class="note">A copy of this version is ready. Your project folder was not touched.${st.openResult.missing.length ? ` Missing: ${esc(st.openResult.missing.join(", "))}.` : ""}<div class="row-btns" style="margin-top:8px"><button class="btn" data-act="reveal-dir" data-path="${esc(st.openResult.dir)}">${revealLabel()}</button></div><div class="mono muted sel-text" style="margin-top:6px">${esc(st.openResult.dir)}</div></div>`
-    : "";
-  // Git details name the person's own HEAD and branch; the snapshot commit is Time Machine's, so it is labelled as such.
-  // A plain folder has no Git of its own: only its id, how it was made, and its check command.
-  const git = st.settings.showGitDetails
-    ? `<div class="git"><div><span class="k">id</span> ${esc(c.id)}</div>${p.kind === "folder" ? "" : `<div><span class="k">your code</span> ${esc(gitLine(c, p.kind))}</div><div><span class="k">snapshot</span> ${esc(short(c.commit))} (made by Time Machine)</div><div><span class="k">ref</span> refs/tm/${esc(c.id)}</div>`}<div><span class="k">trigger</span> ${esc(c.trigger)}</div>${checks ? `<div><span class="k">check</span> ${esc(tmCommand({ method: "verify", projectId: p.id, id: c.id }, p.path) ?? "")}</div>` : ""}</div>`
-    : "";
+  const compare = compareButton(c, p);
   const dmgNote = damaged ? `<div class="note bad"><p>${esc(`This save point is damaged: ${damaged}`)}</p><p>Time Machine won’t check it or bring it back.</p></div>` : "";
   const tag = window.innerWidth < 1100 ? "div" : "aside";
   return `<${tag} class="rcol detail ${once("detail")}" ${tag === "div" ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-label="${esc(nameLine(n))}">
     <header class="rc-top"><span class="eyebrow">${esc(`${dayLabel(c.createdAt)} · ${author}`)}</span>
-      ${besideList ? "" : '<button class="btn quiet" data-act="close-drawer">Close<kbd>Esc</kbd></button>'}</header>
+      <button class="btn quiet" data-act="close-drawer">Close<kbd>Esc</kbd></button></header>
     <div class="rc-body">
       <h2 class="sp-h">${esc(words || n.name)}</h2>
       <p class="sp-when">${keepTimes(esc([n.time, words ? "" : title(c, author)].filter(Boolean).join(" · ")))}</p>
@@ -1269,14 +1396,13 @@ function detail(besideList: boolean): string {
       ${damaged ? dmgNote : `<p class="sp-v">${esc(c.verdict === null && !checks ? "Kept on this computer, outside the folder. Compare it or bring it back as a copy." : verdictSentence(c))}</p>`}
       ${damaged ? "" : `<div class="sp-acts">${primary}<div class="sp-links"><button class="btn link" data-act="try" data-id="${esc(c.id)}" ${busy}>Open a copy</button>${compare}</div></div>
       <p class="sp-note">A copy is a separate folder with this version in it. Your project is not touched.</p>`}
-      ${noteBlock(c.id, st.notes.get(c.id), st.noteDraft?.id === c.id ? st.noteDraft : { id: c.id, title: st.notes.get(c.id)?.title ?? "", note: st.notes.get(c.id)?.note ?? "" }, p.purpose, st.noteSaving)}
+      ${noteFor(c, p)}
       ${damaged ? "" : checkWords(same ?? null, c.verdict)}
       ${c.agent ? provenance(c) : ""}
-      ${opened}
+      ${openedNote(c)}
       ${filesChanged(c)}
-      <div class="sp-cols"><div class="kv"><span class="h">What’s saved</span>${li(savedLines(c), "Nothing listed")}</div>
-        <div class="kv no"><span class="h">What’s not saved</span>${li(notSavedLines(c), "Nothing listed")}</div></div>
-      ${git}
+      ${savedCols(c)}
+      ${gitDetails(c, p, checks)}
       <button class="btn link small" data-act="inspector">Open in Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>
     </div>
   </${tag}>`;
@@ -2298,20 +2424,29 @@ function toggleInspector(open = !st.inspector): void {
   back?.focus({ preventScroll: true });
 }
 
-/** Close the save point's sheet. When the focus was in it and is now lost, it goes back to History's list. */
+/**
+ * Close the save point's sheet. On History focus goes back to the row it opened from: the list, whose active row is the
+ * selected one. Elsewhere, when the focus was in it and is now lost, it goes to History's list if there is one.
+ */
 function closeDrawer(): void {
   st.drawer = false;
+  st.sheetParts = { check: false, more: false };
   render();
-  if (!document.activeElement || document.activeElement === document.body) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+  const list = root.querySelector<HTMLElement>("#list");
+  if (st.screen === "history" || !document.activeElement || document.activeElement === document.body) list?.focus({ preventScroll: true });
+  if (st.screen === "history") revealRow(root.querySelector(".lp-row.on"));
 }
 
-/** Selects a save point in History's list. Beside the list its detail follows; on a narrow window `open` shows it as a sheet. */
+/** Selects a save point in History's list. An open preview sheet follows it; `open` opens the sheet, in Ask's place. */
 function pick(id: string | null, open: boolean): void {
   if (!id || !entry(id)) return;
   if (st.selected !== id) st.openResult = null;
   st.selected = id;
   st.foldAt = null;
-  if (open && !detailBeside()) st.drawer = true;
+  if (open) {
+    st.drawer = true;
+    st.askOpen = false;
+  }
   render();
   revealRow(root.querySelector(".lp-row.on"));
 }
@@ -2533,7 +2668,7 @@ function toolbar(): string {
   const page: { [K in Screen]: string } = { welcome: "Welcome", overview: "Overview", onboarding: "Protect a folder", history: "History", rewind: "History", compare: "What changed", agents: "Agents", storage: "Storage", settings: "Settings", plan: "Plan", sources: "Sources" };
   const crumb = inProject ? `<button class="cr-p" data-act="history">${esc(p.name)}</button><span aria-hidden="true">/</span><span>${esc(page[st.screen])}</span>` : `<span>${esc(page[st.screen])}</span>`;
   const newest = points().at(-1);
-  const past = inProject && (st.screen === "compare" || (st.drawer && !!st.selected && st.selected !== newest?.id));
+  const past = inProject && showsBackToNow(st.screen);
   const busy = st.busy ? "disabled" : "";
   // A folder that is gone has nothing to save or check: its page offers "Choose where it is now…" and "Bring back a copy…" instead.
   const tools = inProject && newest && !folderMissing(p)
@@ -2666,7 +2801,7 @@ function keysSheetView(): string {
     <div class="sheet-head"><h2>Shortcuts</h2><button class="btn quiet" data-act="close-keys">Close<kbd>Esc</kbd></button></div>
     <div class="ks-cols">
       <div><h3 class="ks-h">Everywhere</h3>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Bring back a working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last bring back")}${row("Mod+J", "Show or hide Ask")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
-      <div><h3 class="ks-h">History</h3>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("Space", "Bring it back")}${row("C", "Compare with now")}${row("Esc", "Close the save point")}
+      <div><h3 class="ks-h">History</h3>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("F2", "Rename the save point")}${row("Space", "Bring it back")}${row("C", "Compare with now")}${row("Esc", "Close the save point")}
         <h3 class="ks-h">Bringing back</h3>${row("J L", "Turn the dial one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Bring it back, or try it first if it is not proven")}${row("Mod+Enter", "The same, wherever focus is")}${row("Esc", "Back to now, no change")}</div>
     </div></div></div>`;
 }
@@ -2988,14 +3123,15 @@ function render(): void {
               : st.screen === "storage" ? storageScreen()
                 : st.screen === "settings" ? settings()
                   : history();
-  // The right column, only on project screens: on a wide History the selected save point's detail beside the list, unless
-  // Ask is shown there; elsewhere an open detail, else Ask. It stays under Check it works (a sheet over the whole window),
-  // so closing the sheet returns to the button that opened it.
+  // History's preview sheet sits in the canvas, after the page, so Tab goes from the list into it. The right column, only on
+  // project screens: on Compare an open detail, else Ask. Both stay under Check it works (a sheet over the whole window),
+  // so closing that sheet returns to the button that opened it.
   const inProject = !!project() && PROJECT_SCREENS.includes(st.screen) && !scene;
   const sel = entry(st.selected);
+  const onHistory = st.screen === "history" || st.screen === "rewind";
+  const sheetHtml = inProject && sel && st.drawer && onHistory && !st.hookSheet && !st.demoBusy ? sheet(sel) : "";
   const right = !inProject || st.hookSheet || st.demoBusy ? ""
-    : sel && (st.screen === "history" || st.screen === "rewind") && detailBeside() && !st.askOpen ? detail(true)
-    : sel && st.drawer ? detail(false) : st.askOpen ? askColumn() : "";
+    : sel && st.drawer && !onHistory ? detail() : st.askOpen ? askColumn() : "";
   const appCls = right ? (right.includes('class="rcol detail') ? "has-detail" : "has-ask") : "";
   // Below 861 px the rail lives only in the navigation sheet (nav-toggle). It is not drawn hidden as well, so every
   // destination exists once, in the sheet, and nothing finds a copy that cannot be seen or pressed.
@@ -3005,9 +3141,9 @@ function render(): void {
   // the app, a still or a screenshot. What a button acts on (data-path, data-text) keeps the full path.
   root.innerHTML = homeHtml(`<div class="shell"><button class="skip" data-act="skip">Skip to the page</button>
     ${opts.preview ? `<aside class="banner" aria-label="Preview"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</aside>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
-  // The toast sits over the work area: past the rail, and short of a right column when one is open.
-  toastHost.dataset.right = appCls;
+    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${sheetHtml}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
+  // The toast sits over the work area: past the rail, and short of a right column or a sheet beside the list when one is open.
+  toastHost.dataset.right = sheetHtml && sheetBeside() ? "has-sheet" : appCls;
   seenOnce = drawOnce;
   applyOnce();
   const page = document.querySelector(".page");
@@ -3165,11 +3301,11 @@ function fitDialLabels(): void {
   });
 }
 
-/** The theme, and Reduce motion as the .calm class, which stills what the computer's own setting stills (styles.css). */
+/** The theme, and Reduce motion as the .rm class, which stills what the computer's own setting stills (styles.css). */
 function applyAppearance(): void {
   if (st.settings.theme === "system") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", st.settings.theme);
-  document.documentElement.classList.toggle("calm", st.settings.reduceMotion);
+  document.documentElement.classList.toggle(REDUCE_MOTION_CLASS, st.settings.reduceMotion);
 }
 
 // Actions
@@ -3571,9 +3707,13 @@ async function openCompare(a?: string, b?: string): Promise<void> {
   const newest = pts.at(-1);
   const older = lastWorking()?.id ?? pts.at(-2)?.id ?? newest?.id ?? null;
   st.compare = { a: a ?? older, b: b ?? "now", now: null, result: null, loading: false, error: null };
+  // History's preview sheet is History's own: it closes when Compare opens. On Compare, a save point's detail opened there
+  // stays beside it when the window is wide; below 1100 px it is a sheet over the page, so it closes and Compare shows.
+  if (st.drawer && (st.screen !== "compare" || window.innerWidth < 1100)) {
+    st.drawer = false;
+    st.sheetParts = { check: false, more: false };
+  }
   st.screen = "compare";
-  // Below 1100 px a save point's detail is a sheet over the page, so it closes and Compare is what shows; wider, it stays beside it.
-  if (st.drawer && window.innerWidth < 1100) st.drawer = false;
   const diff = runDiff();
   // runDiff draws the loading state before it waits. When the control that opened Compare went with the page, focus starts on From.
   refocus('[data-model="cmp-a"]');
@@ -4372,20 +4512,22 @@ async function onClick(el: HTMLElement): Promise<void> {
         st.rewind = null;
       }
       if (st.selected !== d.id) st.openResult = null;
-      // Picked in Jump to: on a narrow window focus goes into the sheet it opened, on Close (writer#26); beside the list it
-      // goes to the list, so the arrow keys carry on from there.
+      // Picked in Jump to: the save point's sheet opens. Beside the list focus goes to the list, so the arrow keys carry on
+      // from there; as a page over History the sheet takes focus itself, on Back (writer#26).
       const into = !!el.closest(".pal") || el.matches(":focus-visible");
       st.selected = d.id ?? null;
-      st.drawer = !detailBeside();
+      st.drawer = true;
+      st.askOpen = false;
       render();
-      if (into) root.querySelector<HTMLElement>(detailBeside() ? "#list" : '.rcol.detail [data-act="close-drawer"]')?.focus({ preventScroll: true });
+      if (into && sheetBeside()) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
       revealRow(root.querySelector(".lp-row.on"));
       return;
     }
     case "pick":
-      // A row: beside the list its detail follows and focus stays on the list; on a narrow window the row opens as a sheet.
+      // A row opens its sheet. Beside the list focus stays on the list, so the arrows keep previewing; as a page over
+      // History the sheet takes focus itself.
       pick(d.id ?? null, true);
-      if (detailBeside()) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+      if (sheetBeside()) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
       return;
     case "unfold":
       if (d.fold) openFold(d.fold);
@@ -4393,6 +4535,10 @@ async function onClick(el: HTMLElement): Promise<void> {
       return;
     case "close-drawer":
       return closeDrawer();
+    case "sheet-part":
+      // What the check said, or More: one press opens it in place, and the next closes it. Focus stays on the row's button.
+      if (d.v === "check" || d.v === "more") st.sheetParts = { ...st.sheetParts, [d.v]: !st.sheetParts[d.v] };
+      return render();
     case "ask-toggle":
       st.askOpen = !st.askOpen;
       if (st.askOpen) st.drawer = false;
@@ -4736,6 +4882,66 @@ function rewindKey(e: KeyboardEvent): boolean {
   return true;
 }
 
+/**
+ * Moves History's selection along the rows shown, newest first, by a list key (listMove). Shift with an arrow jumps to
+ * where the verdict changed, past save points never checked, as the Rewind's dial steps. `anyKey` lets Home, End and
+ * the Page keys move it too (on the list itself); otherwise only the arrows do. A fold takes the keys like a row. True
+ * when the selection moved.
+ */
+function listStep(key: string, shift: boolean, anyKey: boolean): boolean {
+  const options = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')];
+  const ids = options.map((el) => el.dataset.id ?? `fold:${el.dataset.fold ?? ""}`);
+  const at = Math.max(0, ids.indexOf(st.foldAt ? `fold:${st.foldAt}` : (st.selected ?? "")));
+  const vertical = key === "ArrowDown" || key === "ArrowUp";
+  let move: number | null = null;
+  if (shift && vertical && options.length) {
+    // stepIndex counts oldest first; the list shows newest first.
+    const verdicts = options.map((el) => el.dataset.v ?? "none").reverse();
+    const last = verdicts.length - 1;
+    move = last - stepIndex(verdicts, last - at, key === "ArrowDown" ? "prevChange" : "nextChange");
+  } else if (anyKey || vertical) move = listMove(ids.length, at, key);
+  if (move === null) return false;
+  const id = ids[move] ?? "";
+  if (id.startsWith("fold:")) keyFold(id.slice(5));
+  else pick(id, false);
+  return true;
+}
+
+/**
+ * The preview sheet's keys on History (sheetKey): Esc closes it from anywhere and focus goes back to the row; Enter on
+ * the row opens it; F2 opens it with the name field in focus; ↑ and ↓ inside a sheet beside the list move the selection
+ * and the sheet follows. True when the key was used.
+ */
+function sheetKeys(e: KeyboardEvent, typing: boolean): boolean {
+  if (st.screen !== "history" || st.check || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return false;
+  // Enter on a fold opens the fold, not a sheet.
+  if (e.key === "Enter" && st.foldAt) return false;
+  if (!entry(st.selected)) return false;
+  const t = e.target;
+  const el = root.querySelector<HTMLElement>("#lp-sheet:not(.leave)");
+  // A scrolling block of what the check printed keeps its arrows.
+  const at = t instanceof HTMLElement && t.id === "list" ? "list" : el && t instanceof HTMLElement && el.contains(t) && !t.matches("pre") ? "sheet" : "other";
+  const mode = sheetLayout(window.innerWidth).mode;
+  const d = sheetKey(e.key, { mode, at, open: st.drawer && !!el, typing });
+  if (!d) return false;
+  e.preventDefault();
+  if (!d.open) {
+    closeDrawer();
+    return true;
+  }
+  if (d.move) {
+    listStep(e.key, false, false);
+    // The control that had focus may not be in the next save point's sheet: focus stays in the sheet, on Close.
+    if (!document.activeElement || document.activeElement === document.body) root.querySelector<HTMLElement>('#lp-sheet [data-act="close-drawer"]')?.focus({ preventScroll: true });
+    return true;
+  }
+  if (d.focus === "name") st.sheetParts = { ...st.sheetParts, more: true };
+  pick(st.selected, true);
+  if (d.focus === "list") root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
+  if (d.focus === "name") root.querySelector<HTMLElement>("#rn-title")?.focus({ preventScroll: true });
+  return true;
+}
+
 function onKey(e: KeyboardEvent): void {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   const k = e.key.toLowerCase();
@@ -4752,6 +4958,8 @@ function onKey(e: KeyboardEvent): void {
   }
   const modal = dialogFocus.current;
   if (modal && !modal.matches(".tv, .rw-sheet")) {
+    // History's preview as a page over History is a dialog of its own: its keys first (Esc back to the row, F2).
+    if (modal.matches(".lp-sheet") && sheetKeys(e, typing)) return;
     if (k === "escape") {
       e.preventDefault();
       if (st.confirm) st.confirm = null;
@@ -4820,10 +5028,10 @@ function onKey(e: KeyboardEvent): void {
   // Undo a rewind only where its button is: the Done step and History.
   const undoHere = st.screen === "history" || (st.screen === "rewind" && st.rewind?.step === "done");
   if (mod && k === "z" && !e.shiftKey && !typing && undoHere && st.undo && !st.undo.working) return void (e.preventDefault(), flash('[data-act="undo-rewind"]'), undoRewind());
+  if (sheetKeys(e, typing)) return;
   if (k === "escape") {
     if (st.check && (st.check.phase === "done" || st.check.error)) return closeCheck();
     else if (st.hookSheet && !st.hookSheet.working) st.hookSheet = null;
-    else if (st.drawer && st.screen === "history") return closeDrawer();
     else if (st.askOpen && t instanceof Element && t.closest(".ask-col")) {
       // Beside the page Ask stays open: Esc from inside it goes back to the Ask button, as Hide and ⌘J do.
       render();
@@ -4840,36 +5048,16 @@ function onKey(e: KeyboardEvent): void {
   if (t instanceof HTMLButtonElement && (k === "enter" || k === " ")) return;
   // History's list is a listbox: focus stays on it and the arrows move the selection along the rows shown, newest first.
   // Away from any control the arrows still move it; Home, End and the Page keys only on the list, so the page can scroll.
-  // Shift with an arrow jumps to where the verdict changed, past save points never checked, as the Rewind's dial steps.
-  // A fold of quiet save points takes the keys like a row; Enter or → opens it.
+  // A fold of quiet save points takes the keys like a row; Enter or → opens it. Enter on a row opens its sheet (sheetKeys).
   const onList = t instanceof HTMLElement && t.id === "list";
   const loose = !(t instanceof HTMLElement) || t === document.body || t.matches("main h1, .page");
   if (!onList && !loose) return;
-  const options = [...root.querySelectorAll<HTMLElement>('#list [role="option"]')];
-  const ids = options.map((el) => el.dataset.id ?? `fold:${el.dataset.fold ?? ""}`);
-  const at = Math.max(0, ids.indexOf(st.foldAt ? `fold:${st.foldAt}` : (st.selected ?? "")));
   const key = k === "j" ? "ArrowDown" : k === "k" ? "ArrowUp" : e.key;
-  const vertical = key === "ArrowDown" || key === "ArrowUp";
-  let move: number | null = null;
-  if (e.shiftKey && vertical && options.length) {
-    // stepIndex counts oldest first; the list shows newest first.
-    const verdicts = options.map((el) => el.dataset.v ?? "none").reverse();
-    const last = verdicts.length - 1;
-    move = last - stepIndex(verdicts, last - at, key === "ArrowDown" ? "prevChange" : "nextChange");
-  } else if (onList || vertical) move = listMove(ids.length, at, key);
-  if (move !== null) {
+  if (listStep(key, e.shiftKey, onList)) {
     e.preventDefault();
-    const id = ids[move] ?? "";
-    if (id.startsWith("fold:")) keyFold(id.slice(5));
-    else pick(id, false);
   } else if ((k === "enter" || k === "arrowright") && onList && st.foldAt) {
     e.preventDefault();
     openFold(st.foldAt);
-  } else if (k === "enter" && onList && st.selected) {
-    // Enter opens the selected save point: beside the list focus goes into its detail; a narrow window opens it as a sheet.
-    e.preventDefault();
-    if (!detailBeside()) pick(st.selected, true);
-    root.querySelector<HTMLElement>(`.rcol.detail ${detailBeside() ? ".rc-body button" : '[data-act="close-drawer"]'}`)?.focus({ preventScroll: true });
   } else if (k === " " && onList && st.selected && !st.foldAt) {
     e.preventDefault();
     void startRewind(st.selected);
@@ -4888,8 +5076,10 @@ function onEvent(ev: AppEvent): void {
         else if (ev.screen === "compare") await openCompare(ev.a, ev.b);
         else {
           if (ev.target) {
+            // The save point it names opens in its sheet, in Ask's place.
             st.selected = ev.target;
-            st.drawer = !detailBeside();
+            st.drawer = true;
+            st.askOpen = false;
           }
           render();
         }
@@ -4956,7 +5146,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
   st = {
     boot: boot.data, settings: boot.data.settings, projects: boot.data.projects, statuses: new Map(), projectId: boot.data.projects[0]?.id ?? null,
     screen: boot.data.projects.length ? "overview" : "welcome", timeline: null, timelineError: null, selected: null, busy: null, check: null, rewind: null,
-    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false,
+    compare: { a: null, b: null, now: null, result: null, loading: false, error: null }, onboarding: emptyOnboarding(), inspector: false, drawer: false, sheetParts: { check: false, more: false },
     navOpen: false, pageError: null, connection: (window as Window & { tmConnection?: State["connection"] }).tmConnection ?? null,
     askOpen: false, lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,

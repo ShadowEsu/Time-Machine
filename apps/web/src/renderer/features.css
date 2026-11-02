@@ -31,7 +31,7 @@
 .ft-sugg button { min-height: 36px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); font: 400 14px/1.35 var(--font); text-align: left; cursor: pointer; }
 .ft-sugg button:hover { border-color: var(--ink); color: var(--ink); }
 .ft-ask-in { margin: 0 16px 8px; border: 1.5px solid var(--ink); border-radius: var(--r-pop); background: var(--surface); box-shadow: var(--shadow-pop-sm); padding: 8px 8px 8px 14px; display: flex; align-items: flex-end; gap: 8px; }
-.ft-ask-in:has(textarea:focus-visible) { outline: 3px solid var(--ring); outline-offset: 3px; }
+.ft-ask-in:has(textarea:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ft-ask-in textarea { flex: 1; min-width: 0; resize: none; border: 0; background: none; font: 400 15px/1.5 var(--font); color: var(--ink); min-height: 44px; user-select: text; }
 .ft-ask-in textarea:focus-visible { outline: none; }
 .ft-ask-in textarea::placeholder { color: var(--ink-3); }
