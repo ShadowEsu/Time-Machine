@@ -5,7 +5,7 @@ import type { TimelineEntry } from "@timetm/core";
 import type { DeploymentsResult, VercelDeployment } from "../shared/api.js";
 import { esc, plural, when } from "../shared/format.js";
 import { isAllowedExternal } from "../shared/links.js";
-import { FEATURES_CHANGED, type FeatureApi } from "./feature-dom.js";
+import { FEATURES_CHANGED, patch, type FeatureApi } from "./feature-dom.js";
 
 const TARGET: Record<VercelDeployment["target"], string> = { production: "Production", preview: "Preview", other: "Custom environment" };
 
@@ -108,13 +108,13 @@ export function unlinkedHtml(result: DeploymentsResult | null, problem: string |
   return `<div class="ft-unlinked">${head}${other}</div>`;
 }
 
-/** Fills host with the deploys that are not linked to a save point. Returns a function that removes it. */
+/** Fills host with the deploys that are not linked to a save point, paths read ~ (patch). Returns a function that removes it. */
 export function renderUnlinkedDeploys(host: HTMLElement, projectId: string, api: FeatureApi): () => void {
   let alive = true;
   bindLinks(api);
   const load = async (): Promise<void> => {
     const r = await api.call({ method: "deployments", projectId });
-    if (alive) host.innerHTML = r.ok ? unlinkedHtml(r.data, null) : unlinkedHtml(null, r.error.message);
+    if (alive) patch(host, r.ok ? unlinkedHtml(r.data, null) : unlinkedHtml(null, r.error.message));
   };
   const onChanged = (e: Event): void => {
     if ((e as CustomEvent<{ projectId: string }>).detail.projectId === projectId) void load();

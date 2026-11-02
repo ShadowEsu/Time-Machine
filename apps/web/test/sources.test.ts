@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { ProjectEntry, SourceRow } from "../src/shared/api.ts";
-import { PLANNED_SOURCES, protectedIn, shownPath, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk, type SourcesInput } from "../src/renderer/sources.ts";
+import { setHomes } from "../src/shared/format.ts";
+import { protectedIn, shownPath, SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk, type SourcesInput } from "../src/renderer/sources.ts";
 
 const rows: SourceRow[] = [
   { id: "icloud", label: "iCloud Drive", path: "/Users/you/Library/Mobile Documents/com~apple~CloudDocs", found: true },
@@ -11,7 +12,7 @@ const project = (name: string, path: string, kind: ProjectEntry["kind"] = "folde
   id: "0b8f2f5e-3f7c-4a59-9a43-1d2f6c1b2a10", path, name, addedAt: "2026-10-24T00:00:00Z", demo: false, features: { ask: false, vercel: null, autoSave: "off" }, kind, purpose: "documents",
 });
 const input = (over: Partial<SourcesInput> = {}): SourcesInput => ({
-  projects: [project("thesis-notes", "/Users/you/Documents/thesis-notes")], sources: rows, claude: null, labs: false, platform: "darwin", agentMark: (n) => `<i>${n}</i>`, ...over,
+  projects: [project("thesis-notes", "/Users/you/Documents/thesis-notes")], sources: rows, claude: null, platform: "darwin", agentMark: (n) => `<i>${n}</i>`, ...over,
 });
 
 describe("Sources", () => {
@@ -25,18 +26,8 @@ describe("Sources", () => {
     expect(html).toContain("Protected here: thesis-notes");
     expect(html).toContain("Not found here: Dropbox.");
     expect(sourcesPage(input({ platform: "linux" }))).toContain("On this computer");
-  });
-
-  test("planned connectors show only under Labs preview, each labelled Planned, not connected, with sample data", () => {
-    const off = sourcesPage(input());
-    expect(off).not.toContain("Planned, not connected");
-    expect(off).toContain('aria-checked="false"');
-    const on = sourcesPage(input({ labs: true }));
-    expect(on.match(/Planned, not connected/g)).toHaveLength(PLANNED_SOURCES.length);
-    expect(PLANNED_SOURCES.map((p) => p.name)).toEqual(["Codex", "Gemini", "Google Docs", "Notion", "Gmail", "Slack"]);
-    expect(on).toContain("Not real data.");
-    // A preview never offers to connect or sign in.
-    expect(on).not.toMatch(/sign in|connect now|oauth|api key/i);
+    // Only what is built: no planned connectors, no preview of them.
+    expect(html).not.toMatch(/planned|labs/i);
   });
 
   test("a folder counts as protected inside a source only at or under its path", () => {
@@ -44,13 +35,20 @@ describe("Sources", () => {
     expect(protectedIn(docs, [project("a", "/Users/you/Documents"), project("b", "/Users/you/Documents/b"), project("c", "/Users/you/DocumentsOld/c")])).toEqual(["a", "b"]);
   });
 
-  test("a path shows ~ for home and iCloud Drive for iCloud's folder, whole, in one element that wraps, with the full path in its title", () => {
-    expect(shownPath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs")).toBe("iCloud Drive");
-    expect(shownPath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs/Thesis")).toBe("iCloud Drive/Thesis");
-    expect(shownPath("/home/you/Dropbox")).toBe("~/Dropbox");
-    expect(shownPath("/Volumes/Work/notes")).toBe("/Volumes/Work/notes");
-    const html = sourcesPage(input());
-    expect(html).toContain('<span class="mono so-path" title="/Users/you/Library/Mobile Documents/com~apple~CloudDocs">iCloud Drive</span>');
+  test("a path shows ~ for the home folder and iCloud Drive for iCloud's folder, whole, in one element that wraps, with no full path in a title", () => {
+    setHomes(["/Users/you"]);
+    try {
+      expect(shownPath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs")).toBe("iCloud Drive");
+      expect(shownPath("/Users/you/Library/Mobile Documents/com~apple~CloudDocs/Thesis")).toBe("iCloud Drive/Thesis");
+      expect(shownPath("/Users/you/Dropbox")).toBe("~/Dropbox");
+      expect(shownPath("/Volumes/Work/notes")).toBe("/Volumes/Work/notes");
+      const html = sourcesPage(input());
+      expect(html).toContain('<span class="mono so-path">iCloud Drive</span>');
+      expect(html).toContain('<span class="mono so-path">~/Documents</span>');
+      expect(html).not.toMatch(/title="[^"]*\/Users\//);
+    } finally {
+      setHomes([]);
+    }
   });
 
   test("Protect a folder here starts on the purpose that fits: notes and cloud folders are documents, the Desktop asks", () => {
