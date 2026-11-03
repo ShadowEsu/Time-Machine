@@ -43,9 +43,9 @@ cd path/to/your-project
 tm init --no-approve
 ```
 
-`tm init --no-approve` writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`), or keeps the one the project already has. Open the file and confirm the check is the command that tells you the project works, and that `verify.setup`, `verify.command` and `verify.network` are safe to run on this computer. Then approve it:
+`tm init --no-approve` writes `timemachine.yml` with a guessed check (for example `npm test`) and install step (for example `npm ci`), or keeps the one the project already has. Open the file and confirm the check is the command that tells you the project works, and that `verify.setup`, `verify.command` and `verify.network` are safe to run on this computer. If you're a coding agent, show the person the check command and run `tm init` only after they say yes.
 
-If you're a coding agent, show the person the check command and run `tm init` only after they say yes.
+Then approve it:
 
 ```sh
 tm init
