@@ -45,10 +45,10 @@
       <li class="gs-step">
         <span class="gs-num" aria-hidden="true">1</span>
         <div class="gs-art gs-art-cmd" data-copy-box>
-          <pre id="gs-install" class="gs-well" translate="no">cd ~
+          <div class="gs-scrollwrap"><pre id="gs-install" class="gs-well gs-well-scroll" translate="no" tabindex="0" aria-label="Install command">cd ~
 git clone https://github.com/ShadowEsu/Time-Machine.git &amp;&amp; cd Time-Machine
 pnpm install &amp;&amp; pnpm build
-npm install -g ./packages/cli</pre>
+npm install -g ./packages/cli</pre></div>
           <div class="gs-copy-row">
             <button class="gs-copy" type="button" data-copy="gs-install" aria-label="Copy the install command" hidden>Copy</button>
             <p class="gs-status" data-copy-status role="status" aria-live="polite"></p>
