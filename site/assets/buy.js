@@ -8,7 +8,7 @@
 
   var CONTACT = "support@unvibe.site";
   // Must equal TERMS_VERSION, PRIVACY_VERSION and BOX_VERSION in site/api/_lib/agreement.js (a test keeps them equal).
-  var TERMS_VERSION = "terms-2026-11-02";
+  var TERMS_VERSION = "terms-2026-11-02b";
   var PRIVACY_VERSION = "privacy-2026-11-02b";
   var BOX_VERSION = "agree-box-2026-10-29";
   var MSG = {
