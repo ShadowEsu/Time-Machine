@@ -45,7 +45,7 @@
       <li class="gs-step">
         <span class="gs-num" aria-hidden="true">1</span>
         <div class="gs-art gs-art-cmd" data-copy-box>
-          <div class="gs-scrollwrap"><pre id="gs-install" class="gs-well gs-well-scroll" translate="no" tabindex="0" aria-label="Install command">cd ~
+          <div class="gs-scrollwrap"><pre id="gs-install" class="gs-well gs-well-scroll" translate="no" tabindex="0" role="region" aria-label="Install command">cd ~
 git clone https://github.com/ShadowEsu/Time-Machine.git &amp;&amp; cd Time-Machine
 pnpm install &amp;&amp; pnpm build
 npm install -g ./packages/cli</pre></div>
@@ -96,7 +96,7 @@ npm install -g ./packages/cli</pre></div>
 
     <div class="gs-alt" data-copy-box>
       <p class="gs-alt-h">Use Claude Code? Open it in your project and paste:</p>
-      <p id="gs-agent" class="gs-prompt" translate="no">Read https://time-machine-site.vercel.app/install.md and set up Time Machine in this project.</p>
+      <div class="gs-scrollwrap gs-scrollwrap-card"><pre id="gs-agent" class="gs-prompt gs-well-scroll" translate="no" tabindex="0" role="region" aria-label="Claude Code prompt">Read https://time-machine-site.vercel.app/install.md and set up Time Machine in this project.</pre></div>
       <div class="gs-copy-row">
         <button class="gs-copy" type="button" data-copy="gs-agent" hidden>Copy prompt</button>
         <p class="gs-status" data-copy-status role="status" aria-live="polite"></p>
