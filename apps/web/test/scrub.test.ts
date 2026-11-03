@@ -1,17 +1,9 @@
-// Scrubbing the rulers: a drag picks the save point under the pointer, the keys land where the
-// verdict changed, and the Rewind's entry glide flicks each tick as the playhead crosses it.
+// Scrubbing the Rewind's ruler: a drag picks the save point under the pointer, the keys land where the
+// verdict changed, and the entry glide flicks each tick as the playhead crosses it.
 import { describe, expect, test } from "vitest";
-import { crossings, glideTime, homeX, nearestTick, sceneX, stepIndex } from "../src/renderer/scrub.ts";
+import { crossings, glideTime, nearestTick, sceneX, stepIndex } from "../src/renderer/scrub.ts";
 
 describe("a drag picks the tick under the pointer", () => {
-  test("on the History ruler, a pointer over any tick picks that tick, and the far edges pick the ends", () => {
-    const n = 7;
-    const xs = Array.from({ length: n }, (_, i) => homeX(i, n));
-    xs.forEach((x, i) => expect(nearestTick(xs, x)).toBe(i));
-    expect(nearestTick(xs, 0)).toBe(0);
-    expect(nearestTick(xs, 100)).toBe(n - 1);
-  });
-
   test("on the Rewind ruler, the pointer picks the slot it is in", () => {
     const n = 4;
     const xs = Array.from({ length: n }, (_, i) => sceneX(i, n));
@@ -23,10 +15,6 @@ describe("a drag picks the tick under the pointer", () => {
 
   test("exactly between two ticks, the older one wins, so the pick never flickers toward Now", () => {
     expect(nearestTick([10, 20], 15)).toBe(0);
-  });
-
-  test("one save point sits in the middle of the History ruler", () => {
-    expect(homeX(0, 1)).toBe(50);
   });
 });
 

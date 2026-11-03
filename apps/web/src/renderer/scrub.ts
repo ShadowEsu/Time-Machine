@@ -1,11 +1,5 @@
-// Scrubbing a ruler: where each save point's tick sits, which tick a pointer is nearest, and where
-// a key step lands. Both rulers (History and the Rewind) draw and read with these, so a drag always
-// picks the tick under the finger. Pure, so the tests need no window.
-
-/** A tick's place on the History ruler, in percent of its width. One save point sits in the middle. */
-export function homeX(i: number, n: number): number {
-  return n === 1 ? 50 : 1.5 + (i / (n - 1)) * 97;
-}
+// Scrubbing the Rewind's ruler: where each save point's tick sits, which tick a pointer is nearest, and where
+// a key step lands, so a drag always picks the tick under the finger. Pure, so the tests need no window.
 
 /** A tick's place on the Rewind's ruler, in percent: each save point in the middle of its own slot. */
 export function sceneX(i: number, n: number): number {

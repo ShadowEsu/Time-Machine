@@ -1,5 +1,5 @@
 // What the app keeps for the open project, much of it by save point id. Ids restart at cp-0001 in every project, so all
-// of it is dropped whenever the open project changes, or another project's files, passes, notes and deploy chips would
+// of it is dropped whenever the open project changes, or another project's files, checks, notes and deploy chips would
 // show on these rows (Design gate MF3). Every path that changes the open project goes through resetProjectCaches.
 import type { TimelineResult, VerdictRecord } from "@timetm/core";
 import type { RunNote } from "../shared/api.js";
@@ -11,11 +11,13 @@ export interface ProjectCaches {
   selected: string | null;
   drawer: boolean;
   changes: Map<string, string[]>;
-  passes: Map<string, number>;
   storedChecks: Map<string, VerdictRecord | null>;
   deployChips: Map<string, string>;
   notes: Map<string, RunNote>;
   journalFilter: JournalFilter;
+  /** The save points of History's opened folds, and the fold the list's keys are on (by its newest id; null: the selected row). */
+  folds: Set<string>;
+  foldAt: string | null;
   noteDraft: NoteDraft | null;
   /** The project and newest save point whose changes were last read, so a read is not repeated. */
   changesFor: string;
@@ -29,11 +31,12 @@ export function resetProjectCaches(s: ProjectCaches, id: string | null): boolean
   s.selected = null;
   s.drawer = false;
   s.changes = new Map();
-  s.passes = new Map();
   s.storedChecks = new Map();
   s.deployChips = new Map();
   s.notes = new Map();
   s.journalFilter = "all";
+  s.folds = new Set();
+  s.foldAt = null;
   s.noteDraft = null;
   s.changesFor = "";
   return true;
