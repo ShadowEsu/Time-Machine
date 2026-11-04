@@ -37,6 +37,9 @@
   box-shadow: var(--glass-edge), var(--shadow-pop);
 }
 :root[data-glass] .toast { box-shadow: var(--glass-edge), var(--glass-drop); }
+/* Secondary text in the palette (group labels, row hints, the key legend) sits on a translucent fill, where --ink-3
+   measured 2.9 to 3.9:1 over busy pages. On glass it takes --ink-2; size and weight keep the hierarchy. */
+:root[data-glass] .pal :is(.pal-g, .pal-h, .pal-foot) { color: var(--ink-2); }
 
 /* Glisse-shaped controls: a 51 x 31 switch and a grey segmented track with a white thumb. The switch's transparent
    border shrinks to 4.5 px top and bottom, so its row keeps the old 40 px and nothing below it moves. */
