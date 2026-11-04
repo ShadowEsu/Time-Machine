@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your agent ran git reset --hard. Here is how to get your work back.</title>
+<meta name="description" content="git reset --hard throws away uncommitted work, and the reflog cannot bring it back. How a save point made before the command gets it back.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1918">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:url" content="https://time-machine.company/blog/recover-after-git-reset-hard">
+<link rel="canonical" href="https://time-machine.company/blog/recover-after-git-reset-hard">
+<meta property="og:title" content="Your agent ran git reset --hard. Here is how to get your work back.">
+<meta property="og:description" content="git reset --hard throws away uncommitted work, and the reflog cannot bring it back. How a save point made before the command gets it back.">
+<meta property="og:image" content="https://time-machine.company/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Time Machine. Real tm find-good output: three save points FAIL, cp-0003 PASS.">
+<meta property="article:published_time" content="2026-11-04">
+<meta property="article:author" content="The Time Machine team">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Your agent ran git reset --hard. Here is how to get your work back.","description":"git reset --hard throws away uncommitted work, and the reflog cannot bring it back. How a save point made before the command gets it back.","datePublished":"2026-11-04","dateModified":"2026-11-04","inLanguage":"en","author":{"@type":"Organization","name":"Time Machine"},"publisher":{"@type":"Organization","name":"Time Machine","url":"https://time-machine.company/"},"image":"https://time-machine.company/assets/img/og.png","mainEntityOfPage":"https://time-machine.company/blog/recover-after-git-reset-hard","url":"https://time-machine.company/blog/recover-after-git-reset-hard"}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="preload" href="../assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html" translate="no"><img src="../assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+    </nav>
+    <a class="top-signin" href="../account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-11-04">4 November 2026</time><span aria-hidden="true">·</span><span>5 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title" data-type data-type-now>Your agent ran git reset --hard. Here is how to get your work back.</h1>
+    <p class="sub rv" style="--d:2">Git can bring back commits. It cannot bring back work you never committed. A save point made just before the command can.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">TM</span><span><b>The Time Machine team</b></span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>An agent is tidying up a messy branch and decides the quickest way out is <code>git reset --hard</code>. The command runs, your files now match the last commit, and an hour of changes you had not committed yet are gone.</p>
+<p>This post covers what that command throws away, why Git's own way back does not reach it, and how to get it back with Time Machine, step by step.</p>
+
+<h2>What git reset --hard throws away</h2>
+<p>Git's documentation describes <code>--hard</code> like this: "Overwrite all files and directories with the version from &lt;commit&gt;, and may overwrite untracked files. Tracked files not in &lt;commit&gt; are removed so that the working tree matches &lt;commit&gt;. Update the index to match the new HEAD, so nothing will be staged."</p>
+<p>In plain terms:</p>
+<ul>
+  <li>every change to a tracked file that you had not committed is replaced by the committed version</li>
+  <li>tracked files that are not in that commit are deleted</li>
+  <li>files Git does not track are not the target, but the documentation warns they may be overwritten too</li>
+  <li>nothing stays staged</li>
+</ul>
+<p>The reflog does not help with the first point. Git's documentation says reflogs "record when the tips of branches and other references were updated in the local repository." That makes the reflog a good way back to a commit the reset moved away from. Work you never committed was never at the tip of any branch, so the reflog has no entry for it.</p>
+
+<h2>What Time Machine does before the command runs</h2>
+<p>With the Claude Code hooks installed, through the Time Machine plugin or <code>tm hook install</code>, Claude Code asks Time Machine about every shell command before the agent's Bash tool runs it. If the command is on Time Machine's list of risky commands, it saves a save point first.</p>
+<p>That list includes <code>git reset --hard</code>, <code>git clean -f</code>, <code>git checkout .</code>, <code>git restore</code>, <code>git stash drop</code>, <code>git branch -D</code>, <code>git rebase</code>, <code>git push --force</code>, <code>rm -rf</code>, <code>DROP TABLE</code> and a few others.</p>
+<p>A save point holds your code, including uncommitted changes to tracked files, and files not in Git yet, unless your <code>.gitignore</code> skips them. That is the part a reset throws away. Each save point is a Git commit pinned at <code>refs/tm/</code> and a Git bundle in <code>~/.timemachine</code>, outside your project.</p>
+<p>When it saves, Claude Code shows you one line:</p>
+<pre class="term" tabindex="0" role="region" aria-label="The line Claude Code shows">Time Machine saved cp-0007 before git reset --hard.</pre>
+<p>The <code>cp-0007</code> part is the save point's ID. The command is shown as the agent wrote it, clipped to about 60 characters, or as "a risky command" when it holds a secret. If nothing changed since the last save point, Time Machine does not save again and shows nothing, because the newest save point already holds those files.</p>
+
+<h2>Getting your work back</h2>
+<p><b>1. Find the save point.</b></p>
+<pre class="term" tabindex="0" role="region" aria-label="Command"><span class="p">$ </span>tm timeline</pre>
+<p>This lists your save points, newest first. The one the hook made has the note "Before risky command:" followed by the command. Its verdict will usually say "not checked", because the hook saves before the command and does not run your check.</p>
+<p><b>2. See what the reset threw away.</b> <code>tm diff</code> compares 2 save points, so save the state you are in now, then compare. Say the new one is cp-0008:</p>
+<pre class="term" tabindex="0" role="region" aria-label="Commands"><span class="p">$ </span>tm checkpoint -m "after the reset"
+<span class="p">$ </span>tm diff cp-0007 cp-0008</pre>
+<p>Each code line is a file that differs between the two, marked with Git's letters <code>A</code>, <code>M</code> and <code>D</code>. Saved files not in Git are marked <code>+</code>, <code>-</code> and <code>~</code>.</p>
+<p><b>3. Recover.</b></p>
+<pre class="term" tabindex="0" role="region" aria-label="Command"><span class="p">$ </span>tm recover cp-0007</pre>
+<p>This saves your current state first. Then it puts cp-0007 on a new branch, <code>tm/recover/cp-0007</code>, with a recovery copy of the project next to your folder. Your folder and your current branch are not touched. Nothing is pushed, merged or deployed. The report ends with the steps left for you, such as setting secret values again.</p>
+<p>Open the recovery copy, check that your work is there, and commit what you want to keep. If you picked the wrong save point, <code>tm recover --undo cp-0007</code> removes the branch and the copy, as long as neither has changed.</p>
+<p>If you only need 1 or 2 files, <code>tm restore cp-0007 -- src/app.js</code> puts them back into your folder instead. It saves your folder first, deletes nothing and commits nothing.</p>
+
+<h2>What it cannot do</h2>
+<ul>
+  <li>It has to be set up before the command runs. The hooks act only in a project where you ran <code>tm init</code> on this computer, and only once they are installed. Nothing can save a state after it is gone.</li>
+  <li>The hook sees commands the agent runs through Claude Code's Bash tool. A <code>git reset --hard</code> you type in your own terminal does not go through it.</li>
+  <li>It matches a list of commands. A destructive command that is not on the list gets no save point first. Then your newest save point may be the one from before your last prompt, and the agent's work since then is not in it.</li>
+  <li>Secret values are never saved. Time Machine keeps the key names from files like <code>.env</code>, and a recovery lists each one to set again by hand.</li>
+  <li>Databases, deployed versions and external services are not captured.</li>
+  <li>Files your <code>.gitignore</code> skips, installed dependencies like <code>node_modules</code>, symbolic links and files over 5 MB (the default limit) are not saved. Lockfiles are, so an install brings dependencies back.</li>
+  <li>On a Git older than 2.36 the hooks save nothing.</li>
+</ul>
+
+<h2>The short version</h2>
+<p>The reflog brings back commits. It cannot bring back work you never committed. If your agent can run <code>git reset --hard</code>, set up the hooks before it does. When you see "Time Machine saved cp-0007 before git reset --hard.", your work is in cp-0007, and <code>tm recover cp-0007</code> brings it back on its own branch.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://git-scm.com/docs/git-reset" rel="noopener">Git documentation: git-reset</a></li>
+    <li><a href="https://git-scm.com/docs/git-reflog" rel="noopener">Git documentation: git-reflog</a></li>
+    <li><a href="https://github.com/ShadowEsu/Time-Machine/blob/main/docs/GUIDE.md" rel="noopener">Time Machine guide: commands, what is saved, Claude Code hooks</a></li>
+    <li><a href="https://github.com/ShadowEsu/Time-Machine/blob/main/packages/core/src/hooks.ts" rel="noopener">Time Machine source: the list of risky commands and the line Claude Code shows</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="pv" href="choose-the-check.html"><span>Previous</span><b>How to pick the test command that checks your AI agent's work</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when the CLI is on npm. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. See the <a href="../privacy.html">privacy policy</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../changelog.html">Changelog</a>
+        <a href="../terms.html">Terms</a>
+        <a href="../privacy.html">Privacy</a>
+        <a href="../account.html" data-checkout-open hidden>Sign in</a>
+        <a href="mailto:support@unvibe.site">Email us</a>
+      </nav>
+      <p class="foot-note">Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/motion.js" defer></script>
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/checkout.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>
