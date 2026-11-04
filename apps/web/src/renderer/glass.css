@@ -7,30 +7,30 @@
   --glass-fill: rgb(255 255 255 / .72);
   /* Sheets and the palette carry dense text: readable with or without a rendered blur (Design, 4 Nov). */
   --glass-dense: rgb(255 255 255 / .88);
-  --glass-bar: rgb(255 255 255 / .76);
   --glass-edge: inset 0 0 0 .5px rgb(0 0 0 / .08), inset 0 1px 0 rgb(255 255 255 / .6);
   --glass-drop: 0 1px 3px rgb(0 0 0 / .06);
   --glass-track: rgb(118 118 128 / .12);
   --surface-solid: var(--surface);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70);
+  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88);
   --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
   --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 } }
 :root[data-theme="dark"] {
-  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70);
+  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88);
   --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
   --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 }
 
-/* The floating layer. */
-:root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) {
+/* The floating layer. :where() keeps this base at the specificity of :root[data-glass] (0,2,0), so the per-surface
+   rules below win; with :is() the compound .side.mobile-side lifted it to 0,4,0 and sheets/palette kept this fill. */
+:root[data-glass] :where(.toolbar, .sheet, .pal, .toast, .side.mobile-side) {
   background: var(--glass-fill);
   -webkit-backdrop-filter: blur(12px) saturate(1.5);
   backdrop-filter: blur(12px) saturate(1.5);
 }
-:root[data-glass] .toolbar { background: var(--glass-bar); box-shadow: var(--glass-edge); }
+:root[data-glass] .toolbar { box-shadow: var(--glass-edge); }
 :root[data-glass] :is(.sheet, .pal) {
   background: var(--glass-dense);
   -webkit-backdrop-filter: blur(22px) saturate(1.9);
@@ -88,5 +88,5 @@
   }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root { --glass-fill: var(--surface-solid); --glass-dense: var(--surface-solid); --glass-bar: var(--surface-solid); }
+  :root { --glass-fill: var(--surface-solid); --glass-dense: var(--surface-solid); }
 }
