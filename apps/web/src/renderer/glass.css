@@ -72,11 +72,14 @@
    blur and fades by colour, not opacity, so no glass sits inside another backdrop filter or a fading group. */
 :root[data-glass] .scrim { -webkit-backdrop-filter: none; backdrop-filter: none; }
 :root[data-glass] .scrim.enter { animation-name: glass-veil; }
-:root[data-glass] :is(.scrim.enter .sheet, .scrim.enter .pal, .toast.enter) { animation-name: glass-pop; }
+:root[data-glass] :is(.scrim.enter .sheet, .scrim.enter .pal, .toast.enter) { animation: glass-pop 180ms ease-out both; }
 :root[data-glass] .scrim.enter .sheet.bb.phone { animation-name: glass-rise; }
+/* Reduced motion: no entrance at all on glass (the base sheets fall back to an opacity fade, which glass can't use). */
 :root[data-glass] :is(.rm .scrim.enter .sheet, .rm .scrim.enter .pal, .rm .toast.enter, .rm .scrim.enter .sheet.bb.phone) { animation-name: none; }
+:root[data-glass] .rm .nav-scrim.enter > .side { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
   :root[data-glass] :is(.scrim.enter .sheet, .scrim.enter .pal, .toast.enter, .scrim.enter .sheet.bb.phone) { animation-name: none; }
+  :root[data-glass] .nav-scrim.enter > .side { animation: none !important; }
 }
 @keyframes glass-veil { from { background-color: transparent; } }
 @keyframes glass-pop { from { transform: translateY(6px) scale(.97); } }
