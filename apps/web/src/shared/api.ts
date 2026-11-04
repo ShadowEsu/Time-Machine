@@ -85,6 +85,8 @@ export const SettingsSchema = z.object({
   setupHidden: z.array(ProjectId).max(1000).default([]),
   /** Calmer screens: no moving dial or stamps. Also turns on the plain rewind sheet. */
   reduceMotion: z.boolean().default(false),
+  /** A small celebration on a real win: a check says Works, a bring back is done (MOTION-SPEC §2). On by default. */
+  celebrations: z.boolean().default(true),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -97,6 +99,7 @@ export const SettingsPatchSchema = z.strictObject({
   verdictTipSeen: z.boolean().optional(),
   setupHidden: z.array(ProjectId).max(1000).optional(),
   reduceMotion: z.boolean().optional(),
+  celebrations: z.boolean().optional(),
 });
 
 /** A Vercel project linked to a Time Machine project. The ids go into API URLs, so only safe characters. */

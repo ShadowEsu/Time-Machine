@@ -284,7 +284,7 @@ export class FakeEngine implements TmBridge {
   private added = true;
   private seed: Point | null = null;
   private stopping = false;
-  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [], reduceMotion: false };
+  settings: Settings = { showGitDetails: false, theme: "system", onboarded: true, simpleRewind: false, verdictTipSeen: false, setupHidden: [], reduceMotion: false, celebrations: true };
   /** No key in the preview: the free app, as the real engine reports it (core FREE_PROJECT_LIMIT is 3). */
   private readonly license: LicenseStatus = { active: false, id: null, issued: null, problem: null, freeProjectLimit: 3 };
   readonly project: ProjectEntry = { id: PROJECT_ID, path: ROOT, name: "marigold-tips", addedAt: ago(200), demo: true, features: { ask: false, vercel: null, autoSave: "off" }, kind: "git", purpose: "code" };
