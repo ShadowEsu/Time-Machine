@@ -133,7 +133,7 @@ body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 va
 .hero { width: min(520px, 42%); }
 /* The h1 follows the viewport's height as well as its width, so the hero and its form fit the first screen. */
 .pin h1 { margin: 0; font: 750 clamp(42px, min(5.4vw, 8svh), 80px)/.98 var(--display); letter-spacing: -.04em; text-wrap: balance; }
-.pin h1 .voice { display: block; font: 400 1.04em/1.05 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+.pin h1 .voice { display: block; font-weight: 500; }
 .pin .lead { max-width: 30em; margin: 20px 0 0; font-size: 18px; line-height: 1.55; letter-spacing: 0; }
 
 /* The live waitlist form (site.css), in the machine's language: a white field with an ink edge, the ink pill. */
@@ -191,7 +191,7 @@ html.motion #hero-h { visibility: visible; }
 .subs .on .sub-s .cur::before { animation: blink 1s steps(1, end) .3s 3; }
 @keyframes blink { 50% { opacity: 0; } }
 .sub { margin: 0; font: 750 clamp(28px, 2.8vw, 40px)/1.05 var(--display); letter-spacing: -.03em; text-wrap: balance; color: var(--ink); }
-.sub .voice { display: block; font: 400 1.05em/1.05 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+.sub .voice { display: block; font-weight: 500; }
 .sub-s { margin: 12px 0 0; font: 500 15px/1.5 var(--plex); letter-spacing: 0; color: var(--ink-2); }
 
 /* Reduced motion, no JavaScript, weak devices, no WebGL (html.motion is set before paint only when none apply):
