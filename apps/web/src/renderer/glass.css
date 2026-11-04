@@ -38,8 +38,9 @@
 }
 :root[data-glass] .toast { box-shadow: var(--glass-edge), var(--glass-drop); }
 
-/* Glisse-shaped controls: a 51 x 31 switch and a grey segmented track with a white thumb. */
-:root[data-glass] .switch { width: 51px; height: 31px; }
+/* Glisse-shaped controls: a 51 x 31 switch and a grey segmented track with a white thumb. The switch's transparent
+   border shrinks to 4.5 px top and bottom, so its row keeps the old 40 px and nothing below it moves. */
+:root[data-glass] .switch { width: 51px; height: 31px; border-width: 4.5px 10px; }
 :root[data-glass] .switch::after { width: 27px; height: 27px; box-shadow: 0 3px 8px rgb(0 0 0 / .15), 0 1px 1px rgb(0 0 0 / .16); }
 :root[data-glass] .switch.on::after { transform: translateX(20px); }
 :root[data-glass] .seg { background: var(--glass-track); border-radius: 999px; padding: 2px; }
