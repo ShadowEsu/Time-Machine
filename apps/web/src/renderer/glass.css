@@ -6,6 +6,8 @@
    more contrast or forced colours gets solid surfaces (§2). */
 :root {
   --glass-fill: rgb(255 255 255 / .72);
+  /* Sheets and the palette carry dense text: readable with or without a rendered blur (Design, 4 Nov). */
+  --glass-dense: rgb(255 255 255 / .88);
   --glass-bar: rgb(255 255 255 / .76);
   --glass-card: rgb(255 255 255 / .78);
   --glass-edge: inset 0 0 0 .5px rgb(0 0 0 / .08), inset 0 1px 0 rgb(255 255 255 / .6);
@@ -14,12 +16,12 @@
   --surface-solid: var(--surface);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --glass-fill: rgb(40 40 40 / .70); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
+  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
   --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
   --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 } }
 :root[data-theme="dark"] {
-  --glass-fill: rgb(40 40 40 / .70); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
+  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
   --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
   --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 }
@@ -32,6 +34,7 @@
 }
 :root[data-glass] .toolbar { background: var(--glass-bar); box-shadow: var(--glass-edge); }
 :root[data-glass] :is(.sheet, .pal) {
+  background: var(--glass-dense);
   -webkit-backdrop-filter: blur(22px) saturate(1.9);
   backdrop-filter: blur(22px) saturate(1.9);
   box-shadow: var(--glass-edge), var(--shadow-pop);
@@ -101,5 +104,5 @@
   }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root { --glass-fill: var(--surface-solid); --glass-bar: var(--surface-solid); --glass-card: var(--surface-solid); }
+  :root { --glass-fill: var(--surface-solid); --glass-dense: var(--surface-solid); --glass-bar: var(--surface-solid); --glass-card: var(--surface-solid); }
 }
