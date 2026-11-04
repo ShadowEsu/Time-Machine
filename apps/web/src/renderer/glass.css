@@ -48,6 +48,8 @@
 /* Secondary text in the palette (group labels, row hints, the key legend) sits on a translucent fill, where --ink-3
    measured 2.9 to 3.9:1 over busy pages. On glass it takes --ink-2; size and weight keep the hierarchy. */
 :root[data-glass] .pal :is(.pal-g, .pal-h, .pal-foot) { color: var(--ink-2); }
+/* The search row is an input, not a glass surface: solid, so nothing behind ghosts through the typed text (Design). */
+:root[data-glass] .pal .pal-top { background: var(--surface); }
 
 /* Glisse-shaped controls: a 51 x 31 switch and a grey segmented track with a white thumb. The switch's transparent
    border shrinks to 4.5 px top and bottom, so its row keeps the old 40 px and nothing below it moves. */
