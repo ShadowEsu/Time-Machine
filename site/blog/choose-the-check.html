@@ -72,7 +72,7 @@ verify:
 <ul>
   <li><b>It should fail when the app is broken.</b> A check that only runs the linter will pass a version whose main function throws.</li>
   <li><b>It should finish.</b> The default time limit is 600 seconds, and a check that runs longer ends as ERROR. Raise <code>verify.timeoutSeconds</code> if your suite is slow, or pick a faster subset that still covers the core.</li>
-  <li><b>It should not need your secrets.</b> Checks run with a clean environment: <code>PATH</code>, <code>HOME</code>, locale, proxy and package manager settings, the keys you list in <code>config.plain</code>, and <code>CI=1</code>. A test that needs a real API key will fail here, the same way it would in CI.</li>
+  <li><b>It should not need your secrets.</b> Checks run with a clean environment: <code>PATH</code>, <code>HOME</code>, <code>USER</code>, <code>LOGNAME</code>, <code>LANG</code>, <code>TMPDIR</code>, <code>SHELL</code>, proxy and certificate settings, package manager settings, the keys you list in <code>config.plain</code>, and <code>CI=1</code>. A test that needs a real API key may fail here, because the key isn't passed in.</li>
   <li><b>No tests yet? Use the build.</b> <code>npm run build</code> or <code>tsc --noEmit</code> catches a lot of what an agent breaks. It is a weaker check, so treat its PASS as "it builds", not "it works".</li>
 </ul>
 
@@ -87,7 +87,7 @@ verify:
   <li><b>PASS</b>: your check passed. Safe to recover to.</li>
   <li><b>FAIL</b>: your check failed. Run <code>tm find-good</code> and read the log path it shows.</li>
   <li><b>INCOMPLETE</b>: something saved is missing, so the check did not run. Often a file over the size limit (<code>capture.maxFileMB</code>, 5 MB by default).</li>
-  <li><b>BLOCKED</b>: the check cannot run yet. No <code>verify.command</code>, or <code>deny</code> with no sandbox.</li>
+  <li><b>BLOCKED</b>: the check cannot run yet. For example, no <code>verify.command</code> is set, or the network is set to <code>deny</code> and no sandbox is available.</li>
   <li><b>ERROR</b>: the check crashed, timed out, or the save point failed its integrity check.</li>
 </ul>
 <p><code>tm find-good</code> keeps going past FAIL, INCOMPLETE and ERROR, and stops at the first PASS or at BLOCKED. A save point that was never checked is never shown as working.</p>
