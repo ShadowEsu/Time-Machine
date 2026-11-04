@@ -62,6 +62,25 @@
 }
 :root[data-glass="l2"] .panel { box-shadow: var(--glass-edge), var(--shadow-md); }
 :root[data-glass="l2"] .field { box-shadow: inset 0 0 0 1px var(--field), var(--glass-edge); }
+/* Never glass in glass: a panel or field inside a floating glass layer stays solid. */
+:root[data-glass="l2"] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) :is(.panel, .field) {
+  -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface);
+}
+
+/* Glass-spec §3 gate rules. The glass element never animates opacity (pop, fade and bb-rise in styles.css and
+   states.css do), so its entrance moves only. The scrim under a sheet or the palette keeps its veil but drops its own
+   blur and fades by colour, not opacity, so no glass sits inside another backdrop filter or a fading group. */
+:root[data-glass] .scrim { -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-glass] .scrim.enter { animation-name: glass-veil; }
+:root[data-glass] :is(.scrim.enter .sheet, .scrim.enter .pal, .toast.enter) { animation-name: glass-pop; }
+:root[data-glass] .scrim.enter .sheet.bb.phone { animation-name: glass-rise; }
+:root[data-glass] :is(.rm .scrim.enter .sheet, .rm .scrim.enter .pal, .rm .toast.enter, .rm .scrim.enter .sheet.bb.phone) { animation-name: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-glass] :is(.scrim.enter .sheet, .scrim.enter .pal, .toast.enter, .scrim.enter .sheet.bb.phone) { animation-name: none; }
+}
+@keyframes glass-veil { from { background-color: transparent; } }
+@keyframes glass-pop { from { transform: translateY(6px) scale(.97); } }
+@keyframes glass-rise { from { transform: translateY(24px); } }
 
 /* §2 fallbacks. */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
