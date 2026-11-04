@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>git bisect or tm find-good: which one finds your last working version</title>
+<meta name="description" content="git bisect finds the commit that broke something. tm find-good finds the newest save point that still passes your tests. When to use which, with the exact commands.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1918">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:url" content="https://time-machine.company/blog/git-bisect-or-find-good">
+<link rel="canonical" href="https://time-machine.company/blog/git-bisect-or-find-good">
+<meta property="og:title" content="git bisect or tm find-good: which one finds your last working version">
+<meta property="og:description" content="git bisect finds the commit that broke something. tm find-good finds the newest save point that still passes your tests. When to use which, with the exact commands.">
+<meta property="og:image" content="https://time-machine.company/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Time Machine. Real tm find-good output: three save points FAIL, cp-0003 PASS.">
+<meta property="article:published_time" content="2026-11-04">
+<meta property="article:author" content="The Time Machine team">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"git bisect or tm find-good: which one finds your last working version","description":"git bisect finds the commit that broke something. tm find-good finds the newest save point that still passes your tests. When to use which, with the exact commands.","datePublished":"2026-11-04","dateModified":"2026-11-04","inLanguage":"en","author":{"@type":"Organization","name":"Time Machine"},"publisher":{"@type":"Organization","name":"Time Machine","url":"https://time-machine.company/"},"image":"https://time-machine.company/assets/img/og.png","mainEntityOfPage":"https://time-machine.company/blog/git-bisect-or-find-good","url":"https://time-machine.company/blog/git-bisect-or-find-good"}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="preload" href="../assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html" translate="no"><img src="../assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+    </nav>
+    <a class="top-signin" href="../account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-11-04">4 November 2026</time><span aria-hidden="true">·</span><span>4 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title" data-type data-type-now>git bisect or tm find-good: which one finds your last working version</h1>
+    <p class="sub rv" style="--d:2">They sound alike and answer different questions. One finds the change that broke it. The other finds a version you can go back to.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">TM</span><span><b>The Time Machine team</b></span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>Your tests passed this morning. Now they fail, and an agent made twenty changes in between. There are two questions you could ask. Which change broke it? And which version can I go back to right now? <code>git bisect</code> answers the first. <code>tm find-good</code> answers the second.</p>
+
+<h2>git bisect: find the change that broke it</h2>
+<p><code>git bisect</code> does a binary search through your commits. You tell it one commit that is bad and one that is good. It checks out a commit halfway between them, you test it, and it halves the range again until it names the first bad commit. With a script it runs by itself:</p>
+<pre class="term" tabindex="0" role="region" aria-label="git bisect run example"><span class="p">$ </span>git bisect start HEAD HEAD~20
+<span class="p">$ </span>git bisect run npm test
+<span class="p">$ </span>git bisect reset</pre>
+<p>Your script exits 0 for good and 1 to 127 for bad. Exit 125 means "this commit cannot be tested, skip it", for example when it does not build. Twenty commits take about five test runs, because each run halves the range.</p>
+<p>Three things to know before you start:</p>
+<ul>
+  <li>It only sees commits. Work you never committed is not in the search.</li>
+  <li>It checks the commits out in your working folder, so you start from a clean folder and run <code>git bisect reset</code> at the end to get back.</li>
+  <li>You need a commit you know is good. If you are not sure, you guess, and a wrong guess sends the search the wrong way.</li>
+</ul>
+<p>When those hold, it is the right tool. The commit it names tells you exactly what to fix.</p>
+
+<h2>tm find-good: find a version you can go back to</h2>
+<p><code>tm find-good</code> starts from the newest save point and walks back, one at a time, until your check passes. Each save point is rebuilt in a separate Git worktree, so your folder and current branch stay as they are:</p>
+<pre class="term" tabindex="0" role="region" aria-label="Real tm find-good output"><span class="p">$ </span>tm find-good
+  cp-0006   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0005   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0004   <span class="no">FAIL</span>       The check failed with exit code 1.
+  cp-0003   <span class="ok">PASS</span>       The check passed.
+<span class="ok">PASS</span>  cp-0003 is the newest version that works.</pre>
+<p>Then <code>tm recover cp-0003</code> puts that version on a new branch, <code>tm/recover/cp-0003</code>, with a recovery copy next to your project. Nothing is pushed, merged or deployed.</p>
+<p>It walks newest first instead of halving, because the newest version that works is the one you lose the least by going back to. It keeps going past a failed check and stops at the first pass. It also stops if the check cannot run yet, for example when no check command is set, and tells you why.</p>
+<p>Save points are not commits. With the Claude Code hooks installed, Time Machine saves before each prompt if something changed, before risky shell commands, and at the end of each turn. Each save point includes uncommitted changes and files not in Git yet. So the version that worked at 10:40 is there even if nobody committed at 10:40.</p>
+<p>The limit is the same in reverse: <code>tm find-good</code> only knows the moments Time Machine saved. It also tells you which version works, not why the next one broke.</p>
+
+<h2>Which one to use</h2>
+<ul>
+  <li><b>You need to keep working now.</b> Run <code>tm find-good</code>, recover, and carry on from a version that passes.</li>
+  <li><b>You need to know what broke it.</b> Run <code>git bisect</code> between the save point that passed and the one that failed.</li>
+  <li><b>Both.</b> Recover first, then bisect at leisure. <code>tm diff cp-0003 cp-0004</code> often shows the cause without a bisect at all.</li>
+</ul>
+<p>Neither one brings back a database a migration changed, a deploy that went out, or the values in your <code>.env</code> file. Time Machine lists what it did not restore on every recovery report.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://git-scm.com/docs/git-bisect" rel="noopener">Git documentation: git-bisect</a></li>
+    <li><a href="https://github.com/ShadowEsu/Time-Machine/blob/main/docs/GUIDE.md" rel="noopener">Time Machine guide: find-good, recover and exit codes</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="nx" href="rewind-does-not-cover-the-shell.html"><span>Next</span><b>Your agent's rewind does not fully cover the shell</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when the CLI is on npm. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. See the <a href="../privacy.html">privacy policy</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../changelog.html">Changelog</a>
+        <a href="../terms.html">Terms</a>
+        <a href="../privacy.html">Privacy</a>
+        <a href="../account.html" data-checkout-open hidden>Sign in</a>
+        <a href="mailto:support@unvibe.site">Email us</a>
+      </nav>
+      <p class="foot-note">Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/motion.js" defer></script>
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/checkout.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>
