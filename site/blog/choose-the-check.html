@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How to pick the test command that checks your AI agent's work</title>
+<meta name="description" content="Time Machine runs one command on every save point to decide if it works. How to pick that command, when to turn the network off, and what to do when a check says BLOCKED or INCOMPLETE.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1918">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Time Machine">
+<meta property="og:url" content="https://time-machine.company/blog/choose-the-check">
+<link rel="canonical" href="https://time-machine.company/blog/choose-the-check">
+<meta property="og:title" content="How to pick the test command that checks your AI agent's work">
+<meta property="og:description" content="Time Machine runs one command on every save point to decide if it works. How to pick that command, when to turn the network off, and what to do when a check says BLOCKED or INCOMPLETE.">
+<meta property="og:image" content="https://time-machine.company/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Time Machine. Real tm find-good output: three save points FAIL, cp-0003 PASS.">
+<meta property="article:published_time" content="2026-11-04">
+<meta property="article:author" content="The Time Machine team">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"How to pick the test command that checks your AI agent's work","description":"Time Machine runs one command on every save point to decide if it works. How to pick that command, when to turn the network off, and what to do when a check says BLOCKED or INCOMPLETE.","datePublished":"2026-11-04","dateModified":"2026-11-04","inLanguage":"en","author":{"@type":"Organization","name":"Time Machine"},"publisher":{"@type":"Organization","name":"Time Machine","url":"https://time-machine.company/"},"image":"https://time-machine.company/assets/img/og.png","mainEntityOfPage":"https://time-machine.company/blog/choose-the-check","url":"https://time-machine.company/blog/choose-the-check"}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="preload" href="../assets/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/pages.css">
+<script>(function(d,n,w){var c=n.connection,s=c&&c.saveData,m=function(q){return w.matchMedia(q).matches};d.classList.add("js");d.dataset.tier=s||n.hardwareConcurrency<=4||n.deviceMemory<=4?"low":"full";if(!(s||n.deviceMemory<=2||n.hardwareConcurrency<=2)&&m("(prefers-reduced-motion: no-preference)")&&(m("(min-width: 641px)")||w.innerHeight>=660))d.classList.add("motion");})(document.documentElement,navigator,window);</script>
+</head>
+<body class="pg">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top" id="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../index.html" translate="no"><img src="../assets/img/icon.png" width="28" height="28" alt="">Time Machine</a>
+    <nav class="nav" aria-label="Main">
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../security.html">Security</a>
+      <a href="../company.html">Company</a>
+    </nav>
+    <a class="top-signin" href="../account.html" data-checkout-open hidden>Sign in</a>
+    <a class="btn btn-ghost btn-sm top-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+  <div class="top-progress" aria-hidden="true"><i></i></div>
+</header>
+
+<main id="main" tabindex="-1">
+<article aria-labelledby="post-title">
+  <header class="wrap post-h">
+    <p class="k rv"><a href="index.html">Blog</a><span aria-hidden="true">·</span><time datetime="2026-11-04">4 November 2026</time><span aria-hidden="true">·</span><span>4 min read</span></p>
+    <h1 class="dx post-t rv" style="--d:1" id="post-title" data-type data-type-now>How to pick the test command that checks your AI agent's work</h1>
+    <p class="sub rv" style="--d:2">A save point is only as useful as the check behind it. Here is how to choose one that tells the truth.</p>
+    <p class="by rv" style="--d:3"><span class="by-m" aria-hidden="true">TM</span><span><b>The Time Machine team</b></span></p>
+  </header>
+  <div class="wrap post-g">
+    <div class="rail-w" aria-hidden="true"><div class="rail"><div class="rail-r"></div><div class="rail-h"><span>000%</span></div><span class="rail-l">reading</span></div></div>
+    <div class="prose post-b">
+<p>Time Machine decides whether a save point works by running one command on it, in a separate copy. Exit 0 means it works. Anything else means it does not. That command is <code>verify.command</code> in <code>timemachine.yml</code>, and everything Time Machine says about "the last version that works" depends on it.</p>
+
+<h2>Start with what you already trust</h2>
+<p>The best check is the one you already run before you push. For most projects that is the test suite:</p>
+<pre class="term" tabindex="0" role="region" aria-label="Example timemachine.yml"><span class="p"># </span>timemachine.yml
+version: 1
+verify:
+  setup: "npm ci"
+  command: "npm test"
+  timeoutSeconds: 600
+  network: allow</pre>
+<p><code>tm init</code> writes this file with a guessed check and install step, and keeps a file that already exists. Read what it guessed before you approve it. <code>tm status</code> shows whether a check is set and approved on this computer.</p>
+<p>A few rules of thumb:</p>
+<ul>
+  <li><b>It should fail when the app is broken.</b> A check that only runs the linter will pass a version whose main function throws.</li>
+  <li><b>It should finish.</b> The default time limit is 600 seconds, and a check that runs longer ends as ERROR. Raise <code>verify.timeoutSeconds</code> if your suite is slow, or pick a faster subset that still covers the core.</li>
+  <li><b>It should not need your secrets.</b> Checks run with a clean environment: <code>PATH</code>, <code>HOME</code>, <code>USER</code>, <code>LOGNAME</code>, <code>LANG</code>, <code>TMPDIR</code>, <code>SHELL</code>, proxy and certificate settings, package manager settings, the keys you list in <code>config.plain</code>, and <code>CI=1</code>. A test that needs a real API key may fail here, because the key isn't passed in.</li>
+  <li><b>No tests yet? Use the build.</b> <code>npm run build</code> or <code>tsc --noEmit</code> catches a lot of what an agent breaks. It is a weaker check, so treat its PASS as "it builds", not "it works".</li>
+</ul>
+
+<h2>Setup and the check are separate</h2>
+<p><code>verify.setup</code> runs first, for example <code>npm ci</code>, and always has the network so it can install dependencies. It shares the time limit with the check. Keep installs in setup and keep the check itself to the test run.</p>
+
+<h2>When to turn the network off</h2>
+<p>With <code>network: deny</code>, the check runs with no network, so a test cannot pass just because a live service happened to answer. It needs a sandbox: <code>sandbox-exec</code> on macOS, bubblewrap on Linux. If there is no sandbox, Time Machine does not quietly run the check with the network on. It reports BLOCKED. <code>tm init</code> writes <code>deny</code> only when it finds a sandbox.</p>
+
+<h2>Reading the verdicts</h2>
+<ul>
+  <li><b>PASS</b>: your check passed. Safe to recover to.</li>
+  <li><b>FAIL</b>: your check failed. Run <code>tm find-good</code> and read the log path it shows.</li>
+  <li><b>INCOMPLETE</b>: something saved is missing, so the check did not run. Often a file over the size limit (<code>capture.maxFileMB</code>, 5 MB by default).</li>
+  <li><b>BLOCKED</b>: the check cannot run yet. For example, no <code>verify.command</code> is set, or the network is set to <code>deny</code> and no sandbox is available.</li>
+  <li><b>ERROR</b>: the check crashed, timed out, or the save point failed its integrity check.</li>
+</ul>
+<p><code>tm find-good</code> keeps going past FAIL, INCOMPLETE and ERROR, and stops at the first PASS or at BLOCKED. A save point that was never checked is never shown as working.</p>
+
+<h2>If the check changes</h2>
+<p>The approval on your computer covers the exact setup, command and network setting. If any of them changes, for example after a <code>git pull</code>, the hooks stop until you run <code>tm init</code> again and approve the new check. A pulled change cannot run a command you never agreed to.</p>
+
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <ol>
+    <li><a href="https://github.com/ShadowEsu/Time-Machine/blob/main/docs/GUIDE.md" rel="noopener">Time Machine guide: timemachine.yml reference, verdicts and BLOCKED reasons</a></li>
+    <li><a href="https://github.com/ShadowEsu/Time-Machine/blob/main/README.md" rel="noopener">Time Machine README: what happens when the check changes</a></li>
+  </ol>
+</section>
+    </div>
+  </div>
+  <nav class="wrap post-nav" aria-label="More posts"><a class="nx" href="a-save-point-should-prove-it-works.html"><span>Next</span><b>A save point should prove it works</b></a></nav>
+</article>
+
+<section class="sec" aria-labelledby="join-h">
+  <div class="wrap join-g">
+    <div class="rv">
+      <h2 class="hx2" id="join-h">Build with<br>a way back.</h2>
+      <p class="sub">We write to the list when the CLI is on npm. Nothing else.</p>
+    </div>
+    <form id="waitlist" class="wl rv" style="--d:1" data-waitlist novalidate>
+      <div class="wl-field">
+        <label for="wl-email">Email</label>
+        <div class="wl-row">
+          <input type="email" name="email" id="wl-email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+          <button class="btn btn-primary" type="submit">Join the waitlist</button>
+        </div>
+      </div>
+      <label class="wl-consent"><input type="checkbox" name="consent" required><span>Email me when the CLI is on npm. Nothing else.</span></label>
+      <input type="text" name="company" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="wl-status" data-waitlist-status role="status" aria-live="polite"></p>
+      <p class="wl-privacy">We store your email, your consent, the page and time you joined, and referral codes. Never your IP address, only a one-way code kept about an hour to limit requests. See the <a href="../privacy.html">privacy policy</a>.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-row">
+      <nav aria-label="Footer">
+        <a href="../how-it-works.html">How it works</a>
+        <a href="../security.html">Security</a>
+        <a href="../company.html">Company</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="../changelog.html">Changelog</a>
+        <a href="../terms.html">Terms</a>
+        <a href="../privacy.html">Privacy</a>
+        <a href="../account.html" data-checkout-open hidden>Sign in</a>
+        <a href="mailto:support@unvibe.site">Email us</a>
+      </nav>
+      <p class="foot-note">Not affiliated with Apple Inc.</p>
+    </div>
+    <p class="giant" aria-hidden="true"><span>Time</span> <span>Machine</span></p>
+  </div>
+</footer>
+
+<script src="../assets/motion.js" defer></script>
+<script src="../assets/pages.js" defer></script>
+<script src="../assets/checkout.js" defer></script>
+<script src="../assets/waitlist.js" defer></script>
+</body>
+</html>
