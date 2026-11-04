@@ -7,5 +7,4 @@ import { FakeEngine, previewStory } from "./fake.js";
 const story = previewStory(new URLSearchParams(location.search).get("state"));
 const fake = new FakeEngine(story.scenario, story.features);
 
-document.documentElement.setAttribute("data-glass", new URLSearchParams(location.search).get("glass") === "l2" ? "l2" : "l1");
 void start(fake, { preview: true });

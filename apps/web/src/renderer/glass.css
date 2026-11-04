@@ -1,32 +1,30 @@
-/* Glass, CSS only (Design glass spec 2026-11-04, §4 Time Machine): Glisse's look without its refraction, so no new
-   dependency and the same strict CSP. <html data-glass="l1|l2"> picks the level.
-   L1: the floating layer only (toolbar, sheets, the command palette, toasts, the phone menu) and Glisse-shaped switches and
-   pickers. L2: L1 plus panels, cards, list containers and text fields, over a soft fixed wash so they have something to blur.
-   Never glass: legal and consent text, long reading text, tables, chips under 14 px. Someone who asks for less transparency,
-   more contrast or forced colours gets solid surfaces (§2). */
+/* Glass, CSS only (Design glass spec 2026-11-04, §4 Time Machine; Design picked L1): Glisse's look without its
+   refraction, so no new dependency and the same strict CSP. <html data-glass> turns it on (index.html).
+   Glass: the floating layer only (toolbar, sheets, the command palette, toasts, the phone menu) and Glisse-shaped switches
+   and pickers. Never glass: panels, legal and consent text, long reading text, tables, chips under 14 px. Someone who
+   asks for less transparency, more contrast or forced colours gets solid surfaces (§2). */
 :root {
   --glass-fill: rgb(255 255 255 / .72);
   /* Sheets and the palette carry dense text: readable with or without a rendered blur (Design, 4 Nov). */
   --glass-dense: rgb(255 255 255 / .88);
   --glass-bar: rgb(255 255 255 / .76);
-  --glass-card: rgb(255 255 255 / .78);
   --glass-edge: inset 0 0 0 .5px rgb(0 0 0 / .08), inset 0 1px 0 rgb(255 255 255 / .6);
   --glass-drop: 0 1px 3px rgb(0 0 0 / .06);
   --glass-track: rgb(118 118 128 / .12);
   --surface-solid: var(--surface);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
+  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70);
   --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
   --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 } }
 :root[data-theme="dark"] {
-  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
+  --glass-fill: rgb(40 40 40 / .70); --glass-dense: rgb(40 40 40 / .88); --glass-bar: rgb(40 40 40 / .70);
   --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
   --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 }
 
-/* L1 and L2: the floating layer. */
+/* The floating layer. */
 :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) {
   background: var(--glass-fill);
   -webkit-backdrop-filter: blur(12px) saturate(1.5);
@@ -38,6 +36,13 @@
   -webkit-backdrop-filter: blur(22px) saturate(1.9);
   backdrop-filter: blur(22px) saturate(1.9);
   box-shadow: var(--glass-edge), var(--shadow-pop);
+}
+/* On a phone, until a real Safari capture proves the blur renders there, sheets and the palette are near solid so rows
+   behind never ghost between their rows (Design, 4 Nov; headless WebKit shows no blur). */
+@media (max-width: 640px) {
+  :root { --glass-dense: rgb(255 255 255 / .96); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --glass-dense: rgb(40 40 40 / .96); } }
+  :root[data-theme="dark"] { --glass-dense: rgb(40 40 40 / .96); }
 }
 :root[data-glass] .toast { box-shadow: var(--glass-edge), var(--glass-drop); }
 /* Secondary text in the palette (group labels, row hints, the key legend) sits on a translucent fill, where --ink-3
@@ -52,26 +57,6 @@
 :root[data-glass] .seg { background: var(--glass-track); border-radius: 999px; padding: 2px; }
 :root[data-glass] .seg button { border-radius: 999px; }
 :root[data-glass] .seg button.on { background: #fff; color: #000; box-shadow: 0 3px 8px rgb(0 0 0 / .12), 0 3px 1px rgb(0 0 0 / .04); }
-
-/* L2: content containers too, over a soft sky wash fixed behind the main column. */
-:root[data-glass="l2"] .main {
-  background:
-    radial-gradient(60% 50% at 15% 10%, color-mix(in srgb, var(--sky) 55%, transparent), transparent 70%),
-    radial-gradient(50% 45% at 85% 80%, color-mix(in srgb, var(--sky-line) 30%, transparent), transparent 70%),
-    var(--surface);
-  background-attachment: fixed;
-}
-:root[data-glass="l2"] :is(.panel, .field) {
-  background: var(--glass-card);
-  -webkit-backdrop-filter: blur(12px) saturate(1.5);
-  backdrop-filter: blur(12px) saturate(1.5);
-}
-:root[data-glass="l2"] .panel { box-shadow: var(--glass-edge), var(--shadow-md); }
-:root[data-glass="l2"] .field { box-shadow: inset 0 0 0 1px var(--field), var(--glass-edge); }
-/* Never glass in glass: a panel or field inside a floating glass layer stays solid. */
-:root[data-glass="l2"] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) :is(.panel, .field) {
-  -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface);
-}
 
 /* Glass-spec §3 gate rules. The glass element never animates opacity (pop, fade and bb-rise in styles.css and
    states.css do), so its entrance moves only. The scrim under a sheet or the palette keeps its veil but drops its own
@@ -93,16 +78,15 @@
 
 /* §2 fallbacks. */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side, .panel, .field) {
+  :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) {
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--surface-solid) !important;
   }
-  :root[data-glass="l2"] .main { background: var(--surface) !important; }
 }
 @media (forced-colors: active) {
-  :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side, .panel, .field) {
+  :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) {
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: Canvas !important; border: 1px solid CanvasText;
   }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root { --glass-fill: var(--surface-solid); --glass-dense: var(--surface-solid); --glass-bar: var(--surface-solid); --glass-card: var(--surface-solid); }
+  :root { --glass-fill: var(--surface-solid); --glass-dense: var(--surface-solid); --glass-bar: var(--surface-solid); }
 }
