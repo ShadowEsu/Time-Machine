@@ -1,0 +1,33 @@
+/* Glass (Glisse 0.5.0's .lg-glass, MIT, see glass/LICENSE-glisse), in this app's colours.
+   glass/index.ts puts .lg-glass on the floating surfaces for the level on <html data-glass>:
+   subtle = sheets, the command palette, toasts and the phone menu; full = those plus the toolbar, the sidebar and panels.
+   Someone who asks for less transparency, more contrast or forced colours gets the solid surfaces back. */
+:root {
+  --lg-glass: color-mix(in srgb, var(--surface) 62%, transparent);
+  --lg-edge: color-mix(in srgb, var(--ink) 8%, transparent);
+  --lg-drop: rgb(0 0 0 / .06);
+  --lg-rim-shine: .3;
+  --lg-blur: 3px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --lg-drop: transparent; --lg-rim-shine: .13; } }
+:root[data-theme="dark"] { --lg-drop: transparent; --lg-rim-shine: .13; }
+
+.lg-glass {
+  background-color: var(--lg-glass);
+  background-image: var(--lg-rim, none);
+  background-size: 100% 100%;
+  -webkit-backdrop-filter: blur(var(--lg-blur)) var(--lg-filter, saturate(1.5));
+  backdrop-filter: blur(var(--lg-blur)) var(--lg-filter, saturate(1.5));
+  box-shadow: inset 0 0 0 .5px var(--lg-edge), 0 1px 3px var(--lg-drop);
+}
+.lg-glass[data-rim] { box-shadow: 0 1px 3px var(--lg-drop); }
+/* Sheets and the palette float over a blurred scrim: a thicker frost keeps their text readable. */
+.sheet.lg-glass, .pal.lg-glass { --lg-blur: 22px; box-shadow: var(--shadow-pop); }
+.toast.lg-glass { --lg-blur: 12px; }
+/* Full: chrome stays legible over whatever scrolls behind it. */
+.toolbar.lg-glass, .side.lg-glass { --lg-blur: 18px; }
+.panel.lg-glass { --lg-blur: 12px; box-shadow: var(--shadow-md); }
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .lg-glass { background-color: var(--surface); background-image: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

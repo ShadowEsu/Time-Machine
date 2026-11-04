@@ -1,6 +1,7 @@
 // The app window. The bridge comes from the preload script.
 import type { TmBridge } from "../shared/api.js";
 import { start } from "./app.js";
+import { startGlass } from "./glass/index.js";
 import { mountSplash } from "./splash.js";
 
 declare global {
@@ -12,4 +13,6 @@ declare global {
 // start() resolves once the settings, the projects and the first page are drawn, or it failed.
 // Either way the launch splash can go.
 const splash = mountSplash();
+// Exploration for Design's pick: ?glass=full shows the full level, anything else the subtle one. The pick replaces this switch.
+startGlass(new URLSearchParams(location.search).get("glass") === "full" ? "full" : "subtle");
 void start(window.tm, { preview: false }).finally(() => splash.ready());
