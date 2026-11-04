@@ -1,6 +1,5 @@
 // Browser preview: the real app renderer with the engine swapped for an in-memory demo.
 import { start } from "../src/renderer/app.js";
-import { startGlass } from "../src/renderer/glass/index.js";
 import { FakeEngine, previewStory } from "./fake.js";
 
 // ?state=works, ?state=unchecked or ?state=new tell a different story. The default is the broken demo.
@@ -8,5 +7,5 @@ import { FakeEngine, previewStory } from "./fake.js";
 const story = previewStory(new URLSearchParams(location.search).get("state"));
 const fake = new FakeEngine(story.scenario, story.features);
 
-startGlass(new URLSearchParams(location.search).get("glass") === "full" ? "full" : "subtle");
+document.documentElement.setAttribute("data-glass", new URLSearchParams(location.search).get("glass") === "l2" ? "l2" : "l1");
 void start(fake, { preview: true });

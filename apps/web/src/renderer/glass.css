@@ -1,33 +1,79 @@
-/* Glass (Glisse 0.5.0's .lg-glass, MIT, see glass/LICENSE-glisse), in this app's colours.
-   glass/index.ts puts .lg-glass on the floating surfaces for the level on <html data-glass>:
-   subtle = sheets, the command palette, toasts and the phone menu; full = those plus the toolbar, the sidebar and panels.
-   Someone who asks for less transparency, more contrast or forced colours gets the solid surfaces back. */
+/* Glass, CSS only (Design glass spec 2026-11-04, §4 Time Machine): Glisse's look without its refraction, so no new
+   dependency and the same strict CSP. <html data-glass="l1|l2"> picks the level.
+   L1: the floating layer only (toolbar, sheets, the command palette, toasts, the phone menu) and Glisse-shaped switches and
+   pickers. L2: L1 plus panels, cards, list containers and text fields, over a soft fixed wash so they have something to blur.
+   Never glass: legal and consent text, long reading text, tables, chips under 14 px. Someone who asks for less transparency,
+   more contrast or forced colours gets solid surfaces (§2). */
 :root {
-  --lg-glass: color-mix(in srgb, var(--surface) 62%, transparent);
-  --lg-edge: color-mix(in srgb, var(--ink) 8%, transparent);
-  --lg-drop: rgb(0 0 0 / .06);
-  --lg-rim-shine: .3;
-  --lg-blur: 3px;
+  --glass-fill: rgb(255 255 255 / .72);
+  --glass-bar: rgb(255 255 255 / .76);
+  --glass-card: rgb(255 255 255 / .78);
+  --glass-edge: inset 0 0 0 .5px rgb(0 0 0 / .08), inset 0 1px 0 rgb(255 255 255 / .6);
+  --glass-drop: 0 1px 3px rgb(0 0 0 / .06);
+  --glass-track: rgb(118 118 128 / .12);
+  --surface-solid: var(--surface);
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --lg-drop: transparent; --lg-rim-shine: .13; } }
-:root[data-theme="dark"] { --lg-drop: transparent; --lg-rim-shine: .13; }
-
-.lg-glass {
-  background-color: var(--lg-glass);
-  background-image: var(--lg-rim, none);
-  background-size: 100% 100%;
-  -webkit-backdrop-filter: blur(var(--lg-blur)) var(--lg-filter, saturate(1.5));
-  backdrop-filter: blur(var(--lg-blur)) var(--lg-filter, saturate(1.5));
-  box-shadow: inset 0 0 0 .5px var(--lg-edge), 0 1px 3px var(--lg-drop);
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --glass-fill: rgb(40 40 40 / .70); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
+  --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
+  --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
+} }
+:root[data-theme="dark"] {
+  --glass-fill: rgb(40 40 40 / .70); --glass-bar: rgb(40 40 40 / .70); --glass-card: rgb(40 40 40 / .76);
+  --glass-edge: inset 0 0 0 .5px rgb(255 255 255 / .08), inset 0 1px 0 rgb(255 255 255 / .06);
+  --glass-drop: 0 1px 3px transparent; --glass-track: rgb(235 235 245 / .16);
 }
-.lg-glass[data-rim] { box-shadow: 0 1px 3px var(--lg-drop); }
-/* Sheets and the palette float over a blurred scrim: a thicker frost keeps their text readable. */
-.sheet.lg-glass, .pal.lg-glass { --lg-blur: 22px; box-shadow: var(--shadow-pop); }
-.toast.lg-glass { --lg-blur: 12px; }
-/* Full: chrome stays legible over whatever scrolls behind it. */
-.toolbar.lg-glass, .side.lg-glass { --lg-blur: 18px; }
-.panel.lg-glass { --lg-blur: 12px; box-shadow: var(--shadow-md); }
 
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .lg-glass { background-color: var(--surface); background-image: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* L1 and L2: the floating layer. */
+:root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side) {
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  backdrop-filter: blur(12px) saturate(1.5);
+}
+:root[data-glass] .toolbar { background: var(--glass-bar); box-shadow: var(--glass-edge); }
+:root[data-glass] :is(.sheet, .pal) {
+  -webkit-backdrop-filter: blur(22px) saturate(1.9);
+  backdrop-filter: blur(22px) saturate(1.9);
+  box-shadow: var(--glass-edge), var(--shadow-pop);
+}
+:root[data-glass] .toast { box-shadow: var(--glass-edge), var(--glass-drop); }
+
+/* Glisse-shaped controls: a 51 x 31 switch and a grey segmented track with a white thumb. */
+:root[data-glass] .switch { width: 51px; height: 31px; }
+:root[data-glass] .switch::after { width: 27px; height: 27px; box-shadow: 0 3px 8px rgb(0 0 0 / .15), 0 1px 1px rgb(0 0 0 / .16); }
+:root[data-glass] .switch.on::after { transform: translateX(20px); }
+:root[data-glass] .seg { background: var(--glass-track); border-radius: 999px; padding: 2px; }
+:root[data-glass] .seg button { border-radius: 999px; }
+:root[data-glass] .seg button.on { background: #fff; color: #000; box-shadow: 0 3px 8px rgb(0 0 0 / .12), 0 3px 1px rgb(0 0 0 / .04); }
+
+/* L2: content containers too, over a soft sky wash fixed behind the main column. */
+:root[data-glass="l2"] .main {
+  background:
+    radial-gradient(60% 50% at 15% 10%, color-mix(in srgb, var(--sky) 55%, transparent), transparent 70%),
+    radial-gradient(50% 45% at 85% 80%, color-mix(in srgb, var(--sky-line) 30%, transparent), transparent 70%),
+    var(--surface);
+  background-attachment: fixed;
+}
+:root[data-glass="l2"] :is(.panel, .field) {
+  background: var(--glass-card);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  backdrop-filter: blur(12px) saturate(1.5);
+}
+:root[data-glass="l2"] .panel { box-shadow: var(--glass-edge), var(--shadow-md); }
+:root[data-glass="l2"] .field { box-shadow: inset 0 0 0 1px var(--field), var(--glass-edge); }
+
+/* §2 fallbacks. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side, .panel, .field) {
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--surface-solid) !important;
+  }
+  :root[data-glass="l2"] .main { background: var(--surface) !important; }
+}
+@media (forced-colors: active) {
+  :root[data-glass] :is(.toolbar, .sheet, .pal, .toast, .side.mobile-side, .panel, .field) {
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: Canvas !important; border: 1px solid CanvasText;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --glass-fill: var(--surface-solid); --glass-bar: var(--surface-solid); --glass-card: var(--surface-solid); }
 }
