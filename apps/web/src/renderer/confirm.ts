@@ -50,7 +50,7 @@ export function bringBackConfirm(v: BringBackView, enter: string): string {
   const never = `<button class="btn" data-act="tv-exit" data-key="esc" data-autofocus${off}>Never mind</button>`;
   const bring = `<button class="btn dark" data-act="tv-use" data-key="enter"${off}>${v.working ? "Bringing it back…" : "Bring it back"}</button>`;
   return `<div class="scrim bb-scrim${enter ? ` ${enter}` : ""}" data-leave="${BRING_KEY}"><div class="sheet bb${v.phone ? " phone" : ""}" role="dialog" aria-modal="true" aria-labelledby="bb-h" aria-describedby="bb-lede">
-    <h2 id="bb-h">${keepTimes(esc(`Bring back ${v.name}?`))}</h2>
+    <h2 id="bb-h">Bring back <span class="bb-name">${keepTimes(esc(`${v.name}?`))}</span></h2>
     <p class="bb-lede" id="bb-lede">${lede}</p>
     ${v.unproven ? `<p class="bb-unproven">${esc(v.unproven)}</p>` : ""}
     ${v.error ? `<div class="note bad" role="alert">${esc(v.error)}</div>` : ""}

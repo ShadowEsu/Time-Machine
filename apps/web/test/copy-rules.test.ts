@@ -22,13 +22,15 @@ describe("copy rules on the new screens", () => {
 });
 
 // One verb for bringing a version back (Design A7): never "go back", "going back" or "rewind" for it on screen. The CLI's
-// `tm recover` docs keep their own word.
+// `tm recover` docs keep their own word. One name is given whole by the converged design (PR-PLAN B4): the broken version's
+// row, "Your broken version, saved before going back". It names when the save was made, not the action, and is the only exception.
 const ONE_VERB = /\b(go back|going back|went back|rewind (style|undone)|undo(ing)? (this|the|the last) rewind|before (a )?rewind)\b/i;
+const BROKEN_NAME = /saved before going back/g;
 
 describe("plain words in every renderer file", () => {
   for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts"))) {
     test(f, () => {
-      const text = readFileSync(join(dir, f), "utf8");
+      const text = readFileSync(join(dir, f), "utf8").replace(BROKEN_NAME, "");
       expect(text).not.toContain("\u2014");
       // No Please, and no softeners: "simply", "easy", or "just" before a verb ("just now" and "just before" are times).
       expect(text).not.toMatch(/\b(please|simply|easy|easily)\b/i);

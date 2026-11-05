@@ -12,9 +12,9 @@ import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, keepTimes
 import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
-import { anywayBody, bringBackView, goBackSteps, REVIEW_KEY, reviewKey, unprovenLine } from "./rewind-copy.js";
+import { afterBanner, anywayBody, bringBackView, goBackSteps, railLine, REVIEW_KEY, reviewKey, undoneLine, unprovenLine } from "./rewind-copy.js";
 import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
-import { brokeAt, changedSince, defaultPick, foldRuns, listMove, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem } from "./history-list.js";
+import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem, type Recovery } from "./history-list.js";
 import { resetProjectCaches } from "./project-caches.js";
 import { claudeChannel, type Channel } from "./channels.js";
 import { renderAskPanel } from "./ask-panel.js";
@@ -220,10 +220,13 @@ interface State {
   confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget"; id: string | null; path?: string; purpose?: Purpose | null }) | null;
   /** A button that shows its pressed state because its shortcut just fired. */
   flash: { sel: string; until: number } | null;
-  /** The last rewind in this session, until it is undone or a new one replaces it. ⌘Z undoes it. */
-  undo: { projectId: string; result: RecoverResult; working: boolean } | null;
+  /** The bring back History's banner offers Undo and Keep it for, until it is undone or kept: one made in this session, or after
+   *  a reload the newest one this tm ui made that was not kept (openAfterReload). ⌘Z undoes it. */
+  undo: { projectId: string; rec: Recovery; working: boolean; savedBefore?: string | null } | null;
   /** Each project's recoveries still on disk (branch and copy), oldest first, so History can say where they are after a reload or Keep it. */
   recoveries: Map<string, Results["recoveries"]>;
+  /** The recoveries Keep it was pressed for (keptKey), kept on this computer while they are on disk, so a reload does not offer Undo again. */
+  kept: Set<string>;
   /** The license on this computer, the key being pasted in Settings, and the last save or remove error. */
   license: { status: LicenseStatus; draft: string; working: boolean; error: string | null };
   /** Sign in to get your key, on Plan. In memory only; the sign-in token itself stays in the server. */
@@ -254,6 +257,8 @@ let root: HTMLElement;
 let toastHost: HTMLElement;
 const toastTimer = new ToastTimer(() => dismissToast());
 let announcer: HTMLElement;
+/** The last thing an action said in the polite live region (after Undo), until the next bring back. */
+let spoken = "";
 const dialogFocus = new DialogFocus();
 let addReturn: { screen: Screen; focus: string | null } | null = null;
 
@@ -420,22 +425,51 @@ async function loadTimeline(): Promise<void> {
   }
 }
 
-/** Where the open project's recoveries are. Read only; a failure leaves the last answer, since History only names them. */
+/**
+ * Where the open project's recoveries are. Read only; a failure leaves the last answer, since History only names them.
+ * After a reload this is what brings the banner back, with Undo for the newest one this tm ui made and Keep it did not keep.
+ */
 async function loadRecoveries(): Promise<void> {
   const p = project();
   if (!p) return;
   try {
     const list = await api({ method: "recoveries", projectId: p.id });
     st.recoveries.set(p.id, list);
+    // Keep it is remembered only while its recovery is on disk. This project's keys start as keptKey writes them.
+    const here = new Set(list.map((r) => keptKey(p.id, r)));
+    const mine = `${JSON.stringify([p.id]).slice(0, -1)},`;
+    const gone = [...st.kept].filter((k) => k.startsWith(mine) && !here.has(k));
+    if (gone.length) {
+      for (const k of gone) st.kept.delete(k);
+      saveKept();
+    }
+    // A bring back undone or removed outside the app has nothing left to undo.
+    const u = st.undo;
+    if (u?.projectId === p.id && !u.working && !list.some((r) => r.branch === u.rec.branch && r.copyDir === u.rec.copyDir)) st.undo = null;
+    const open = st.undo ? null : openAfterReload(list, st.kept, p.id);
+    if (open) st.undo = { projectId: p.id, rec: { id: open.id, branch: open.branch, copyDir: open.copyDir }, working: false };
     if (st.projectId === p.id) render();
   } catch {
     // History still works without it; the Done step and the recovery report name the branch and copy too.
   }
 }
 
-/** The newest recovery of a project that is still on disk, if any. */
-function lastRecovery(projectId: string): Results["recoveries"][number] | null {
-  return st.recoveries.get(projectId)?.at(-1) ?? null;
+/** Where Keep it is remembered on this computer (keptKey), across reloads and tabs. */
+const KEPT_KEY = "tm.kept";
+function readKept(): Set<string> {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(KEPT_KEY) ?? "[]");
+    return new Set(Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+function saveKept(): void {
+  try {
+    localStorage.setItem(KEPT_KEY, JSON.stringify([...st.kept]));
+  } catch {
+    // Storage can be off; Keep it then lasts until a reload.
+  }
 }
 
 /** Deploy chips for the journal, matched by recorded commit in the deploys module. Empty when nothing is linked. */
@@ -641,9 +675,10 @@ function short(sha: string): string {
 
 /** What a save point was made as, before anyone named it. `author` is the author line shown beside it, if any, so the agent is named once. */
 function madeTitle(c: TimelineEntry, author: string | null = null): string {
-  // The engine names the save it makes before a bring back by save point id. Say it by time instead.
-  const before = c.trigger === "recover" ? /^Before recovering (\S+)$/.exec(c.note) : null;
-  if (before?.[1]) return `Before bringing back ${pointName(before[1])}`;
+  // The engine saves the folder before a bring back and names that save by save point id. It is your broken version: say so,
+  // numbered when there are several (B4).
+  const broken = c.trigger === "recover" ? brokenNumbers(points()).get(c.id) : undefined;
+  if (broken) return brokenTitle(broken);
   const made = pointTitle(c, author);
   // An untitled save is named by what it did ("309 files deleted"), once its diff is read.
   return (made.trim() ? "" : changeWords(c)) || rowTitle(made, c.trigger, st.changes.get(c.id));
@@ -722,12 +757,16 @@ function sidebar(mobile = false): string {
       const s = st.statuses.get(p.id);
       // A project with no check shows when it saved, not a verdict it can never get.
       const checks = checksOn(p);
-      const v = checks ? (s?.newest?.verdict ?? null) : null;
+      // After a bring back, until Keep it or Undo, the line also says a working copy is ready (B4). The open project's folder is
+      // then your broken version, saved first: never checked, it carries the verdict of the saves before it when no file changed.
+      const ready = st.undo?.projectId === p.id;
+      const mine = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
+      const v = !checks ? null : mine?.trigger === "recover" ? carriedVerdict(points(), mine.id, st.changes) : (s?.newest?.verdict ?? null);
       // Before the statuses arrive the rail says it is reading, never "No save points yet" (cli#27). A store that can't be
       // written is not a missing folder: it says so, and the server's sentence is in the title (cli#5).
       // The open project's time is told the way its rows and header tell it: seconds only when another save shares the minute.
       const shown = p.id === st.projectId && s?.newest ? entry(s.newest.id) : null;
-      const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : checks ? verdictWord(v) : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest);
+      const label = !s ? "Loading…" : s.problemKind === "missing" ? "Can’t find it" : s.problemKind === "permission" ? "Can’t save" : s.problem ? "Needs a look" : !s.newest ? "No save points yet" : railLine(checks ? verdictWord(v) : shown ? `Saved ${ptWhen(shown)}` : saveState(s.newest), ready);
       const age = s?.newest && !s.problem ? `<span class="pj-age" data-at="${esc(s.newest.createdAt)}" title="${esc(`Last saved ${when(s.newest.createdAt)}`)}">${esc(railAge(s.newest.createdAt))}</span>` : "";
       const on = p.id === st.projectId && inProject;
       // The purpose icon carries the status dot on its corner. The name gets the whole first line; the status and the age
@@ -857,20 +896,23 @@ function listRow(c: TimelineEntry, lw: TimelineEntry | null, broke: TimelineEntr
   const running = checkRunning();
   const checking = c.id === running || (running === "new" && c.id === points().at(-1)?.id);
   const damaged = damagedReason(c);
-  const v = rowVerdict(c.verdict, { checks: checksOn(project()), checking, damaged: !!damaged });
-  const mark = v.icon === "verdict" ? vIcon(c.verdict) : v.icon === "glyph" ? '<i class="g" aria-hidden="true"></i>' : "";
+  // The broken version saved before going back, never checked, shows the verdict it carries from the save before it (B4).
+  const verdict = c.trigger === "recover" && c.verdict === null ? carriedVerdict(points(), c.id, st.changes) : c.verdict;
+  const v = rowVerdict(verdict, { checks: checksOn(project()), checking, damaged: !!damaged });
+  const mark = v.icon === "verdict" ? vIcon(verdict) : v.icon === "glyph" ? '<i class="g" aria-hidden="true"></i>' : "";
   const on = !st.foldAt && c.id === st.selected;
   const tag = c.id === lw?.id ? '<span class="lp-tag lw">Last version that works</span>' : c.id === broke?.id ? '<span class="lp-tag br">Broke here</span>' : "";
   const pin = st.notes.get(c.id)?.pinned ? `<span class="e-pin">${pinIcon(true)}<span class="sr-only">Pinned</span></span>` : "";
-  return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(c.verdict)}"${damaged ? ` title="${esc(damaged)}"` : ""}>
+  return `<div role="option" id="opt-${esc(c.id)}" class="lp-row${on ? " on" : ""}${c.id === lw?.id ? " lw" : ""}${checking ? " checking" : ""}${st.lit === c.id ? " lit" : ""}" aria-selected="${on}" data-act="pick" data-id="${esc(c.id)}" data-vid="${esc(c.id)}" data-v="${damaged ? "damaged" : verdictKey(verdict)}"${damaged ? ` title="${esc(damaged)}"` : ""}>
     <span class="lp-t"><span class="lp-tt">${esc(title(c, authorOf(c)))}</span>${pin}</span><span class="lp-when">${esc(ptClock(c))}</span><span class="lp-m"><span class="lp-v v-${v.key}">${mark}<span>${esc(v.word)}</span></span>${tag}</span></div>`;
 }
 
-/** A fold of quiet save points in History's list: one option that says how many, opened by a press, Enter or →. */
-function foldRow(key: string, rows: readonly TimelineEntry[], checks: boolean, units: { many: string }): string {
+/** A fold in History's list: one option that says how many, opened by a press, Enter or →. Quiet save points, or the earlier
+ *  of your broken versions saved before each bring back (`repeat`, under the newest of them). */
+function foldRow(key: string, rows: readonly TimelineEntry[], checks: boolean, units: { many: string }, repeat = false): string {
   const on = st.foldAt === key;
   return `<div role="option" id="opt-fold-${esc(key)}" class="lp-row lp-fold${on ? " on" : ""}" aria-selected="${on}" data-act="unfold" data-fold="${esc(key)}" data-ids="${esc(rows.map((c) => c.id).join(" "))}" data-v="none">
-    <span class="lp-t"><span class="lp-tt">${esc(`${rows.length} more ${units.many}${checks ? " · not checked" : ""}`)}</span></span><span class="lp-when" aria-hidden="true">›</span></div>`;
+    <span class="lp-t"><span class="lp-tt">${esc(repeat ? plural(rows.length, "earlier broken version") : `${rows.length} more ${units.many}${checks ? " · not checked" : ""}`)}</span></span><span class="lp-when" aria-hidden="true">›</span></div>`;
 }
 
 /**
@@ -952,7 +994,7 @@ function history(): string {
     // A folder that is gone gets its cause and the ways out instead of a second "can't" under the heading.
     const moved = st.timelineError.includes(`We can't find ${p.name} at ${p.path}.`) || st.statuses.get(p.id)?.problemKind === "missing";
     const cause = moved
-      ? `Can’t find ${p.name} at ${p.path}. If it moved, choose where it is now. Its history is kept outside the folder.`
+      ? `It’s not at ${p.path}. If it moved, choose where it is now. Its history is kept outside the folder.`
       : st.timelineError.replaceAll(` at ${p.path}`, "").replaceAll("'", "’");
     const where = !moved && st.settings.showGitDetails && st.timelineError.includes(` at ${p.path}`) ? `<p class="mono fail-path sel-text">${esc(p.path)}</p>` : "";
     const ways = `${moved ? '<button class="btn dark" data-act="relink">Choose where it is now…</button><button class="btn" data-act="reload">Try again</button>' : '<button class="btn dark" data-act="reload">Try again</button>'}<button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button>`;
@@ -963,10 +1005,13 @@ function history(): string {
   const newest = pts.at(-1);
   const checks = checksOn(p, pts);
   const checked = newest ? st.verifyResults.get(newest.id) : undefined;
-  const s = projectStatus(pts, checked && checked.verdict === newest?.verdict ? checked.at : null, checks, message);
+  // Your broken version saved before a bring back is never checked: the status reads the verdict it carries (B4), so the page
+  // still says Broken, not "Not checked yet", while the folder is the version that broke.
+  const now = newest?.trigger === "recover" ? carriedVerdict(pts, newest.id, st.changes) : (newest?.verdict ?? null);
+  const s = projectStatus(newest && now !== newest.verdict ? [...pts.slice(0, -1), { ...newest, verdict: now }] : pts, checked && checked.verdict === newest?.verdict ? checked.at : null, checks, message);
   const lw = lastWorking();
   // The way back: the last version that works while the newest does not, and the save point it broke at.
-  const behind = lw && newest?.verdict !== "PASS" ? lw : null;
+  const behind = lw && now !== "PASS" ? lw : null;
   const broke = behind ? brokeAt(pts, behind.id) : null;
   const working = st.agents?.some((a) => a.projectId === p.id && a.working);
   const command = checked?.command ?? st.agents?.find((a) => a.projectId === p.id)?.check ?? null;
@@ -983,7 +1028,7 @@ function history(): string {
     const n = named(c);
     return n.time ? n.name : namePhrase(n);
   };
-  const line = statusLine({ newest: newest?.verdict ?? null, broke: broke ? bare(broke) : null, works: behind ? bare(behind) : null, head: s.head, voice: s.voice });
+  const line = statusLine({ newest: now, broke: broke ? bare(broke) : null, works: behind ? bare(behind) : null, head: s.head, voice: s.voice });
   // The demo says so once, here.
   const sub = [p.demo ? '<span class="chip plain demo-chip">Demo project</span>' : "", command ? `Checks with <code class="mono">${esc(command)}</code> in a copy.` : "", working ? "Claude Code is working now. We check again when its turn ends." : "", st.settings.showGitDetails ? `<span class="path">${branch}${esc(p.path)}</span>` : ""].filter(Boolean).join(" ");
   const u = st.undo && st.undo.projectId === p.id && st.screen === "history" ? st.undo : null;
@@ -993,19 +1038,20 @@ function history(): string {
   const go = behind && !u && !gone && !st.drawer && !damagedReason(behind) && !st.recoveries.get(p.id)?.some((r) => r.id === behind.id)
     ? `<div class="lp-go">${bringBackButton(behind, "btn big dark", st.busy ? "disabled" : "", bringTarget(entry(st.selected))?.id === behind.id)}</div>` : "";
   const status = `<section class="lp-status" data-vid="hero" data-v="${esc(s.head)}">
-    <h1 class="lp-h"><span class="lp-mark v-${verdictKey(newest?.verdict ?? null)}" aria-hidden="true">${vIcon(newest?.verdict ?? null)}</span><span>${keepTimes(esc(line))}</span></h1>
+    <h1 class="lp-h"><span class="lp-mark v-${verdictKey(now)}" aria-hidden="true">${vIcon(now)}</span><span>${keepTimes(esc(line))}</span></h1>
     ${sub ? `<p class="lp-sub">${sub}</p>` : ""}${goneCard}${go}
   </section>`;
-  const rec = u ? null : lastRecovery(p.id);
-  const where = (branch: string, copyDir: string): string =>
-    `${branch ? `the branch <span class="mono sel-text">${esc(branch)}</span>${copyDir ? " and in " : ""}` : ""}${copyDir ? `a copy at <span class="mono sel-text">${esc(homePath(copyDir))}</span>` : ""}`;
-  const reveal = (copyDir: string): string => (copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(copyDir)}">${revealLabel()}</button>` : "");
-  const copyBranch = (branch: string): string => (branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(branch)}" aria-label="Copy branch name ${esc(branch)}">Copy branch name</button>` : "");
-  const undoBar = u
-    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You brought back ${esc(pointName(u.result.id))}. It is on ${where(u.result.copyOnly ? "" : u.result.branch, u.result.copyDir)}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}${reveal(u.result.copyDir)}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
-    : rec
-      ? `<div class="undo-card kept"><p>${esc(sentenceStart(pointName(rec.id)))} was brought back to ${where(rec.branch, rec.copyDir)}.${rec.copyDir ? "" : " Its copy is not there anymore."} Your folder was not touched.</p><div class="row-btns">${reveal(rec.copyDir)}${copyBranch(rec.branch)}</div></div>`
-      : "";
+  // After a bring back, a banner, not a toast: where it went and, while it is open, Undo and Keep it (B4). After Keep it, or for
+  // a recovery this tm ui did not make, the newest one on disk still says where it is.
+  const rec = u?.rec ?? st.recoveries.get(p.id)?.at(-1) ?? null;
+  // Your broken version for it: the save the engine made first (known in this session), else the newest made before bringing that version back.
+  const saved = !rec ? null : entry(u?.savedBefore ?? null) ?? newestByTime(pts.filter((c) => c.trigger === "recover" && c.note === `Before recovering ${rec.id}`))[0] ?? null;
+  const after = rec
+    ? afterBanner({
+      name: pointName(rec.id), branch: rec.branch, copyDir: rec.copyDir, open: !!u, working: !!u?.working, busy: !!st.busy, undoKey: keys("Mod+Z"), reveal: revealLabel(),
+      checkId: checks && entry(rec.id) ? rec.id : null, proven: entry(rec.id)?.verdict === "PASS", broken: saved ? { id: saved.id, title: title(saved) } : null,
+    })
+    : "";
   if (!pts.length) {
     return `<div class="page proj lp"><div class="doc lp-doc">${status}${gone ? "" : `<div class="empty-dir journal-empty"><p>${esc(checks ? "Save now to make your first save point, then check that it works in a copy." : "Save now to keep the first version of this folder.")}</p><button class="btn" data-act="save">Save now</button></div>`}</div></div>`;
   }
@@ -1021,10 +1067,13 @@ function history(): string {
   // A long run of quiet save points (never checked, no name, no pin, not selected, not being checked) folds into one row,
   // so the last version that works stays in sight. Works, Broken and every other verdict always show.
   const running = checkRunning();
-  const quiet = (c: TimelineEntry): boolean => c.verdict === null && !damagedReason(c) && c.id !== st.selected && c.id !== running && !st.notes.get(c.id)?.title?.trim() && !st.notes.get(c.id)?.pinned;
-  const groups = days.map((d) => ({ d, items: foldRuns(rows.filter((c) => dayOf(c) === d), quiet, st.folds) }));
+  // Your broken versions saved before each bring back are named rows: they never fold with quiet ones. Bringing versions back
+  // again and again leaves the newest as a row and folds the ones before it under it (foldRepeats).
+  const brokenIds = brokenNumbers(pts);
+  const quiet = (c: TimelineEntry): boolean => c.verdict === null && !brokenIds.has(c.id) && !damagedReason(c) && c.id !== st.selected && c.id !== running && !st.notes.get(c.id)?.title?.trim() && !st.notes.get(c.id)?.pinned;
+  const groups = days.map((d) => ({ d, items: foldRepeats(foldRuns(rows.filter((c) => dayOf(c) === d), quiet, st.folds), (c) => brokenIds.has(c.id), (c) => st.folds.has(c.id) || c.id === st.selected) }));
   if (st.foldAt && !groups.some((g) => g.items.some((x) => "fold" in x && x.fold === st.foldAt))) st.foldAt = null;
-  const itemsHtml = (items: ListItem<TimelineEntry>[]): string => items.map((x) => ("fold" in x ? foldRow(x.fold, x.rows, checks, units) : listRow(x.row, behind, broke))).join("");
+  const itemsHtml = (items: ListItem<TimelineEntry>[]): string => items.map((x) => ("fold" in x ? foldRow(x.fold, x.rows, checks, units, x.repeat) : listRow(x.row, behind, broke))).join("");
   // One day needs no groups: the list's header names it. More days group under their names.
   const options = days.length <= 1
     ? itemsHtml(groups[0]?.items ?? [])
@@ -1037,7 +1086,7 @@ function history(): string {
       <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}. F2 renames it. Esc closes it.</p>`
     : `<div class="lp-list lp-empty">${filter === "all" ? "" : noneShown(filter, p.purpose)}</div>`;
   const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n">${esc(String(pts.length))}</span>${filterBar(filter, filterCounts(readable, st.notes, checks), p.purpose)}${rulerStrip(pts, behind)}</div>`;
-  return `<div class="page proj lp${st.drawer && sheetBeside() ? " has-sheet" : ""}"><div class="doc lp-doc">${status}${undoBar}
+  return `<div class="page proj lp${st.drawer && sheetBeside() ? " has-sheet" : ""}"><div class="doc lp-doc">${status}${after}
     ${setupView(p, pts)}
     <section class="lp-col" aria-labelledby="lp-ht">${head}${listbox}</section>
     <div class="mount" data-mount="unlinked:${esc(p.id)}"></div>
@@ -1299,6 +1348,11 @@ function sheet(c: TimelineEntry): string {
     : c.id === lw?.id && !isNewest ? `The last version that works. ${verdictSentence(c)}`
     : isNewest ? (c.verdict === null && !checks ? "Where you are now." : `Where you are now. ${verdictSentence(c)}`)
     : c.verdict === null && !checks ? "Kept on this computer, outside the folder." : verdictSentence(c);
+  // Your broken version, saved before going back: its row opens your folder, where it still is unless you changed it since (B4).
+  const carried = c.trigger === "recover" && c.verdict === null ? carriedVerdict(pts, c.id, st.changes) : null;
+  const brokenCard = !gone && brokenNumbers(pts).has(c.id)
+    ? `<div class="note sh-broken"><p><b>This is your broken version.</b> ${carried ? esc(`It has the same files as the save point just before it, which is ${verdictWord(carried)}. `) : ""}This save point keeps it, so bringing a version back lost nothing.</p><div class="row-btns"><button class="btn" data-act="reveal-dir" data-path="${esc(p.path)}">${isMac() ? "Open your folder" : "Copy your folder’s path"}</button></div></div>`
+    : "";
   // Which files changed after this version, up to now: what bringing it back sets aside. The newest shows its own changes.
   const since = changedSince(pts, c.id, st.changes);
   const own = st.changes.get(c.id);
@@ -1329,7 +1383,7 @@ function sheet(c: TimelineEntry): string {
       ${savedCols(c)}
       ${gitDetails(c, p, checks)}
       <button class="btn link small" data-act="inspector">Open in Inspector<kbd>${esc(keys("Mod+I"))}</kbd></button>`);
-  const verdict = damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(c.verdict, "vb-lg");
+  const verdict = damaged ? '<span class="vb vb-lg v-damaged">Damaged</span>' : c.verdict === null && !checks ? "" : badge(carried ?? c.verdict, "vb-lg");
   const altRow = alt ? `<div class="sp-links">${alt}</div>` : "";
   // Beside the list the primary sits under the verdict; on the page it is the bar at the foot, the one action in reach.
   const acts = layout.bar ? altRow : primary || altRow ? `<div class="sp-acts">${primary}${outcome}${altRow}</div>` : "";
@@ -1344,7 +1398,7 @@ function sheet(c: TimelineEntry): string {
       <h2 class="sp-h" id="sh-h">${esc(title(c, author))}</h2>
       ${st.notes.get(c.id)?.title ? `<p class="sp-twin">${esc(`Saved as: ${madeTitle(c, author)}`)}</p>` : ""}
       <div class="meta">${verdict}${authorChip(author)}<span class="chip-slot">${st.deployChips.get(c.id) ?? ""}</span></div>
-      <p class="sp-v">${esc(lead)}</p>
+      ${brokenCard || `<p class="sp-v">${esc(lead)}</p>`}
       ${acts}
       ${files}
       <div class="sh-parts">${checkPart}${more}</div>
@@ -1679,7 +1733,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     return {
       read: `<h2 class="tv-head ${stampOnce(`done:${res.branch || res.copyDir}`)}">${keepTimes(esc(`${sentenceStart(pointName(res.id))} is back.`))} <span class="voice">Your folder wasn’t touched.</span></h2>
       ${checksOn(project()) ? `<div class="rw-proof">${badge(res.lastVerdict)}<span>${res.lastVerdict ? `Last check: ${esc(verdictWord(res.lastVerdict))}, in a copy on ${device()}.` : "Not checked yet. Run Check it works before you rely on it."}</span></div>` : ""}
-      <p class="rw-lede">${res.copyOnly ? "It is in a copy next to your folder. This folder has no Git repo, so no branch was made. Copy back the files you want to keep." : "It is on a new branch, with a copy next to your project. Your folder was not touched, so switching is your call."}</p>
+      <p class="rw-lede">${res.copyOnly ? "It is in a copy next to your folder. This folder has no Git repo, so no branch was made. Copy back the files you want to keep." : "It is on a new branch, with a copy next to your project. Switching is your call."}</p>
       <div class="rw-where">
         ${res.copyOnly ? "" : loc("New branch, local only", res.branch, `<button class="btn quiet" data-act="copy" data-text="${esc(res.branch)}" aria-label="Copy the branch name">Copy</button>`)}
         ${loc("Open this folder", res.copyDir, `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(res.copyDir)}">${revealLabel()}</button>`)}
@@ -3192,7 +3246,7 @@ function render(): void {
   const announcement = st.demoBusy ? "Building the demo…"
     : st.check?.error ?? (st.check?.result ? `${verdictWord(st.check.result.verdict)}. ${checkReason(st.check.result.reason)}`
       : st.check ? "Checking your project in a copy…"
-        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : "");
+        : st.screen === "rewind" ? [...root.querySelectorAll(".rw .tv-head, .rw .rw-proof > .vb")].map((el) => el.textContent?.trim() ?? "").join(" ") : spoken);
   const heard = homePath(announcement);
   if (announcer.textContent !== heard) announcer.textContent = heard;
   placeLeaving(leaving);
@@ -3514,7 +3568,7 @@ async function findGood(): Promise<void> {
   render();
 }
 
-/** Leave the Rewind, back to where the user was. After a finished bring back, History leads with Undo. */
+/** Leave the Rewind, back to where the user was. After a finished bring back, History leads with its banner (B4), and focus goes to it. */
 function exitRewind(): void {
   const r = st.rewind;
   const finished = r?.step === "done" ? r.result : null;
@@ -3524,17 +3578,18 @@ function exitRewind(): void {
   st.screen = back.screen;
   const ids = points().map((c) => c.id);
   if (back.selected && ids.includes(back.selected)) st.selected = back.selected;
-  // After a bring back, the detail would offer the same Bring back again. History leads with the undo bar instead.
+  // After a bring back, the detail would offer the same Bring back again. History leads with the banner instead.
   if (finished) st.drawer = false;
   render();
   const list = document.getElementById("list");
   if (list) list.scrollTop = back.listScroll;
   const page = document.querySelector(".page");
-  if (page) page.scrollTop = back.pageScroll;
+  // After a bring back the page starts at its top, where the banner is, so Undo is in view (B4); else exactly where you were.
+  if (page) page.scrollTop = finished ? 0 : back.pageScroll;
   // Never mind: DialogFocus gives focus back to what opened the Rewind. Opened by a shortcut with focus nowhere, it goes to the list.
   if (!finished) return refocusList();
-  root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
-  toast(`Brought back ${pointName(finished.id)}. Your folder wasn’t touched. ${keys("Mod+Z")} undoes it.`, finished.lastVerdict);
+  // A banner, not a toast: its heading takes focus, so it is read out, and Tab goes on to Show in Finder, Undo and Keep it.
+  root.querySelector<HTMLElement>("#after-h")?.focus({ preventScroll: true });
 }
 
 /** Put the Time View playhead on another save point. Nothing runs until Try or Use. */
@@ -3674,17 +3729,23 @@ async function rewindDo(): Promise<void> {
   render();
   try {
     r.result = await api({ method: "recover", projectId: p.id, id: r.target });
-    st.undo = { projectId: p.id, result: r.result, working: false };
+    st.undo = { projectId: p.id, rec: { id: r.result.id, branch: r.result.branch, copyDir: r.result.copyDir }, working: false, savedBefore: r.result.savedBefore };
+    spoken = "";
     r.step = "done";
   } catch (e) {
     r.error = msg(e);
   }
   r.recovering = false;
   st.busy = null;
-  // The pressed key was disabled while it worked, so focus moved on. Draw the outcome now and give its key the focus:
-  // Done when it is back, the key again when it failed. Later redraws keep it there.
-  render();
-  root.querySelector<HTMLElement>(r.step === "done" ? '.rw [data-act="tv-done"]' : '.rw [data-act="tv-use"], .bb [data-act="tv-use"]')?.focus({ preventScroll: true });
+  if (r.step === "done" && r.mode === "confirm") {
+    // No Done step after the one confirm: History's banner says where it went, with Undo and Keep it (B4).
+    exitRewind();
+  } else {
+    // The pressed key was disabled while it worked, so focus moved on. Draw the outcome now and give its key the focus:
+    // Done when it is back, the key again when it failed. Later redraws keep it there.
+    render();
+    root.querySelector<HTMLElement>(r.step === "done" ? '.rw [data-act="tv-done"]' : '.rw [data-act="tv-use"], .bb [data-act="tv-use"]')?.focus({ preventScroll: true });
+  }
   await loadTimeline();
   await refreshStatuses();
   render();
@@ -3703,24 +3764,28 @@ async function undoRewind(): Promise<void> {
   st.busy = "Undoing the bring back";
   render();
   try {
-    const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.result.id, branch: u.result.branch, copyDir: u.result.copyDir });
+    const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.rec.id, branch: u.rec.branch, copyDir: u.rec.copyDir });
     st.undo = null;
+    st.recoveries.set(u.projectId, (st.recoveries.get(u.projectId) ?? []).filter((x) => x.branch !== u.rec.branch || x.copyDir !== u.rec.copyDir));
     st.busy = null;
     if (st.screen === "rewind" && st.rewind?.step === "done") {
       st.rewind = { ...st.rewind, result: null, step: "review" };
       exitRewind();
     }
     await loadTimeline();
+    // Focus goes to History's list on the row that was brought back, at every width (Design #72 M2), and the polite live region
+    // says what Undo removed, from the engine's answer. No toast: it would say it a second time.
+    if (st.screen === "history" && entry(u.rec.id)) st.selected = u.rec.id;
+    spoken = undoneLine(r);
     render();
-    refocusList();
-    toast(r.removedBranch ? `Bring back undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Bring back undone. Removed the copy. Every save point is still here.`);
+    root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: false });
   } catch (e) {
     u.working = false;
     st.busy = null;
     toast(msg(e));
     // The refused Undo stays offered: redraw it enabled and put focus back on it, so focus never drops to the page.
     render();
-    root.querySelector<HTMLElement>('.rw [data-act="undo-rewind"], .undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
+    root.querySelector<HTMLElement>('.rw [data-act="undo-rewind"], .after [data-act="undo-rewind"]')?.focus({ preventScroll: true });
   }
   void refreshStatuses().then(render);
 }
@@ -4471,8 +4536,14 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "undo-rewind":
       return undoRewind();
     case "undo-dismiss":
+      // Keep it: the copy and the branch stay, Undo goes, and a reload does not offer it again. The banner stays, saying where it is.
+      if (st.undo) {
+        st.kept.add(keptKey(st.undo.projectId, st.undo.rec));
+        saveKept();
+      }
       st.undo = null;
       render();
+      root.querySelector<HTMLElement>("#after-h")?.focus({ preventScroll: true });
       return refocusList();
     case "tv-go":
       return tvGo(d.id);
@@ -5178,7 +5249,7 @@ export async function start(b: TmBridge, o: StartOptions): Promise<void> {
     askOpen: false, lit: null, lastTurn: new Map(), deployChips: new Map(),
     menu: null, palette: null, keysSheet: false, records: [], storage: null,
     agents: null, overview: new Map(), sources: null, notes: new Map(), journalFilter: "all", folds: new Set(), foldAt: null, noteDraft: null, noteSaving: false, isolation: null, cleanup: null, thin: null,
-    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), changesFor: "", confirm: null, flash: null, undo: null, recoveries: new Map(),
+    hookSheet: null, demoBusy: false, openResult: null, verifyResults: new Map(), logTails: new Map(), storedChecks: new Map(), changes: new Map(), changesFor: "", confirm: null, flash: null, undo: null, recoveries: new Map(), kept: readKept(),
     license: { status: boot.data.license, draft: "", working: false, error: null },
     account: { ...SIGNED_OUT },
     copyMade: null,

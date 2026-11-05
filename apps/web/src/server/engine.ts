@@ -57,6 +57,9 @@ const PackageScripts = z.object({ scripts: z.record(z.string(), z.unknown()).opt
 export class Engine {
   /** Paths the engine handed back in this session. Only these can be revealed or read. */
   readonly allowedPaths = new Set<string>();
+  /** Recovery copies a rewind made in this session, by the path it returned. Only these are listed as undoable: allowedPaths
+   *  also holds project roots, and a copy later added as a project is not one this session made. */
+  private readonly madeCopies = new Set<string>();
   /** Projects with an engine action running right now. */
   readonly busy = new Map<string, string>();
   private readonly queues = new Map<string, Promise<unknown>>();
@@ -508,6 +511,7 @@ export class Engine {
         const result = await tm.demo({ cwd: tmpdir(), env: process.env });
         const project = await this.addProject(result.dir, true);
         for (const x of [result.dir, result.recover.copyDir, result.recover.reportPath]) this.allowedPaths.add(x);
+        this.madeCopies.add(result.recover.copyDir);
         return { project, result };
       }
       case "storage":
@@ -661,13 +665,27 @@ export class Engine {
           const r = await tm.recover(ctx, call.id, call.dest === undefined ? undefined : { dest: call.dest });
           this.allowedPaths.add(r.copyDir);
           this.allowedPaths.add(r.reportPath);
+          this.madeCopies.add(r.copyDir);
           return r;
         });
       case "restorePaths":
         return this.serial(p.id, "Putting files back", () => tm.restorePaths(ctx, call.id, call.paths, call.dryRun ? { dryRun: true } : {}));
-      case "recoveries":
-        // Read only: History names where each recovery is. Undo still takes only a copy made in this session.
-        return tm.recoveries(ctx);
+      case "recoveries": {
+        // Read only: History names where each recovery is. Undo still takes only a copy made in this session: those (madeCopies,
+        // never just any allowed path) are marked undoable, by the exact path Undo takes, so a reload of the page can offer Undo again.
+        const real = (path: string): string | null => {
+          try {
+            return realpathSync(path);
+          } catch {
+            return null;
+          }
+        };
+        return tm.recoveries(ctx).map((r) => {
+          const here = r.copyDir ? real(r.copyDir) : null;
+          const made = r.copyDir && this.madeCopies.has(r.copyDir) ? r.copyDir : here ? [...this.madeCopies].find((a) => real(a) === here) : undefined;
+          return made ? { ...r, copyDir: made, undoable: true } : { ...r, undoable: false };
+        });
+      }
       case "undoRecover": {
         // Core refuses anything that is not this exact recovery copy. The app also only passes on
         // a copy it made in this session.
@@ -676,6 +694,7 @@ export class Engine {
         return this.serial(p.id, "Undoing the rewind", async () => {
           const r = await tm.undoRecover(ctx, { id: call.id, branch: call.branch, copyDir });
           this.allowedPaths.delete(copyDir);
+          this.madeCopies.delete(copyDir);
           return r;
         });
       }

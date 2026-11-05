@@ -1,7 +1,7 @@
 // History as a list: what is selected first, what the status line says, what each row and each mark of the mini-ruler
 // shows, where the keys go, which quiet save points fold, and how the preview sheet opens, follows and closes.
 import { describe, expect, test } from "vitest";
-import { brokeAt, changedSince, defaultPick, foldRuns, listMove, rowVerdict, RULER_MARKS, rulerMarks, SHEET_SIDE_MIN, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, brokenNumbers, brokenTitle, carriedVerdict, changedSince, defaultPick, foldRepeats, foldRuns, keptKey, listMove, openAfterReload, rowVerdict, RULER_MARKS, rulerMarks, SHEET_SIDE_MIN, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -199,5 +199,58 @@ describe("the preview sheet", () => {
     expect(showsBackToNow("history")).toBe(false);
     expect(showsBackToNow("compare")).toBe(true);
     expect(showsBackToNow("overview")).toBe(false);
+  });
+});
+
+describe("after a bring back (B4)", () => {
+  // The engine saves the folder before every bring back, with the note "Before recovering <id>" and the trigger "recover".
+  const save = (id: string, of: string | null, verdict: ListPoint["verdict"] = null) => ({ id, verdict, trigger: of ? "recover" : "manual", note: of ? `Before recovering ${of}` : "Added dark mode" });
+
+  test("the broken version saved before going back has one name; repeats are numbered in the order they were made", () => {
+    const pts = [save("cp-0001", null), save("cp-0002", null, "FAIL"), save("cp-0003", "cp-0001"), save("cp-0004", "cp-0001"), save("cp-0005", null), save("cp-0006", "cp-0001")];
+    const n = brokenNumbers(pts);
+    expect([...n]).toEqual([["cp-0003", 1], ["cp-0004", 2], ["cp-0006", 3]]);
+    expect(brokenTitle(n.get("cp-0003") ?? 0)).toBe("Your broken version, saved before going back");
+    expect(brokenTitle(n.get("cp-0004") ?? 0)).toBe("Your broken version #2, saved before going back");
+    // A save someone made with those words by hand is not one: the trigger says who made it.
+    expect(brokenNumbers([{ id: "cp-0001", trigger: "manual", note: "Before recovering cp-0009" }]).size).toBe(0);
+  });
+
+  test("repeats next to each other fold under the newest, which stays a row; an opened or selected one unfolds them", () => {
+    const rows = ["b3", "b2", "b1", "x", "b0"].map((id) => ({ id }));
+    const broken = (c: { id: string }): boolean => c.id.startsWith("b");
+    const shape = (keep: (c: { id: string }) => boolean): string[] =>
+      foldRepeats(rows.map((row) => ({ row })), broken, keep).map((x) => ("fold" in x ? `fold ${x.fold} x${x.rows.length}${x.repeat ? " repeat" : ""}` : x.row.id));
+    expect(shape(() => false)).toEqual(["b3", "fold b2 x2 repeat", "x", "b0"]);
+    expect(shape((c) => c.id === "b1")).toEqual(["b3", "b2", "b1", "x", "b0"]);
+    // A quiet fold already made stays as it is.
+    const quiet = foldRepeats([{ fold: "q1", rows: [{ id: "q1" }] }, { row: { id: "b1" } }], broken, () => false);
+    expect(quiet).toEqual([{ fold: "q1", rows: [{ id: "q1" }] }, { row: { id: "b1" } }]);
+  });
+
+  test("a save never checked carries the verdict of the saves before it while no file changed between them", () => {
+    const pts: ListPoint[] = [{ id: "cp-0002", verdict: "FAIL" }, { id: "cp-0003", verdict: null }, { id: "cp-0004", verdict: null }];
+    expect(carriedVerdict(pts, "cp-0003", new Map([["cp-0003", []]]))).toBe("FAIL");
+    expect(carriedVerdict(pts, "cp-0003", new Map([["cp-0003", ["src/app.js"]]]))).toBe(null);
+    // Not read yet is not "nothing changed".
+    expect(carriedVerdict(pts, "cp-0003", new Map())).toBe(null);
+    expect(carriedVerdict([{ id: "a", verdict: "PASS" }, { id: "b", verdict: "FAIL" }], "b", new Map([["b", []]]))).toBe("FAIL");
+    // A second bring back saves the same broken folder again: it carries through the first one.
+    expect(carriedVerdict(pts, "cp-0004", new Map([["cp-0003", []], ["cp-0004", []]]))).toBe("FAIL");
+    expect(carriedVerdict(pts, "cp-0004", new Map([["cp-0003", ["a.js"]], ["cp-0004", []]]))).toBe(null);
+    expect(carriedVerdict(pts, "cp-0004", new Map([["cp-0004", []]]))).toBe(null);
+  });
+
+  test("after a reload the banner offers Undo for the newest recovery this tm ui made, until Keep it", () => {
+    const a = { id: "cp-0001", branch: "tm/recover/cp-0001", copyDir: "/x/app-recovered-cp-0001", undoable: true };
+    const b = { id: "cp-0003", branch: "tm/recover/cp-0003", copyDir: "/x/app-recovered-cp-0003", undoable: true };
+    expect(openAfterReload([a, b], new Set(), "p1")).toEqual(b);
+    expect(openAfterReload([a, b], new Set([keptKey("p1", b)]), "p1")).toBe(null);
+    // Kept in another project is not kept here.
+    expect(openAfterReload([a, b], new Set([keptKey("p2", b)]), "p1")).toEqual(b);
+    // One made before tm ui started can't be undone from here: no banner offers it.
+    expect(openAfterReload([a, { ...b, undoable: false }], new Set(), "p1")).toBe(null);
+    expect(openAfterReload([{ ...a, copyDir: "" }], new Set(), "p1")).toBe(null);
+    expect(openAfterReload([], new Set(), "p1")).toBe(null);
   });
 });

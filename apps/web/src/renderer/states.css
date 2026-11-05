@@ -539,7 +539,10 @@ section > .b9-lede { margin: -2px 0 16px; }
    placeLeaving; under Reduce motion (the computer's or .rm) it only fades. */
 .app > .scrim.bb-scrim { z-index: 45; place-items: center; padding: 24px; }
 .sheet.bb { width: min(640px, 100%); gap: 18px; padding: 28px 32px 26px; }
-.sheet.bb h2 { font-size: 30px; line-height: 1.12; }
+/* The title spans the dialog's width: it breaks before the version's name, never inside it while the name fits on a line
+   (Design, PR #71), and a name longer than a line wraps balanced. */
+.sheet.bb h2 { width: 100%; font-size: 30px; line-height: 1.12; text-wrap: balance; }
+.bb-name { display: inline-block; max-width: 100%; text-wrap: balance; }
 .bb-lede { font-size: 15.5px; line-height: 1.55; color: var(--ink-2); }
 .bb-unproven { font: 500 15px/1.5 var(--font); color: var(--ink); }
 .bb-lists { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; }

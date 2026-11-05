@@ -241,7 +241,8 @@ export const CallSchema = z.discriminatedUnion("method", [
   z.strictObject({ method: z.literal("restorePaths"), projectId: ProjectId, id: CheckpointId, paths: z.array(z.string().min(1).max(4096)).min(1).max(500), dryRun: z.boolean().optional() }),
   /** `branch` is "" for a plain folder project: its recovery made a copy only. */
   z.strictObject({ method: z.literal("undoRecover"), projectId: ProjectId, id: CheckpointId, branch: z.string().regex(/^(tm\/recover\/cp-\d{4,}(-\d+)?)?$/), copyDir: AbsPath }),
-  /** The recoveries still on disk, oldest first: each recovery branch with its copy ("" when the copy is gone). Read only. */
+  /** The recoveries still on disk, oldest first: each recovery branch with its copy ("" when the copy is gone), and whether
+   *  this tm ui made it, so Undo can take it back. Read only. */
   z.strictObject({ method: z.literal("recoveries"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("log"), projectId: ProjectId }),
   z.strictObject({ method: z.literal("hookPreview"), projectId: ProjectId }),
@@ -517,7 +518,8 @@ export interface Results {
   recover: RecoverResult;
   restorePaths: RestoreResult;
   undoRecover: UndoRecoverResult;
-  recoveries: { id: string; branch: string; copyDir: string }[];
+  /** `undoable`: this tm ui made it, and `copyDir` is the exact path undoRecover takes. */
+  recoveries: { id: string; branch: string; copyDir: string; undoable: boolean }[];
   log: LogResult;
   hookPreview: HookPreview;
   hookInstall: HookInstallResult;

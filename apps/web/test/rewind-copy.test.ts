@@ -1,6 +1,6 @@
 // What going back says it will do: a plain folder (no Git) is never promised a branch (Design gate MF2).
 import { describe, expect, test } from "vitest";
-import { anywayBody, bringBackView, REVIEW_KEY, reviewKey, goBackSteps, unprovenLine } from "../src/renderer/rewind-copy.ts";
+import { afterBanner, anywayBody, bringBackView, railLine, REVIEW_KEY, reviewKey, goBackSteps, undoneLine, unprovenLine, type AfterView } from "../src/renderer/rewind-copy.ts";
 
 describe("rewind wording", () => {
   test("a plain folder: save, then a copy; no branch anywhere", () => {
@@ -61,5 +61,108 @@ describe("where a bring back opens", () => {
     expect(bringBackView({ folderMissing: false, damaged: false })).toBe("confirm");
     expect(bringBackView({ folderMissing: true, damaged: false })).toBe("dial");
     expect(bringBackView({ folderMissing: false, damaged: true })).toBe("dial");
+  });
+});
+
+describe("after a bring back: a banner on History, not a toast (B4)", () => {
+  const view = (over: Partial<AfterView> = {}): AfterView => ({
+    name: "“Added dark mode” (8:03:18 AM)",
+    branch: "tm/recover/cp-0003",
+    copyDir: "/Users/me/tmp/marigold-tips-recovered-cp-0003",
+    open: true,
+    working: false,
+    busy: false,
+    undoKey: "⌘Z",
+    reveal: "Show in Finder",
+    checkId: "cp-0003",
+    broken: { id: "cp-0008", title: "Your broken version, saved before going back" },
+    ...over,
+  });
+  /** The buttons in document order: [data-act, words without the key cap]. */
+  const buttons = (html: string): string[][] =>
+    [...html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)].map((m) => [/data-act="([^"]+)"/.exec(m[1] ?? "")?.[1] ?? "", (m[2] ?? "").replace(/<kbd>[\s\S]*?<\/kbd>/, "").replace(/<[^>]+>/g, "")]);
+  /** The words a button points to with aria-describedby. */
+  const consequence = (html: string, act: string): string => {
+    const id = new RegExp(`<button[^>]*data-act="${act}"[^>]*aria-describedby="([^"]+)"`).exec(html)?.[1] ?? "none";
+    return new RegExp(`id="${id}"[^>]*>([^<]*)<`).exec(html)?.[1] ?? "";
+  };
+
+  test("says where the working version went (branch and copy) and that your folder was not touched, once; Undo and Keep it each carry a consequence", () => {
+    const html = afterBanner(view());
+    expect(html).not.toMatch(/toast|role="alert"/);
+    expect(html).toContain("tm/recover/cp-0003");
+    expect(html).toContain("/Users/me/tmp/marigold-tips-recovered-cp-0003");
+    expect(html.match(/not touched/g)?.length).toBe(1);
+    // Undo and Keep it come first after where it went, so Undo is in view from the first frame on a phone too.
+    expect(buttons(html)).toEqual([
+      ["undo-rewind", "Undo this bring back"],
+      ["undo-dismiss", "Keep it"],
+      ["reveal-dir", "Show in Finder"],
+      ["verify-one", "Check this version"],
+      ["pick", "Show it in History"],
+    ]);
+    expect(html).toMatch(/data-act="reveal-dir" data-path="\/Users\/me\/tmp\/marigold-tips-recovered-cp-0003"/);
+    expect(html).toMatch(/data-act="pick" data-id="cp-0008"/);
+    // The row is named in the sentence, so the link can be short and say where it goes.
+    expect(/class="after-broken">([\s\S]*?)<button/.exec(html)?.[1]).toContain("saved in History as “Your broken version, saved before going back”.");
+    expect(html).toMatch(/<kbd>⌘Z<\/kbd>/);
+    expect(consequence(html, "undo-rewind")).toMatch(/^Removes the copy and the branch\. [^.]+\.$/);
+    expect(consequence(html, "undo-dismiss")).toMatch(/^Keeps the copy and the branch\. [^.]+\.$/);
+    expect(html).not.toContain("—");
+  });
+
+  test("a plain folder has no Git: its banner never mentions a branch", () => {
+    const html = afterBanner(view({ branch: "" }));
+    expect(html).not.toMatch(/branch/i);
+    expect(consequence(html, "undo-rewind")).toMatch(/^Removes the copy\./);
+    expect(consequence(html, "undo-dismiss")).toMatch(/^Keeps the copy\./);
+  });
+
+  test("a project with no check gets no Check it works, and no broken row is linked when there is none", () => {
+    const acts = buttons(afterBanner(view({ checkId: null, broken: null }))).map((b) => b[0]);
+    expect(acts).toEqual(["undo-rewind", "undo-dismiss", "reveal-dir"]);
+  });
+
+  test("after Keep it, or for a recovery tm ui did not make, it still says where it went, with no Undo and no Keep it", () => {
+    const kept = afterBanner(view({ open: false }));
+    expect(buttons(kept).map((b) => b[0])).toEqual(["reveal-dir", "copy", "verify-one", "pick"]);
+    expect(kept).toMatch(/data-act="copy" data-text="tm\/recover\/cp-0003"/);
+    expect(kept.match(/not touched/g)?.length).toBe(1);
+    // A copy that was moved or removed: no Show in Finder, and the banner says so.
+    const gone = afterBanner(view({ open: false, copyDir: "" }));
+    expect(buttons(gone).map((b) => b[0])).not.toContain("reveal-dir");
+    expect(gone).toContain("Its copy is not there anymore.");
+  });
+
+  test("while Undo works, both choices wait, and Undo says so", () => {
+    const html = afterBanner(view({ working: true, busy: true }));
+    expect(html).toMatch(/<button[^>]*data-act="undo-rewind"[^>]*disabled[^>]*>Undoing…/);
+    expect(html).toMatch(/<button[^>]*data-act="undo-dismiss"[^>]*disabled/);
+  });
+
+  test("the engine's names and paths are escaped", () => {
+    const html = afterBanner(view({ name: "“<i>x</i>”", copyDir: "/tmp/<b>y</b>", broken: { id: "cp-0008", title: "<s>z</s>" } }));
+    expect(html).not.toMatch(/<i>x|<b>y|<s>z/);
+  });
+
+  test("the sidebar says a working copy is ready next to the verdict until Keep it or Undo", () => {
+    expect(railLine("Broken", true)).toBe("Broken · copy ready");
+    expect(railLine("Broken", false)).toBe("Broken");
+  });
+
+  test("its check button names its own target, Check this version, and is gone when that version already passed (Design #72 M1)", () => {
+    const unproven = afterBanner(view());
+    expect(buttons(unproven).filter((b) => b[0] === "verify-one")).toEqual([["verify-one", "Check this version"]]);
+    expect(unproven).not.toContain("Check it works");
+    const proven = afterBanner(view({ proven: true }));
+    expect(buttons(proven).map((b) => b[0])).toEqual(["undo-rewind", "undo-dismiss", "reveal-dir", "pick"]);
+    expect(buttons(afterBanner(view({ proven: true, open: false }))).map((b) => b[0])).not.toContain("verify-one");
+  });
+
+  test("after Undo the live region says what Undo really removed (Design #72 M2)", () => {
+    expect(undoneLine({ removedBranch: "tm/recover/cp-0003", removedCopy: "/x/app-recovered-cp-0003" })).toBe("Undone. The copy and branch are removed.");
+    expect(undoneLine({ removedBranch: "", removedCopy: "/x/app-recovered-cp-0003" })).toBe("Undone. The copy is removed.");
+    expect(undoneLine({ removedBranch: "tm/recover/cp-0003", removedCopy: null })).toBe("Undone. The branch is removed; its copy was already gone.");
+    expect(undoneLine({ removedBranch: "", removedCopy: null })).toBe("Undone. Its copy was already gone.");
   });
 });
