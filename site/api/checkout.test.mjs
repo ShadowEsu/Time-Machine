@@ -247,7 +247,7 @@ describe("checkout handler", () => {
     expect(script).toContain(`var BOX_VERSION = "${BOX_VERSION}";`);
     expect(script).toContain('box.setAttribute("data-box-version", BOX_VERSION)');
     expect(script).toContain('boxVersion: box.getAttribute("data-box-version")');
-    for (const words of ['"I agree to the "', 'link("terms.html", "Terms")', '" and have read the "', 'link("privacy.html", "Privacy Policy")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
+    for (const words of ['"I agree to the "', 'link("/terms", "Terms")', '" and have read the "', 'link("/privacy", "Privacy Policy")', '". I am 18 or older, or I am the parent or guardian paying."']) expect(script).toContain(words);
     expect(script).not.toMatch(/box\.checked = true/);
     expect(script).toContain("agreement_outdated");
   });

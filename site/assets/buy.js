@@ -48,9 +48,9 @@
   box.setAttribute("data-box-version", BOX_VERSION);
   var words = document.createElement("span");
   words.appendChild(document.createTextNode("I agree to the "));
-  words.appendChild(link("terms.html", "Terms"));
+  words.appendChild(link("/terms", "Terms"));
   words.appendChild(document.createTextNode(" and have read the "));
-  words.appendChild(link("privacy.html", "Privacy Policy"));
+  words.appendChild(link("/privacy", "Privacy Policy"));
   words.appendChild(document.createTextNode(". I am 18 or older, or I am the parent or guardian paying."));
   agree.appendChild(box);
   agree.appendChild(words);

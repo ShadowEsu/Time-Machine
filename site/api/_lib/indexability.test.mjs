@@ -77,4 +77,13 @@ describe("indexability", () => {
       });
     }
   }
+  // cleanUrls answers every *.html with a 308, so a link to one costs each click a round trip (Unvibe QA, 4 Nov).
+  it("links to its own pages by clean path, never by .html", () => {
+    const own = /\bhref="(?!https?:|\/\/|mailto:|#)[^"#?]*\.html[#?"]/;
+    for (const file of [...pages(SITE), join(SITE, "assets", "buy.js")]) {
+      const text = readFileSync(file, "utf8");
+      expect(text.match(own)?.[0], `${relative(SITE, file)} links a .html path`).toBeUndefined();
+      expect(text.match(/\blink\("[^"]*\.html/)?.[0], `${relative(SITE, file)} builds a .html link`).toBeUndefined();
+    }
+  });
 });
