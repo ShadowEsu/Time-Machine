@@ -1,7 +1,7 @@
 /* Time Machine, the Unvibe sibling (agents/design/tm-app-direction-2026-10-23.md). Warm paper shell, a white
    canvas, light first. Bricolage Grotesque says the status, Instrument Serif italic is the voice, Inter carries
    the record, IBM Plex Mono the times, ids and commands. Controls are ink pills with a hard offset shadow.
-   Sky marks the target, keycaps and focus; colour on a save point always means a recorded verdict, and its
+   Sky marks the target and keycaps, and the blue --focus draws the focus ring; colour on a save point always means a recorded verdict, and its
    shape and word carry it too. Fonts ship with the app (SIL OFL 1.1, licences in fonts/). Nothing loads from the network. */
 @font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 200 800; font-display: block; src: url("fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2"); }
 @font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: block; src: url("fonts/instrument-serif-latin-400-italic.woff2") format("woff2"); }
@@ -15,8 +15,8 @@
   --ink: #141414; --ink-2: #3a3936; --ink-3: #66635d; --faint: #6f6b63; --ink-4: #8b877f; --ink-5: #d6d1c6;
   --line: #e4e0d7; --line-2: #d6d1c6; --hair: #efece5;
   --sky: #cfe6ff; --sky-ink: #0d4a8f; --sky-line: #9cc8f5;
-  /* The focus ring is the brand's orange, at 4.2 : 1 or more against paper and canvas. Sky stays for keycaps and links. */
-  --focus: #2f7fd8; --ring: #c2410c;
+  /* The focus ring is the blue --focus, 4.08 : 1 on the white canvas (Design, Calm). Sky stays for keycaps and links. */
+  --focus: #2f7fd8;
   /* An ink chip (the ruler's Now): ink with paper text in both themes. */
   --chip-ink: #141414; --chip-text: #f4f2ed;
   /* Verdicts: Works, Broken, Not checked yet; amber for Couldn't check and Needs something. */
@@ -34,6 +34,8 @@
      the History playhead's glide 260, travel along the Rewind's ruler 420. Only transform and opacity move. The two idle
      loops (the rail's dot, the pulse on Now) never start under Reduce motion, the app's own or the computer's. */
   --t-press: 180ms; --t-hover: 160ms; --t-snap: 120ms; --t-enter: 220ms; --t-exit: 150ms; --t-glide: 260ms; --t-travel: 420ms;
+  /* Bringing a version back is the one bigger moment (Design B6 §3.3, not used yet). */
+  --t-moment: 560ms;
   --press-ease: cubic-bezier(.3, 1.5, .5, 1); --ease: cubic-bezier(.16, 1, .3, 1); --ease-io: cubic-bezier(.65, 0, .35, 1);
   /* Names the other screens still use, on the new palette, until each is rebuilt. */
   --soft: var(--sunken); --card: var(--paper-2); --side: var(--paper); --mist: #efece6; --sheet: var(--surface); --press: #e7e3da;
@@ -55,7 +57,7 @@
   --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
   --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
   --line: #45423c; --line-2: #57534c; --hair: #36332f;
-  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --ring: #fb923c;
+  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5;
   --works: #6fd39a; --works-bg: #1e3a2a; --broken: #ff9a8b; --broken-bg: #43221d; --unk: #b3aea4; --unk-bg: #33312d;
   --amber: #f5c96a; --amber-bg: #3a2d10; --amber-dot: #e0a630;
   --hard: 3px 3px 0 #000; --hard-sm: 2px 2px 0 #000; --hard-lg: 6px 6px 0 #000;
@@ -67,7 +69,7 @@
   --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
   --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
   --line: #45423c; --line-2: #57534c; --hair: #36332f;
-  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --ring: #fb923c;
+  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5;
   --works: #6fd39a; --works-bg: #1e3a2a; --broken: #ff9a8b; --broken-bg: #43221d; --unk: #b3aea4; --unk-bg: #33312d;
   --amber: #f5c96a; --amber-bg: #3a2d10; --amber-dot: #e0a630;
   --hard: 3px 3px 0 #000; --hard-sm: 2px 2px 0 #000; --hard-lg: 6px 6px 0 #000;
@@ -84,8 +86,8 @@ body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.
 ::selection { background: var(--sky); color: var(--ink); }
 body.overlay-body { background: transparent; }
 button, input, select { font: inherit; color: inherit; }
-/* One focus ring for the whole app: the brand orange, 3 px, 3 px outside the control's own corners, so a focused pill stays a pill. */
-:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
+/* One focus ring for the whole app: the blue --focus, 2 px, 2 px outside the control's own corners, so a focused pill stays a pill. */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .mono, code { font-family: var(--mono); font-size: 13px; }
 .muted { color: var(--ink-3); }
 .small { font-size: 13.5px; }
@@ -375,7 +377,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 /* The list is a listbox: focus stays on it and the selected row carries the ring, so focus is always seen. */
 .lp-list { position: relative; outline: none; }
 .lp-list:focus-visible { box-shadow: inset 0 0 0 1px var(--ink-4); }
-.lp-list:focus-visible .lp-row.on { outline: 3px solid var(--ring); outline-offset: -3px; z-index: 1; }
+.lp-list:focus-visible .lp-row.on { outline: 2px solid var(--focus); outline-offset: -4px; z-index: 1; }
 .lp-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t w" "m m"; gap: 6px 12px; align-items: start; padding: 12px 16px 12px 20px; border-top: 1px solid var(--hair); cursor: pointer; }
 .lp-list > .lp-row:first-child, .lp-day + .lp-row { border-top: 0; }
 .lp-row:hover { background: var(--sunken); }
@@ -457,6 +459,51 @@ summary { padding-block: 12px; margin-block: -12px; }
 .sp-links { display: flex; flex-wrap: wrap; gap: 0 22px; }
 .sp-note { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
 .sp-cols { display: grid; gap: 16px; padding-top: 16px; border-top: 1px solid var(--hair); }
+
+/* History's preview sheet (Calm, on redesign B), opened from a row. Beside the list (.sh-side, 1100 px and wider) it is a
+   column on the canvas's right under the toolbar, and the page makes room for it, so the selected row stays in sight.
+   Narrower (.sh-page) it is a full-height page over History: Back at its top and the one primary in a bar at its foot. */
+.lp-sheet { display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
+.lp-sheet.sh-side { position: absolute; top: 68px; right: 0; bottom: 0; z-index: 15; width: min(420px, 40%); border-left: 1px solid var(--line); }
+.page.lp.has-sheet { padding-right: min(420px, 40%); }
+.lp-sheet.sh-page { position: fixed; inset: 0; z-index: 44; }
+.sh-top { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 60px; padding: 8px 12px; border-bottom: 1px solid var(--hair); }
+.lp-sheet.sh-page .sh-top { justify-content: flex-start; padding-left: 8px; }
+.sh-back { gap: 6px; font-weight: 600; }
+.sh-back svg { width: 16px; height: 16px; flex: none; }
+.sh-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; padding: 22px 24px 32px; }
+.lp-sheet.sh-page .sh-body { padding: 22px 18px 28px; }
+/* The primary and the links name versions, so a long name wraps inside its button instead of widening the sheet. */
+.lp-sheet .btn.big { white-space: normal; height: auto; min-height: 52px; padding-block: 10px; text-align: center; }
+.lp-sheet .btn.link { white-space: normal; text-align: left; }
+.lp-eye { margin: 0; font: 500 13.5px/1.3 var(--font); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sh-body .sp-h { margin-top: -8px; font-size: 26px; }
+.sh-body .meta { margin-top: 0; }
+.lp-out { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.lp-files { padding: 14px 16px; border-radius: var(--r-md); background: var(--sunken); border: 1px solid var(--hair); }
+.lp-files h3 { margin: 0 0 8px; font: 600 14.5px/1.3 var(--font); letter-spacing: 0; color: var(--ink); }
+.lp-files p { margin: 0; font-size: 14px; }
+.lp-fl { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font: 500 13px/1.45 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+/* What the check said and More: one row each that opens in place, its contents named quietly on the right. */
+.sh-parts { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--line); }
+.sh-part { border-bottom: 1px solid var(--line); }
+.sh-row { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 2px; border: 0; background: none; color: var(--ink); cursor: pointer; text-align: left; font: 500 15px/1.35 var(--font); }
+.sh-l { flex: none; }
+.sh-hint { flex: 1; min-width: 0; text-align: right; font-size: 14px; color: var(--ink-3); }
+.sh-chev { flex: none; width: 12px; height: 12px; color: var(--ink-3); }
+.sh-row[aria-expanded="true"] .sh-chev { transform: rotate(90deg); }
+.sh-in { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 4px 0 18px; }
+.sh-in > .btn.link.small { justify-self: start; }
+.sh-bar { flex: none; display: grid; gap: 10px; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); box-shadow: 0 -10px 24px -18px rgb(0 0 0 / .45); }
+.sh-bar .btn { width: 100%; justify-content: center; }
+/* It slides in from the right with a fade over --t-glide on the app's ease (Design's ruling), and fades out over --t-exit
+   like every sheet (motion.ts LEAVE_MS). Under reduced motion, the computer's or Settings' (.rm), it only fades, over
+   --t-snap: opacity only, and it keeps that time past the rules that cut every other animation to nothing. */
+.lp-sheet.enter { animation: sheet-in var(--t-glide) var(--ease) both; }
+@keyframes sheet-in { from { opacity: 0; transform: translateX(24px); } }
+@keyframes sheet-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lp-sheet.enter { animation: sheet-fade var(--t-snap) var(--ease) both !important; } }
+.rm .lp-sheet.enter { animation: sheet-fade var(--t-snap) var(--ease) both !important; }
 
 /* What the check said: a sunken block in the check's own words. The command and the exit code are mono, the
    engine's reason is in ink (in Broken red after a broken check). */
@@ -565,7 +612,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .cmp-pick { position: relative; display: block; min-height: 66px; padding: 10px 46px 11px 18px; border: 1.5px solid var(--ink); border-radius: 22px; background: var(--surface); box-shadow: var(--hard-sm); transition: transform var(--t-press) var(--press-ease), box-shadow var(--t-press) var(--press-ease); }
 .cmp-pick:hover { background: var(--sunken); }
 .cmp-pick:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
-.cmp-pick:has(select:focus-visible) { outline: 3px solid var(--ring); outline-offset: 3px; }
+.cmp-pick:has(select:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .cmp-pick::after { content: ""; position: absolute; right: 20px; top: 50%; width: 8px; height: 8px; margin-top: -6px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); pointer-events: none; }
 .cmp-pick select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; opacity: 0; cursor: pointer; font-size: 16px; }
 .cmp-face { display: grid; gap: 4px; }
@@ -739,6 +786,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 @media (min-width: 1100px) {
   .toast-host[data-right="has-ask"] { right: 340px; }
   .toast-host[data-right="has-detail"] { right: 380px; }
+  .toast-host[data-right="has-sheet"] { right: 432px; }
 }
 
 /* Jump to (⌘K): Unvibe's search palette. A white card with an ink edge and the hard shadow, a 52 px field, rows of 44 px under
@@ -930,7 +978,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 /* The groove pointer from the rim toward the middle, and the sky dot at its end. */
 .knob::after { content: ""; position: absolute; left: 50%; top: 12px; width: 7px; height: 58px; margin-left: -3.5px; border-radius: 6px; background: linear-gradient(90deg, #cfcabf, #e8e4dc); box-shadow: inset 1px 1px 2px rgba(0, 0, 0, .22); }
 .knob::before { content: ""; position: absolute; z-index: 1; left: 50%; top: 18px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #0d4a8f; }
-.knob:focus-visible { outline: 3px solid var(--ring); outline-offset: 12px; }
+.knob:focus-visible { outline: 2px solid var(--focus); outline-offset: 12px; }
 .dial.drag .knob { transition: none; }
 .dial.still .knob { opacity: .7; }
 .rw-when { display: grid; gap: 4px; justify-items: center; margin-top: 12px; text-align: center; }
@@ -1019,8 +1067,8 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
   .sheet.rw .dialmod { order: -1; flex-direction: row; align-items: center; gap: 18px; padding: 14px 20px; border-left: 0; border-bottom: 1px solid var(--hair); }
   .sheet.rw .dialmod .silk, .rw-turn, .dlabs, .rw-facts { display: none; }
   .sheet.rw .dial { zoom: .56; margin: 0; }
-  /* The dial is zoomed, which scales its focus ring too: 4.5 px draws at about 2.5 px. */
-  .sheet.rw .knob:focus-visible { outline-width: 4.5px; }
+  /* The dial is zoomed, which scales its focus ring too: 3.6 px draws at about 2 px. */
+  .sheet.rw .knob:focus-visible { outline-width: 3.6px; }
   .rw-when { justify-items: start; margin: 0; text-align: left; }
   .rw-when b { font-size: 34px; }
   .sheet.rw .tv-ruler { order: -1; padding: 8px 16px; border-top: 0; border-bottom: 1px solid var(--hair); }
@@ -1047,7 +1095,7 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 @media (max-width: 360px) {
   .sheet.rw .dialmod { gap: 12px; padding-inline: 16px; }
   .sheet.rw .dial { zoom: .46; }
-  .sheet.rw .knob:focus-visible { outline-width: 5.5px; }
+  .sheet.rw .knob:focus-visible { outline-width: 4.4px; }
   .rw-when b { font-size: 28px; }
 }
 /* The native window is at least 960 px. These rules also keep the shared renderer
@@ -1075,9 +1123,9 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .btn, .btn.link, .it, .it.ag, .pill, .cr-p, .seg button, .jump, .sec-b, .tv-x, .ov-card .x { min-height: 40px; }
 .tv-x, .ov-card .x { min-width: 40px; }
 .switch { box-sizing: content-box; border: 10px solid transparent; background-clip: padding-box; }
-/* Jump to's field has focus while it is open: a 3 px bar in the ring's orange under the field says so, inside the card's edge. */
+/* Jump to's field has focus while it is open: a 2 px bar in the ring's blue under the field says so, inside the card's edge. */
 .pal-q:focus-visible { outline: none; }
-.pal-top:has(.pal-q:focus-visible) { box-shadow: inset 0 -3px 0 var(--ring); }
+.pal-top:has(.pal-q:focus-visible) { box-shadow: inset 0 -2px 0 var(--focus); }
 .meta, .pal-h, .tv-clock { font-variant-numeric: tabular-nums; }
 
 /* The record is the reading surface; the rail carries project and agent context. */
@@ -1252,18 +1300,18 @@ select.field { font-family: var(--font); font-size: 12.5px; width: 100%; min-wid
 .pill { transition: transform var(--t-press) var(--press-ease), scale var(--t-press) var(--press-ease), background-color var(--t-hover) var(--ease); }
 .pill:active, .pill.kf { transform: none; }
 
-/* Idle, low and slow: the rail's dot breathes. Settings > Appearance > Reduce motion (the .calm class) rests it on its
+/* Idle, low and slow: the rail's dot breathes. Settings > Appearance > Reduce motion (the .rm class) rests it on its
    still frame, and so does every other loop that runs on its own (Claude Code's working dot, loading shapes), just as the
    computer's own Reduce motion does; a check you started keeps showing its progress. */
 .stored::before { animation: idle-breath 3.2s ease-in-out infinite; }
 @keyframes idle-breath { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .6; transform: scale(.78); } }
-.calm .stored::before, .calm .breath, .calm .sk, .calm .sk-head::before, .calm .b9-sk i { animation: none; }
+.rm .stored::before, .rm .breath, .rm .sk, .rm .sk-head::before, .rm .b9-sk i { animation: none; }
 /* Reduce motion stills the rest too: an entrance (sheets, Jump to, the toast, the check's verdict) is a fade, presses and
    lifts happen at once, and every other animation lands on its end frame. */
-.calm .scrim.enter .sheet, .calm .scrim.enter .pal, .calm .toast.enter, .calm .ck-card.stamp { animation-name: fade; }
-.calm .theme-tile, .calm .search, .calm .plan, .calm .icon-b, .calm .cr-p, .calm .nav-toggle, .calm .mn-l button, .calm .pal-i, .calm .set-page .seg button, .calm .wl-demo { transition: none; }
-.calm *, .calm *::before, .calm *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
-.calm .ck-bar i, .calm .btn.running::after, .calm .lp-row.checking::after { animation: none; width: 100%; opacity: .35; }
+.rm .scrim.enter .sheet, .rm .scrim.enter .pal, .rm .toast.enter, .rm .ck-card.stamp { animation-name: fade; }
+.rm .theme-tile, .rm .search, .rm .plan, .rm .icon-b, .rm .cr-p, .rm .nav-toggle, .rm .mn-l button, .rm .pal-i, .rm .set-page .seg button, .rm .wl-demo { transition: none; }
+.rm *, .rm *::before, .rm *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+.rm .ck-bar i, .rm .btn.running::after, .rm .lp-row.checking::after { animation: none; width: 100%; opacity: .35; }
 
 @media (prefers-reduced-motion: reduce) {
   /* Nothing idles and progress is a still bar: the end frames, at once. */

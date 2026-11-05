@@ -15,6 +15,23 @@ import { filterPalette, reduceMotionItem, type PaletteItem } from "../src/render
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
 
+describe("the focus ring", () => {
+  const css = ["styles.css", "states.css", "features.css"].map((f) => readFileSync(join(import.meta.dirname, "../src/renderer", f), "utf8")).join("\n");
+
+  test("is the blue focus colour, 2 px with a 2 px offset, for the whole app", () => {
+    expect(css).toMatch(/^:focus-visible \{ outline: 2px solid var\(--focus\); outline-offset: 2px; \}/m);
+    // Every other ring drawn for focus (the list's row, Compare's pickers, the dial, Ask's field, Jump to's bar) is blue
+    // too, and no field swaps its colour.
+    const rings = css.split("\n").filter((l) => l.includes("focus-visible") && /outline: \d+(\.\d+)?px solid|outline-color:|box-shadow: inset 0 -/.test(l));
+    expect(rings.length).toBeGreaterThan(4);
+    for (const l of rings) expect(l, l).toMatch(/var\(--focus\)/);
+  });
+
+  test("the orange ring token is gone", () => {
+    expect(css).not.toMatch(/--ring\b/);
+  });
+});
+
 describe("settings", () => {
   test("an empty file gets every default", () => {
     expect(SettingsSchema.parse({})).toEqual({

@@ -35,3 +35,9 @@ export const ENTER_KEEP_MS = 340;
 export function blockDelay(index: number, elapsed: number, duration: number): number | null {
   return entranceDelay(Math.min(index, BLOCK_STAGGER_MAX) * BLOCK_STAGGER_MS, elapsed, duration);
 }
+
+/**
+ * The class on <html> while Settings > Appearance > Reduce motion is on. The CSS stills with it what the computer's own
+ * `prefers-reduced-motion` stills: either one is the one switch. Not "calm": that is the name of Design's shell direction.
+ */
+export const REDUCE_MOTION_CLASS = "rm";

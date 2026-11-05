@@ -1,7 +1,7 @@
 // History as a list: what is selected first, what the status line says, what each row and each mark of the mini-ruler
-// shows, where the keys go, and which quiet save points fold.
+// shows, where the keys go, which quiet save points fold, and how the preview sheet opens, follows and closes.
 import { describe, expect, test } from "vitest";
-import { brokeAt, defaultPick, foldRuns, listMove, rowVerdict, RULER_MARKS, rulerMarks, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
+import { brokeAt, changedSince, defaultPick, foldRuns, listMove, rowVerdict, RULER_MARKS, rulerMarks, SHEET_SIDE_MIN, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListPoint } from "../src/renderer/history-list.ts";
 
 // The demo's shape, oldest first: two unchecked saves, one that works, then four broken ones.
 const demo: ListPoint[] = [
@@ -132,5 +132,72 @@ describe("folding a run of quiet save points", () => {
     expect(foldRuns(run(5).slice(1), quiet, opened).every((x) => "row" in x)).toBe(true);
     // A run that has none of them still folds.
     expect(shape(run(4, 6))).toEqual(["fold q-6 x4"]);
+  });
+});
+
+describe("what changed since a save point", () => {
+  const changes = new Map<string, string[]>([
+    ["cp-0004", ["src/theme.js"]],
+    ["cp-0005", ["src/theme.js", "src/app.js"]],
+    ["cp-0006", []],
+    ["cp-0007", ["test/theme.test.js"]],
+  ]);
+  test("is every path a later save point changed, newest first, once each", () => {
+    expect(changedSince(demo, "cp-0003", changes)).toEqual({ paths: ["test/theme.test.js", "src/theme.js", "src/app.js"], known: true });
+  });
+  test("is nothing for the newest, and says when a later change is not read yet", () => {
+    expect(changedSince(demo, "cp-0007", changes)).toEqual({ paths: [], known: true });
+    expect(changedSince(demo, "cp-0002", changes).known).toBe(false);
+    expect(changedSince(demo, "nope", changes)).toEqual({ paths: [], known: false });
+  });
+});
+
+describe("the preview sheet", () => {
+  const side = { mode: "side", typing: false } as const;
+  const page = { mode: "page", typing: false } as const;
+
+  test("at 1440 it sits beside the list and traps nothing; at 390 it is a page of its own with Back, and its one primary in a bar at its foot", () => {
+    expect(sheetLayout(1440)).toEqual({ mode: "side", modal: false, back: false, bar: false });
+    expect(sheetLayout(390)).toEqual({ mode: "page", modal: true, back: true, bar: true });
+    expect(sheetLayout(SHEET_SIDE_MIN).mode).toBe("side");
+    expect(sheetLayout(SHEET_SIDE_MIN - 1).mode).toBe("page");
+  });
+
+  test("Enter on a row opens it: beside the list focus stays on the row, so the arrows keep previewing; as a page focus goes into it", () => {
+    expect(sheetKey("Enter", { ...side, at: "list", open: false })).toEqual({ open: true, move: 0, focus: "list" });
+    expect(sheetKey("Enter", { ...page, at: "list", open: false })).toEqual({ open: true, move: 0, focus: "sheet" });
+    // Enter on a control inside the sheet is that control's own.
+    expect(sheetKey("Enter", { ...side, at: "sheet", open: true })).toBeNull();
+  });
+
+  test("Esc closes it from the row, from inside it or from its name field, and focus goes back to the row", () => {
+    for (const at of ["list", "sheet", "other"] as const) {
+      expect(sheetKey("Escape", { ...side, at, open: true })).toEqual({ open: false, move: 0, focus: "list" });
+      expect(sheetKey("Escape", { ...page, at, open: true })).toEqual({ open: false, move: 0, focus: "list" });
+    }
+    expect(sheetKey("Escape", { ...side, at: "sheet", open: true, typing: true })).toEqual({ open: false, move: 0, focus: "list" });
+    expect(sheetKey("Escape", { ...side, at: "list", open: false })).toBeNull();
+  });
+
+  test("↑ and ↓ inside the sheet beside the list move the selection and it stays open; on the list they stay the list's own", () => {
+    expect(sheetKey("ArrowDown", { ...side, at: "sheet", open: true })).toEqual({ open: true, move: 1, focus: null });
+    expect(sheetKey("ArrowUp", { ...side, at: "sheet", open: true })).toEqual({ open: true, move: -1, focus: null });
+    expect(sheetKey("ArrowDown", { ...side, at: "list", open: true })).toBeNull();
+    // As a page over History they scroll it, and in a field they move the caret.
+    expect(sheetKey("ArrowDown", { ...page, at: "sheet", open: true })).toBeNull();
+    expect(sheetKey("ArrowDown", { ...side, at: "sheet", open: true, typing: true })).toBeNull();
+  });
+
+  test("F2 renames from the row or the sheet: it opens with the name field in focus, never while typing", () => {
+    expect(sheetKey("F2", { ...side, at: "list", open: false })).toEqual({ open: true, move: 0, focus: "name" });
+    expect(sheetKey("F2", { ...page, at: "list", open: false })).toEqual({ open: true, move: 0, focus: "name" });
+    expect(sheetKey("F2", { ...side, at: "sheet", open: true })).toEqual({ open: true, move: 0, focus: "name" });
+    expect(sheetKey("F2", { ...side, at: "sheet", open: true, typing: true })).toBeNull();
+  });
+
+  test("an open sheet is no trip to the past: Back to now stays for Compare, so the sheet's Bring back is the one dark action", () => {
+    expect(showsBackToNow("history")).toBe(false);
+    expect(showsBackToNow("compare")).toBe(true);
+    expect(showsBackToNow("overview")).toBe(false);
   });
 });

@@ -60,6 +60,68 @@ export function listMove(count: number, at: number, key: string): number | null 
 }
 
 /**
+ * The files that changed after a save point, up to now: every path the later save points changed, newest first, each once.
+ * `known` is false while a later save point's changes are not read yet. `pts` are oldest first.
+ */
+export function changedSince(pts: readonly ListPoint[], id: string, changes: ReadonlyMap<string, readonly string[]>): { paths: string[]; known: boolean } {
+  const i = pts.findIndex((p) => p.id === id);
+  if (i < 0) return { paths: [], known: false };
+  const seen = new Set<string>();
+  let known = true;
+  for (let k = pts.length - 1; k > i; k--) {
+    const c = changes.get(pts[k]!.id);
+    if (!c) {
+      known = false;
+      continue;
+    }
+    for (const f of c) seen.add(f);
+  }
+  return { paths: [...seen], known };
+}
+
+/** From this window width the preview sheet sits beside History's list; narrower, it is a page of its own over History. */
+export const SHEET_SIDE_MIN = 1100;
+
+/**
+ * How the preview sheet is laid out at a window width. Beside the list (`side`) it is not modal: the list stays usable, so
+ * the arrows keep previewing. Narrower it is a full-height page over History (`page`): modal, with a Back control at its
+ * top and its one primary in a bar at its foot.
+ */
+export function sheetLayout(width: number): { mode: "side" | "page"; modal: boolean; back: boolean; bar: boolean } {
+  return width >= SHEET_SIDE_MIN ? { mode: "side", modal: false, back: false, bar: false } : { mode: "page", modal: true, back: true, bar: true };
+}
+
+/** What a key does to the preview sheet: open or closed after it, how far the selection moves, and where focus goes (null: it stays). */
+export interface SheetMove {
+  open: boolean;
+  move: -1 | 0 | 1;
+  focus: "list" | "sheet" | "name" | null;
+}
+
+/**
+ * The preview sheet's keys. `at` is where focus is: History's list (the row), inside the sheet, or elsewhere; `typing` is
+ * a field with the caret. Esc closes an open sheet from anywhere and focus goes back to the row. Enter on the row opens
+ * it: beside the list focus stays on the row, as a page focus goes into it. F2 renames: the sheet opens with its name
+ * field in focus. ↑ and ↓ inside a sheet beside the list move the selection and the sheet follows. Null: not the sheet's key.
+ */
+export function sheetKey(key: string, s: { mode: "side" | "page"; at: "list" | "sheet" | "other"; open: boolean; typing: boolean }): SheetMove | null {
+  if (key === "Escape") return s.open ? { open: false, move: 0, focus: "list" } : null;
+  if (s.typing) return null;
+  if (key === "F2" && (s.at === "list" || (s.open && s.at === "sheet"))) return { open: true, move: 0, focus: "name" };
+  if (key === "Enter" && s.at === "list") return { open: true, move: 0, focus: s.mode === "side" ? "list" : "sheet" };
+  if ((key === "ArrowDown" || key === "ArrowUp") && s.open && s.mode === "side" && s.at === "sheet") return { open: true, move: key === "ArrowDown" ? 1 : -1, focus: null };
+  return null;
+}
+
+/**
+ * Whether the toolbar offers Back to now. Compare is a look at the past; History's preview sheet is not: Esc or Close
+ * closes it, and its Bring back stays the one dark action on screen.
+ */
+export function showsBackToNow(screen: string): boolean {
+  return screen === "compare";
+}
+
+/**
  * What a row says about its save point: a word, an icon and a colour (`key`), never the colour alone. `icon` is "verdict"
  * for the verdict's own shape (a check, a cross, a ring), "glyph" for the small mark of a state in progress or a damaged
  * save point, and "none" for a project with no check, whose rows only say Saved.
