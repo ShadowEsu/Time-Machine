@@ -1,19 +1,18 @@
-// The launch screen: the paper window with the wordmark and a thin loading bar, drawn by index.html
-// before any script runs. It stays while the window loads its first real data, at least
-// SPLASH_MIN_MS so it never flashes, then fades. Any key or click skips it. With Reduce motion it
-// does not fade and has no minimum: it goes the moment the data is there. A reload holds it back
-// (splash-gate.ts decides before the first paint): it shows only if the first page is not drawn
-// within SPLASH_HOLD_MS of the reload, so a quick reload has no splash at all.
+// The launch screen: the paper window with the wordmark and the branded loader (the buddy, its clock hand sweeping),
+// drawn by index.html before any script runs. It never adds wait (MOTION-SPEC §3.2): every open holds it back
+// (splash-gate.ts decides before the first paint) and it shows only if the first page is still not drawn after
+// splashHoldMs, 600 ms for a first open (the spec's loader threshold) and 1 s for a reload. Once shown it has no minimum:
+// it fades the moment the data is there. Any key or click skips it. With Reduce motion it does not fade.
 
-/** Shortest time the splash is on screen, so a fast load does not flash it. */
-export const SPLASH_MIN_MS = 600;
-/** How long the fade out takes. */
-export const SPLASH_FADE_MS = 300;
+/** How long the fade out takes (--m-fast, the spec's crossfade to content). */
+export const SPLASH_FADE_MS = 180;
 /** Fired on the window when the splash starts to lift. */
 export const SPLASH_OUT = "tm-splash-out";
+/** A first open whose first page is drawn within this long shows no splash (MOTION-SPEC §2: a loader only past 600 ms). */
+export const SPLASH_LAUNCH_HOLD_MS = 600;
 /** A reload whose first page is drawn within this long of the reload shows no splash (Design §3.4). */
 export const SPLASH_HOLD_MS = 1000;
-/** On the page element while a reload holds the splash back. styles.css does not draw a held splash. */
+/** On the page element while the splash is held back. styles.css does not draw a held splash. */
 export const SPLASH_HELD_CLASS = "splash-held";
 /** The wordmark's face. splash-gate.ts starts loading it before the first paint. */
 export const SPLASH_FONT = '600 1em "Bricolage Grotesque"';
@@ -23,9 +22,9 @@ export const SPLASH_FONT_CLASS = "splash-font";
 
 export type SplashPhase = "held" | "showing" | "fading" | "gone";
 
-/** Whether the page's navigation (PerformanceNavigationTiming.type) holds the splash back: a reload only. */
-export function splashHeld(navigationType: string | undefined): boolean {
-  return navigationType === "reload";
+/** How long the splash is held back for the page's navigation (PerformanceNavigationTiming.type): 1 s on a reload. */
+export function splashHoldMs(navigationType: string | undefined): number {
+  return navigationType === "reload" ? SPLASH_HOLD_MS : SPLASH_LAUNCH_HOLD_MS;
 }
 
 /** What the splash needs from the window. The tests drive it with a fake clock. */
@@ -44,24 +43,24 @@ export interface SplashHost {
 export interface Splash {
   /** The first real data is drawn. */
   ready(): void;
-  /** A key or click: go now, without waiting for the minimum. */
+  /** A key or click: go now. */
   skip(): void;
   phase(): SplashPhase;
 }
 
-/** When the splash starts to fade, for a splash shown at `shownAt` whose data was ready at `readyAt`. */
-export function splashFadeAt(shownAt: number, readyAt: number, reduced: boolean): number {
-  return reduced ? readyAt : Math.max(readyAt, shownAt + SPLASH_MIN_MS);
-}
+/** The splash's own arrival (the wordmark rising, --m-normal). A page drawn within this long of the splash showing cuts to it. */
+export const SPLASH_ARRIVE_MS = 350;
 
-/** `held`: a reload's splash, not drawn yet. It shows SPLASH_HOLD_MS after the reload unless the page is drawn first. */
-export function splashController(host: SplashHost, held = false): Splash {
+/** `holdMs`: the splash is not drawn until this long after the page started loading, and never if the page is drawn first.
+ *  0 draws it at once (a page whose gate did not run). */
+export function splashController(host: SplashHost, holdMs = 0): Splash {
+  let phase: SplashPhase = holdMs > 0 ? "held" : "showing";
   let shownAt = host.now();
-  let phase: SplashPhase = held ? "held" : "showing";
   const leave = (): void => {
     if (phase !== "showing") return;
     phase = "fading";
-    const ms = host.reduced() ? 0 : SPLASH_FADE_MS;
+    // Landing while the splash is still arriving cuts straight to the page: no fade-in followed by a fade-out (Design).
+    const ms = host.reduced() || host.now() - shownAt < SPLASH_ARRIVE_MS ? 0 : SPLASH_FADE_MS;
     host.fade(ms);
     const done = (): void => {
       phase = "gone";
@@ -75,22 +74,18 @@ export function splashController(host: SplashHost, held = false): Splash {
     phase = "gone";
     host.remove();
   };
-  if (held) {
+  if (phase === "held") {
     host.later(() => {
       if (phase !== "held") return;
       phase = "showing";
       shownAt = host.now();
       host.show();
-    }, Math.max(0, SPLASH_HOLD_MS - shownAt));
+    }, Math.max(0, holdMs - host.now()));
   }
   return {
     ready() {
       if (phase === "held") return drop();
-      if (phase !== "showing") return;
-      const now = host.now();
-      const wait = splashFadeAt(shownAt, now, host.reduced()) - now;
-      if (wait > 0) host.later(leave, wait);
-      else leave();
+      leave();
     },
     skip() {
       if (phase === "held") drop();
@@ -127,7 +122,7 @@ export function mountSplash(): Splash {
       el.remove();
       page.classList.remove(SPLASH_HELD_CLASS);
     },
-  }, page.classList.contains(SPLASH_HELD_CLASS));
+  }, page.classList.contains(SPLASH_HELD_CLASS) ? splashHoldMs((performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.type) : 0);
   // The key still reaches the window, so a shortcut pressed during the splash works.
   window.addEventListener("keydown", onKey, true);
   el.addEventListener("pointerdown", () => splash.skip());

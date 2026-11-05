@@ -23,7 +23,7 @@ import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
 import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
-import { addResult, blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, HERO_MS, LEAVE_MS, liftFrom, MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RETURN_MS, RING_MS, ROLL_MS, rolledDigits, ROW_IN_MS, rowDelay, SETTLE_MS, undoReturn, type CheckRun, type ScreenBox } from "./motion.js";
+import { addResult, blockDelay, bringBackMoment, CELEBRATION_MS, celebrationDue, type CelebrationKind, checkRun, countAt, countUpMs, CROSSFADE_MS, EASE, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, HERO_MS, LEAVE_MS, liftFrom, MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, REDUCE_MOTION_CLASS, RETURN_MS, RING_MS, ROLL_MS, rolledDigits, ROW_IN_MS, rowDelay, SETTLE_MS, undoReturn, type CheckRun, type ScreenBox } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
 import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
@@ -1081,7 +1081,7 @@ function history(): string {
   if (!st.timeline && !st.timelineError) {
     const row = '<div class="sk-row"><i class="sk sk-t"></i><i class="sk-g"></i><span><i class="sk sk-l"></i><i class="sk sk-m"></i></span></div>';
     // On a phone the placeholder page is taller than the window and holds no control, so the scroller itself takes focus.
-    return `<div class="page proj lp" tabindex="0" role="region" aria-label="${esc(`Reading ${p.name}`)}"><div class="doc lp-doc" role="status">
+    return `<div class="page proj lp" tabindex="0" role="region" aria-busy="true" aria-label="${esc(`Reading ${p.name}`)}"><div class="doc lp-doc" role="status">
       <section class="lp-status"><h1 class="lp-h sk-head"><span class="sr-only">Reading ${esc(p.name)}</span><span aria-hidden="true">&nbsp;</span></h1><p class="lp-sub">Loading saved versions from your local history.</p></section>
       <div class="lp-col" aria-hidden="true"><div class="lp-head"></div><div class="lp-list">${row.repeat(4)}</div></div>
     </div></div>`;
@@ -1198,7 +1198,7 @@ function history(): string {
       <p class="sr-only" id="lp-keys">Newest first. Up and Down choose; with Shift they jump to where the verdict changed. Enter opens it, or opens a folded group of ${esc(units.many)}. F2 renames it. Esc closes it.</p>`
     : `<div class="lp-list lp-empty">${filter === "all" ? "" : noneShown(filter, p.purpose)}</div>`;
   // One All ▾ menu (S3): All, Works, Named and Pinned, each with how many it shows.
-  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n" data-roll="lp-n">${esc(String(pts.length))}</span>${filterMenu(filter, { all: pts.length, ...filterCounts(readable, st.notes, checks) }, p.purpose, st.menu === "filter", st.menu === "filter" ? once("menu:filter") : "")}${rulerStrip(pts, behind, run)}</div>`;
+  const head = `<div class="lp-head"><h2 class="lp-ht" id="lp-ht">${esc(days.length === 1 && days[0] === "Today" ? `Today’s ${units.many}` : sentenceStart(units.many))}</h2><span class="lp-n" data-roll="lp-n" data-count="lp-n" aria-hidden="true">${esc(String(pts.length))}</span><span class="sr-only">${esc(String(pts.length))}</span>${filterMenu(filter, { all: pts.length, ...filterCounts(readable, st.notes, checks) }, p.purpose, st.menu === "filter", st.menu === "filter" ? once("menu:filter") : "")}${rulerStrip(pts, behind, run)}</div>`;
   return `<div class="page proj lp${st.drawer && sheetBeside() ? " has-sheet" : ""}"><div class="doc lp-doc">${status}${after}
     ${setupView(p, pts)}
     <section class="lp-col" aria-labelledby="lp-ht">${head}${listbox}</section>
@@ -2297,7 +2297,7 @@ function settings(): string {
   const preview = '<span class="tt-side"><i></i><i></i><i></i></span><span class="tt-main"><i class="tt-h"></i><i class="tt-l"></i><i class="tt-l"></i><i class="tt-pill"></i></span>';
   const tile = (v: Settings["theme"], label: string): string =>
     `<button class="theme-tile${s.theme === v ? " on" : ""}" aria-pressed="${s.theme === v}" data-act="theme" data-v="${v}"><span class="tt-prev tt-${v}" aria-hidden="true">${v === "system" ? `<span class="tt-half tt-light">${preview}</span><span class="tt-half tt-dark">${preview}</span>` : preview}</span><span class="tt-name">${label}</span></button>`;
-  const sw = (key: "showGitDetails" | "reduceMotion", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
+  const sw = (key: "showGitDetails" | "reduceMotion" | "celebrations", on: boolean, label: string): string => `<button class="switch ${on ? "on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-act="toggle" data-key="${key}"></button>`;
   const osCalm = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const iso = st.isolation;
   const network = !iso ? LOADING
@@ -2311,6 +2311,7 @@ function settings(): string {
       `<div class="set-row set-theme"><div class="set-t"><span class="set-l" id="theme-l">Theme</span><p class="set-d">System follows your computer’s light or dark setting.</p></div><div class="theme-tiles" role="group" aria-labelledby="theme-l">${tile("system", "System")}${tile("light", "Light")}${tile("dark", "Dark")}</div></div>`
       + setRow("Show Git details", "Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.", sw("showGitDetails", s.showGitDetails, "Show Git details"))
       + setRow("Reduce motion", `Nothing moves on its own: no breathing dot, no spinning dial, no gliding rows. A check still shows its progress. ${osCalm ? "Your computer already asks for less motion, so Time Machine stays still either way." : "When this is off, Time Machine follows your computer’s own Reduce motion setting."}`, sw("reduceMotion", s.reduceMotion, "Reduce motion"))
+      + setRow("Celebrations", "A small burst when a check says Works or a version is back in a copy, once a day each. With Reduce motion it is a still check instead.", sw("celebrations", s.celebrations, "Celebrations"))
       + setRow("How choosing a version looks", "Every bring back asks once, with what comes back and what does not. When the folder is missing or a save point is damaged, you choose a version first: on a dial, or Simple, the same steps as a plain sheet. With Reduce motion on, the dial does not spin.",
         `<div class="seg" role="group" aria-label="How choosing a version looks"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
     agents: { title: "Agents", intro: "Where checks run, and each project’s check, when it saves, and Ask.", body:
@@ -3159,8 +3160,8 @@ function applyEntrances(scene: boolean): void {
   const blocks = page ? [...page.querySelectorAll<HTMLElement>(":scope > .doc > *, :scope > .b9 > *")].filter((el) => !el.classList.contains("mount") && !el.querySelector("#list .lp-row")) : [];
   if (page) enter(page, blocks.length ? "page-fade" : "page-in", entranceDelay(0, sincePage, PAGE_IN_MS));
   blocks.forEach((el, i) => enter(el, "block-in", blockDelay(i, sincePage, BLOCK_IN_MS)));
-  // History's rows rise 40 ms apart, the first 8, the first time they are drawn on this page: never on a filter, a search or a
-  // refresh, which redraw the same page (B6 §3.1).
+  // History's rows rise --m-stagger (70 ms) apart, the first 8, the first time they are drawn on this page: never on a filter,
+  // a search or a refresh, which redraw the same page (B6 §3.1, MOTION-SPEC §2).
   const rows = st.screen === "history" ? [...root.querySelectorAll<HTMLElement>("#list .lp-row")] : [];
   if (rows.length && rowsIn.page !== pageIn.at) rowsIn = { page: pageIn.at, at: now };
   rows.forEach((el, i) => enter(el, "row-in", rowDelay(i, now - rowsIn.at, ROW_IN_MS)));
@@ -3379,6 +3380,127 @@ function applyRolls(): void {
   });
 }
 
+/** The count-up of this page view: which count, its final value, when it started, and whether it has ended (MOTION-SPEC §2). */
+let counting: { page: number; key: string; final: number; at: number; done: boolean } | null = null;
+
+/**
+ * A count marked data-count counts up from 0 to its value the first time it is drawn on a page view (History's "Today's save
+ * points 7"), over countUpMs on --m-ease-smooth, in tabular digits. Once per page view: a redraw carries it on, and a later
+ * change ends it (applyRolls rolls the changed digit). A click, key or scroll ends it at its value (MOTION-SPEC §3.3).
+ * Screen readers read the value at once: the sr-only copy beside it, which also holds the value to end on.
+ * Reduced motion: the value, no count.
+ */
+function applyCounts(): void {
+  const el = root.querySelector<HTMLElement>("[data-count]");
+  if (!el) return;
+  const key = `${st.projectId ?? ""}:${el.dataset.count ?? ""}`;
+  const final = Number(el.textContent);
+  if (counting?.page === pageIn.at && counting.key === key) {
+    if (counting.final !== final) counting.done = true;
+    if (!counting.done) el.textContent = String(countAt(counting.final, performance.now() - counting.at));
+    return;
+  }
+  if (!Number.isInteger(final) || final <= 0) return;
+  const c = { page: pageIn.at, key, final, at: performance.now(), done: reducedMotion() };
+  counting = c;
+  const tick = (): void => {
+    const now = root.querySelector<HTMLElement>("[data-count]");
+    if (c !== counting || !now) return;
+    const t = performance.now() - c.at;
+    if (c.done || t >= countUpMs(c.final)) {
+      c.done = true;
+      now.textContent = now.nextElementSibling?.textContent ?? String(c.final);
+      return;
+    }
+    now.textContent = String(countAt(c.final, t));
+    requestAnimationFrame(tick);
+  };
+  tick();
+}
+// Any click, key or scroll ends a running count-up at its value (on the next frame), and a running celebration at once.
+for (const type of ["pointerdown", "keydown", "wheel"] as const) {
+  addEventListener(type, () => {
+    if (counting) counting.done = true;
+    if (cheering) {
+      cheering = null;
+      root.querySelectorAll(".cel").forEach((el) => el.remove());
+      root.querySelectorAll(".cel-pop").forEach((el) => el.classList.remove("cel-pop"));
+    }
+  }, { capture: true, passive: true });
+}
+
+/** The celebration on screen: which win, on which project, and when it started (MOTION-SPEC §2). */
+let cheering: { kind: CelebrationKind; pid: string; at: number } | null = null;
+/** Whether each project's History showed an open "is back, in a copy" banner at the last draw. */
+const backShown = new Map<string, boolean>();
+
+/**
+ * A small celebration on a real win: History's verdict turns Works (a check finished and passed), or a version is back in a
+ * copy. Once a day per kind (celebratedToday), only with Celebrations on and no reduced motion. A redraw carries it on.
+ */
+function applyCelebrations(): void {
+  const pid = st.projectId ?? "";
+  const now = performance.now();
+  const hero = st.screen === "history" ? root.querySelector<HTMLElement>('[data-vid="hero"] .lp-mark') : null;
+  const back = st.screen === "history" ? root.querySelector<HTMLElement>(".doc > .after:not(.kept)") : null;
+  const wasBack = backShown.get(pid) ?? true;
+  backShown.set(pid, !!back);
+  const quiet = !st.settings.celebrations || reducedMotion();
+  const start = (kind: CelebrationKind): void => {
+    if (quiet || !claimCelebration(kind)) return;
+    // A bring back celebrates when its card lands, after the lift glide (--t-moment): motion during motion gets lost.
+    cheering = { kind, pid, at: kind === "back" ? now + MOMENT_MS : now };
+  };
+  const heroAt = verdictIn.get(`${pid} hero`);
+  if (hero?.classList.contains("v-pass") && heroAt !== undefined && now - heroAt < 50) start("works");
+  if (back && !wasBack) start("back");
+  const c = cheering;
+  if (!c || c.pid !== pid || now - c.at >= CELEBRATION_MS) {
+    cheering = null;
+    return;
+  }
+  // What pops (the check, or the card's heading) and where the shapes fan from: the check, or the end of the card's heading,
+  // into the free space beside it and inside the card, which clips them, so they never land on its words.
+  const pop = c.kind === "works" ? hero : back?.querySelector<HTMLElement>(".after-h");
+  const host = c.kind === "works" ? hero : pop;
+  if (!pop || !host || host.querySelector(":scope > .cel")) return;
+  // Negative while waiting for the card to land: the delays below then hold everything until it does.
+  const t = now - c.at;
+  pop.classList.add("cel-pop");
+  pop.style.animationDelay = `${-t}ms`;
+  host.classList.add("cel-host");
+  back?.classList.add("cel-clip");
+  const burst = document.createElement("span");
+  burst.className = "cel";
+  burst.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 8; i++) {
+    const dot = document.createElement("i");
+    // Around the check for Works; to the right of the heading (78° to 106°, angles, reaches and colours on separate cycles so it scatters, a flat spray into the free space after its last word, clear of the line above) for a bring back.
+    const a = c.kind === "works" ? i * 45 + 20 : 78 + ((i * 3) % 8) * 4;
+    dot.style.cssText = `--a: ${a}deg; --r: ${c.kind === "works" ? 30 + (i % 3) * 9 : 28 + ((i * 5) % 8) * 11}px; --s: ${8 + (i % 3)}px; --d: ${i * 12 - t}ms;`;
+    burst.append(dot);
+  }
+  host.append(burst);
+}
+
+/** Today's date on this computer, for the once-a-day rule. */
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+/** Takes today's one celebration of `kind`: false when it has already played today (kept in this browser's storage). */
+function claimCelebration(kind: CelebrationKind): boolean {
+  const key = `tm-celebrated-${kind}`;
+  try {
+    if (!celebrationDue(localStorage.getItem(key), today())) return false;
+    localStorage.setItem(key, today());
+  } catch {
+    // No storage (a locked-down browser): it still plays, at most once per win.
+  }
+  return true;
+}
+
 /** When the working dot first showed, on the animation clock: it breathes three times from then and rests (B6 §3.1). */
 let breathAt: number | null = null;
 function applyBreath(): void {
@@ -3563,6 +3685,8 @@ function render(): void {
   applyEntrances(scene);
   applySlide();
   applyRolls();
+  applyCounts();
+  applyCelebrations();
   applyBreath();
   applyGo();
   closeMenus(menus);
@@ -5220,6 +5344,7 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "toggle":
       if (d.key === "showGitDetails") return setSetting({ showGitDetails: !st.settings.showGitDetails });
       if (d.key === "reduceMotion") return setSetting({ reduceMotion: !st.settings.reduceMotion });
+      if (d.key === "celebrations") return setSetting({ celebrations: !st.settings.celebrations });
       return;
     case "reduce-motion":
       // From Jump to: the same switch as Settings > Appearance. Nothing on screen may move to show it, so a toast says it.

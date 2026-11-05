@@ -6,10 +6,11 @@ import { describe, expect, test } from "vitest";
 import { afterBanner } from "../src/renderer/rewind-copy.ts";
 import {
   addResult, BLOCK_STAGGER_MAX, BLOCK_STAGGER_MS, blockDelay, bringBackMoment, checkRun, CROSSFADE_MS, EASE, entranceDelay, HERO_MS, LEAVE_MS, liftFrom, LINE_STAGGER_MS,
-  MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, PRESS_EASE, REDUCE_MOTION_CLASS, RETURN_MS, ROLL_MS, rolledDigits, rowDelay, ROW_STAGGER_MAX, ROW_STAGGER_MS, SETTLE_MS, undoReturn,
+  MENU_OUT_MS, MOMENT_MS, PAGE_IN_MS, PRESS_EASE, REDUCE_MOTION_CLASS, RETURN_MS, ROLL_MS, rolledDigits, rowDelay, ROW_IN_MS, ROW_STAGGER_MAX, ROW_STAGGER_MS, SETTLE_MS, undoReturn,
+  CELEBRATION_MS, celebrationDue, countAt, countUpMs, easeSmooth,
 } from "../src/renderer/motion.ts";
 import {
-  SPLASH_FADE_MS, SPLASH_FONT, SPLASH_FONT_CLASS, SPLASH_HELD_CLASS, SPLASH_HOLD_MS, SPLASH_MIN_MS, splashController, splashFadeAt, splashHeld,
+  SPLASH_ARRIVE_MS, SPLASH_FADE_MS, SPLASH_FONT, SPLASH_FONT_CLASS, SPLASH_HELD_CLASS, SPLASH_HOLD_MS, SPLASH_LAUNCH_HOLD_MS, splashController, splashHoldMs,
   type SplashHost,
 } from "../src/renderer/splash.ts";
 
@@ -17,7 +18,7 @@ import {
  * A splash on a fake clock, `shownAt` ms after the page started loading. `held` is a reload's splash, kept back at first.
  * `events` records when it was shown (a held one only), when it started fading and for how long, and when it went.
  */
-function fakeSplash(reduced = false, shownAt = 100, held = false) {
+function fakeSplash(reduced = false, shownAt = 100, holdMs = 0) {
   let t = shownAt;
   let timers: { at: number; fn: () => void }[] = [];
   const events: string[] = [];
@@ -29,7 +30,7 @@ function fakeSplash(reduced = false, shownAt = 100, held = false) {
     fade: (ms) => void events.push(`fade ${ms} at ${t}`),
     remove: () => void events.push(`gone at ${t}`),
   };
-  const splash = splashController(host, held);
+  const splash = splashController(host, holdMs);
   const advance = (to: number): void => {
     for (;;) {
       const next = timers.filter((x) => x.at <= to).sort((a, b) => a.at - b.at)[0];
@@ -43,97 +44,73 @@ function fakeSplash(reduced = false, shownAt = 100, held = false) {
   return { splash, events, advance };
 }
 
-describe("the launch splash", () => {
-  test("a fast load still shows it for the minimum, so it never flashes, then it fades", () => {
-    const { splash, events, advance } = fakeSplash();
-    advance(250);
+describe("the launch splash never adds wait (MOTION-SPEC §3.2)", () => {
+  test("a first open drawn within 600 ms never shows it, and nothing lifts", () => {
+    expect(SPLASH_LAUNCH_HOLD_MS).toBe(600);
+    const { splash, events, advance } = fakeSplash(false, 100, splashHoldMs("navigate"));
+    expect(splash.phase()).toBe("held");
+    advance(550);
     splash.ready();
-    expect(splash.phase()).toBe("showing");
-    advance(100 + SPLASH_MIN_MS);
-    expect(events).toEqual([`fade ${SPLASH_FADE_MS} at ${100 + SPLASH_MIN_MS}`]);
-    expect(splash.phase()).toBe("fading");
-    advance(100 + SPLASH_MIN_MS + SPLASH_FADE_MS);
-    expect(events.at(-1)).toBe(`gone at ${100 + SPLASH_MIN_MS + SPLASH_FADE_MS}`);
-    expect(splash.phase()).toBe("gone");
+    advance(5000);
+    expect(events).toEqual(["gone at 550"]);
   });
 
-  test("a slow load adds no wait: it fades the moment the first page is drawn", () => {
-    const { splash, events, advance } = fakeSplash();
+  test("a slow open shows it at 600 ms, with no minimum: it fades over --m-fast the moment the page is drawn", () => {
+    const { splash, events, advance } = fakeSplash(false, 100, splashHoldMs(undefined));
     advance(2400);
     splash.ready();
-    expect(events).toEqual([`fade ${SPLASH_FADE_MS} at 2400`]);
-  });
-
-  test("any key or click skips it at once, and the data arriving later changes nothing", () => {
-    const { splash, events, advance } = fakeSplash();
-    advance(180);
-    splash.skip();
-    expect(events).toEqual([`fade ${SPLASH_FADE_MS} at 180`]);
-    advance(400);
-    splash.ready();
-    splash.skip();
     advance(5000);
-    expect(events).toEqual([`fade ${SPLASH_FADE_MS} at 180`, `gone at ${180 + SPLASH_FADE_MS}`]);
+    expect(events).toEqual(["shown at 600", `fade ${SPLASH_FADE_MS} at 2400`, `gone at ${2400 + SPLASH_FADE_MS}`]);
+    expect(SPLASH_FADE_MS).toBe(180);
   });
 
-  test("with Reduce motion it has no minimum and no fade: it is there only while loading", () => {
-    const { splash, events, advance } = fakeSplash(true);
-    advance(160);
+  test("a page drawn while the splash is still arriving cuts straight to it: no fade-in then fade-out", () => {
+    const { splash, events, advance } = fakeSplash(false, 100, SPLASH_LAUNCH_HOLD_MS);
+    advance(SPLASH_LAUNCH_HOLD_MS + SPLASH_ARRIVE_MS - 1);
     splash.ready();
-    expect(events).toEqual(["fade 0 at 160", "gone at 160"]);
-    expect(splash.phase()).toBe("gone");
-    expect(splashFadeAt(100, 160, true)).toBe(160);
-    expect(splashFadeAt(100, 160, false)).toBe(100 + SPLASH_MIN_MS);
+    const at = SPLASH_LAUNCH_HOLD_MS + SPLASH_ARRIVE_MS - 1;
+    expect(events).toEqual([`shown at ${SPLASH_LAUNCH_HOLD_MS}`, `fade 0 at ${at}`, `gone at ${at}`]);
+  });
+
+  test("a reload holds it for 1 s, then the same rules: no minimum", () => {
+    expect(SPLASH_HOLD_MS).toBe(1000);
+    expect(splashHoldMs("reload")).toBe(SPLASH_HOLD_MS);
+    for (const type of ["navigate", "back_forward", "prerender", undefined]) expect(splashHoldMs(type)).toBe(SPLASH_LAUNCH_HOLD_MS);
+    const quick = fakeSplash(false, 100, SPLASH_HOLD_MS);
+    quick.advance(900);
+    quick.splash.ready();
+    expect(quick.events).toEqual(["gone at 900"]);
+    const slow = fakeSplash(false, 100, SPLASH_HOLD_MS);
+    slow.advance(2000);
+    slow.splash.ready();
+    expect(slow.events).toEqual([`shown at ${SPLASH_HOLD_MS}`, `fade ${SPLASH_FADE_MS} at 2000`]);
+  });
+
+  test("any key or click skips it at once, held or showing, and the data arriving later changes nothing", () => {
+    const held = fakeSplash(false, 100, SPLASH_LAUNCH_HOLD_MS);
+    held.advance(400);
+    held.splash.skip();
+    held.advance(5000);
+    held.splash.ready();
+    expect(held.events).toEqual(["gone at 400"]);
+    const shown = fakeSplash(false, 100, SPLASH_LAUNCH_HOLD_MS);
+    shown.advance(1500);
+    shown.splash.skip();
+    shown.splash.ready();
+    shown.advance(5000);
+    expect(shown.events).toEqual([`shown at ${SPLASH_LAUNCH_HOLD_MS}`, `fade ${SPLASH_FADE_MS} at 1500`, `gone at ${1500 + SPLASH_FADE_MS}`]);
+  });
+
+  test("with Reduce motion it does not fade: it is there only while loading", () => {
+    const { splash, events, advance } = fakeSplash(true, 100, SPLASH_LAUNCH_HOLD_MS);
+    advance(1100);
+    splash.ready();
+    expect(events).toEqual([`shown at ${SPLASH_LAUNCH_HOLD_MS}`, "fade 0 at 1100", "gone at 1100"]);
   });
 });
 
-describe("a quick reload shows no splash (Design §3.4: skip it on reloads under 1 s)", () => {
+describe("the splash is decided before the first paint", () => {
   const dir = join(import.meta.dirname, "../src/renderer");
-
-  test("only a reload holds it back: a first open, a link, and back or forward show it", () => {
-    expect(SPLASH_HOLD_MS).toBe(1000);
-    expect(splashHeld("reload")).toBe(true);
-    for (const type of ["navigate", "back_forward", "prerender", undefined]) expect(splashHeld(type)).toBe(false);
-  });
-
-  test("a reload whose first page is drawn within 1 s never shows it, and nothing lifts", () => {
-    const { splash, events, advance } = fakeSplash(false, 100, true);
-    expect(splash.phase()).toBe("held");
-    advance(700);
-    splash.ready();
-    expect(events).toEqual(["gone at 700"]);
-    expect(splash.phase()).toBe("gone");
-    advance(5000);
-    expect(events).toEqual(["gone at 700"]);
-  });
-
-  test("a reload still loading at 1 s shows it then, for the usual minimum, and then it fades", () => {
-    const { splash, events, advance } = fakeSplash(false, 100, true);
-    advance(SPLASH_HOLD_MS);
-    expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`]);
-    expect(splash.phase()).toBe("showing");
-    advance(1200);
-    splash.ready();
-    advance(5000);
-    const fadeAt = SPLASH_HOLD_MS + SPLASH_MIN_MS;
-    expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`, `fade ${SPLASH_FADE_MS} at ${fadeAt}`, `gone at ${fadeAt + SPLASH_FADE_MS}`]);
-  });
-
-  test("a key or click while it is held back means it never shows", () => {
-    const { splash, events, advance } = fakeSplash(false, 100, true);
-    advance(400);
-    splash.skip();
-    advance(5000);
-    splash.ready();
-    expect(events).toEqual(["gone at 400"]);
-  });
-
-  test("with Reduce motion a slow reload shows it at 1 s with no minimum and no fade", () => {
-    const { splash, events, advance } = fakeSplash(true, 100, true);
-    advance(1100);
-    splash.ready();
-    expect(events).toEqual([`shown at ${SPLASH_HOLD_MS}`, "fade 0 at 1100", "gone at 1100"]);
-  });
 
   test("it is decided before the first paint: a blocking script at the end of the head, and a held splash is not drawn", () => {
     const html = readFileSync(join(dir, "index.html"), "utf8");
@@ -142,7 +119,6 @@ describe("a quick reload shows no splash (Design §3.4: skip it on reloads under
     // After the stylesheets, so their @font-face rules are there for the gate's font load (a classic script waits for them).
     expect(head.trimEnd().endsWith('<script src="splash-gate.js"></script>')).toBe(true);
     const gate = readFileSync(join(dir, "splash-gate.ts"), "utf8");
-    expect(gate).toMatch(/splashHeld\(\(performance\.getEntriesByType\("navigation"\)\[0\] as PerformanceNavigationTiming \| undefined\)\?\.type\)/);
     expect(gate).toMatch(/const page = document\.documentElement;/);
     expect(gate).toMatch(/page\.classList\.add\(SPLASH_HELD_CLASS\)/);
     expect(SPLASH_HELD_CLASS).toBe("splash-held");
@@ -238,8 +214,9 @@ describe("B6 §3: every duration comes from a token", () => {
     expect(LEAVE_MS).toBe(token("t-exit"));
     expect(EASE.replace(/\s+/g, "")).toBe(curve("ease"));
     expect(PRESS_EASE.replace(/\s+/g, "")).toBe(curve("press-ease"));
-    // The spec's own numbers: rows 8 × 40 ms, lines 60 ms apart, counts roll over 240 ms, the status lands over 320 ms.
-    expect([ROW_STAGGER_MAX, ROW_STAGGER_MS, LINE_STAGGER_MS, ROLL_MS, HERO_MS]).toEqual([8, 40, 60, 240, 320]);
+    // The spec's own numbers: rows 8 × 70 ms (MOTION-SPEC --m-stagger), lines 60 ms apart, counts roll over 240 ms, the status lands over 320 ms.
+    expect([ROW_STAGGER_MAX, ROW_STAGGER_MS, LINE_STAGGER_MS, ROLL_MS, HERO_MS]).toEqual([8, 70, 60, 240, 320]);
+    expect([ROW_STAGGER_MS, ROW_IN_MS]).toEqual([token("m-stagger"), token("m-normal")]);
   });
 
   test("the moment runs over --t-moment, Undo's return over --t-glide, and the CSS settle and menu use the tokens by name", () => {
@@ -259,7 +236,7 @@ describe("B6 §3: every duration comes from a token", () => {
 });
 
 describe("B6 §3.1: rows stagger once, counts roll", () => {
-  test("only the first 8 rows stagger, 40 ms apart, and a redraw carries them on", () => {
+  test("only the first 8 rows stagger, --m-stagger apart, and a redraw carries them on", () => {
     expect(rowDelay(0, 0, 260)).toBe(0);
     expect(rowDelay(7, 0, 260)).toBe(7 * ROW_STAGGER_MS);
     expect(rowDelay(8, 0, 260)).toBeNull();
@@ -274,6 +251,41 @@ describe("B6 §3.1: rows stagger once, counts roll", () => {
     expect(rolledDigits("9", "10")).toEqual([0, 1]);
     expect(rolledDigits("7", "7")).toEqual([]);
     expect(rolledDigits(null, "7")).toEqual([]);
+  });
+});
+
+describe("MOTION-SPEC §2: count-up and celebration", () => {
+  test("a count-up runs 700 ms under 100, 1000 ms under 10,000, 1200 ms at most", () => {
+    expect([countUpMs(0), countUpMs(99), countUpMs(100), countUpMs(9999), countUpMs(10_000), countUpMs(1e9)]).toEqual([700, 700, 1000, 1000, 1200, 1200]);
+  });
+
+  test("it starts at 0, only ever rises, never passes its value, and lands on it exactly when it ends", () => {
+    expect(countAt(7, 0)).toBe(0);
+    let last = 0;
+    for (let t = 0; t <= 700; t += 10) {
+      const n = countAt(7, t);
+      expect(n).toBeGreaterThanOrEqual(last);
+      expect(n).toBeLessThanOrEqual(7);
+      last = n;
+    }
+    expect(countAt(7, 700)).toBe(7);
+    expect(countAt(1234, 5000)).toBe(1234);
+    // An ease-out: past the halfway mark in the first third of the time.
+    expect(countAt(100, 333)).toBeGreaterThan(50);
+  });
+
+  test("the ease is --m-ease-smooth: 0 at the start, 1 at the end, and fast first", () => {
+    expect(easeSmooth(0)).toBe(0);
+    expect(easeSmooth(1)).toBe(1);
+    expect(easeSmooth(0.5)).toBeGreaterThan(0.85);
+    expect(CSS).toMatch(/--m-ease-smooth: cubic-bezier\(\.22, 1, \.36, 1\);/);
+  });
+
+  test("each kind of celebration plays once a day", () => {
+    expect(celebrationDue(null, "2026-11-4")).toBe(true);
+    expect(celebrationDue("2026-11-4", "2026-11-4")).toBe(false);
+    expect(celebrationDue("2026-11-4", "2026-11-5")).toBe(true);
+    expect(CELEBRATION_MS).toBeLessThanOrEqual(900);
   });
 });
 

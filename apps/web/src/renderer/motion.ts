@@ -63,15 +63,50 @@ export const LIFT_PX = 6;
 export const LINE_STAGGER_MS = 60;
 /** A count rolls its changed digits over this long. */
 export const ROLL_MS = 240;
-/** History's rows rise one after another on first load only: this far apart, the first this many. */
-export const ROW_STAGGER_MS = 40;
+/** History's rows rise one after another on first load only (MOTION-SPEC §2 staggered arrival): --m-stagger apart, the
+ *  first this many. */
+export const ROW_STAGGER_MS = 70;
 export const ROW_STAGGER_MAX = 8;
-/** A row rises over this long (.row-in). */
-export const ROW_IN_MS = 260;
+/** A row rises over this long (.row-in, --m-normal). */
+export const ROW_IN_MS = 350;
 
 /** The animation delay for History's row `index` on first load, `elapsed` ms in; null past the eighth row or once played. */
 export function rowDelay(index: number, elapsed: number, duration: number): number | null {
   return index < ROW_STAGGER_MAX ? entranceDelay(index * ROW_STAGGER_MS, elapsed, duration) : null;
+}
+
+/** MOTION-SPEC §2 count-up: how long a number counts up from 0 to `final` (700 ms under 100, 1000 ms under 10,000, 1200 max). */
+export function countUpMs(final: number): number {
+  return final < 100 ? 700 : final < 10_000 ? 1000 : 1200;
+}
+
+/** --m-ease-smooth, cubic-bezier(.22, 1, .36, 1): the eased progress at time fraction `x` (0 to 1). */
+export function easeSmooth(x: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const [x1, y1, x2, y2] = [0.22, 1, 0.36, 1];
+  const bez = (t: number, a: number, b: number): number => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+  let lo = 0, hi = 1, t = x;
+  for (let i = 0; i < 24; i++) {
+    t = (lo + hi) / 2;
+    if (bez(t, x1, x2) < x) lo = t;
+    else hi = t;
+  }
+  return bez(t, y1, y2);
+}
+
+/** The number a count-up to `final` shows `elapsed` ms in: whole numbers, never past `final`, `final` once it has run. */
+export function countAt(final: number, elapsed: number): number {
+  return Math.min(final, Math.round(final * easeSmooth(elapsed / countUpMs(final))));
+}
+
+/** The two wins that celebrate (MOTION-SPEC §4, TM app): a check says Works, a version is back in a copy. */
+export type CelebrationKind = "works" | "back";
+/** A celebration is over within this long: the pop and the burst (MOTION-SPEC §2, ≤ 900 ms). */
+export const CELEBRATION_MS = 900;
+/** Whether a celebration last played on `last` (a date, or null for never) may play again on `today`: once a day. */
+export function celebrationDue(last: string | null, today: string): boolean {
+  return last !== today;
 }
 
 /** The places in `after` of the digits that differ from `before`: the changed ones, or all of them when the text changed length. */
