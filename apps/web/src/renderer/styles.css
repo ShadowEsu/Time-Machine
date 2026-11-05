@@ -1403,7 +1403,7 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .cel { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 2; }
 .after-h > .cel { position: relative; display: inline-block; left: auto; top: auto; margin-left: 22px; vertical-align: middle; }
 .cel i { position: absolute; left: calc(var(--s, 9px) / -2); top: calc(var(--s, 9px) / -2); width: var(--s, 9px); height: var(--s, 9px); border-radius: 2px; background: var(--works);
-  transform: rotate(var(--a)) translateY(0); animation: cel-burst 900ms var(--m-ease-smooth) var(--d, 0ms) both; }
+  transform: rotate(var(--a)) translateY(0) rotate(0deg); animation: cel-burst 900ms var(--m-ease-smooth) var(--d, 0ms) both; }
 .cel i:nth-child(3n + 2) { background: var(--focus); border-radius: 50%; }
 .cel i:nth-child(3n) { background: var(--amber-dot); }
 @keyframes cel-burst {
