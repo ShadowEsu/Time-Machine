@@ -267,6 +267,11 @@ export function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 }
 
+/** Times inside a sentence never break in the middle: "2:08:05 AM" stays on one line. Takes and returns escaped HTML. */
+export function keepTimes(html: string): string {
+  return html.replace(/\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AaPp]\.?[Mm]\.?)?(?: #\d+)?/g, (t) => `<span class="nw">${t}</span>`);
+}
+
 export function plural(n: number, word: string, many = `${word}s`): string {
   return `${n} ${n === 1 ? word : many}`;
 }

@@ -1,5 +1,6 @@
-// The app window: projects, the project journal with its entry detail, Check it works, the Rewind
-// (the dial scene, or the plain sheet), Compare, Agents, Storage, Settings, onboarding and the Inspector.
+// The app window: projects, the project journal with its entry detail, Check it works, bringing back (one confirm; the
+// dial scene or the plain sheet only for a missing folder or a damaged save point), Compare, Agents, Storage, Settings,
+// onboarding and the Inspector.
 // Plain TypeScript, one render function.
 import type { CheckpointResult, CleanStoreResult, DiffResult, FindGoodResult, InitResult, OpenResult, RecoverResult, TimelineEntry, TimelineResult, VerdictRecord, VerifyResult } from "@timetm/core";
 import type { AgentRow, AppEvent, AutoSave, Bootstrap, Call, CallOf, HookPreview, IsolationInfo, LicenseStatus, Method, ProjectEntry, ProjectPreview, ProjectStatus, Purpose, Results, RunNote, Settings, SourceRow, StorageResult, StoreProject, TmBridge, Verdict } from "../shared/api.js";
@@ -7,11 +8,11 @@ import { askConsentValid, type AskProvider } from "../shared/ask.js";
 import { AGREE_FIRST, AGREED, AGREEMENT_OUTDATED, PRIVACY_URL, TERMS_URL } from "../shared/agreement.js";
 import { PRICING_URL } from "../shared/links.js";
 import { tmCommand } from "../shared/commands.js";
-import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, setHomes, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
+import { bytes, checkSource, clock, dayLabel, esc, homeHtml, homePath, keepTimes, nameLine, namePhrase, namePoint, plural, pointClock, pointMessage, pointTime, pointTitle, pointWhen, seconds, sentenceStart, setHomes, triggerLabel, triggerSentence, verdictKey, verdictWord, when, type PointName } from "../shared/format.js";
 import { changeSummary, checkReason, damagedReason, gitLine, goBackLabel, isDamagedReason, lastWorking as lastWorkingOf, legendItems, newestByTime, projectStatus, railAge, type ChangeKinds, type StatusPoint } from "./status.js";
 import { filterPalette, reduceMotionItem, savePointItem, type PaletteItem } from "./palette.js";
 import { dialAngle, dialIndex } from "./dial.js";
-import { anywayBody, goBackSteps, REVIEW_KEY, reviewKey } from "./rewind-copy.js";
+import { anywayBody, bringBackView, goBackSteps, REVIEW_KEY, reviewKey, unprovenLine } from "./rewind-copy.js";
 import { crossings, nearestTick, sceneX, stepIndex, type Step } from "./scrub.js";
 import { brokeAt, changedSince, defaultPick, foldRuns, listMove, rowVerdict, rulerMarks, sheetKey, sheetLayout, showsBackToNow, statusLine, type ListItem } from "./history-list.js";
 import { resetProjectCaches } from "./project-caches.js";
@@ -26,7 +27,7 @@ import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS,
 import { DialogFocus } from "./dialog-focus.js";
 import { SPLASH_OUT } from "./splash.js";
 import { ToastTimer } from "./toast.js";
-import { confirmButtons, type ConfirmCopy } from "./confirm.js";
+import { bringBackConfirm, confirmButtons, type ConfirmCopy } from "./confirm.js";
 import { thinConfirm, thinReview, thinSummary } from "./thin-view.js";
 import { dialCandidates, placeLabels, type Box } from "./label-fit.js";
 import { tailHtml, type LogTailView } from "./log-tail.js";
@@ -76,12 +77,13 @@ interface ReturnPoint {
 }
 
 interface RewindState {
-  /** Find runs only when no working version is known. Review shows one version and Use. Done has Undo. */
+  /** Find runs only when no working version is known. Review shows one version and Use (the one confirm, in "confirm" mode). Done has Undo. */
   step: "find" | "review" | "done";
   /** True when this Rewind started with a search, so the step bar shows Find. */
   searched: boolean;
-  /** "scene" is the Time View. "sheet" is the plain wizard, for Reduce motion or Simple rewind. */
-  mode: "scene" | "sheet";
+  /** "confirm" is every bring back: Review is the one confirm, and a search or Done is the plain sheet, with no dial. The dial stays
+   *  only for a missing folder or a damaged save point (bringBackView): "scene" is the Time View, "sheet" the same steps for Simple rewind. */
+  mode: "confirm" | "scene" | "sheet";
   returnTo: ReturnPoint;
   target: string | null;
   finding: boolean;
@@ -624,10 +626,6 @@ function vIcon(v: Verdict | null): string {
         : v === "BLOCKED" || v === "INCOMPLETE" ? '<path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'
           : '<circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/>';
   return `<svg class="vi" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${path}</svg>`;
-}
-/** Times inside a sentence never break in the middle: "2:08:05 AM" stays on one line. Takes and returns escaped HTML. */
-function keepTimes(html: string): string {
-  return html.replace(/\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AaPp]\.?[Mm]\.?)?(?: #\d+)?/g, (t) => `<span class="nw">${t}</span>`);
 }
 function li(items: string[], empty: string): string {
   return items.length ? items.map((x) => `<div class="li"><span>${esc(x)}</span></div>`).join("") : `<div class="muted small">${esc(empty)}</div>`;
@@ -1530,6 +1528,23 @@ function rewind(): string {
   </div></div>`;
 }
 
+/** Review as the one confirm (B3), whatever opened it: the version, what comes back and what does not, Never mind and Bring it back. */
+function bringConfirm(): string {
+  const r = st.rewind;
+  const c = entry(r?.target ?? null);
+  if (!r || !c) return rewind();
+  return bringBackConfirm({
+    name: pointName(c.id),
+    folder: project()?.kind === "folder",
+    comes: comesBackLines(c),
+    notComes: notSavedLines(c),
+    unproven: unprovenLine(checksOn(project()), shownVerdict(c)),
+    phone: window.innerWidth < RAIL_MIN,
+    working: r.recovering,
+    error: r.error,
+  }, once("scrim:bring"));
+}
+
 /** The Rewind's foot, kept at the sheet's foot while the reading scrolls: the quiet alternatives, then Not now (or Undo when it is done) and the main key. */
 function rwFoot(r: RewindState, pane: { key: string; alts: string[] }): string {
   const quiet = r.step === "done" && r.result
@@ -2127,9 +2142,9 @@ function settings(): string {
       `<div class="set-row set-theme"><div class="set-t"><span class="set-l" id="theme-l">Theme</span><p class="set-d">System follows your computer’s light or dark setting.</p></div><div class="theme-tiles" role="group" aria-labelledby="theme-l">${tile("system", "System")}${tile("light", "Light")}${tile("dark", "Dark")}</div></div>`
       + setRow("Show Git details", "Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.", sw("showGitDetails", s.showGitDetails, "Show Git details"))
       + setRow("Reduce motion", `Nothing moves on its own: no breathing dot, no spinning dial, no gliding rows. A check still shows its progress. ${osCalm ? "Your computer already asks for less motion, so Time Machine stays still either way." : "When this is off, Time Machine follows your computer’s own Reduce motion setting."}`, sw("reduceMotion", s.reduceMotion, "Reduce motion")) },
-    { id: "rewind", group: "Preferences", label: "Bringing back", title: "Bringing back", intro: "How bringing back looks: Dial or Simple. Both take the same steps.", icon: "rewind", body:
-      setRow("How bringing back looks", "Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.",
-        `<div class="seg" role="group" aria-label="How bringing back looks"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
+    { id: "rewind", group: "Preferences", label: "Bringing back", title: "Bringing back", intro: "Every bring back asks once, with what comes back and what does not. When the folder is missing or a save point is damaged, you choose a version first: on a dial, or Simple.", icon: "rewind", body:
+      setRow("How choosing a version looks", "Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.",
+        `<div class="seg" role="group" aria-label="How choosing a version looks"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
     ...st.projects.map((p) => ({ id: `features:${p.id}`, group: "Projects", label: esc(p.name), title: esc(p.name), intro: "Its check, when it saves, and optional extras.", icon: "project", body: `<div class="mount" data-mount="features:${esc(p.id)}"></div>` })),
     { id: "local", group: "Time Machine", label: "Local browser app", title: "Local browser app", intro: "Time Machine runs in your browser, served from this computer.", icon: "local", body:
       `<div class="browser-capabilities"><p class="set-p">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="set-p muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>` },
@@ -2803,7 +2818,8 @@ function keysSheetView(): string {
     <div class="ks-cols">
       <div><h3 class="ks-h">Everywhere</h3>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Bring back a working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last bring back")}${row("Mod+J", "Show or hide Ask")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
       <div><h3 class="ks-h">History</h3>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("F2", "Rename the save point")}${row("Space", "Bring it back")}${row("C", "Compare with now")}${row("Esc", "Close the save point")}
-        <h3 class="ks-h">Bringing back</h3>${row("J L", "Turn the dial one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Bring it back, or try it first if it is not proven")}${row("Mod+Enter", "The same, wherever focus is")}${row("Esc", "Back to now, no change")}</div>
+        <h3 class="ks-h">Bringing back</h3>${row("Tab", "Between Never mind and Bring it back")}${row("Enter", "Press the button in focus")}${row("Esc", "Never mind, no change")}
+        <h3 class="ks-h">The dial, for a missing folder or a damaged save point</h3>${row("J L", "Turn the dial one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Bring it back, or try it first if it is not proven")}${row("Mod+Enter", "The same, wherever focus is")}${row("Esc", "Back to now, no change")}</div>
     </div></div></div>`;
 }
 
@@ -3142,7 +3158,7 @@ function render(): void {
   // the app, a still or a screenshot. What a button acts on (data-path, data-text) keeps the full path.
   root.innerHTML = homeHtml(`<div class="shell"><button class="skip" data-act="skip">Skip to the page</button>
     ${opts.preview ? `<aside class="banner" aria-label="Preview"><span><b>Preview with demo data.</b> Download the app to use it on your projects.</span>${(opts.previewActions ?? []).map((a, i) => `<button class="btn" data-act="preview" data-i="${i}">${esc(a.label)}</button>`).join("")}</aside>` : ""}
-    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${sheetHtml}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
+    ${connectionBanner()}<div class="app ${appCls}">${rail}<main class="main" ${scene ? "inert" : ""}>${toolbar()}${main}${sheetHtml}${hookSheet()}${busyScrim()}</main>${right}${st.check ? checkSheet() : ""}${st.screen === "rewind" ? (scene ? timeView() : st.rewind?.mode === "confirm" && st.rewind.step === "review" ? bringConfirm() : rewind()) : ""}${inspector()}${paletteView()}${keysSheetView()}${navigation()}${confirmView()}</div></div>`);
   // The toast sits over the work area: past the rail, and short of a right column or a sheet beside the list when one is open.
   toastHost.dataset.right = sheetHtml && sheetBeside() ? "has-sheet" : appCls;
   seenOnce = drawOnce;
@@ -3400,9 +3416,12 @@ function reducedMotion(): boolean {
   return st.settings.reduceMotion || (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 }
 
-/** The dial scene, unless the user asked for the plain sheet. Reduce motion keeps the dial, without movement. */
-function rewindMode(): RewindState["mode"] {
-  return st.settings.simpleRewind ? "sheet" : "scene";
+/** Where a bring back opens: the one confirm, or for a missing folder, or a damaged save point with no version `chosen`, the dial
+ *  scene, unless the user asked for the plain sheet there. Reduce motion keeps the dial, without movement. */
+function rewindMode(back: ReturnPoint, chosen: boolean): RewindState["mode"] {
+  const on = back.screen === "history" && !chosen ? entry(back.selected) : null;
+  const view = bringBackView({ folderMissing: folderMissing(project()), damaged: !!on && !!damagedReason(on) });
+  return view === "confirm" ? "confirm" : st.settings.simpleRewind ? "sheet" : "scene";
 }
 
 function here(): ReturnPoint {
@@ -3414,9 +3433,9 @@ function here(): ReturnPoint {
   };
 }
 
-function newRewind(target: string | null, returnTo: ReturnPoint = here()): RewindState {
+function newRewind(target: string | null, returnTo: ReturnPoint, mode: RewindState["mode"]): RewindState {
   return {
-    step: target ? "review" : "find", searched: false, mode: rewindMode(), returnTo, target, finding: false, find: null, progress: [], trying: false, tryResult: null,
+    step: target ? "review" : "find", searched: false, mode, returnTo, target, finding: false, find: null, progress: [], trying: false, tryResult: null,
     opening: false, openResult: null, recovering: false, result: null, error: null,
   };
 }
@@ -3449,6 +3468,7 @@ async function startRewind(target?: string, search = false): Promise<void> {
     return;
   }
   const back = st.screen === "rewind" && st.rewind ? st.rewind.returnTo : here();
+  const mode = rewindMode(back, !!target);
   st.check = null;
   st.screen = "rewind";
   enterScene();
@@ -3457,20 +3477,21 @@ async function startRewind(target?: string, search = false): Promise<void> {
   const pts = points();
   const known = target ?? (!checksOn(p) ? (st.selected ?? pts.at(-2)?.id ?? pts.at(-1)?.id) : !search && pts.at(-1)?.verdict !== "PASS" ? lastWorking()?.id : undefined);
   if (known) {
-    st.rewind = newRewind(known, back);
+    st.rewind = newRewind(known, back, mode);
     render();
     void loadChanges();
     void loadChangeOf(known);
     return;
   }
-  st.rewind = newRewind(null, back);
+  st.rewind = newRewind(null, back, mode);
   await findGood();
 }
 
 async function findGood(): Promise<void> {
   const p = project();
   if (!p || st.busy || !checksOn(p)) return;
-  st.rewind = { ...newRewind(null, st.rewind?.returnTo), finding: true, searched: true };
+  const back = st.rewind?.returnTo ?? here();
+  st.rewind = { ...newRewind(null, back, st.rewind?.mode ?? rewindMode(back, false)), finding: true, searched: true };
   st.busy = "Finding";
   render();
   void loadChanges();
@@ -3510,7 +3531,8 @@ function exitRewind(): void {
   if (list) list.scrollTop = back.listScroll;
   const page = document.querySelector(".page");
   if (page) page.scrollTop = back.pageScroll;
-  if (!finished) return;
+  // Never mind: DialogFocus gives focus back to what opened the Rewind. Opened by a shortcut with focus nowhere, it goes to the list.
+  if (!finished) return refocusList();
   root.querySelector<HTMLElement>('.undo-card [data-act="undo-rewind"]')?.focus({ preventScroll: true });
   toast(`Brought back ${pointName(finished.id)}. Your folder wasn’t touched. ${keys("Mod+Z")} undoes it.`, finished.lastVerdict);
 }
@@ -3662,7 +3684,7 @@ async function rewindDo(): Promise<void> {
   // The pressed key was disabled while it worked, so focus moved on. Draw the outcome now and give its key the focus:
   // Done when it is back, the key again when it failed. Later redraws keep it there.
   render();
-  root.querySelector<HTMLElement>(`.rw [data-act="${r.step === "done" ? "tv-done" : "tv-use"}"]`)?.focus({ preventScroll: true });
+  root.querySelector<HTMLElement>(r.step === "done" ? '.rw [data-act="tv-done"]' : '.rw [data-act="tv-use"], .bb [data-act="tv-use"]')?.focus({ preventScroll: true });
   await loadTimeline();
   await refreshStatuses();
   render();
@@ -4849,6 +4871,8 @@ function rewindKey(e: KeyboardEvent): boolean {
     if (!r.recovering) exitRewind();
     return true;
   }
+  // The one confirm has only its two buttons: Tab between them, Enter or Space presses the focused one, Esc is Never mind.
+  if (r.mode === "confirm" && r.step === "review") return false;
   if (k === "Enter") {
     if (!modEnter && e.target instanceof HTMLElement && e.target.closest("button, summary, a[href]")) return false;
     // Enter never waits for an animation. It does the main action now: Use when proven, else Try.
@@ -4958,7 +4982,7 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   const modal = dialogFocus.current;
-  if (modal && !modal.matches(".tv, .rw-sheet")) {
+  if (modal && !modal.matches(".tv, .rw-sheet, .bb")) {
     // History's preview as a page over History is a dialog of its own: its keys first (Esc back to the row, F2).
     if (modal.matches(".lp-sheet") && sheetKeys(e, typing)) return;
     if (k === "escape") {
@@ -5061,7 +5085,9 @@ function onKey(e: KeyboardEvent): void {
     openFold(st.foldAt);
   } else if (k === " " && onList && st.selected && !st.foldAt) {
     e.preventDefault();
-    void startRewind(st.selected);
+    // The one confirm for the selected version; a damaged one can't come back, so the dial opens to choose another.
+    const sel = entry(st.selected);
+    void startRewind(sel && damagedReason(sel) ? undefined : st.selected);
   } else if (k === "c" && st.selected) {
     e.preventDefault();
     void openCompare(st.selected, "now");

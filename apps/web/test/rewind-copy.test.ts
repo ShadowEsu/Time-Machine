@@ -1,6 +1,6 @@
 // What going back says it will do: a plain folder (no Git) is never promised a branch (Design gate MF2).
 import { describe, expect, test } from "vitest";
-import { anywayBody, REVIEW_KEY, reviewKey, goBackSteps } from "../src/renderer/rewind-copy.ts";
+import { anywayBody, bringBackView, REVIEW_KEY, reviewKey, goBackSteps, unprovenLine } from "../src/renderer/rewind-copy.ts";
 
 describe("rewind wording", () => {
   test("a plain folder: save, then a copy; no branch anywhere", () => {
@@ -38,5 +38,28 @@ describe("the rewind sheet's key", () => {
     expect(reviewKey(true, "FAIL", true)).toBe("try-again");
     expect(REVIEW_KEY["bring-back"]).toEqual({ act: "tv-use", label: "Bring it back" });
     expect(REVIEW_KEY.try.act).toBe("tv-try");
+  });
+});
+
+describe("the one confirm's unproven line", () => {
+  test("a version that passed adds no line, and neither does a project with no check (it only saves versions)", () => {
+    expect(unprovenLine(true, "PASS")).toBeNull();
+    for (const v of [null, "FAIL", "INCOMPLETE", "BLOCKED", "ERROR", "PASS"] as const) expect(unprovenLine(false, v)).toBeNull();
+  });
+
+  test("not checked, failed and a check that did not finish each add one true line, never the same one", () => {
+    const lines = (["FAIL", "INCOMPLETE", "BLOCKED", "ERROR", null] as const).map((v) => unprovenLine(true, v));
+    for (const l of lines) expect(l).toMatch(/^[^\n]+\.$/);
+    expect(new Set(lines).size).toBe(lines.length);
+    expect(unprovenLine(true, null)).toMatch(/not been checked|hasn’t been checked/);
+    expect(unprovenLine(true, "FAIL")).toMatch(/failed/);
+  });
+});
+
+describe("where a bring back opens", () => {
+  test("the one confirm, unless the folder is missing or the save point you were on is damaged: then the dial, to choose one", () => {
+    expect(bringBackView({ folderMissing: false, damaged: false })).toBe("confirm");
+    expect(bringBackView({ folderMissing: true, damaged: false })).toBe("dial");
+    expect(bringBackView({ folderMissing: false, damaged: true })).toBe("dial");
   });
 });
