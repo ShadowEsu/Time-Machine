@@ -3448,7 +3448,8 @@ function applyCelebrations(): void {
   const quiet = !st.settings.celebrations || reducedMotion();
   const start = (kind: CelebrationKind): void => {
     if (quiet || !claimCelebration(kind)) return;
-    cheering = { kind, pid, at: now };
+    // A bring back celebrates when its card lands, after the lift glide (--t-moment): motion during motion gets lost.
+    cheering = { kind, pid, at: kind === "back" ? now + MOMENT_MS : now };
   };
   const heroAt = verdictIn.get(`${pid} hero`);
   if (hero?.classList.contains("v-pass") && heroAt !== undefined && now - heroAt < 50) start("works");
@@ -3458,21 +3459,26 @@ function applyCelebrations(): void {
     cheering = null;
     return;
   }
-  const target = c.kind === "works" ? hero : back?.querySelector<HTMLElement>(".after-h");
-  if (!target || target.querySelector(".cel")) return;
+  // What pops (the check, or the card's heading) and where the shapes fan from: inside the card, which clips them.
+  const pop = c.kind === "works" ? hero : back?.querySelector<HTMLElement>(".after-h");
+  const host = c.kind === "works" ? hero : back;
+  if (!pop || !host || host.querySelector(":scope > .cel")) return;
+  // Negative while waiting for the card to land: the delays below then hold everything until it does.
   const t = now - c.at;
-  target.classList.add("cel-host", "cel-pop");
-  target.style.animationDelay = `${-t}ms`;
+  pop.classList.add("cel-pop");
+  pop.style.animationDelay = `${-t}ms`;
+  host.classList.add("cel-host");
   const burst = document.createElement("span");
   burst.className = "cel";
   burst.setAttribute("aria-hidden", "true");
-  if (c.kind === "back") burst.style.cssText = "left: 0; top: 50%;";
   for (let i = 0; i < 8; i++) {
     const dot = document.createElement("i");
-    dot.style.cssText = `--a: ${i * 45 + 20}deg; --r: ${32 + (i % 3) * 8}px; --d: ${i * 12 - t}ms;`;
+    // Around the check for Works; into the card (right and down, 95° to 165°) for a bring back.
+    const a = c.kind === "works" ? i * 45 + 20 : 95 + i * 10;
+    dot.style.cssText = `--a: ${a}deg; --r: ${30 + (i % 3) * 9}px; --s: ${8 + (i % 3)}px; --d: ${i * 12 - t}ms;`;
     burst.append(dot);
   }
-  target.append(burst);
+  host.append(burst);
 }
 
 /** Today's date on this computer, for the once-a-day rule. */

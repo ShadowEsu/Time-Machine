@@ -1391,17 +1391,25 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 }
 
 /* Celebration (MOTION-SPEC §2), on a real win only: History's verdict turns Works after a check, or a version is back in a
-   copy. Contained to the mark: it pops to --m-scale-pop and back on --m-ease-pop, and 8 small shapes in the Works and sky
-   colours burst out at most 48 px and fade, 900 ms in all. Once a day per kind; any click, key or scroll ends it.
-   Reduced motion (the computer's or the app's own) or Celebrations off: nothing extra, the still check and its colour. */
+   copy. The check pops to --m-scale-pop and back on --m-ease-pop, and 8 shapes of 8-10 px in TM's state colours at full
+   strength (Works green, the focus blue, amber) fan 30-48 px out from it: opaque for the first 40 %, then fading, 900 ms in
+   all. On the bring-back card the shapes stay inside the card (it clips) and start when the card lands. Once a day per kind;
+   any click, key or scroll ends it. Reduced motion (the computer's or the app's own) or Celebrations off: nothing extra,
+   the still check and its colour. */
 .cel-host { position: relative; }
+.doc > .after.cel-host { overflow: clip; }
 .cel-pop { animation: cel-pop var(--m-normal) var(--m-ease-pop) both; }
 @keyframes cel-pop { 50% { transform: scale(var(--m-scale-pop)); } }
 .cel { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 2; }
-.cel i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 2px; background: var(--works); opacity: 0;
+.after > .cel { left: 34px; top: 32px; }
+.cel i { position: absolute; left: calc(var(--s, 9px) / -2); top: calc(var(--s, 9px) / -2); width: var(--s, 9px); height: var(--s, 9px); border-radius: 2px; background: var(--works);
   transform: rotate(var(--a)) translateY(0); animation: cel-burst 900ms var(--m-ease-smooth) var(--d, 0ms) both; }
-.cel i:nth-child(even) { background: var(--sky-line); border-radius: 50%; }
-@keyframes cel-burst { 10% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--r, 40px))) rotate(90deg); } }
+.cel i:nth-child(3n + 2) { background: var(--focus); border-radius: 50%; }
+.cel i:nth-child(3n) { background: var(--amber-dot); }
+@keyframes cel-burst {
+  0%, 40% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--r, 40px))) rotate(90deg); }
+}
 .rm .cel { display: none; }
 .rm .cel-pop { animation: none; }
 @media (prefers-reduced-motion: reduce) { .cel { display: none; } .cel-pop { animation: none; } }
