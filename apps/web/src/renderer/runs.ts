@@ -61,14 +61,6 @@ export function pinIcon(on: boolean): string {
   return `<svg class="pin-i" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 2.5h4l-.6 4 2.6 2.4H4l2.6-2.4zM8 8.9v4.6" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
-/** All / Works / Named / Pinned over History's list, each filter with how many it shows. */
-export function filterBar(filter: JournalFilter, counts: { works: number | null; named: number; pinned: number }, purpose: Purpose): string {
-  const u = unitWords(purpose);
-  const b = (v: JournalFilter, label: string): string => `<button class="${filter === v ? "on" : ""}" aria-pressed="${filter === v}" data-act="journal-filter" data-v="${v}">${label}</button>`;
-  const n = (k: number): string => `<span class="jf-n">${k}</span>`;
-  return `<div class="jf" role="group" aria-label="${esc(`Show ${u.many}`)}">${b("all", "All")}${counts.works === null ? "" : b("works", `Works${n(counts.works)}`)}${b("named", `Named${n(counts.named)}`)}${b("pinned", `${pinIcon(true)}Pinned${n(counts.pinned)}`)}</div>`;
-}
-
 /** A filter that shows nothing: what it is waiting for, and the way back to all of them. */
 export function noneShown(filter: Exclude<JournalFilter, "all">, purpose: Purpose): string {
   const u = unitWords(purpose);

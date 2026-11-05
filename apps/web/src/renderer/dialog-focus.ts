@@ -1,4 +1,6 @@
 // The window redraws its markup. Keep modal focus by control selector, not by detached DOM node.
+import { trapStep } from './shell.js';
+
 const CONTROLS = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
 export class DialogFocus {
@@ -51,16 +53,25 @@ export class DialogFocus {
     }
   }
 
+  /** Tab stays inside the open modal (the phone's drawer, a confirm, a sheet): from its last control to its first, and back
+   *  with Shift. Focus outside it, or on the modal itself, comes back in at the end it moves towards. */
   trapTab(e: KeyboardEvent): boolean {
     const dialog = this.current;
     if (!dialog || e.key !== 'Tab') return false;
     const controls = this.controls(dialog);
-    const first = controls[0] ?? dialog;
-    const last = controls.at(-1) ?? dialog;
-    if (!dialog.contains(document.activeElement) || document.activeElement === dialog ||
-        (e.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+    if (!controls.length) {
       e.preventDefault();
-      (e.shiftKey ? last : first).focus();
+      dialog.focus();
+      return true;
+    }
+    const active = document.activeElement as HTMLElement | null;
+    const outside = !active || !dialog.contains(active) || active === dialog;
+    const at = controls.indexOf(active as HTMLElement);
+    // In between (a control, or a heading that took focus), the browser's own Tab order moves; only the ends and a way back
+    // in are taken over.
+    if (outside || (at >= 0 && (e.shiftKey ? at === 0 : at === controls.length - 1))) {
+      e.preventDefault();
+      controls[trapStep(controls.length, outside ? -1 : at, e.shiftKey)]!.focus();
     }
     return true;
   }

@@ -240,6 +240,8 @@ export interface OverviewInput {
   /** The verdict the app shows for a project's newest save point, where it differs from the status's: your broken version,
    *  never checked, carries the verdict of the saves before it when no file changed (carriedVerdict, as the sidebar). */
   shown?: ReadonlyMap<string, Verdict | null>;
+  /** Where history is kept and what Ask sends, as one or two sentences: Overview's first sentence follows the count (B6 S1). */
+  trust: string;
 }
 
 /** A sentence with a path or a hyphenated name in it, as HTML: each stays whole on its line, and a path breaks only after a "/". */
@@ -306,12 +308,11 @@ export function overviewPage(input: OverviewInput): string {
   // with two private-use characters, escaped with the rest of the line, then wrapped.
   const headline = esc(reportLine(rows, DIGEST_HOURS, (name) => `\u{E000}${name}\u{E001}`, unread)).replace(/\u{E000}(.*?)\u{E001}/gu, '<span class="ov-nm">$1</span>');
   return `<div class="page b9-page ov-page" id="overview-page" tabindex="-1" role="region" aria-label="Overview"><div class="b9">
-    <header class="b9-head"><h1>Overview</h1><p class="voice b9-voice">${esc(`${plural(n, "thing")} protected on this computer.`)}</p></header>
+    <header class="b9-head"><h1>Overview</h1><p class="b9-voice">${esc(`${plural(n, "thing")} protected. ${input.trust}`)}</p></header>
     <section class="ov-report" aria-labelledby="ov-r-h"><div class="b9-day"><h2 id="ov-r-h">Since you last looked</h2><span>${esc(`The last ${DIGEST_HOURS} hours, from your local history`)}</span></div>
       ${reading ? '<p class="ov-big ov-big-sk" aria-busy="true"><span class="sr-only">Reading your history…</span><i class="sk" aria-hidden="true"></i><i class="sk" aria-hidden="true"></i></p>' : `<p class="ov-big">${headline}</p>`}</section>
     <section aria-labelledby="ov-p-h"><div class="b9-day"><h2 id="ov-p-h">Protected</h2>${plan}</div>
       <ul class="ov-list${input.enter ? ` ${input.enter}` : ""}">${input.projects.map((p, i) => card(p, i, input)).join("")}</ul>
-      <div class="row-btns ov-add"><button class="btn" data-act="add">Protect a folder</button><button class="btn link" data-act="sources">See folders found on this computer</button></div>
       ${input.freeLimit !== null && input.projects.length >= input.freeLimit ? `<p class="ov-full">${esc(ADD_FULL)} <button class="btn link" data-act="storage">Open Storage</button></p>` : ""}</section>
   </div></div>`;
 }

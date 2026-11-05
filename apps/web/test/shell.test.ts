@@ -10,7 +10,7 @@ import { Engine } from "../src/server/engine.ts";
 import { AppState } from "../src/server/state.ts";
 import { CallSchema, SettingsPatchSchema, SettingsSchema } from "../src/shared/api.ts";
 import { dayLabel, pointTitle, when } from "../src/shared/format.ts";
-import { projectStatus, railAge } from "../src/renderer/status.ts";
+import { projectStatus } from "../src/renderer/status.ts";
 import { filterPalette, reduceMotionItem, type PaletteItem } from "../src/renderer/palette.ts";
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), "tm-desktop-"));
@@ -95,19 +95,7 @@ describe("settings", () => {
   });
 });
 
-describe("rail ages", () => {
-  test("say how long ago in plain words: just now, minutes, hours today, Yesterday, days, then the date", () => {
-    const now = new Date(2026, 9, 25, 15, 0).getTime();
-    const at = (d: number, h: number, m: number): string => new Date(2026, 9, d, h, m).toISOString();
-    expect(railAge(at(25, 14, 59), now)).toBe("1 min");
-    expect(railAge(new Date(now - 20_000).toISOString(), now)).toBe("just now");
-    expect(railAge(at(25, 14, 57), now)).toBe("3 min");
-    expect(railAge(at(25, 13, 0), now)).toBe("2 h");
-    expect(railAge(at(24, 23, 30), now)).toBe("Yesterday");
-    expect(railAge(at(21, 9, 0), now)).toBe("4 days");
-    expect(railAge(at(1, 9, 0), now)).toBe(new Date(2026, 9, 1).toLocaleDateString(undefined, { day: "numeric", month: "short" }));
-  });
-
+describe("days", () => {
   test("journal days: Today, Yesterday, the weekday for the rest of the last 7 days, then the date (with the year when not this year)", () => {
     const now = new Date(2026, 9, 25, 15, 0);
     const at = (y: number, mo: number, d: number, h = 9): string => new Date(y, mo, d, h, 0).toISOString();

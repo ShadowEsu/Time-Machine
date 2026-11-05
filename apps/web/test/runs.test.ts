@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { RunNote } from "../src/shared/api.ts";
-import { changedLine, filterBar, filterCounts, filtered, nameCount, noneShown, noteBlock, noteSaveWords, rowTitle, shownTitle, unitWords } from "../src/renderer/runs.ts";
+import { changedLine, filterCounts, filtered, nameCount, noneShown, noteBlock, noteSaveWords, rowTitle, shownTitle, unitWords } from "../src/renderer/runs.ts";
 import { filterPalette, savePointItem } from "../src/renderer/palette.ts";
 
 const note = (over: Partial<RunNote> = {}): RunNote => ({ pinned: false, updated: "2026-10-25T05:00:00Z", ...over });
@@ -27,16 +27,6 @@ describe("runs: name, note and pin", () => {
     expect(filterCounts(pts, notes, true)).toEqual({ works: 2, named: 1, pinned: 2 });
     // A project with no check has no Works filter.
     expect(filterCounts(pts, notes, false).works).toBeNull();
-  });
-
-  test("the filter bar is All, Works, Named and Pinned, each with its count, in the project's word, and says what is pressed", () => {
-    const bar = filterBar("works", { works: 1, named: 0, pinned: 2 }, "research");
-    expect(bar).toContain('aria-label="Show runs"');
-    expect(bar.match(/data-v="(\w+)"/g)).toEqual(['data-v="all"', 'data-v="works"', 'data-v="named"', 'data-v="pinned"']);
-    expect(bar).toMatch(/class="on" aria-pressed="true" data-act="journal-filter" data-v="works">Works<span class="jf-n">1<\/span>/);
-    expect(bar).toContain('data-v="named">Named<span class="jf-n">0</span>');
-    expect(bar).toMatch(/data-v="pinned">.*Pinned<span class="jf-n">2<\/span>/);
-    expect(filterBar("all", { works: null, named: 0, pinned: 0 }, "documents")).not.toContain('data-v="works"');
   });
 
   test("a filter that shows nothing says what it waits for and offers all of them", () => {
