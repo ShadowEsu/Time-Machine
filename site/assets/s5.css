@@ -1,7 +1,7 @@
 /* S5 "The Stack": home's header and first screen in the Unvibe-sibling language (spec:
    boss-handoff agents/design/tm-site-s5-build-spec-2026-10-23.md). Home only until M4, when these tokens and faces
    move into site.css. Loads after site.css and home.css.
-   Bricolage Grotesque for display, Instrument Serif italic for the voice line, Inter for UI, IBM Plex Mono for ids
+   Bricolage Grotesque for display, Inter for UI, IBM Plex Mono for ids
    and times (the machine's printed labels). Paper and ink, sky for the button on the lid, green only for "passed". */
 
 /* Fonts, self hosted from fontsource 5.3.0 (Latin). Licences (SIL OFL 1.1) sit next to the files in assets/fonts/. */
@@ -11,20 +11,6 @@
   font-weight: 200 800;
   font-display: swap;
   src: url("fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations"), url("fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Instrument Serif";
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Instrument Serif";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "IBM Plex Mono";
@@ -42,7 +28,7 @@
 }
 /* Metric-matched stand-ins while the web fonts load, so the h1 keeps its line breaks when they swap in.
    size-adjust = the web face's glyph width over the stand-in's on the h1 strings (Chrome, measureText);
-   ascent/descent = the web face's hhea metrics (Bricolage 930/270, Instrument Serif 990/310 per 1000) / size-adjust. */
+   ascent/descent = the web face's hhea metrics (Bricolage 930/270 per 1000) / size-adjust. */
 @font-face {
   font-family: "Bricolage fallback";
   font-weight: 600 800;
@@ -50,24 +36,6 @@
   size-adjust: 102.6%;
   ascent-override: 90.6%;
   descent-override: 26.3%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Instrument fallback";
-  font-style: italic;
-  src: local("Times New Roman Italic"), local("TimesNewRomanPS-ItalicMT");
-  size-adjust: 86.5%;
-  ascent-override: 114.5%;
-  descent-override: 35.8%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Instrument fallback 2";
-  font-style: italic;
-  src: local("Georgia Italic"), local("Georgia-Italic");
-  size-adjust: 78%;
-  ascent-override: 126.9%;
-  descent-override: 39.7%;
   line-gap-override: 0%;
 }
 
@@ -93,7 +61,6 @@ body.home {
   --hard: 3px 3px 0 #141414;
   --press: cubic-bezier(.3, 1.5, .5, 1);
   --display: "Bricolage Grotesque", "Bricolage fallback", system-ui, sans-serif;
-  --voice: "Instrument Serif", "Instrument fallback", "Instrument fallback 2", Georgia, serif;
   --plex: "IBM Plex Mono", ui-monospace, monospace;
   color-scheme: light;
   color: var(--ink);
@@ -114,13 +81,12 @@ body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 va
 @media (max-width: 420px) { body.home .top .brand { font-size: 18px; gap: 8px; } body.home .top .brand svg { width: 26px; height: 26px; } }
 @media (max-width: 370px) { body.home .top .brand { font-size: 0; gap: 0; } }
 
-/* The stage: the room, the poster (the scene's first frame), the machine, and the hero over them. The room is warm
-   late-afternoon light from the upper left: blush where it falls, paper elsewhere, a deeper floor for the shadow. */
+/* The stage: the room, the poster (the scene's first frame), the machine, and the hero over them. A flat paper
+   ground (Design no-slop audit, 4 Nov: no peach wash). */
 .pin { position: relative; }
 .stage { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: center; min-height: 100svh;
   padding: 76px max(24px, calc(50% - 600px)) 64px; overflow: hidden;
-  background: radial-gradient(130% 110% at 0% 0%, #f8e4d8 0%, rgba(248, 228, 216, .55) 38%, rgba(244, 242, 237, 0) 72%),
-    linear-gradient(180deg, #f5f0ea 0%, #f4f2ed 58%, #ebe6de 100%); }
+  background: #f4f2ed; }
 .stage canvas, .stage .first { position: absolute; inset: 0; z-index: -1; display: block; width: 100%; height: 100%; }
 /* The poster image (no motion, or WebGL lost), framed exactly like load.js draws the poster: as tall as the stage
    (the scene's camera scales with the height), its 67 % point on the stage's 67 % point (where the scene centres the
@@ -134,7 +100,7 @@ body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 va
 .hero { width: min(520px, 42%); }
 /* The h1 follows the viewport's height as well as its width, so the hero and its form fit the first screen. */
 .pin h1 { margin: 0; font: 750 clamp(42px, min(5.4vw, 8svh), 80px)/.98 var(--display); letter-spacing: -.04em; text-wrap: balance; }
-.pin h1 .voice { display: block; font: italic 400 1.04em/1.05 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+.pin h1 .voice { display: block; font-weight: 500; }
 .pin .lead { max-width: 30em; margin: 20px 0 0; font-size: 18px; line-height: 1.55; letter-spacing: 0; }
 
 /* The live waitlist form (site.css), in the machine's language: a white field with an ink edge, the ink pill. */
@@ -152,7 +118,7 @@ body.home .top-cta:active { transform: translate(2px, 2px); box-shadow: 0 0 0 va
 .pin .hero-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; margin: 6px 0 0; color: var(--ink-3); font-size: 14px; line-height: 1.45; }
 .pin .hero-alt a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; text-underline-offset: 4px; }
 
-.cue { position: absolute; left: 50%; bottom: 26px; margin: 0; transform: translateX(-50%); font: italic 400 19px/1 var(--voice); color: var(--ink-3); white-space: nowrap; }
+.cue { position: absolute; left: 50%; bottom: 26px; margin: 0; transform: translateX(-50%); font: 600 17px/1 var(--font-body); color: var(--ink-3); white-space: nowrap; }
 
 /* The pin (M2). In motion mode the section is the story's scroll length: the stage sticks and 320svh of scroll run
    the rewind under it (scene.js reads p from the stage's sticky top). Where the hero makes the stage taller than the
@@ -192,7 +158,7 @@ html.motion #hero-h { visibility: visible; }
 .subs .on .sub-s .cur::before { animation: blink 1s steps(1, end) .3s 3; }
 @keyframes blink { 50% { opacity: 0; } }
 .sub { margin: 0; font: 750 clamp(28px, 2.8vw, 40px)/1.05 var(--display); letter-spacing: -.03em; text-wrap: balance; color: var(--ink); }
-.sub .voice { display: block; font: italic 400 1.05em/1.05 var(--voice); letter-spacing: -.01em; color: var(--ink-2); }
+.sub .voice { display: block; font-weight: 500; }
 .sub-s { margin: 12px 0 0; font: 500 15px/1.5 var(--plex); letter-spacing: 0; color: var(--ink-2); }
 
 /* Reduced motion, no JavaScript, weak devices, no WebGL (html.motion is set before paint only when none apply):
