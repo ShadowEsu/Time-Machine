@@ -218,7 +218,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .amark.am-codex { background: var(--ag-codex); }
 .amark.am-gemini { background: var(--ag-gemini); }
 .amark svg { width: 76%; height: 76%; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.breath { width: 8px; height: 8px; border-radius: 50%; background: var(--works); flex: none; animation: breath 2.4s ease-in-out infinite; }
+/* Claude Code's working dot breathes three times when it shows, then rests as a still dot (B6 §3.1). app.ts keeps the three
+   breaths going across redraws (applyBreath); under reduced motion it never starts. */
+.breath { width: 8px; height: 8px; border-radius: 50%; background: var(--works); flex: none; animation: breath 2.4s ease-in-out 3; }
 @keyframes breath { 0%, 100% { opacity: .35 } 50% { opacity: 1 } }
 /* The foot: Settings with the plan line, and nothing else (S1). */
 .side-foot { margin-top: auto; padding-top: 12px; display: grid; }
@@ -311,8 +313,13 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .g.v-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
 .v-checking .g { animation: breathe 1.1s ease-in-out infinite; box-shadow: inset 0 0 0 1.5px var(--ink); }
 @keyframes breathe { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
-@keyframes spin { to { transform: rotate(360deg) } }
-.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink-5); border-top-color: var(--ink); animation: spin .9s linear infinite; flex: none; display: inline-block; }
+/* A step that runs, in the check's and the demo's step lists: the Checking ring, breathing. No spinners (B6 §3.1). */
+.steplist .r .g.run { width: 10px; height: 10px; margin: 0 2px; box-shadow: inset 0 0 0 1.5px var(--ink); animation: breathe 1.1s ease-in-out infinite; }
+/* Loading shapes where content will land: quiet bars, no spinner. */
+.sk-lines { display: grid; gap: 10px; min-width: 0; flex: 1; }
+.sk-lines.sk-one { display: inline-grid; flex: none; width: 120px; }
+.sk-lines .sk-l { width: 70%; height: 14px; }
+.sk-lines .sk-m { width: 44%; height: 14px; }
 /* A new verdict settles in once. No overshoot: a verdict is a fact, not a celebration. */
 .stamp { animation: stamp .24s var(--ease); }
 @keyframes stamp { from { transform: scale(.94); opacity: 0 } to { transform: none; opacity: 1 } }
@@ -337,11 +344,18 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 /* The way back sits right under the status: the one action that matters, with its shortcut. */
 .lp-go { margin: 10px 0 0 42px; }
 .lp-go .btn { white-space: normal; height: auto; min-height: 52px; padding-block: 10px; text-align: left; }
+/* While History searches: what it checks now and how far it got, from the engine's own results (B6 §3.2). Two lines are kept
+   for it, so the answer that replaces it lands in the same place. */
+.lp-run { margin: 0 0 0 42px; min-height: 3em; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.lp-run .btn.link { font-size: 14px; }
 /* After a bring back: a banner, not a toast (B4). Where it went, then Undo and Keep it, each with what it does under it. */
 .doc > .after { margin: 28px 0 0; display: grid; gap: 12px; padding: 18px 20px; border-radius: var(--r-lg); background: var(--surface); border: 1.5px solid var(--sky-line); color: var(--ink-2); font-size: 16px; line-height: 1.5; }
 .doc > .after.kept { border-color: var(--line); }
+/* While it lifts out of its row and glides up (B6 §3.3), it passes over the list. */
+.doc > .after.lifting { position: relative; z-index: 5; }
 .after-h { font: 600 16px/1.25 var(--display); letter-spacing: -.02em; color: var(--ink); }
-.after-where, .after-broken p { min-width: 0; overflow-wrap: anywhere; }
+.after-where { display: grid; gap: 2px; }
+.after-l, .after-broken p { min-width: 0; overflow-wrap: anywhere; }
 .after .mono { font-size: 14px; color: var(--ink); }
 .after-broken { display: grid; gap: 2px; justify-items: start; }
 .after-broken b { color: var(--ink); }
@@ -417,6 +431,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; height
 .lp-m { grid-area: m; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 /* The verdict: an icon, a word and a colour, never the colour alone. */
 .lp-v { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px 0 8px; border-radius: 999px; background: var(--unk-bg); color: var(--unk); font: 600 14px/1 var(--font); white-space: nowrap; }
+/* While History searches, and after, each verdict sits in a box as wide as Checking, so a ring that becomes Broken or Works
+   never moves the words beside it (B6 §4, CLS 0). */
+.lp-list.ran .lp-v { min-width: 112px; }
 .lp-v .vi { width: 13px; height: 13px; flex: none; }
 .lp-v.v-pass { background: var(--works-bg); color: var(--works); }
 .lp-v.v-fail { background: var(--broken-bg); color: var(--broken); }
@@ -1184,7 +1201,7 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .connection-banner p { color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }
 .connection-dot { width: 8px; height: 8px; border: 2px solid var(--ink-3); border-radius: 50%; flex: none; }
 /* The drawer (S9): the sidebar over a veil, from the top-left button; Esc or the veil closes it. */
-.app > .nav-scrim { z-index: 55; padding: 0; place-items: stretch start; }
+.app > .nav-scrim { z-index: 55; padding: 0; place-items: stretch start; background: rgb(20 20 20 / .4); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .side.mobile-side { display: flex; width: min(300px, 86%); height: 100%; padding: 16px 12px 12px calc(12px + env(safe-area-inset-left)); border-right: 0; box-shadow: 0 0 40px color-mix(in srgb, var(--ink) 24%, transparent); }
 .mobile-side .brand { flex: none; }
 .browser-runtime .side:not(.mobile-side) { padding-top: 24px; }
@@ -1221,7 +1238,8 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
   .page.lp .lp-h { gap: 10px; }
   .lp-mark { width: 26px; height: 26px; }
   .lp-mark .vi { width: 14px; height: 14px; }
-  .lp-sub, .lp-go, .lp-status .gone-card { margin-left: 0; }
+  .lp-sub, .lp-go, .lp-run, .lp-status .gone-card { margin-left: 0; }
+  .lp-run { min-height: 4.5em; }
   .lp-col { margin-inline: -4px; }
   .lp-head { padding-left: 12px; }
   .fm-b { min-height: 44px; }
@@ -1285,17 +1303,33 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .block-in { animation: block-in .3s var(--ease) backwards; }
 @keyframes block-in { from { opacity: 0; transform: translateY(14px); } }
 
-/* Sheets, the palette and columns grow from what was pressed (app.ts sets the origin); the ⋯ menu drops from ⋯; the phone's
-   rail slides in from the left. */
-.mn-l.enter { transform-origin: top right; animation: pop .18s var(--ease) both; }
-.nav-scrim.enter > .side { animation: nav-in .24s var(--ease) both; }
-@keyframes nav-in { from { opacity: 0; transform: translateX(-28px); } }
+/* Sheets, the palette and columns grow from what was pressed (app.ts sets the origin). All ▾ and More grow from their
+   button's corner, .96 to 1 with a fade over --t-enter, and shrink back over --t-snap when they close (app.ts closeMenus).
+   The phone's sidebar slides in from the left edge over --t-glide over a veil that fades to 40 %, and goes back out over
+   --t-exit (B6 §3.1). */
+.mn-l.enter { transform-origin: top right; animation: menu-in var(--t-enter) var(--ease) both; }
+.fm-menu.mn-l.enter { transform-origin: top left; }
+@keyframes menu-in { from { opacity: 0; transform: scale(.96); } }
+.nav-scrim.enter > .side { animation: nav-in var(--t-glide) var(--ease) both; }
+@keyframes nav-in { from { transform: translateX(-100%); } }
 
-/* A verdict that changed lands once: the row's verdict and the status settle in. A fact, not a celebration: no overshoot. */
-.lp-row.v-land .lp-v { animation: v-badge .32s var(--ease) var(--vd, 0ms) both; }
-@keyframes v-badge { from { opacity: 0; transform: scale(.86); } }
+/* A verdict that changed settles once (B6 §3.2): its glyph from 60 % on --press-ease over --t-press, its word fading in
+   beside it, and the ruler's tick for that save point in step. The status line lands without overshoot. */
+.lp-row.v-land .lp-v .vi { animation: v-settle var(--t-press) var(--press-ease) var(--vd, 0ms) both; }
+.lp-row.v-land .lp-v > span, .lp-row.v-land .lp-v .g { animation: fade var(--t-press) var(--ease) var(--vd, 0ms) both; }
+.lp-row.v-land.checking .lp-v .g { animation: breathe 1.1s ease-in-out infinite; }
+.spk.v-land { animation: v-settle var(--t-press) var(--press-ease) var(--vd, 0ms) both; }
+@keyframes v-settle { from { scale: .6; } }
 .lp-status.v-land .lp-h { animation: v-hero .32s var(--ease) var(--vd, 0ms) both; }
 @keyframes v-hero { from { opacity: 0; transform: translateY(8px); } }
+/* The ruler's tick for the save point being checked: the Checking ring, breathing with its row. */
+.spk.v-checking { background: var(--surface); border-color: var(--ink); animation: breathe 1.1s ease-in-out infinite; }
+/* A count rolls its changed digits up into place (app.ts applyRolls); the box keeps its width in tabular digits. */
+[data-roll] { font-variant-numeric: tabular-nums; }
+[data-roll] .rd { display: inline-block; }
+/* The disconnected banner enters once by opacity; while the link is down, its mark breathes as the app retries. */
+.connection-banner.enter { animation: fade var(--t-enter) var(--ease) both; }
+.connection-banner[data-state="disconnected"] .conn-buddy { animation: breathe 2.4s ease-in-out infinite; }
 
 /* A check that runs shows it in three places: the sheet's bar, the main button and its row. Each indeterminate, as the
    check gives no percentage; each stops when the check ends. */
@@ -1325,8 +1359,11 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .rm .theme-tile, .rm .search, .rm .ib, .rm .cr-p, .rm .mn-l button, .rm .pal-i, .rm .set-page .seg button, .rm .wl-demo { transition: none; }
 .rm *, .rm *::before, .rm *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 .rm .ck-bar i, .rm .btn.running::after, .rm .lp-row.checking::after { animation: none; width: 100%; opacity: .35; }
+/* The phone's sidebar fades in over --t-snap instead of sliding (B6 §4), like History's side sheet. */
+.rm .nav-scrim.enter > .side { animation: fade var(--t-snap) var(--ease) both !important; }
 
 @media (prefers-reduced-motion: reduce) {
   /* Nothing idles and progress is a still bar: the end frames, at once. */
   .ck-bar i, .btn.running::after, .lp-row.checking::after { animation: none; width: 100%; opacity: .35; }
+  .nav-scrim.enter > .side { animation: fade var(--t-snap) var(--ease) both !important; }
 }

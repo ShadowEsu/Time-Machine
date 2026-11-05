@@ -89,7 +89,7 @@ function suggestions(v: AskView): string {
 
 function turnHtml(t: AskTurn, k: number, points: ReadonlyMap<string, CitedPoint>, provider: AskProvider | null): string {
   const q = `<div class="ft-q">${esc(t.question)}</div>`;
-  if (t.status === "asking") return `${q}<div class="ft-a ft-wait" role="status"><span class="spin" aria-hidden="true"></span>Asking ${serviceShort(provider)} about the history…</div>`;
+  if (t.status === "asking") return `${q}<div class="ft-a ft-wait" role="status">Asking ${serviceShort(provider)} about the history…</div><div class="sk-lines" aria-hidden="true"><i class="sk sk-l"></i><i class="sk sk-m"></i></div>`;
   if (t.status === "failed") {
     return `${q}<div class="ft-err" role="alert"><span>${esc(t.error ?? "Something went wrong. Try again.")}</span><button type="button" class="btn ghost" data-fa="retry" data-k="${k}">Try again</button></div>`;
   }
@@ -125,7 +125,7 @@ function consentCard(v: AskView): string {
 /** The whole panel for one state. Pure, so it can be tested without a window. */
 export function askPanelHtml(v: AskView): string {
   const problem = v.problem ? `<p class="ft-err" role="alert">${esc(v.problem)}</p>` : "";
-  if (v.phase === "loading") return `<div class="ft-thread"><span class="spin" role="status" aria-label="Loading"></span></div>`;
+  if (v.phase === "loading") return `<div class="ft-thread sk-lines" role="status" aria-label="Loading"><i class="sk sk-l"></i><i class="sk sk-m"></i><i class="sk sk-l"></i></div>`;
   if (v.phase === "unavailable") return `<div class="ft-thread">${problem}<button type="button" class="btn" data-fa="reload">Try again</button></div>`;
   if (v.phase === "off") return `<div class="ft-thread">${problem}${consentCard(v)}</div>`;
   const bar = `<div class="ft-ask-bar"><span>On for this project</span><span class="ft-sp"></span><div class="ft-menu-wrap"><button type="button" class="btn ghost ft-menu-btn" data-fa="menu" aria-label="Ask menu" aria-haspopup="menu" aria-expanded="${v.menuOpen}">⋯</button>${

@@ -43,7 +43,8 @@ describe("the All ▾ filter menu", () => {
     expect(open).toContain('role="menu" aria-label="Show runs"');
     const items = [...open.matchAll(/role="menuitemradio" aria-checked="(true|false)" data-act="journal-filter" data-v="(\w+)"/g)].map((m) => `${m[2]}:${m[1]}`);
     expect(items).toEqual(["all:false", "works:true", "named:false", "pinned:false"]);
-    expect([...open.matchAll(/<span class="jf-n">(\d+)<\/span>/g)].map((m) => m[1])).toEqual(["2", "5", "2", "1", "1"]);
+    // Each count carries its roll key (B6 §3.1), one per choice, so a changed count rolls and a different choice does not.
+    expect([...open.matchAll(/<span class="jf-n" data-roll="(fm[:-]\w+)">(\d+)<\/span>/g)].map((m) => `${m[1]}=${m[2]}`)).toEqual(["fm:works=2", "fm-all=5", "fm-works=2", "fm-named=1", "fm-pinned=1"]);
   });
 });
 
