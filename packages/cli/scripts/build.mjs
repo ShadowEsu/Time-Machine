@@ -24,6 +24,8 @@ await build({
 const web = { bundle: true, platform: "browser", format: "esm", target: ["chrome120", "safari17", "firefox120"], minify: true, legalComments: "eof", plugins: [coreAlias] };
 await build({ ...web, entryPoints: [join(cli, "src/ui/entry.js")], outfile: join(ui, "app.js"), external: ["./renderer/index.js"] });
 await build({ ...web, entryPoints: [join(renderer, "index.ts")], outfile: join(ui, "renderer/index.js") });
+// The splash gate is a classic script in index.html's head, so it runs before the first paint (a module would wait).
+await build({ ...web, entryPoints: [join(renderer, "splash-gate.ts")], outfile: join(ui, "splash-gate.js"), format: "iife" });
 for (const name of ["styles.css", "features.css", "states.css"]) copyFileSync(join(renderer, name), join(ui, name));
 copyFileSync(join(cli, "src/ui/browser.css"), join(ui, "browser.css"));
 cpSync(join(renderer, "fonts"), join(ui, "fonts"), { recursive: true });
