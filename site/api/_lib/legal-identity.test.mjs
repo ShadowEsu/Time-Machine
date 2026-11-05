@@ -19,7 +19,7 @@ it("no shipped file shows a personal address, a DRAFT label or an [Operator] pla
     const t = readFileSync(f, "utf8");
     expect(t, f).not.toContain("preston@unvibe.site");
     // buy.js keeps its "nothing is for sale today" message: it only shows while /api/health says checkout is off.
-    expect(t, f).not.toMatch(/\(draft\)|DRAFT\.|draft-tag|Draft, pending lawyer review|\[Operator\]|\[Contact\]/);
+    expect(t, f).not.toMatch(/\(draft\)|DRAFT\.|draft-tag|pending lawyer review|is a draft|\[Operator\]|\[Contact\]/i);
   }
 });
 
