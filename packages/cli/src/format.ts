@@ -1,6 +1,20 @@
 // Human output. Every line is built from the same result object the --json flag prints,
-// so the two can never disagree.
+// so the two can never disagree. main.ts says paths under the home folder as ~/… (homePath); --json keeps them exact.
+import { realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { homePath } from "../../../apps/web/src/shared/format.js";
 import type { CheckpointResult, DemoResult, ForgetResult, HookInstallResult, DiffResult, FindGoodResult, InitResult, IntegrityReport, LicenseStatus, LogResult, OpenResult, RecoverResult, RestoreResult, StatusResult, StoreProject, ThinPreview, TimelineResult, UndoRecoverResult, Verdict, VerifyResult } from "@timetm/core";
+
+/** The home folder as given and after realpath (/var and /private/var on a Mac), so a path under either reads ~. */
+export function homeRoots(env: NodeJS.ProcessEnv): string[] {
+  const given = env.HOME || homedir();
+  try {
+    return [...new Set([given, realpathSync(given)])];
+  } catch {
+    // A home that cannot be resolved is shortened as given.
+    return [given];
+  }
+}
 
 export interface Style {
   verdict: (v: Verdict | null, text: string) => string;
@@ -286,9 +300,11 @@ export function fmtDemo(r: DemoResult, s: Style): string {
   ].join("\n");
 }
 
+/** main.ts prints this as is: the hooks' command stays exact, since a shell does not expand ~ inside its single quotes. */
 export function fmtHookInstall(r: HookInstallResult & { command: string; absolute: boolean }): string {
+  const settings = homePath(r.settingsPath);
   return [
-    r.added.length ? `Added Claude Code hooks to ${r.settingsPath}: ${r.added.join(", ")}` : `Claude Code hooks were already in ${r.settingsPath}`,
+    r.added.length ? `Added Claude Code hooks to ${settings}: ${r.added.join(", ")}` : `Claude Code hooks were already in ${settings}`,
     "  Before each prompt and before risky shell commands, a checkpoint is saved if anything changed.",
     "  Each save point keeps the first 120 characters of your prompt, on this computer. Time Machine uploads it nowhere; Ask in tm ui, if you turn it on, sends it and says so first.",
     "  When Claude stops, the newest checkpoint is checked. If it passed before and fails now, Claude is told which checkpoint last worked.",
