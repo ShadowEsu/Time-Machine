@@ -11,6 +11,9 @@
 :root {
   /* Paper, canvas, ink (direction §3). */
   --paper: #f4f2ed; --paper-2: #ece9e2; --surface: #ffffff; --sunken: #faf9f6;
+  /* The page ground (HQ decision 458, T1 paper + sky dawn): one hue, TM's sky, and no status colour, so green keeps
+     meaning Works. Fixed, never animated; .main never scrolls, so the wash stays put on every width. */
+  --ground: radial-gradient(60% 50% at 90% 0%, #d9ebfb, transparent 70%), radial-gradient(50% 40% at 0% 100%, #cfe6ff99, transparent 70%), var(--paper);
   --ink: #141414; --ink-2: #3a3936; --ink-3: #66635d; --faint: #6f6b63; --ink-4: #8b877f; --ink-5: #d6d1c6;
   --line: #e4e0d7; --line-2: #d6d1c6; --hair: #efece5;
   --sky: #cfe6ff; --sky-ink: #0d4a8f; --sky-line: #9cc8f5;
@@ -63,6 +66,7 @@
    Borders sit a step lighter than in light so cards keep their edge on charcoal (1.5 : 1 against the canvas). */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
+  --ground: var(--surface);
   --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
   --line: #45423c; --line-2: #57534c; --hair: #36332f;
   --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --broken-on-sky: #ffb4a8; --works-on-sky: #6fd39a; --field: #8f8a80;
@@ -75,6 +79,7 @@
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
+  --ground: var(--surface);
   --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
   --line: #45423c; --line-2: #57534c; --hair: #36332f;
   --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --broken-on-sky: #ffb4a8; --works-on-sky: #6fd39a; --field: #8f8a80;
@@ -240,7 +245,7 @@ html.splash-font .splash-word { display: none; }
 .side-foot { margin-top: auto; padding-top: 12px; display: grid; }
 .it.acct { align-items: center; }
 
-.main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface); overflow: hidden; }
+.main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--ground); overflow: hidden; }
 /* The header (S2): where you are, then labelled icons and More. */
 .toolbar { flex: none; position: relative; z-index: 16; height: 56px; display: flex; align-items: center; gap: 4px; padding: 0 16px 0 24px; border-bottom: 1px solid var(--hair); -webkit-app-region: drag; }
 .toolbar > * { -webkit-app-region: no-drag; }
