@@ -1264,7 +1264,8 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
   .sheet-head .btn { padding: 0 8px; }
   .btn, .btn.link { white-space: normal; height: auto; padding-top: 8px; padding-bottom: 8px; }
   .btn.big { min-height: 44px; }
-  .pal-h { max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+  /* On a phone the hint column truncated to fragments; the row title says enough, shortcut keycaps (<kbd>) stay. */
+  .pal-h { display: none; }
   .pal-top { padding-left: 16px; }
   .pal-q { padding: 0 8px; font-size: 16px; }
   .ks-r { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }

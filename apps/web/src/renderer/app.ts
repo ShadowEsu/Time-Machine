@@ -627,7 +627,7 @@ function dismissToast(): void {
   const card = toastHost.querySelector<HTMLElement>(".toast:not(.leave)");
   if (!card) return;
   toastRoom(null);
-  if (reducedMotion()) return card.remove();
+  if (reducedMotion() || hasGlass(card)) return card.remove();
   card.classList.add("leave");
   card.inert = true;
   card.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(6px)" }], { duration: LEAVE_MS, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" }).onfinish = () => card.remove();
@@ -3196,7 +3196,7 @@ function placeLeaving(old: Leaving[]): void {
     const host = root.querySelector(parent);
     if (!host) continue;
     if (!el.classList.contains("leave")) {
-      if (reducedMotion() || root.querySelector(`[data-leave="${CSS.escape(el.dataset.leave ?? "")}"]:not(.leave)`)) continue;
+      if (reducedMotion() || hasGlass(el) || root.querySelector(`[data-leave="${CSS.escape(el.dataset.leave ?? "")}"]:not(.leave)`)) continue;
       el.classList.remove("enter");
       el.classList.add("leave");
       el.inert = true;
@@ -3212,6 +3212,13 @@ function placeLeaving(old: Leaving[]): void {
     }
     host.append(el);
   }
+}
+
+/** Glass (glass.css) never fades: an opacity fade on or around a backdrop filter drops the blur mid-way. Closing a
+ *  sheet, the palette, the phone's sidebar or a toast is instant under glass (Design, glass-spec §3). */
+const GLASS_SURFACES = ".toolbar, .sheet, .pal, .toast, .side.mobile-side";
+function hasGlass(el: HTMLElement): boolean {
+  return document.documentElement.hasAttribute("data-glass") && (el.matches(GLASS_SURFACES) || el.querySelector(GLASS_SURFACES) !== null);
 }
 
 /** An element's box on screen, or null when it is not drawn. */
