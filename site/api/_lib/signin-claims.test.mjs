@@ -48,7 +48,7 @@ describe("sign-in claims", () => {
     const html = readFileSync(file, "utf8");
     for (const m of html.matchAll(/<(\w+)\b([^>]*\bdata-checkout-open\b[^>]*)>/g)) expect(m[2]).toMatch(/\bhidden\b/);
     const rest = html.replace(/<(\w+)\b[^>]*\bdata-checkout-open\b[^>]*>[\s\S]*?<\/\1>/g, "");
-    expect(rest).not.toMatch(/href="account\.html"/);
+    expect(rest).not.toMatch(/href="\/?account(\.html)?"/);
     expect(rest).not.toMatch(/sign in at/i);
   });
 });
