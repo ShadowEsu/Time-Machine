@@ -14,7 +14,7 @@ const work = mkdtempSync(join(tmpdir(), "tm-pack-"));
 const baseFiles = ["LICENSE", "README.md", "dist/tm.js", "package.json"];
 const requiredAssets = ["index.html", "app.js", "renderer/index.js", "styles.css", "features.css", "states.css", "browser.css"];
 // An asset manifest is not an escape hatch: names, count, byte sizes and the exact tarball list are checked.
-// Provider marks are never allowed: publishing them needs each provider's permission (site/assets/agents/SOURCES.md).
+// Provider marks are never allowed: publishing them needs each provider's permission (Anthropic and Google require it).
 const allowedAsset = /^(?:index\.html|app\.js|renderer\/index\.js|(?:styles|features|states|browser)\.css|fonts\/[A-Za-z0-9_-]+\.(?:woff2|txt))$/;
 let child;
 let packed;
