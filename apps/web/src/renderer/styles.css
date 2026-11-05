@@ -1404,8 +1404,8 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
 .after-h > .cel { position: relative; display: inline-block; left: auto; top: auto; margin-left: 22px; vertical-align: middle; }
 .cel i { position: absolute; left: calc(var(--s, 9px) / -2); top: calc(var(--s, 9px) / -2); width: var(--s, 9px); height: var(--s, 9px); border-radius: 2px; background: var(--works);
   transform: rotate(var(--a)) translateY(0) rotate(0deg); animation: cel-burst 900ms var(--m-ease-smooth) var(--d, 0ms) both; }
-.cel i:nth-child(3n + 2) { background: var(--focus); border-radius: 50%; }
-.cel i:nth-child(3n) { background: var(--amber-dot); }
+.cel i:nth-child(3n + 2) { background: var(--sky-ink); border-radius: 50%; }
+.cel i:nth-child(3n) { background: var(--amber); }
 @keyframes cel-burst {
   0%, 40% { opacity: 1; }
   100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--r, 40px))) rotate(90deg); }
