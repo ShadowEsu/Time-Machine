@@ -3459,22 +3459,24 @@ function applyCelebrations(): void {
     cheering = null;
     return;
   }
-  // What pops (the check, or the card's heading) and where the shapes fan from: inside the card, which clips them.
+  // What pops (the check, or the card's heading) and where the shapes fan from: the check, or the end of the card's heading,
+  // into the free space beside it and inside the card, which clips them, so they never land on its words.
   const pop = c.kind === "works" ? hero : back?.querySelector<HTMLElement>(".after-h");
-  const host = c.kind === "works" ? hero : back;
+  const host = c.kind === "works" ? hero : pop;
   if (!pop || !host || host.querySelector(":scope > .cel")) return;
   // Negative while waiting for the card to land: the delays below then hold everything until it does.
   const t = now - c.at;
   pop.classList.add("cel-pop");
   pop.style.animationDelay = `${-t}ms`;
   host.classList.add("cel-host");
+  back?.classList.add("cel-clip");
   const burst = document.createElement("span");
   burst.className = "cel";
   burst.setAttribute("aria-hidden", "true");
   for (let i = 0; i < 8; i++) {
     const dot = document.createElement("i");
-    // Around the check for Works; into the card (right and down, 95° to 165°) for a bring back.
-    const a = c.kind === "works" ? i * 45 + 20 : 95 + i * 10;
+    // Around the check for Works; to the right of the heading (up-right to down-right, 40° to 140°) for a bring back.
+    const a = c.kind === "works" ? i * 45 + 20 : 40 + i * 14;
     dot.style.cssText = `--a: ${a}deg; --r: ${30 + (i % 3) * 9}px; --s: ${8 + (i % 3)}px; --d: ${i * 12 - t}ms;`;
     burst.append(dot);
   }

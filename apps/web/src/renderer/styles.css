@@ -1397,11 +1397,11 @@ select.field { font-family: var(--font); font-size: 14px; width: 100%; min-width
    any click, key or scroll ends it. Reduced motion (the computer's or the app's own) or Celebrations off: nothing extra,
    the still check and its colour. */
 .cel-host { position: relative; }
-.doc > .after.cel-host { overflow: clip; }
+.doc > .after.cel-clip { overflow: clip; }
 .cel-pop { animation: cel-pop var(--m-normal) var(--m-ease-pop) both; }
 @keyframes cel-pop { 50% { transform: scale(var(--m-scale-pop)); } }
 .cel { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 2; }
-.after > .cel { left: 34px; top: 32px; }
+.after-h > .cel { position: relative; display: inline-block; left: auto; top: auto; margin-left: 22px; vertical-align: middle; }
 .cel i { position: absolute; left: calc(var(--s, 9px) / -2); top: calc(var(--s, 9px) / -2); width: var(--s, 9px); height: var(--s, 9px); border-radius: 2px; background: var(--works);
   transform: rotate(var(--a)) translateY(0); animation: cel-burst 900ms var(--m-ease-smooth) var(--d, 0ms) both; }
 .cel i:nth-child(3n + 2) { background: var(--focus); border-radius: 50%; }
