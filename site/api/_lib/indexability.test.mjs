@@ -77,4 +77,12 @@ describe("indexability", () => {
       });
     }
   }
+  // /blog is served without a trailing slash, so a relative "post.html" there resolves to /post.html and 404s
+  // (Unvibe QA, 5 Nov). The index links every post, each by its root path, and only to posts that exist.
+  it("blog index links each post by /blog/<slug>", () => {
+    const html = readFileSync(join(SITE, "blog", "index.html"), "utf8");
+    const linked = [...html.matchAll(/<a class="prow" href="([^"]+)"/g)].map((m) => m[1]);
+    const posts = readdirSync(join(SITE, "blog")).filter((f) => f.endsWith(".html") && f !== "index.html").map((f) => `/blog/${f.slice(0, -5)}`);
+    expect(linked.sort()).toEqual(posts.sort());
+  });
 });
