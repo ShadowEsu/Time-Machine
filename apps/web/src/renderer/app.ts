@@ -3475,9 +3475,9 @@ function applyCelebrations(): void {
   burst.setAttribute("aria-hidden", "true");
   for (let i = 0; i < 8; i++) {
     const dot = document.createElement("i");
-    // Around the check for Works; to the right of the heading (80° to 101°, angles, reaches and colours on separate cycles so it scatters, a flat spray into the free space after its last word, clear of the line above) for a bring back.
-    const a = c.kind === "works" ? i * 45 + 20 : 80 + ((i * 3) % 8) * 3;
-    dot.style.cssText = `--a: ${a}deg; --r: ${c.kind === "works" ? 30 + (i % 3) * 9 : 30 + ((i * 5) % 8) * 7}px; --s: ${8 + (i % 3)}px; --d: ${i * 12 - t}ms;`;
+    // Around the check for Works; to the right of the heading (78° to 106°, angles, reaches and colours on separate cycles so it scatters, a flat spray into the free space after its last word, clear of the line above) for a bring back.
+    const a = c.kind === "works" ? i * 45 + 20 : 78 + ((i * 3) % 8) * 4;
+    dot.style.cssText = `--a: ${a}deg; --r: ${c.kind === "works" ? 30 + (i % 3) * 9 : 28 + ((i * 5) % 8) * 11}px; --s: ${8 + (i % 3)}px; --d: ${i * 12 - t}ms;`;
     burst.append(dot);
   }
   host.append(burst);
