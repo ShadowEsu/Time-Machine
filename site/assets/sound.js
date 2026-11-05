@@ -123,6 +123,28 @@
     setPaused(root.classList.contains("motion-paused"), false);
     still.addEventListener("click", () => setPaused(!root.classList.contains("motion-paused"), true));
   }
+
+  // ---- stepping aside (Design P3, pick B) ----
+  // Body text runs under the corner dock at every width where it floats (measured at 390, 768, 1024 and 1440), so it
+  // tucks away while the page scrolls down (after 24 px, so small jitters don't flicker it) and comes back on scroll
+  // up, in the first 120 px, at the end of the page, and while its panel is open or keyboard focus is inside it. It
+  // never comes back just because scrolling stopped: people stop to read, and it would return over the text it
+  // covered. At 370 px and below it sits in the header and scrolls away with it, so it stays put.
+  const tuckable = matchMedia("(min-width: 371px)");
+  let lastY = scrollY, downFrom = scrollY, tucked = false, frame = 0;
+  const setTucked = (on) => { if (on !== tucked) { tucked = on; dock.classList.toggle("is-tucked", on); } };
+  function onScroll() {
+    frame = 0;
+    const y = scrollY, end = document.documentElement.scrollHeight - innerHeight - 8;
+    const panel = dock.querySelector(".mus-pop");
+    if (!tuckable.matches || y < 120 || y >= end || (panel && !panel.hidden) || dock.contains(document.activeElement)) { setTucked(false); downFrom = y; }
+    else if (y < lastY) { setTucked(false); downFrom = y; }
+    else if (y - downFrom >= 24) setTucked(true);
+    lastY = y;
+  }
+  addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onScroll); }, { passive: true });
+  tuckable.addEventListener("change", onScroll);
+  dock.addEventListener("focusin", () => setTucked(false));
   if (!AC) return;
   const pop = dock.querySelector(".mus-pop"), btn = dock.querySelector(".mus-music"), tog = dock.querySelector(".mus-tog");
   const label = dock.querySelector(".mus-tl"), range = dock.querySelector(".mus-range"), out = dock.querySelector("output");

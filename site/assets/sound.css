@@ -5,7 +5,10 @@ html:has(.mus) { scroll-padding-bottom: 84px; }
 /* At the very end of the page the dock would sit on the footer's legal line: give the footer room below it. */
 html:has(.mus) body.home .ft { padding-bottom: calc(32px + 60px + env(safe-area-inset-bottom)); }
 .mus { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 900;
-  display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; }
+  display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px;
+  transition: transform .18s cubic-bezier(.2, .8, .2, 1), opacity .18s cubic-bezier(.2, .8, .2, 1); }
+/* sound.js tucks the floating dock away while the page scrolls down; it stays in the Tab order and comes back on focus. */
+.mus.is-tucked { transform: translateY(calc(100% + 24px)); opacity: 0; pointer-events: none; }
 .mus-row { display: flex; gap: 8px; }
 .mus-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; height: 44px; padding: 0 14px;
   border: 1.5px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: var(--hard);
@@ -44,7 +47,7 @@ html:has(.mus) body.home .ft { padding-bottom: calc(32px + 60px + env(safe-area-
 .mus-vol output { font-variant-numeric: tabular-nums; color: var(--ink); }
 .mus-range { display: block; width: 100%; height: 32px; margin: 0; accent-color: #c2410c; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
-  .mus-btn, .mus-sw, .mus-sw i { transition: none; }
+  .mus, .mus-btn, .mus-sw, .mus-sw i { transition: none; }
   .mus-btn:active { transform: none; }
   .mus.is-on .mus-eq i, .mus-pop { animation: none; }
   .mus.is-on .mus-eq i { transform: scaleY(.7); }
