@@ -1,7 +1,9 @@
 /* Sign in with a one-time email code to see your web app keys again.
    The token from /api/auth lives in sessionStorage only, for this tab. Keys are shown, never stored or logged.
    No code is asked for until the Terms and Privacy box is ticked. Both calls to /api/auth send the versions the box
-   names (its data-terms-version, data-privacy-version and data-box-version), and the server records them. */
+   names (its data-terms-version, data-privacy-version and data-box-version), and the server records them.
+   The page ships with a heading that is true in every state and no lead. The heading, lead and tab title say what
+   /api/health reports: no sale yet, sold but no sign-in, or sign-in open. */
 (function () {
   "use strict";
 
@@ -29,12 +31,19 @@
     undeliverable: "We couldn't send a code to that address. Check it, or try again in a few minutes.",
     none: "No purchase found for this email. Use the email you gave at checkout."
   };
+  var HEAD = {
+    signIn: { title: "Sign in. Time Machine", h1: "Sign in to see your license", lead: "Use the email you gave at checkout. We send a one-time code to it. There is no password. Nothing here is stored beyond this browser tab." },
+    noSale: "Checkout is not open yet, so there are no keys to show. When it opens, your key is on the page Stripe opens after payment.",
+    noSignIn: "Your key is on the page Stripe opened after you paid. Lost it? Email " + CONTACT + " with the time of your purchase."
+  };
 
   var status = document.querySelector("[data-account-status]");
   var sendForm = document.querySelector('[data-account-step="send"]');
   var verifyForm = document.querySelector('[data-account-step="verify"]');
   var keys = document.querySelector("[data-account-keys]");
   if (!status || !sendForm || !verifyForm || !keys) return;
+  var title = document.querySelector("[data-account-title]");
+  var lead = document.querySelector("[data-account-lead]");
   var emailField = sendForm.querySelector('input[name="email"]');
   var agreeBox = sendForm.querySelector('input[name="agree"]');
   if (!agreeBox) return;
@@ -69,18 +78,32 @@
     return null;
   }
 
-  function say(text, state) {
-    status.textContent = "";
+  // Writes text into el, with the contact address as a mailto link.
+  function write(el, text) {
+    el.textContent = "";
     var parts = text.split(CONTACT);
-    status.appendChild(document.createTextNode(parts[0]));
+    el.appendChild(document.createTextNode(parts[0]));
     if (parts.length > 1) {
       var a = document.createElement("a");
       a.href = "mailto:" + CONTACT + "?subject=" + encodeURIComponent("Time Machine license");
       a.textContent = CONTACT;
-      status.appendChild(a);
-      status.appendChild(document.createTextNode(parts[1]));
+      el.appendChild(a);
+      el.appendChild(document.createTextNode(parts[1]));
     }
+  }
+
+  function say(text, state) {
+    write(status, text);
     if (state) status.setAttribute("data-state", state); else status.removeAttribute("data-state");
+  }
+
+  // Sets the lead, and the heading and tab title when given.
+  function head(text, h1, tab) {
+    if (title && h1) title.textContent = h1;
+    if (tab) document.title = tab;
+    if (!lead) return;
+    write(lead, text);
+    lead.hidden = !text;
   }
 
   function show(step) {
@@ -279,9 +302,13 @@
 
   if (location.protocol === "file:") return say(MSG.closed, "info");
 
-  // Health first: while sign-in is closed, the form stays hidden and the page says so.
+  // Health first: while sign-in is closed, the form stays hidden and the page says what is true instead.
   call("health", { method: "GET" }).then(function (r) {
-    if (r.status === 200 && r.data.auth === false) return say(MSG.closed, "info");
+    if (r.status === 200 && r.data.auth === false) {
+      head(r.data.checkout === true ? HEAD.noSignIn : HEAD.noSale);
+      return say(MSG.closed, "info");
+    }
+    head(HEAD.signIn.lead, HEAD.signIn.h1, HEAD.signIn.title);
     var token = store();
     if (token && TOKEN_RE.test(token)) return load(token);
     show("send");

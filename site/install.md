@@ -78,7 +78,7 @@ If you bought a key, enter it once per computer with:
 tm license <key>
 ```
 
-Or open `tm ui`, go to Settings, then License, and paste the key. The key works offline. The CLI never needs a key, and restores are never behind the paywall.
+Or open `tm ui`, go to Settings, then Plan and license, and paste the key. The key works offline. The CLI never needs a key, and restores are never behind the paywall.
 
 ## Everyday commands
 

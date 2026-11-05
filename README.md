@@ -89,7 +89,7 @@ Keep the terminal running. Ctrl+C stops the server. `tm ui --no-open` prints the
 
 The web app is the only app. There is no Mac app and no installer, and you need no account to use it. Browser shortcuts work while the page is focused.
 
-**Price.** The web app is free for up to 3 projects at a time. A license, $50 paid once with no subscription, lets it list as many as you like, on any number of your own computers, with updates while we ship them. The key is verified offline. Paste it in `tm ui` under Settings, then License, or run `tm license <key>`. Sign in on the website with your checkout email to see your key again. The `tm` command line tool is open source (MIT) and stays that way. Checkout is not open yet (ADR 0013).
+**Price.** The web app is free for up to 3 projects at a time. A license, $50 paid once with no subscription, lets it list as many as you like, on any number of your own computers, with updates while we ship them. The key is verified offline. Paste it in `tm ui` under Settings, then Plan and license, or run `tm license <key>`. The key is shown on the page Stripe sends you back to after payment, and reloading that page shows it again, so copy it somewhere safe. The `tm` command line tool is open source (MIT) and stays that way. Checkout is not open yet (ADR 0013).
 
 ## Your own project in four commands
 
@@ -124,7 +124,7 @@ Timed on 17 Oct 2026 on a real repo, `sindresorhus/slugify`, with the packed `ti
 | npm package | `timetm`, command `tm` | Not published yet |
 | Website | Static site in `site/`: a waitlist (pending signups, no email yet) and anonymous visit counts. Public at https://time-machine.company | Live |
 | Action connector | Record and reverse, where honest, what agents do in Gmail, Slack, Notion, Calendar and Stripe through Claude and ChatGPT | Planned (v2), see ADR 0007 |
-| Web app license | Free for up to 3 projects at a time; $50 once lifts the limit. Updates while we ship them, key verified offline, sign in on the site to see it again. The CLI, hooks and MCP stay open source | Built (`tm license`, Settings > License in `tm ui`, site checkout, sign-in); checkout not open yet, see ADR 0013 |
+| Web app license | Free for up to 3 projects at a time; $50 once lifts the limit. Updates while we ship them, key verified offline. The CLI, hooks and MCP stay open source | Built (`tm license`, Settings > Plan and license in `tm ui`, site checkout); checkout not open yet, see ADR 0013 |
 
 ## Commands
 

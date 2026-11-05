@@ -62,3 +62,5 @@ html:has(.mus) body.home .ft { padding-bottom: calc(32px + 60px + env(safe-area-
   .mus-music svg { width: 17px; height: 17px; }
   .mus-music .mus-eq { height: 12px; }
 }
+/* sound.js: out of view while the pricing section is on screen, where no corner clears the card's text. */
+.mus.is-away { visibility: hidden; }

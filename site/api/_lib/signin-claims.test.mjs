@@ -23,7 +23,7 @@ async function shown(health) {
   const els = [{ hidden: true }, { hidden: true }];
   const sandbox = {
     location: { protocol: "https:" },
-    document: { currentScript: { src: "https://tm.example.test/assets/checkout.js" }, querySelectorAll: () => els },
+    document: { currentScript: { src: "https://tm.example.test/assets/checkout.js" }, querySelectorAll: (s) => (s === "[data-checkout-open]" ? els : []) },
     fetch: async () => ({ ok: true, json: async () => health }),
     URL,
     Promise,

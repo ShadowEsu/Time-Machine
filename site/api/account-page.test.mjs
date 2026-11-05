@@ -54,7 +54,17 @@ class El {
   appendChild(child) { this.children.push(child); return child; }
 }
 
-function page() {
+// The heading as account.html ships it.
+function shippedTitle() {
+  const m = PAGE.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/);
+  if (!m) throw new Error("account.html has no h1");
+  return m[1].replace(/<[^>]+>/g, "").trim();
+}
+
+// Every word an element shows, its children's included.
+const words = (el) => (el.hidden ? "" : [el.textContent, ...el.children.map(words)].join(""));
+
+function page(health = { ok: true, auth: true }) {
   const emailField = new El({ name: "email" });
   const box = new El({ name: "agree", ...boxAttributes() });
   const note = new El(noteAttributes());
@@ -64,19 +74,24 @@ function page() {
   const keys = new El({ "data-account-keys": "" }, { "[data-account-list]": new El(), "[data-account-email]": new El(), "[data-account-signout]": new El(), h2: new El() });
   for (const el of [sendForm, verifyForm, keys]) el.hidden = true;
   const status = new El({ "data-account-status": "" });
-  const top = { "[data-account-status]": status, '[data-account-step="send"]': sendForm, '[data-account-step="verify"]': verifyForm, "[data-account-keys]": keys };
+  const title = new El({ "data-account-title": "" });
+  title.textContent = shippedTitle();
+  const lead = new El({ "data-account-lead": "" });
+  lead.hidden = /<p\b[^>]*\bdata-account-lead\b[^>]*\bhidden\b/.test(PAGE);
+  const top = { "[data-account-status]": status, '[data-account-step="send"]': sendForm, '[data-account-step="verify"]': verifyForm, "[data-account-keys]": keys, "[data-account-title]": title, "[data-account-lead]": lead };
   const calls = [];
   const fetch = async (url, init) => {
     calls.push({ url, init });
-    const data = url === `${SITE}/api/health` ? { ok: true, auth: true } : url === `${SITE}/api/auth` ? { ok: true } : {};
+    const data = url === `${SITE}/api/health` ? health : url === `${SITE}/api/auth` ? { ok: true } : {};
     return { status: 200, json: async () => data };
   };
   const storage = new Map();
   const document = {
+    title: PAGE.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "",
     currentScript: { src: `${SITE}/assets/account.js` },
     querySelector: (selector) => top[selector] ?? null,
     createElement: () => new El(),
-    createTextNode: (text) => ({ textContent: text }),
+    createTextNode: (text) => { const t = new El(); t.textContent = text; return t; },
   };
   const context = {
     document,
@@ -91,7 +106,7 @@ function page() {
     window: { isSecureContext: true },
   };
   vm.runInNewContext(SCRIPT, context);
-  return { emailField, box, note, codeField, sendForm, verifyForm, calls, auth: () => calls.filter((c) => c.url === `${SITE}/api/auth`) };
+  return { emailField, box, note, codeField, sendForm, verifyForm, calls, document, shown: () => [title, lead, status].map(words).join(" "), auth: () => calls.filter((c) => c.url === `${SITE}/api/auth`) };
 }
 
 // Lets every pending fetch and promise step run.
@@ -136,5 +151,29 @@ describe("the sign-in page script", () => {
     expect(p.auth()).toHaveLength(2);
     expect(p.auth()[1].init.method).toBe("POST");
     expect(JSON.parse(p.auth()[1].init.body)).toEqual({ action: "verify", email: EMAIL, code: "123456", ...agreement });
+  });
+
+  it("while checkout and sign-in are closed: no sign-in prompt, and no claim that anyone has paid or has a key", async () => {
+    const p = page({ ok: true, checkout: false, auth: false });
+    await settle();
+    expect(p.sendForm.hidden).toBe(true);
+    expect(p.shown()).not.toMatch(/\bsign in\b|one-time code|you paid|you bought|your purchase/i);
+    expect(p.document.title).not.toMatch(/sign in/i);
+  });
+
+  it("once checkout is open but sign-in is not: no sign-in prompt, and an email address to ask for a lost key", async () => {
+    const p = page({ ok: true, checkout: true, auth: false });
+    await settle();
+    expect(p.sendForm.hidden).toBe(true);
+    expect(p.shown()).not.toMatch(/\bsign in\b|one-time code/i);
+    expect(p.shown()).toContain("preston@unvibe.site");
+  });
+
+  it("once sign-in is open: the page asks you to sign in, and shows the form", async () => {
+    const p = page({ ok: true, checkout: true, auth: true });
+    await settle();
+    expect(p.sendForm.hidden).toBe(false);
+    expect(p.shown()).toMatch(/\bsign in\b/i);
+    expect(p.document.title).toMatch(/sign in/i);
   });
 });
