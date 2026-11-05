@@ -1,4 +1,4 @@
-import { CallSchema } from "../../../../apps/web/src/shared/api.js";
+import { CallSchema, DISCONNECTED } from "../../../../apps/web/src/shared/api.js";
 import type { AppEvent, CallOf, Method, Res, Results, TmBridge } from "../../../../apps/web/src/shared/api.js";
 
 type Connection = { state: "connecting" | "connected" | "disconnected"; message?: string };
@@ -41,9 +41,8 @@ export function installBrowserBridge(): boolean {
       if (typeof result !== "object" || result === null || typeof result.ok !== "boolean") throw new Error("Invalid server reply");
       return result;
     } catch {
-      const message = "Disconnected from the local app. Keep the tm ui terminal running, then reopen its full URL if it restarted.";
-      setConnection({ state: "disconnected", message });
-      return { ok: false, error: { kind: "disconnected", message } };
+      setConnection({ state: "disconnected", message: DISCONNECTED });
+      return { ok: false, error: { kind: "disconnected", message: DISCONNECTED } };
     } finally { controllers.delete(controller); }
   };
   const call: TmBridge["call"] = async <M extends Method>(value: CallOf<M>): Promise<Res<Results[M]>> => {
@@ -97,7 +96,7 @@ export function installBrowserBridge(): boolean {
           }
         }
       } catch {
-        if (!stopped) setConnection({ state: "disconnected", message: "Disconnected from the local app. Keep the tm ui terminal running. Reconnecting…" });
+        if (!stopped) setConnection({ state: "disconnected", message: DISCONNECTED });
       } finally { controllers.delete(controller); controller.abort(); }
       // Safari 17 supports the shared renderer but predates Promise.withResolvers.
       if (!stopped) await new Promise<void>((resolve) => { setTimeout(resolve, 2000); });

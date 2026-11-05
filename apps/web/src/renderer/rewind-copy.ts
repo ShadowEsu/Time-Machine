@@ -1,5 +1,5 @@
-// What going back does, said before anyone presses it, in the order the engine does it (recover.ts). A plain folder has
-// no Git, so the engine makes no branch there: its steps and the "Go back anyway" confirm never mention one (Design gate MF2).
+// What bringing a version back does, said before anyone presses it, in the order the engine does it (recover.ts). A plain folder
+// has no Git, so the engine makes no branch there: its steps and the "Bring it back anyway" confirm never mention one (Design gate MF2).
 import type { Verdict } from "../shared/api.js";
 import { esc } from "../shared/format.js";
 
@@ -35,13 +35,13 @@ export function goBackSteps({ folder, id, gitDetails }: { folder: boolean; id: s
         "<b>We build a copy</b> next to your project folder.",
       ];
   const safe = folder ? "<b>Nothing is deleted. Your folder is not touched.</b> You can undo it." : "<b>Nothing is pushed, merged, deployed or deleted. Your folder and branch are not touched.</b> You can undo it.";
-  return `<ol class="rw-steps" aria-label="When you go back, we">
+  return `<ol class="rw-steps" aria-label="When you bring it back, we">
       ${steps.map((s) => `<li><span>${s}</span></li>`).join("\n      ")}
     </ol>
     <p class="rw-safe">${safe}</p>`;
 }
 
-/** The "Go back anyway" confirm's body: why it may not work, then what going back does. */
+/** The "Bring it back anyway" confirm's body: why it may not work, then what bringing it back does. */
 export function anywayBody(why: string, folder: boolean): string {
   return folder
     ? `${why} We save your current version first. Your folder is not touched, and you can undo it.`

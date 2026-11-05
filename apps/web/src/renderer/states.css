@@ -191,32 +191,28 @@
 .toast-undo::before { content: ""; position: absolute; inset: -4px 0; }
 .toast-undo:active { transform: translateY(2px); box-shadow: 0 0 0 var(--sky-line); }
 
-/* First run, in the shape of Unvibe's Today: the buddy says hello beside the display line and the voice line (in the accent,
-   like Unvibe's), then your own project as the ink card, the demo as the outlined card, how it works and what to know. */
+/* First run, in the shape of Unvibe's Today: the buddy beside the display line and the voice line (in the accent, like
+   Unvibe's), then the demo as the one primary (the ink card), Protect a folder as the quiet second, how it works and what to
+   know (Design A8). */
 .welcome.wl { place-items: start center; padding: 56px 40px 48px; }
 .wl-in { width: 100%; max-width: 900px; display: grid; gap: 22px; }
-.wl-hi { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "buddy hello" "buddy text"; gap: 0 28px; align-items: center; }
+.wl-hi { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "buddy text"; gap: 0 28px; align-items: center; }
 .wl-hi > .buddy { grid-area: buddy; }
 .buddy.hero { width: 112px; height: 112px; }
 .wl-t { grid-area: text; display: grid; justify-items: start; }
-/* The greeting is the buddy's own words: a speech bubble whose corner points back at it. */
-.wl-hello { grid-area: hello; justify-self: start; align-self: end; margin-bottom: 12px; padding: 4px 16px 6px; border: 1.5px solid var(--ink); border-radius: 18px 18px 18px 4px; background: var(--surface); box-shadow: var(--hard-sm); font-size: 22px; line-height: 1.15; color: var(--ink); }
 .wl h1 { font-size: 52px; line-height: 1.02; }
 .welcome-v { margin-top: 8px; font-size: 28px; line-height: 1.2; color: var(--sky-ink); }
-.wl-go { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 24px; align-items: center; margin-top: 8px; padding: 22px 24px; border-radius: var(--r-xl); background: var(--ink); color: var(--surface); box-shadow: 0 5px 0 var(--sky-line); }
-.wl-go h2 { font: 750 24px/1.15 var(--display); letter-spacing: -.03em; color: inherit; }
-.wl-go p { margin-top: 4px; font-size: 15px; line-height: 1.5; color: color-mix(in srgb, var(--surface) 76%, var(--ink)); }
-.wl-add { border-color: var(--sky); background: var(--sky); color: var(--sky-ink); box-shadow: none; }
-.wl-add:hover:not([disabled]) { background: var(--sky-line); }
-.wl-demo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; width: 100%; padding: 18px 22px; border: 1.5px solid var(--ink); border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--hard); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color var(--t-hover) var(--ease); }
-.wl-demo:hover { background: var(--sunken); }
-.wl-demo:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
-.wl-demo-ic { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.wl-demo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; width: 100%; margin-top: 8px; padding: 20px 24px; border: 1.5px solid var(--ink); border-radius: var(--r-xl); background: var(--ink); box-shadow: 0 5px 0 var(--sky-line); color: var(--surface); font: inherit; text-align: left; cursor: pointer; transition: background-color var(--t-hover) var(--ease); }
+.wl-demo:hover { background: color-mix(in srgb, var(--ink) 88%, var(--surface)); }
+.wl-demo:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--sky-line); }
+.wl-demo-ic { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid currentColor; }
 .wl-demo-ic svg { width: 20px; height: 20px; }
 .wl-demo-t { display: grid; gap: 3px; min-width: 0; }
-.wl-demo-t b { font: 750 20px/1.2 var(--display); letter-spacing: -.025em; }
-.wl-demo-t span { font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.wl-demo-t b { font: 750 22px/1.2 var(--display); letter-spacing: -.025em; }
+.wl-demo-t span { font-size: 15px; line-height: 1.5; color: color-mix(in srgb, var(--surface) 76%, var(--ink)); }
 .wl-arrow { width: 22px; height: 22px; }
+.wl-own { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.wl-own p { flex: 1 1 260px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
 .wl-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 36px; margin-top: 10px; }
 .wl-cols h2 { margin-bottom: 6px; font: 600 18px/1.3 var(--font); letter-spacing: -.01em; }
 .wl-steps, .wl-know { display: grid; margin: 0; padding: 0; list-style: none; }
@@ -230,13 +226,12 @@
 .wl .local-note { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line); }
 @media (max-width: 760px) {
   .welcome.wl { padding: 28px 20px 40px; }
-  .wl-hi { grid-template-areas: "buddy hello" "text text"; gap: 16px 16px; }
-  .wl-hello { align-self: center; margin-bottom: 0; }
+  .wl-hi { grid-template-areas: "buddy" "text"; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .buddy.hero { width: 72px; height: 72px; }
   .wl h1 { font-size: 40px; }
   .welcome-v { font-size: 24px; }
-  .wl-go { grid-template-columns: minmax(0, 1fr); padding: 20px; }
-  .wl-add { justify-self: stretch; }
+  .wl-own { align-items: flex-start; flex-direction: column; }
+  .wl-own p { flex: none; }
   .wl-demo { grid-template-columns: auto minmax(0, 1fr); padding: 16px 18px; }
   .wl-arrow { display: none; }
   .wl-cols { grid-template-columns: minmax(0, 1fr); }
@@ -262,9 +257,18 @@
 /* The folder field asks for input; an orange ring there read as an error before anything was typed (writer#37). Errors get their own red line. */
 .ob-page .path-form .field:focus-visible { outline-color: color-mix(in srgb, var(--ink) 30%, transparent); }
 .ob-page .path-form .field[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--broken); }
-.path-in { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.path-in .field { flex: 1 1 260px; min-width: 0; }
-.path-err { margin: -2px 0 0; font-size: 14px; line-height: 1.5; color: var(--fail-fg); }
+/* The field, then its error and help, then Choose a folder (the markup's order). Wide: Choose sits beside the field and the
+   error and help run under both. Phone: one column, so the error lands right under the field, not under the button (A2). */
+.path-in { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: center; }
+.path-in.has-pick { grid-template-columns: minmax(0, 1fr) auto; }
+.path-in .field { grid-column: 1; grid-row: 1; min-width: 0; }
+.path-in > [data-act="ob-pick"] { grid-column: 2; grid-row: 1; }
+.path-in > .path-err, .path-in > .path-help { grid-column: 1 / -1; margin: 0; }
+.path-err { font-size: 14px; line-height: 1.5; color: var(--fail-fg); }
+@media (max-width: 600px) {
+  .path-in.has-pick { grid-template-columns: minmax(0, 1fr); }
+  .path-in > [data-act="ob-pick"] { grid-column: 1; grid-row: auto; justify-self: start; }
+}
 .ad-full { display: grid; gap: 10px; margin-bottom: 4px; }
 .ad-full p { margin: 0; }
 .ob-page .opt { gap: 12px; padding: 14px 16px; border-radius: var(--r-md); }

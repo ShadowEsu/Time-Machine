@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { LicenseStatus } from "../src/shared/api.ts";
-import { licenseAfterSave, licensePanel, planLines, planPage, RESEND_WAIT_MS, resendLabel, resendWait, SIGNED_OUT, signInPanel, usage, type AccountView, type LicenseView } from "../src/renderer/plan.ts";
+import { licenseAfterSave, licensePanel, planLines, planPage, RESEND_WAIT_MS, resendLabel, resendWait, settingsLicense, SIGNED_OUT, signInPanel, usage, type AccountView, type LicenseView } from "../src/renderer/plan.ts";
 
 const free: LicenseStatus = { active: false, id: null, issued: null, problem: null, freeProjectLimit: 3 };
 const view = (status: LicenseStatus): LicenseView => ({ status, draft: "", working: false, error: null });
@@ -60,13 +60,26 @@ describe("Plan", () => {
       expect(html).toContain("Or paste your key");
     });
 
-    test("when the site has not opened sign-in, it says so and the paste-key field stays the way in", () => {
-      const html = planPage(view(free), 1, at({ site: { checkout: false, auth: false } }));
-      expect(html).toContain("Sign-in is not open yet.");
-      expect(html).not.toContain('data-form="signin-email"');
-      expect(html).toContain('data-form="license"');
-      expect(signInPanel(at({ site: "error" }))).toContain("couldn’t reach the Time Machine site");
-      expect(signInPanel(at({ site: null }))).toContain("Checking whether sign-in is open");
+    test("while sign-in is off, or not known yet, it gets no card and the key field is the only way in", () => {
+      for (const site of [{ checkout: false, auth: false }, null, "error" as const]) {
+        const html = planPage(view(free), 1, at({ site }));
+        expect(html, JSON.stringify(site)).not.toContain("si-card");
+        expect(html, JSON.stringify(site)).not.toContain('id="signin-h"');
+        expect(html, JSON.stringify(site)).toContain('data-form="license"');
+        expect(signInPanel(at({ site })), JSON.stringify(site)).toBe("");
+      }
+    });
+
+    test("while checkout is closed, the key's button is the page's one primary and pricing is a quiet link", () => {
+      for (const site of [{ checkout: false, auth: false }, { checkout: false, auth: true }, null, "error" as const]) {
+        const html = planPage(view(free), 1, at({ site }));
+        const primaries = html.match(/<button[^>]*class="btn dark"[^>]*>[^<]*/g) ?? [];
+        const ownPrimary = site !== null && site !== "error" && site.auth ? 2 : 1;
+        expect(primaries.length, JSON.stringify(site)).toBe(ownPrimary);
+        expect(primaries.at(-1), JSON.stringify(site)).toMatch(/type="submit"/);
+        expect(html, JSON.stringify(site)).toMatch(/<button class="btn link"[^>]*data-act="license-buy"/);
+        expect(html, JSON.stringify(site)).not.toMatch(/class="btn dark"[^>]*data-act="license-buy"/);
+      }
     });
 
     test("email, then Send code, then the 6-digit code and Sign in", () => {
@@ -139,6 +152,20 @@ describe("Plan", () => {
       const html = planPage(view(free), 1, at({ site: { checkout: true, auth: true } }));
       expect(html).toContain("Buy a license");
       expect(html).not.toContain("Checkout is not open yet.");
+    });
+
+    test("Settings, Plan and license holds the plan, the key field and its button: no second hop to Plan", () => {
+      const closed = settingsLicense(view(free), 1, { checkout: false, auth: false });
+      expect(closed.body).toContain('data-form="license"');
+      expect(closed.body).toContain('id="license-key"');
+      expect(closed.body).not.toContain('data-act="plan"');
+      expect(closed.body).not.toContain("si-card");
+      expect(closed.body).not.toMatch(/class="btn dark"[^>]*data-act="license-buy"/);
+      expect(closed.body).toMatch(/<button class="btn link"[^>]*data-act="license-buy"/);
+      expect(closed.intro).toContain("1 of 3 projects");
+      const on = settingsLicense(view({ ...free, active: true, id: "p_1", issued: "2026-10-20" }), 5, { checkout: true, auth: true });
+      expect(on.body).toContain('data-act="license-remove"');
+      expect(on.body).not.toContain('data-act="license-buy"');
     });
   });
 });

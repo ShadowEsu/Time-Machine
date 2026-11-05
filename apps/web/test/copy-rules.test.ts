@@ -21,6 +21,10 @@ describe("copy rules on the new screens", () => {
   }
 });
 
+// One verb for bringing a version back (Design A7): never "go back", "going back" or "rewind" for it on screen. The CLI's
+// `tm recover` docs keep their own word.
+const ONE_VERB = /\b(go back|going back|went back|rewind (style|undone)|undo(ing)? (this|the|the last) rewind|before (a )?rewind)\b/i;
+
 describe("plain words in every renderer file", () => {
   for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts"))) {
     test(f, () => {
@@ -31,8 +35,12 @@ describe("plain words in every renderer file", () => {
       expect(text).not.toMatch(/\bjust (save|do|use|press|click|open|add|type|pick)\b/i);
       // One word for every copy the app makes (writer#35), and no desktop app: tm ui is a browser app (dev#28).
       expect(text).not.toMatch(/safe cop(y|ies)|recovery cop(y|ies)|desktop app/i);
+      expect(text, "one verb for one action: bring back").not.toMatch(ONE_VERB);
     });
   }
+  test("../shared/format.ts", () => {
+    expect(readFileSync(join(dir, "../shared/format.ts"), "utf8"), "one verb for one action: bring back").not.toMatch(ONE_VERB);
+  });
 });
 
 // A documents or research project hears no code words (writer#24): no agent, tests, branch or deploys on its screens.

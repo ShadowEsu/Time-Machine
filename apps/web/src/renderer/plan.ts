@@ -58,21 +58,20 @@ function issuedOn(issued: string): string {
 
 /**
  * Sign in to get your key: email, then the six digit code the site emails, then the keys bought with that email, each with
- * Use this key. A key is never shown: the row names its purchase and date. When the site has not opened sign-in, or cannot
- * be reached, the panel says so and the paste-key field under it stays the way in. `now` drives the resend countdown.
+ * Use this key. A key is never shown: the row names its purchase and date. Drawn only once the site says sign-in is open:
+ * while it is closed, still being read or the site can't be reached, there is no card, and the key field is the way in
+ * (Design A4). `now` drives the resend countdown.
  */
 export function signInPanel(a: AccountView, now = Date.now()): string {
-  const head = (pill = ""): string => `<div class="si-top"><h3 id="signin-h" tabindex="-1">${a.step === "keys" ? "Your keys" : "Sign in to get your key"}</h3>${pill}</div>`;
+  if (a.site === null || a.site === "error" || !a.site.auth) return "";
+  const head = `<div class="si-top"><h3 id="signin-h" tabindex="-1">${a.step === "keys" ? "Your keys" : "Sign in to get your key"}</h3></div>`;
   const busy = a.working ? "disabled" : "";
   const error = a.error ? `<div class="note bad" role="alert" id="signin-error">${esc(a.error)}</div>` : "";
-  if (a.site === null) return `<div class="si-card" aria-busy="true">${head()}<p class="si-p">Checking whether sign-in is open…</p></div>`;
-  if (a.site === "error") return `<div class="si-card">${head('<span class="lic-pill">Can’t reach the site</span>')}<p class="si-p">We couldn’t reach the Time Machine site just now. Paste your key below instead.</p></div>`;
-  if (!a.site.auth) return `<div class="si-card">${head('<span class="lic-pill">Not open yet</span>')}<p class="si-p">Sign-in is not open yet. When it is, you can get your key here with your email. Until then, paste your key below.</p></div>`;
   const describedBy = (help: string): string => `${help}${a.error ? " signin-error" : ""}`;
   if (a.step === "email") {
     const onEmail = !!a.error && !a.agreeError;
     const onBox = !!a.error && a.agreeError;
-    return `<div class="si-card">${head()}<form class="si-form" data-form="signin-email" novalidate>
+    return `<div class="si-card">${head}<form class="si-form" data-form="signin-email" novalidate>
       <label class="set-l" for="signin-email">Email you bought with</label>
       <p class="set-d" id="signin-email-d">We email you a 6-digit code. Your email goes to the Time Machine site only, and this app keeps nothing after you quit.</p>
       <div class="set-keyin"><input id="signin-email" class="field" data-model="signin-email" type="email" value="${esc(a.email)}" placeholder="you@example.com" autocomplete="email" spellcheck="false" autocapitalize="off" aria-invalid="${onEmail}" aria-describedby="${onEmail ? describedBy("signin-email-d") : "signin-email-d"}" ${busy}><button class="btn dark" type="submit" ${busy}>${a.working ? "Sending…" : "Send code"}</button></div>
@@ -81,7 +80,7 @@ export function signInPanel(a: AccountView, now = Date.now()): string {
   }
   if (a.step === "code") {
     const left = resendWait(a.sentAt, now);
-    return `<div class="si-card">${head()}<form class="si-form" data-form="signin-code" novalidate>
+    return `<div class="si-card">${head}<form class="si-form" data-form="signin-code" novalidate>
       <label class="set-l" for="signin-code">Code</label>
       <p class="set-d" id="signin-code-d">We sent a 6-digit code to <b class="sel-text">${esc(a.email)}</b>. It can take a minute to arrive.</p>
       <div class="set-keyin"><input id="signin-code" class="field mono si-code" data-model="signin-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" value="${esc(a.code)}" placeholder="123456" spellcheck="false" aria-invalid="${!!a.error}" aria-describedby="${describedBy("signin-code-d")}" ${busy}><button class="btn dark" type="submit" ${busy}>${a.working ? "Signing in…" : "Sign in"}</button></div>
@@ -91,7 +90,7 @@ export function signInPanel(a: AccountView, now = Date.now()): string {
   const keys = a.account?.licenses ?? [];
   const rows = keys.map((k) => `<li class="si-key"><span class="si-kt"><span>Purchase <span class="mono lic-id">${esc(k.id)}</span></span><small>${esc(`Issued ${issuedOn(k.issued)}`)}</small></span><button class="btn" data-act="account-use" data-id="${esc(k.id)}" ${busy}>Use this key</button></li>`).join("");
   const who = a.account?.email ?? a.email;
-  return `<div class="si-card">${head()}<p class="si-p">Signed in as <b class="sel-text">${esc(who)}</b> until tm ui stops.</p>
+  return `<div class="si-card">${head}<p class="si-p">Signed in as <b class="sel-text">${esc(who)}</b> until tm ui stops.</p>
     ${keys.length ? `<ul class="si-keys">${rows}</ul>` : `<p class="si-p">No keys for this email yet. A key appears here once a license is bought with it.</p>`}
     ${error}
     <div class="row-btns"><button class="btn link small" type="button" data-act="signin-signout" ${busy}>Sign out</button><button class="btn link small" type="button" data-act="signin-restart" ${busy}>Use a different email</button></div></div>`;
@@ -133,9 +132,30 @@ export function licensePanel(l: LicenseView, used: number, signIn = ""): string 
     ${problem}${signIn}
     <form class="set-key" data-form="license" novalidate>
       <div class="set-t"><label class="set-l" for="license-key">${signIn ? "Or paste your key" : "Your key"}</label><p class="set-d" id="license-key-d">The key is checked on this computer, with no network call. It is saved under your Time Machine folder.</p></div>
-      <div class="set-keyin"><input id="license-key" class="field mono" data-model="license-key" type="text" value="${esc(l.draft)}" placeholder="TM1.…" autocomplete="off" spellcheck="false" autocapitalize="off" aria-invalid="${!!l.error}" aria-describedby="license-key-d${l.error ? " license-error" : ""}" ${busy}><button class="btn dark" type="submit" ${busy}>${l.working ? "Saving…" : "Save key"}</button></div>
+      <div class="set-keyin"><input id="license-key" class="field mono" data-model="license-key" type="text" value="${esc(l.draft)}" placeholder="TM1.…" autocomplete="off" spellcheck="false" autocapitalize="off" aria-invalid="${!!l.error}" aria-describedby="license-key-d${l.error ? " license-error" : ""}" ${busy}><button class="btn dark" type="submit" ${busy}>${l.working ? "Saving…" : "Add key"}</button></div>
       ${error}
     </form>`;
+}
+
+/**
+ * Buying, said as what is open. While checkout is closed (or not known yet) there is no button: one line and a quiet link to
+ * the pricing page, so the key's Add key stays the one primary (Design A5). Once it opens, Buy a license.
+ */
+export function checkoutLine(site: AccountView["site"]): string {
+  if (site === null || site === "error" || !site.checkout) return '<p class="pl-note">Checkout is not open yet. <button class="btn link" data-act="license-buy">See pricing</button></p>';
+  const after = site.auth ? "Then sign in below to get your key." : "Your key is on the page Stripe opens after payment.";
+  return `<div class="row-btns"><button class="btn dark" data-act="license-buy">Buy a license</button></div><p class="pl-note">You pay on the Time Machine site. ${after}</p>`;
+}
+
+/** Settings, Plan and license: the plan in one line, the license card with the key field and Add key, then buying. Plan
+ *  stays the comparison page; nothing here sends you there to paste a key (Design A6). */
+export function settingsLicense(l: LicenseView, used: number, site: AccountView["site"]): { intro: string; body: string } {
+  const s = l.status;
+  if (s.active) return { intro: "License active on this computer. Add as many projects as you like.", body: licensePanel(l, used) };
+  return {
+    intro: `Free plan on this computer: ${Math.min(used, s.freeProjectLimit)} of ${plural(s.freeProjectLimit, "project")}. Every restore stays free, with or without a license.`,
+    body: `${licensePanel(l, used)}${checkoutLine(site)}`,
+  };
 }
 
 /** The Plan page: the two plans side by side, what always stays free, then this computer's license and the way to get a key. */
@@ -144,10 +164,7 @@ export function planPage(l: LicenseView, used: number, a: AccountView): string {
   const lines = planLines(limit);
   const list = (xs: string[]): string => `<ul class="pl-lines">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
   const active = l.status.active;
-  const checkout = a.site !== null && a.site !== "error" && a.site.checkout;
-  const buy = checkout
-    ? '<div class="row-btns"><button class="btn dark" data-act="license-buy">Buy a license</button></div><p class="pl-note">You pay on the Time Machine site. Then sign in below to get your key.</p>'
-    : '<div class="row-btns"><button class="btn dark" data-act="license-buy">See pricing</button></div><p class="pl-note">Checkout is not open yet. The pricing page says when it is.</p>';
+  const buy = checkoutLine(a.site);
   return `<div class="page b9-page pl-page" id="plan-page" tabindex="-1" role="region" aria-label="Plan"><div class="b9">
     <header class="b9-head"><h1 id="plan-h" tabindex="-1">Plan</h1><p class="voice b9-voice">${esc(`Free for up to ${plural(limit, "project")}. One license, ${LICENSE_PRICE} once, lifts the limit.`)}</p></header>
     <section class="pl-cols" aria-label="Plans">

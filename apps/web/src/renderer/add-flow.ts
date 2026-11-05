@@ -38,12 +38,26 @@ export function purposeCards(selected: Purpose | null, busy: boolean): string {
 }
 
 /** What the Protect buttons and step 1 say when the free plan lists as many projects as it can. */
-export const ADD_FULL = "Free plan full: remove one in Storage";
+export const ADD_FULL = "The free plan is full. Remove a project in Storage, or add a license key.";
 
-/** Step 1 on a full free plan: said before anything is picked, with the way to Storage (where Remove is) and to a key. */
+/** Step 1 on a full free plan: said before anything is picked, with the way to Storage (where Remove is) and to the key field
+ *  in Settings, Plan and license. */
 export function addFullCard(limit: number): string {
-  return `<div class="note warn ad-full" role="status" id="ad-full"><p><b>${esc(ADD_FULL)}.</b> ${esc(`The free plan lists up to ${plural(limit, "project")}. A license, $50 once, lifts that limit. Every restore stays free.`)}</p>
-    <div class="row-btns"><button class="btn" data-act="storage">Open Storage</button><button class="btn link" data-act="plan">Paste a key</button></div></div>`;
+  return `<div class="note warn ad-full" role="status" id="ad-full"><p><b>${esc(ADD_FULL)}</b> ${esc(`The free plan lists up to ${plural(limit, "project")}. A license, $50 once, lifts that limit. Every restore stays free.`)}</p>
+    <div class="row-btns"><button class="btn" data-act="storage">Open Storage</button><button class="btn link" data-act="settings-section" data-v="license">Paste a key</button></div></div>`;
+}
+
+/**
+ * The engine's path sentences (engine.ts folderAt) said as what to do, for the folder field. The engine keeps its own words
+ * for the CLI and the API; only the page says these. `picker` is true where Choose a folder is shown (macOS). Any other
+ * sentence is the engine's own and passes through.
+ */
+export function pathErrorWords(message: string, picker: boolean): string {
+  if (message === "That folder does not exist.") {
+    return picker ? "There is no folder at that path. Check the spelling, or use Choose a folder to pick it in Finder." : "There is no folder at that path. Check the spelling and try again.";
+  }
+  if (message === "That is a file, not a folder.") return "That path is a file. Choose the folder that holds it.";
+  return message;
 }
 
 /** What the folder field is missing before anything is asked of the engine; null when the engine can judge it. ~ is fine: the engine expands it. */

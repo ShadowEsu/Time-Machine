@@ -212,7 +212,7 @@ export function dayLabel(iso: string, now = new Date()): string {
 export function triggerLabel(trigger: string): string {
   if (trigger.startsWith("claude-code:pre-bash")) return "Safety save";
   if (trigger.startsWith("claude-code")) return "Claude Code";
-  if (trigger === "recover") return "Before rewind";
+  if (trigger === "recover") return "Before a bring back";
   if (trigger === "before-restore") return "Before putting back";
   if (trigger === "demo") return "Demo";
   if (trigger === "mcp") return "Agent";
@@ -245,7 +245,7 @@ export function triggerSentence(trigger: string): string {
   if (trigger === "claude-code:pre-bash") return "A safety save, made before a risky command.";
   if (trigger === "claude-code:stop") return "Saved by Claude Code when a turn ended.";
   if (trigger.startsWith("claude-code")) return "Saved by Claude Code.";
-  if (trigger === "recover") return "Saved just before a rewind, so nothing was lost.";
+  if (trigger === "recover") return "Saved just before a bring back, so nothing was lost.";
   if (trigger === "mcp") return "Saved by an agent through the MCP server.";
   if (trigger === "app") return "Saved from the app.";
   if (trigger === "demo") return "Part of the demo story.";

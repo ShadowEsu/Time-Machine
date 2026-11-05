@@ -1,8 +1,8 @@
 // The first run: the last onboarding step is one click to finish, with or without Claude Code,
 // and Try the demo in the preview rescues the story the same way the engine does. Synthetic data.
 import { describe, expect, test } from "vitest";
-import type { HookPreview } from "../src/shared/api.ts";
-import { checkLede, hookStepActions, setupStrip } from "../src/renderer/first-run.ts";
+import { DISCONNECTED, type HookPreview } from "../src/shared/api.ts";
+import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "../src/renderer/first-run.ts";
 import { FakeEngine } from "../preview/fake.ts";
 
 const hook = (runs: boolean, plugin = false): HookPreview => ({
@@ -11,6 +11,53 @@ const hook = (runs: boolean, plugin = false): HookPreview => ({
   runs,
   plugin,
   lines: [{ event: "Stop", command: "tm hook stop" }],
+});
+
+describe("Welcome", () => {
+  const html = welcomePage({ code: false, where: "this Mac", buddy: "<i class=\"buddy\"></i>", addKey: "⌘N" });
+
+  test("no greeting: the page starts with what it is for", () => {
+    expect(html).not.toMatch(/Good (morning|afternoon|evening)/);
+    expect(html).not.toContain("wl-hello");
+  });
+
+  test("Try the demo is the one primary, first; Protect a folder is the quiet second with its shortcut", () => {
+    expect(html.indexOf('data-act="demo"')).toBeGreaterThan(-1);
+    expect(html.indexOf('data-act="demo"')).toBeLessThan(html.indexOf('data-act="add"'));
+    expect(html).toMatch(/<button class="wl-demo wl-primary" data-act="demo">/);
+    expect(html).toMatch(/<button class="btn quiet wl-add" data-act="add">Protect a folder<kbd>⌘N<\/kbd><\/button>/);
+    expect(html).not.toMatch(/class="btn (dark|big)/);
+    expect(html.match(/wl-primary/g)?.length).toBe(1);
+  });
+
+  test("Good to know stays, and the footer is one plain line", () => {
+    expect(html).toContain('id="wl-know-h"');
+    expect(html).not.toContain("Local browser app");
+  });
+});
+
+describe("the disconnected banner", () => {
+  test("connected, or nothing known yet: no banner", () => {
+    expect(connectionText(null)).toBeNull();
+    expect(connectionText({ state: "connected" })).toBeNull();
+  });
+
+  test("a lost connection says the history is safe and both ways back, and says Disconnected once", () => {
+    for (const c of [{ state: "disconnected" as const, message: DISCONNECTED }, { state: "disconnected" as const }]) {
+      const t = connectionText(c);
+      expect(t?.line).toBe(DISCONNECTED);
+      expect(t?.line).toMatch(/safe/);
+      expect(t?.line).toMatch(/Reconnect/);
+      expect(t?.line).toMatch(/new link/);
+      expect(t?.title).toMatch(/^Disconnected from tm ui$/);
+      expect(t?.line).not.toMatch(/Disconnected/);
+    }
+  });
+
+  test("a link without its token keeps the bridge's own sentence", () => {
+    const reopen = "Open the full URL printed by tm ui, including its #token fragment, to connect this browser.";
+    expect(connectionText({ state: "disconnected", message: reopen })?.line).toBe(reopen);
+  });
 });
 
 describe("the last onboarding step", () => {

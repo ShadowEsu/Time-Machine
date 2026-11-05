@@ -20,7 +20,7 @@ import { renderAskPanel } from "./ask-panel.js";
 import { renderDeployChips, renderUnlinkedDeploys } from "./deploys.js";
 import { FEATURES_CHANGED } from "./feature-dom.js";
 import { renderFeatureSettings } from "./feature-settings.js";
-import { checkLede, hookStepActions, setupStrip, welcomeWords } from "./first-run.js";
+import { checkLede, connectionText, hookStepActions, setupStrip, welcomePage } from "./first-run.js";
 import { plainNotSaved, shortSkip } from "./coverage.js";
 import { blockDelay, ENTER_KEEP_MS, entranceDelay, FLICK_MS, GLIDE_MS, LEAVE_MS, PAGE_IN_MS, RING_MS, VERDICT_MS } from "./motion.js";
 import { DialogFocus } from "./dialog-focus.js";
@@ -33,8 +33,8 @@ import { tailHtml, type LogTailView } from "./log-tail.js";
 import { acceptRecord, checkBodyHtml } from "./check-record.js";
 import { overviewPage, saveState, type DigestPoint } from "./overview.js";
 import { hasCheck, PURPOSES, purposeIcon } from "./purpose.js";
-import { ADD_FULL, ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathLede, pathProblem, pathSetupNote, purposeCards, savedOnlyToast, skipNote, type AddStep } from "./add-flow.js";
-import { licenseAfterSave, planPage, resendLabel, resendWait, SIGNED_OUT, usage, type AccountView } from "./plan.js";
+import { ADD_FULL, ADD_STEPS, addFullCard, autoSaveRow, buildOffered, checkStepCopy, defaultAutoSave, firstCheckChoice, folderWhenChoices, foundBefore, pathErrorWords, pathLede, pathProblem, pathSetupNote, purposeCards, savedOnlyToast, skipNote, type AddStep } from "./add-flow.js";
+import { licenseAfterSave, planPage, resendLabel, resendWait, settingsLicense, SIGNED_OUT, usage, type AccountView } from "./plan.js";
 import { SOURCE_PURPOSE, sourcesPage, WHOLE_FOLDER, wholeFolderAsk } from "./sources.js";
 import { filterBar, filterCounts, filtered, nameCount, noneShown, noteBlock, noteSaveWords, pinIcon, rowTitle, shownTitle, unitWords, type JournalFilter, type NoteDraft } from "./runs.js";
 import { restoreRoute, ROUTE_KEY } from "./route.js";
@@ -211,7 +211,7 @@ interface State {
   changes: Map<string, string[]>;
   /** The project and newest save point whose changes were last read (loadChanges), so a read is not repeated. */
   changesFor: string;
-  /** A confirm before removing a project, going back to a version without proof, or protecting a whole folder (with its path
+  /** A confirm before removing a project, bringing back a version without proof, or protecting a whole folder (with its path
    *  and what it is for, so either answer can carry on into the Add flow). */
   confirm: (ConfirmCopy & { act: "remove" | "tv-use" | "thin" | "whole-folder" | "restore" | "forget"; id: string | null; path?: string; purpose?: Purpose | null }) | null;
   /** A button that shows its pressed state because its shortcut just fired. */
@@ -235,7 +235,7 @@ class ApiFailure extends Error {}
 const RECORDED: Method[] = ["init", "setCheck", "checkpoint", "diff", "open", "verify", "findGood", "recover", "undoRecover", "log", "hookInstall", "forget", "demo", "cleanStore"];
 const TITLES: Partial<{ [M in Method]: string }> = {
   init: "Set up", setCheck: "Change the check", checkpoint: "Save now", diff: "Compare", open: "Try it in a copy", verify: "Check it works",
-  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this rewind", log: "Audit log", hookInstall: "Connect Claude Code", forget: "Disconnect Claude Code", demo: "Try the demo",
+  findGood: "Find the last working version", recover: "Use this version", undoRecover: "Undo this bring back", log: "Audit log", hookInstall: "Connect Claude Code", forget: "Disconnect Claude Code", demo: "Try the demo",
   cleanStore: "Clean up storage",
 };
 
@@ -295,7 +295,7 @@ function entry(id: string | null): TimelineEntry | null {
 }
 
 /** The project's folder is not where it was: the statuses say so, or the timeline the engine read from the store does.
- *  Its history then shows read only, with "It moved…" and "Bring back a copy…". */
+ *  Its history then shows read only, with "Choose where it is now…" and "Bring back a copy…". */
 function folderMissing(p: ProjectEntry | null): boolean {
   if (!p) return false;
   if (st.statuses.get(p.id)?.problemKind === "missing") return true;
@@ -641,9 +641,9 @@ function short(sha: string): string {
 
 /** What a save point was made as, before anyone named it. `author` is the author line shown beside it, if any, so the agent is named once. */
 function madeTitle(c: TimelineEntry, author: string | null = null): string {
-  // The engine names the save it makes before a rewind by save point id. Say it by time instead.
+  // The engine names the save it makes before a bring back by save point id. Say it by time instead.
   const before = c.trigger === "recover" ? /^Before recovering (\S+)$/.exec(c.note) : null;
-  if (before?.[1]) return `Before going back to ${pointName(before[1])}`;
+  if (before?.[1]) return `Before bringing back ${pointName(before[1])}`;
   const made = pointTitle(c, author);
   // An untitled save is named by what it did ("309 files deleted"), once its diff is read.
   return (made.trim() ? "" : changeWords(c)) || rowTitle(made, c.trigger, st.changes.get(c.id));
@@ -759,7 +759,7 @@ function sidebar(mobile = false): string {
     ${st.projects.length ? `<button class="it nav-it${st.screen === "overview" ? " on" : ""}" data-act="overview"${st.screen === "overview" ? ' aria-current="page"' : ""}>${navIcon("overview")}<span class="nm">Overview</span></button>` : ""}
     <div class="group">Protected</div>
     ${items || '<div class="side-empty">No folders yet. Protect one below.</div>'}
-    <button class="it add${st.screen === "onboarding" ? " on" : ""}" data-act="add"${addFull() ? ` title="${esc(ADD_FULL)}"` : ""}><span class="plus" aria-hidden="true">+</span>${addFull() ? `<span class="nm"><span>Protect a folder</span><small>${esc(ADD_FULL)}</small></span>` : '<span class="nm">Protect a folder</span>'}<kbd>${keys("Mod+N")}</kbd></button>
+    <button class="it add${st.screen === "onboarding" ? " on" : ""}" data-act="add"${addFull() ? ` title="${esc(ADD_FULL)}"` : ""}><span class="plus" aria-hidden="true">+</span>${addFull() ? '<span class="nm"><span>Protect a folder</span><small>The free plan is full.</small></span>' : '<span class="nm">Protect a folder</span>'}<kbd>${keys("Mod+N")}</kbd></button>
     <button class="it nav-it${st.screen === "sources" ? " on" : ""}" data-act="sources"${st.screen === "sources" ? ' aria-current="page"' : ""}>${navIcon("sources")}<span class="nm">Sources</span></button>
     <button class="group group-b${st.screen === "agents" ? " on" : ""}" data-act="agents">Agents</button>
     ${st.agents ? agent(claude) : `<div class="it ag">${agentMark("Claude Code")}<span class="nm">Claude Code<small>Reading connection…</small></span></div>`}
@@ -781,37 +781,14 @@ function navigation(): string {
 
 /** The link to tm ui: while it connects the strip is sky and says so; once it drops, it says why and offers Reconnect. */
 function connectionBanner(): string {
-  const c = st.connection;
-  if (!c || c.state === "connected") return "";
-  // The title already says "Disconnected"; the bridge's sentence starts by saying it again, so that clause is dropped here.
-  const said = (c.message ?? "Keep tm ui running in your terminal. Live history and actions need that connection.").replace(/^Disconnected from the local app\.\s*/, "");
-  return `<div class="connection-banner" data-state="${c.state}" role="status">${buddy("conn-buddy")}<div><b>${c.state === "connecting" ? "Connecting to your local app" : "Disconnected from your local app"}</b><p>${esc(said)}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
+  const t = connectionText(st.connection);
+  if (!t || !st.connection) return "";
+  return `<div class="connection-banner" data-state="${st.connection.state}" role="status">${buddy("conn-buddy")}<div><b>${esc(t.title)}</b><p>${esc(t.line)}</p></div><button class="btn" data-act="reconnect">Reconnect</button></div>`;
 }
 
-/**
- * First run, in the shape of Unvibe's Today: the buddy says hello beside the display line and the voice line, then the two ways
- * in as cards (your own project in ink, the demo outlined), how it works and what to know. Every sentence is one this page, the
- * add steps or the demo sheet already said.
- */
+/** First run (first-run.ts welcomePage): Try the demo as the one primary, Protect a folder the quiet second. */
 function welcome(): string {
-  const hour = new Date().getHours();
-  const hello = hour >= 5 && hour < 12 ? "Good morning." : hour >= 12 && hour < 18 ? "Good afternoon." : "Good evening.";
-  const arrow = '<svg class="wl-arrow" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h11M11 5.5 15.5 10 11 14.5"/></svg>';
-  const play = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M7.2 5.6v8.8l7-4.4z" fill="currentColor"/></svg>';
-  // Agents, tests and branches only once a code project is here; until then, words true for any folder (writer#24).
-  const words = welcomeWords(st.projects.some((p) => p.purpose === "code"), device());
-  return `<div class="welcome wl"><div class="wl-in">
-    <header class="wl-hi">${buddy("hero")}<p class="wl-hello voice">${hello}</p><div class="wl-t"><h1>Let’s keep your work safe.</h1><p class="voice welcome-v">Get back the version that worked.</p></div></header>
-    <section class="wl-go" aria-labelledby="wl-go-h"><div><h2 id="wl-go-h">Something of your own</h2><p>Code, documents, research or an agent’s workspace. Any folder works. Git is not needed.</p></div><button class="btn big wl-add" data-act="add">Protect a folder<kbd>${keys("Mod+N")}</kbd></button></section>
-    <button class="wl-demo" data-act="demo"><span class="wl-demo-ic">${play}</span><span class="wl-demo-t"><b>Try the demo</b><span>Marigold Tips in a temporary folder, broken on purpose. Your projects are not touched.</span></span>${arrow}</button>
-    <div class="wl-cols">
-      <section aria-labelledby="wl-how-h"><h2 id="wl-how-h">How it works</h2><ol class="wl-steps">
-        ${words.how.map(([t, line]) => `<li><b>${esc(t)}</b><span>${esc(line)}</span></li>`).join("")}</ol></section>
-      <section aria-labelledby="wl-know-h"><h2 id="wl-know-h">Good to know</h2><ul class="wl-know">
-        ${words.know.map((line) => `<li>${esc(line)}</li>`).join("")}</ul></section>
-    </div>
-    <p class="foot local-note">Local browser app · Keep <span class="mono">tm ui</span> running in your terminal.</p>
-  </div></div>`;
+  return welcomePage({ code: st.projects.some((p) => p.purpose === "code"), where: device(), buddy: buddy("hero"), addKey: keys("Mod+N") });
 }
 
 /** Who made a save point, as shown on its author chip. */
@@ -819,7 +796,7 @@ function authorOf(c: TimelineEntry): string {
   return c.agent?.name ?? triggerLabel(c.trigger);
 }
 
-/** An author chip carries a mark only for an agent (its supplied official mark, or its initials); You, Demo and Before rewind are words. */
+/** An author chip carries a mark only for an agent (its supplied official mark, or its initials); You, Demo and Before a bring back are words. */
 function authorChip(name: string): string {
   const agent = /claude|codex|openai|gemini|cursor|agent/i.test(name);
   return `<span class="chip${agent ? "" : " plain"}">${agent ? agentMark(name) : ""}${esc(name)}</span>`;
@@ -978,7 +955,7 @@ function history(): string {
       ? `Can’t find ${p.name} at ${p.path}. If it moved, choose where it is now. Its history is kept outside the folder.`
       : st.timelineError.replaceAll(` at ${p.path}`, "").replaceAll("'", "’");
     const where = !moved && st.settings.showGitDetails && st.timelineError.includes(` at ${p.path}`) ? `<p class="mono fail-path sel-text">${esc(p.path)}</p>` : "";
-    const ways = `${moved ? '<button class="btn dark" data-act="relink">It moved…</button><button class="btn" data-act="reload">Try again</button>' : '<button class="btn dark" data-act="reload">Try again</button>'}<button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button>`;
+    const ways = `${moved ? '<button class="btn dark" data-act="relink">Choose where it is now…</button><button class="btn" data-act="reload">Try again</button>' : '<button class="btn dark" data-act="reload">Try again</button>'}<button class="btn ghost" data-act="remove" data-id="${p.id}">Remove from the app</button>`;
     return `<div class="fail-page"><div class="fail-in">${buddy("big")}<h1>${esc(moved ? `Can’t find ${p.name}` : `We can’t read ${p.name}`)}</h1>${failCard(cause, ways)}${where}</div></div>`;
   }
   const gone = folderMissing(p);
@@ -996,7 +973,7 @@ function history(): string {
   // A folder that is gone shows its history read only: the notice and its two ways out sit under the status line.
   const goneCard = gone
     ? `<div class="note bad gone-card" role="status"><p>${esc(`Can’t find ${p.name} at ${p.path}. If it moved, choose it; if it is gone, bring a version back as a copy somewhere else.`)}</p>
-      <div class="row-btns"><button class="btn dark" data-act="relink">It moved…</button>${newest ? `<button class="btn" data-act="copy-elsewhere" data-id="${esc(st.selected ?? newest.id)}">Bring back a copy…</button>` : ""}</div>
+      <div class="row-btns"><button class="btn dark" data-act="relink">Choose where it is now…</button>${newest ? `<button class="btn" data-act="copy-elsewhere" data-id="${esc(st.selected ?? newest.id)}">Bring back a copy…</button>` : ""}</div>
       ${st.copyMade?.projectId === p.id ? `<p class="gone-done">${esc(`A copy is ready at ${st.copyMade.dir}.`)} <button class="btn link" data-act="reveal-dir" data-path="${esc(st.copyMade.dir)}">Show in Finder</button></p>` : ""}</div>`
     : "";
   // Git words (the branch) only for a project that is a Git repository; a plain folder's history lives in the store.
@@ -1026,7 +1003,7 @@ function history(): string {
   const reveal = (copyDir: string): string => (copyDir ? `<button class="btn quiet" data-act="reveal-dir" data-path="${esc(copyDir)}">${revealLabel()}</button>` : "");
   const copyBranch = (branch: string): string => (branch ? `<button class="btn quiet" data-act="copy" data-text="${esc(branch)}" aria-label="Copy branch name ${esc(branch)}">Copy branch name</button>` : "");
   const undoBar = u
-    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You went back to ${esc(pointName(u.result.id))}. It is on ${where(u.result.copyOnly ? "" : u.result.branch, u.result.copyDir)}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}${reveal(u.result.copyDir)}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
+    ? `<div class="undo-card">${glyph(u.result.lastVerdict)}<p>You brought back ${esc(pointName(u.result.id))}. It is on ${where(u.result.copyOnly ? "" : u.result.branch, u.result.copyDir)}. Your folder was not touched.</p><div class="row-btns">${undoButton("")}${reveal(u.result.copyDir)}<button class="btn quiet" data-act="undo-dismiss">Keep it</button></div></div>`
     : rec
       ? `<div class="undo-card kept"><p>${esc(sentenceStart(pointName(rec.id)))} was brought back to ${where(rec.branch, rec.copyDir)}.${rec.copyDir ? "" : " Its copy is not there anymore."} Your folder was not touched.</p><div class="row-btns">${reveal(rec.copyDir)}${copyBranch(rec.branch)}</div></div>`
       : "";
@@ -1419,7 +1396,7 @@ function rewind(): string {
     ? `<div class="tried">${tried.map((t) => { const e = entry(t.id); return `<div class="r"><span class="mono">${esc(e ? ptClock(e) : t.id)}</span><span>${esc(e ? title(e) : "")}</span>${badge(t.verdict)}</div>`; }).join("")}</div>`
     : "";
   const pane = c ? tvRead(r, c) : { read: `<div class="note warn">That save point is not in the history of ${esc(p.name)}.</div>`, key: tvKey("find", "Find the last working version", "enter", keys("Mod+Enter")), alts: [] };
-  return `<div class="scrim rw-scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet rw rw-sheet step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
+  return `<div class="scrim rw-scrim ${once("scrim:rewind")}" data-leave="rewind"><div class="sheet rw rw-sheet step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Bring back a version of ${p.name}`)}">
     <div class="rw-main"><div class="rw-head">${rewindSteps(r)}</div>
       <div class="tv-read">${triedRows}${pane.read}</div>
       ${rwFoot(r, pane)}</div>
@@ -1439,7 +1416,7 @@ function undoNote(res: RecoverResult): string {
   if (res.copyOnly) return '<p class="rw-undo-note">Undo removes the copy. Every save point stays, including your version from just before. Undo stops if you changed anything in the copy.</p>';
   return `<p class="rw-undo-note">Undo removes the new branch${st.settings.showGitDetails ? ` ${esc(res.branch)}` : ""} and the copy. Every save point stays, including your version from just before. Undo stops if you changed anything in the copy or added commits to the branch.</p>`;
 }
-function undoButton(size: string, label = "Undo this rewind"): string {
+function undoButton(size: string, label = "Undo this bring back"): string {
   const u = st.undo;
   return `<button class="btn ${size}" data-act="undo-rewind" data-key="undo" ${!u || u.working || st.busy ? "disabled" : ""}>${u?.working ? "Undoing…" : esc(label)}<kbd>${esc(keys("Mod+Z"))}</kbd></button>`;
 }
@@ -1603,7 +1580,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     };
   }
 
-  // Review: the version, its proof, what changed, what going back will do. Bringing it back is the key only when it is proven,
+  // Review: the version, its proof, what changed, what bringing it back will do. Bringing it back is the key only when it is proven,
   // or when the project has no check: then it only saves versions, so the key makes the copy and nothing is checked (MF4).
   const checks = checksOn(project());
   const tr = r.tryResult && r.tryResult.checkpoint === c.id ? r.tryResult : null;
@@ -1613,7 +1590,7 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
     : r.trying ? `<span class="vb v-checking"><i class="g" aria-hidden="true"></i>Checking</span><span>Rebuilding it in a separate folder and running your check. Your real folder hasn’t changed.</span>`
       : `${badge(v, stampOnce(`ev:${c.id}:${v ?? ""}`))}<span>${tr && tr.verdict === v && v !== "PASS" && v !== "FAIL" ? `${reasonHtml(checkReason(tr.reason))} ` : ""}${esc(evidenceFor(c, v))}</span>`;
   const warn = !checks || r.trying || r.recovering ? ""
-    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn’t confirm this version works. You can still go back to it, but it is not proven.</div>`
+    : tr && tr.verdict !== "PASS" ? `<div class="note warn">We couldn’t confirm this version works. You can still bring it back, but it is not proven.</div>`
       : kind !== "bring-back" ? `<div class="note">No passing check is recorded for this version. Try it first: we open it in a copy and run your check.</div>` : "";
   const opened = r.openResult && r.openResult.id === c.id
     ? `<div class="note rw-opened"><span>A copy you can open is ready. Your folder was not touched.</span> <span class="mono sel-text">${esc(r.openResult.dir)}</span> <button class="btn quiet" data-act="reveal-dir" data-path="${esc(r.openResult.dir)}">${revealLabel()}</button></div>` : "";
@@ -1626,12 +1603,12 @@ function tvRead(r: RewindState, c: TimelineEntry): { read: string; key: string; 
   const alts = kind === "bring-back" || kind === "copy" ? compare : [
     ...(r.trying ? ['<button class="btn link" data-act="stop-check">Stop the check</button>'] : []),
     `<span class="key-note">${tr ? "Opens it in a copy again and runs your check." : "Opens it in a copy and runs your check. Your folder is not touched."}</span>`,
-    tvAlt("tv-use-anyway", "Go back anyway", "use", "", busy),
+    tvAlt("tv-use-anyway", "Bring it back anyway", "use", "", busy),
     ...compare,
     ...(tr ? [`<button class="btn link" data-act="rw-open" ${r.opening || busy ? "disabled" : ""}>${r.opening ? "Making a copy…" : "Make a copy I can open"}</button>`] : []),
   ];
   return {
-    read: `${r.trying ? "" : '<p class="rw-kicker">You’re going back to</p>'}<h2 class="tv-head">${head}</h2>${meta}
+    read: `${r.trying ? "" : '<p class="rw-kicker">You’re bringing back</p>'}<h2 class="tv-head">${head}</h2>${meta}
       ${ev ? `<div class="rw-proof">${ev}</div>` : ""}
       ${r.find?.found === c.id ? `<p class="rw-found">We checked ${esc(plural(r.find.tried.length, "save point"))}, newest first, each in a copy. This is the newest one that passed.</p>` : ""}
     ${error}${warn}${opened}
@@ -1777,7 +1754,7 @@ function timeView(): string {
   const still = r.finding || r.trying || r.recovering || r.step === "done";
   const pane = tvRead(r, c);
   // The reading comes first in the document, so its main key is the first control named to take focus; the dial follows it.
-  return `<div class="scrim rw-scrim ${once("tv")}" data-leave="tv"><div class="sheet rw tv step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Rewind ${p.name}`)}">
+  return `<div class="scrim rw-scrim ${once("tv")}" data-leave="tv"><div class="sheet rw tv step-${r.step}" role="dialog" aria-modal="true" aria-label="${esc(`Bring back a version of ${p.name}`)}">
     <section class="rw-main" aria-label="Selected save point"><div class="rw-head">${rewindSteps(r)}</div>
       <div class="tv-read">${pane.read}</div>
       ${rwFoot(r, pane)}</section>
@@ -2016,26 +1993,27 @@ function settings(): string {
   const network = !iso ? LOADING
     : iso.networkSandbox ? `When a project turns the network off for checks, ${esc(iso.networkSandbox)} blocks it.`
       : `Nothing on ${device()} can block the network during a check. A project that asks for no network gets Needs something, never Works.`;
+  // Plan and license holds the key field itself, one hop from Settings (Design A6).
+  const license = settingsLicense(st.license, st.projects.length, st.account.site);
   const sections: { id: string; group: string; label: string; title: string; intro: string; icon: string; body: string }[] = [
     { id: "appearance", group: "Preferences", label: "Appearance", title: "Appearance", intro: "How Time Machine looks on this computer. A change applies at once.", icon: "appearance", body:
       `<div class="set-row set-theme"><div class="set-t"><span class="set-l" id="theme-l">Theme</span><p class="set-d">System follows your computer’s light or dark setting.</p></div><div class="theme-tiles" role="group" aria-labelledby="theme-l">${tile("system", "System")}${tile("light", "Light")}${tile("dark", "Dark")}</div></div>`
       + setRow("Show Git details", "Adds save point IDs, commits, commands and logs next to the plain words. It never replaces them and never changes a verdict.", sw("showGitDetails", s.showGitDetails, "Show Git details"))
       + setRow("Reduce motion", `Nothing moves on its own: no breathing dot, no spinning dial, no gliding rows. A check still shows its progress. ${osCalm ? "Your computer already asks for less motion, so Time Machine stays still either way." : "When this is off, Time Machine follows your computer’s own Reduce motion setting."}`, sw("reduceMotion", s.reduceMotion, "Reduce motion")) },
-    { id: "rewind", group: "Preferences", label: "Rewind style", title: "Rewind style", intro: "How going back to a save point looks. Both styles take the same steps.", icon: "rewind", body:
-      setRow("Going back", "Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.",
-        `<div class="seg" role="group" aria-label="Going back"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
+    { id: "rewind", group: "Preferences", label: "Bringing back", title: "Bringing back", intro: "How bringing back looks: Dial or Simple. Both take the same steps.", icon: "rewind", body:
+      setRow("How bringing back looks", "Simple shows the same steps as a plain sheet. With Reduce motion on, the dial does not spin. It moves straight to each save point.",
+        `<div class="seg" role="group" aria-label="How bringing back looks"><button class="${s.simpleRewind ? "" : "on"}" aria-pressed="${!s.simpleRewind}" data-act="rewind-style" data-v="scene">Dial</button><button class="${s.simpleRewind ? "on" : ""}" aria-pressed="${s.simpleRewind}" data-act="rewind-style" data-v="sheet">Simple</button></div>`) },
     ...st.projects.map((p) => ({ id: `features:${p.id}`, group: "Projects", label: esc(p.name), title: esc(p.name), intro: "Its check, when it saves, and optional extras.", icon: "project", body: `<div class="mount" data-mount="features:${esc(p.id)}"></div>` })),
     { id: "local", group: "Time Machine", label: "Local browser app", title: "Local browser app", intro: "Time Machine runs in your browser, served from this computer.", icon: "local", body:
       `<div class="browser-capabilities"><p class="set-p">Your projects, saves, checks and recovery run on this computer through <span class="mono">tm ui</span>. Keep it running in your terminal.</p><p class="set-p muted">Keyboard shortcuts in this tab still work where your browser allows them. Every action is also available from the controls or Jump to.</p></div>` },
     { id: "checks", group: "Time Machine", label: "Checks", title: "Checks", intro: "Where your checks run and what they can reach.", icon: "checks", body:
       setRow("Where checks run", `In a copy on ${device()}, never in your folder. Checks use the tools installed on ${device()}.${s.showGitDetails ? ' <span class="mono muted">Basic isolation (host mode): a separate Git worktree.</span>' : ""}`)
       + setRow("Network during checks", network) },
-    { id: "license", group: "Time Machine", label: "Plan and license", title: "Plan and license", intro: "What your plan covers on this computer.", icon: "license", body:
-      setRow("Your plan", esc(st.license.status.active ? "License active on this computer. Add as many projects as you like." : `Free: ${st.projects.length} of ${plural(st.license.status.freeProjectLimit, "project")}. Every restore stays free.`), '<button class="btn" data-act="plan">Open Plan</button>') },
+    { id: "license", group: "Time Machine", label: "Plan and license", title: "Plan and license", intro: license.intro, icon: "license", body: license.body },
   ];
   if (!sections.some((x) => x.id === settingsSection)) settingsSection = "appearance";
   const nav = sections.map((x, i) => `${x.group !== sections[i - 1]?.group ? `<p class="set-g">${x.group}</p>` : ""}<button class="set-it${x.id === settingsSection ? " on" : ""}" data-act="settings-section" data-v="${esc(x.id)}"${x.id === settingsSection ? ' aria-current="true"' : ""}>${setIcon(x.icon)}<span>${x.label}</span></button>`).join("");
-  const body = sections.map((x, i) => `<section class="set-sec${x.id === settingsSection ? " on" : ""}" aria-labelledby="set-h-${i}"><h2 class="set-h" id="set-h-${i}" tabindex="-1">${x.title}</h2><p class="set-intro">${esc(x.intro)}</p>${x.body}</section>`).join("");
+  const body = sections.map((x, i) => `<section class="set-sec${x.id === settingsSection ? " on" : ""}" data-sec="${esc(x.id)}" aria-labelledby="set-h-${i}"><h2 class="set-h" id="set-h-${i}" tabindex="-1">${x.title}</h2><p class="set-intro">${esc(x.intro)}</p>${x.body}</section>`).join("");
   return `<div class="page set-page"><div class="set-grid">
     <nav class="set-nav" aria-label="Settings sections"><h1 tabindex="-1">Settings</h1>${nav}</nav>
     <div class="set-body">${body}</div>
@@ -2069,8 +2047,9 @@ async function saveLicense(): Promise<void> {
   }
   await applyLicense(key);
   render();
-  // The field and its button were disabled while saving, and on success they are gone: focus lands on License itself.
-  root.querySelector<HTMLElement>(st.license.error ? "#license-key" : "#license-h")?.focus();
+  // The field and its button were disabled while saving, and on success they are gone: focus lands on the license heading,
+  // on Plan or in Settings, Plan and license.
+  root.querySelector<HTMLElement>(st.license.error ? "#license-key" : '#license-h, [data-sec="license"] .set-h')?.focus();
 }
 
 /** Use this key, from the keys the site lists for the signed-in email. The key goes straight to the engine, never into a field. */
@@ -2154,7 +2133,7 @@ async function removeLicenseKey(): Promise<void> {
     st.license = { ...st.license, working: false, error: msg(e) };
   }
   render();
-  root.querySelector<HTMLElement>(st.license.error ? "#license [data-act=license-remove]" : "#license-h")?.focus();
+  root.querySelector<HTMLElement>(st.license.error ? '[data-act="license-remove"]' : '#license-h, [data-sec="license"] .set-h')?.focus();
 }
 
 function onboarding(): string {
@@ -2166,17 +2145,19 @@ function onboarding(): string {
     body = `${full ? addFullCard(st.license.status.freeProjectLimit) : ""}${purposeCards(o.purpose, o.working || full)}
       <div class="row-btns ob-acts"><button class="btn ghost" data-act="ob-cancel">Cancel</button><button class="btn link" data-act="demo">Try the demo instead</button></div>`;
   } else if (o.step === 2) {
-    // Path errors are said under the field (the engine's own sentences: a file, not there, empty); the free limit keeps its card above.
-    const err = o.error && !freeLimitHit(o.error) ? o.error : null;
+    // Path errors are said right under the field, as what to do (pathErrorWords over the engine's sentences); the free limit
+    // keeps its card above. The error and the help come before Choose a folder, so on a phone, where the row wraps, they sit
+    // under the field and the button after them (states.css .path-in).
     const pick = st.boot.platform === "darwin" ? `<button type="button" class="btn" data-act="ob-pick" ${o.working ? "disabled" : ""}>Choose a folder…</button>` : "";
+    const err = o.error && !freeLimitHit(o.error) ? pathErrorWords(o.error, !!pick) : null;
     const example = st.boot.platform === "win32" ? "C:\\Users\\you\\project" : purpose === "code" ? "~/projects/my-app" : purpose === "research" ? "~/Research/trial-3" : "~/Documents/Thesis";
     body = `<div><p class="ad-chose">${purposeIcon(purpose, "sm")}<span>${esc(PURPOSES[purpose].label)}</span></p><h1>Which folder?</h1><p class="lede">${esc(pathLede(purpose))}</p></div>
       <div class="panel"><form id="local-project-form" class="path-form" data-form="local-project" aria-busy="${o.working}" novalidate>
         <label for="local-project-path">Folder</label>
-        <div class="path-in"><input id="local-project-path" class="field" data-model="ob-path" type="text" value="${esc(o.path ?? "")}" placeholder="${esc(example)}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="4096" aria-describedby="local-project-help${err ? " onboarding-path-error" : ""}" aria-invalid="${!!err}" ${o.working ? "disabled" : ""}>${pick}</div>
+        <div class="path-in${pick ? " has-pick" : ""}"><input id="local-project-path" class="field" data-model="ob-path" type="text" value="${esc(o.path ?? "")}" placeholder="${esc(example)}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="4096" aria-describedby="local-project-help${err ? " onboarding-path-error" : ""}" aria-invalid="${!!err}" ${o.working ? "disabled" : ""}>
         ${err ? `<p id="onboarding-path-error" class="path-err" role="alert">${esc(err)}</p>` : ""}
-        <p id="local-project-help" class="small muted">${pick ? "Choose it, or type its path." : "Type its path."} <span class="mono">~</span> is your home folder.</p>
-        <div class="row-btns"><button type="submit" class="btn dark" ${o.working ? "disabled" : ""}>${o.working ? "Reading the folder…" : "Next"}</button><button type="button" class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button>${o.working ? '<span class="spin" role="status" aria-label="Reading the folder"></span>' : ""}</div>
+        <p id="local-project-help" class="path-help small muted">${pick ? "Choose it, or type its path." : "Type its path."} <span class="mono">~</span> is your home folder.</p>${pick}</div>
+        <div class="row-btns"><button type="submit" class="btn dark" ${o.working ? "disabled" : ""}>${o.working ? "Reading the folder…" : "Next: choose the check"}</button><button type="button" class="btn ghost" data-act="ob-back" ${o.working ? "disabled" : ""}>Back</button>${o.working ? '<span class="spin" role="status" aria-label="Reading the folder"></span>' : ""}</div>
       </form>
       <p class="small muted">${esc(pathSetupNote(purpose))}</p></div>`;
   } else if (o.step === 3 && o.preview) {
@@ -2222,7 +2203,7 @@ function onboarding(): string {
     body = `<div><h1>When should we save?</h1><p class="lede">Save points are cheap. More of them means a closer way back.${folder ? " Save now always works too." : ""}</p></div>
       <div class="panel">${folder ? folderWhenChoices(o.autoSave, keys("Mod+S")) : `
         <label class="opt on"><input type="checkbox" checked disabled><span><div class="t">When I press Save now</div><div class="d">Always on. ${esc(keys("Mod+S"))} in the app, or choose Save now from More actions.</div></span><span></span></label>
-        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, go back to the save point from before that prompt. ${h?.plugin ? "The Time Machine plugin is already on in Claude Code, so nothing is added here. Choosing the check in the last step approved it on this computer, so the plugin runs that check in this project." : "We add three lines to Claude Code’s settings for this project. You can also do this later from Agents."}</div>
+        <div class="opt"><span></span><span><div class="t">Before and after each Claude Code turn, and before risky commands</div><div class="d">Saves before each prompt and right before risky commands like rm -rf or git reset --hard. For mv or sed -i, bring back the save point from before that prompt. ${h?.plugin ? "The Time Machine plugin is already on in Claude Code, so nothing is added here. Choosing the check in the last step approved it on this computer, so the plugin runs that check in this project." : "We add three lines to Claude Code’s settings for this project. You can also do this later from Agents."}</div>
           ${h && !h.plugin ? hookLines(h) : ""}
           ${o.hookDone ? `<div class="note" style="margin-top:8px">${esc(o.hookDone)}</div>` : o.hookError ? `<div class="note warn" style="margin-top:8px">We couldn’t prepare the lines: ${esc(o.hookError)} You can finish now and connect later from Agents.</div>` : h && !h.plugin && !h.runs ? `<div class="note bad" style="margin-top:8px">${esc(hookNotRunning)}</div>` : ""}</span><span class="small muted">${h?.plugin ? "on" : "recommended"}</span></div>
         ${autoSaveRow(o.autoSave)}`}
@@ -2257,10 +2238,13 @@ function obCheck(o: OnboardingState): { command: string; setup: string; network:
 /** The free limit is not an error in the work: a sky card with the plan, its one button, and where a key goes. Fixed text. */
 function freeLimitCard(): string {
   const limit = st.license.status.freeProjectLimit;
+  // See pricing only once checkout is open (the site says so); until then the card offers Storage and the key field (Design A5).
+  const site = st.account.site;
+  const checkout = site !== null && site !== "error" && site.checkout;
   return `<div id="onboarding-error" class="limit-card" role="alert">${buddy("big")}<div class="limit-t">
     <h2 class="limit-big" id="limit-h" tabindex="-1">The free app lists up to ${esc(plural(limit, "project"))}.</h2>
-    <p>Remove one in Storage to add another. A license, $50 once, lifts that limit. If you already have a key, paste it on Plan. Every restore stays free.</p>
-    <div class="row-btns"><button class="btn" data-act="storage">Open Storage</button><button class="btn" data-act="license-buy">See pricing</button><button class="btn link" data-act="plan">Paste a key</button></div>
+    <p>Remove one in Storage to add another. A license, $50 once, lifts that limit. If you already have a key, paste it in Settings, Plan and license. Every restore stays free.</p>
+    <div class="row-btns"><button class="btn" data-act="storage">Open Storage</button>${checkout ? '<button class="btn" data-act="license-buy">See pricing</button>' : ""}<button class="btn link" data-act="settings-section" data-v="license">Paste a key</button></div>
   </div></div>`;
 }
 
@@ -2396,7 +2380,7 @@ function busyScrim(): string {
   if (!st.demoBusy) return "";
   return `<div class="scrim ${once("scrim:demo")}" data-leave="demo"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="demo-title" aria-describedby="demo-description" aria-busy="true">
     <h2 id="demo-title">Building the demo…</h2>
-    <div class="steplist"><div class="r"><span class="spin" aria-hidden="true"></span><span id="demo-description">Making Marigold Tips in a temporary folder, then breaking it on purpose. The real engine checks each save point to find the newest one that passes. You choose whether to go back to it.</span></div></div>
+    <div class="steplist"><div class="r"><span class="spin" aria-hidden="true"></span><span id="demo-description">Making Marigold Tips in a temporary folder, then breaking it on purpose. The real engine checks each save point to find the newest one that passes. You choose whether to bring it back.</span></div></div>
     <p class="small muted">Your projects are not touched.</p></div></div>`;
 }
 
@@ -2551,7 +2535,7 @@ function toolbar(): string {
   const newest = points().at(-1);
   const past = inProject && (st.screen === "compare" || (st.drawer && !!st.selected && st.selected !== newest?.id));
   const busy = st.busy ? "disabled" : "";
-  // A folder that is gone has nothing to save or check: its page offers "It moved…" and "Bring back a copy…" instead.
+  // A folder that is gone has nothing to save or check: its page offers "Choose where it is now…" and "Bring back a copy…" instead.
   const tools = inProject && newest && !folderMissing(p)
     ? [
         `<button data-act="save" ${busy}>Save now<kbd>${esc(keys("Mod+S"))}</kbd></button>`,
@@ -2628,8 +2612,8 @@ function paletteList(): string {
   const pal = st.palette;
   if (!pal) return "";
   const shown = filterPalette(paletteItems(), pal.q);
-  // Nothing matches: the buddy and one sentence as a status, and no listbox at all, so a listbox is never empty.
-  if (!shown.length) return `<div class="pal-none" role="status">${emptyState({ line: `Nothing matches “${pal.q}”.` })}</div>`;
+  // Nothing matches: the buddy, the sentence and what to try, as a status, and no listbox at all, so a listbox is never empty.
+  if (!shown.length) return `<div class="pal-none" role="status">${emptyState({ line: `Nothing matches “${pal.q}”.`, voice: "Try a save point’s name, a time such as 8:03, or a project." })}</div>`;
   const groups: { name: string; rows: string[] }[] = [];
   shown.forEach((it, i) => {
     if (groups.at(-1)?.name !== it.group) groups.push({ name: it.group, rows: [] });
@@ -2681,9 +2665,9 @@ function keysSheetView(): string {
   return `<div class="scrim ${once("scrim:keys")}" data-leave="keys"><div class="sheet ks" role="dialog" aria-modal="true" aria-label="Shortcuts">
     <div class="sheet-head"><h2>Shortcuts</h2><button class="btn quiet" data-act="close-keys">Close<kbd>Esc</kbd></button></div>
     <div class="ks-cols">
-      <div><h3 class="ks-h">Everywhere</h3>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Go back to a working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last rewind")}${row("Mod+J", "Show or hide Ask")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
-      <div><h3 class="ks-h">History</h3>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("Space", "Go back to it")}${row("C", "Compare with now")}${row("Esc", "Close the save point")}
-        <h3 class="ks-h">Going back</h3>${row("J L", "Turn the dial one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Go back to it, or try it first if it is not proven")}${row("Mod+Enter", "The same, wherever focus is")}${row("Esc", "Back to now, no change")}</div>
+      <div><h3 class="ks-h">Everywhere</h3>${row("Mod+K", "Jump to…")}${row("Mod+S", "Save now")}${row("Mod+Enter", "Check it works")}${row("Mod+Shift+R", "Bring back a working version")}${row("Mod+Shift+C", "Compare with now")}${row("Mod+↑", "Back to now")}${row("Mod+Z", "Undo the last bring back")}${row("Mod+J", "Show or hide Ask")}${row("Mod+N", "Add project")}${row("Mod+,", "Settings")}${row("Mod+I", "Inspector")}${row("?", "Show shortcuts")}</div>
+      <div><h3 class="ks-h">History</h3>${row("↑ ↓", "Previous or next save point")}${row("Enter", "Open the save point")}${row("Space", "Bring it back")}${row("C", "Compare with now")}${row("Esc", "Close the save point")}
+        <h3 class="ks-h">Bringing back</h3>${row("J L", "Turn the dial one save point")}${row("Shift+J Shift+L", "Next verdict change")}${row("T", "Try it first")}${row("C", "Compare with now")}${row("Enter", "Bring it back, or try it first if it is not proven")}${row("Mod+Enter", "The same, wherever focus is")}${row("Esc", "Back to now, no change")}</div>
     </div></div></div>`;
 }
 
@@ -3324,7 +3308,7 @@ async function startRewind(target?: string, search = false): Promise<void> {
   const latest = points().at(-1);
   if (!target && !search && checksOn(p) && latest?.verdict === "PASS") {
     const before = points().at(-2);
-    toast("The newest version already works.", "PASS", before ? { action: { label: "Go back anyway", run: () => void startRewind(before.id) } } : {});
+    toast("The newest version already works.", "PASS", before ? { action: { label: "Bring it back anyway", run: () => void startRewind(before.id) } } : {});
     return;
   }
   const back = st.screen === "rewind" && st.rewind ? st.rewind.returnTo : here();
@@ -3372,7 +3356,7 @@ async function findGood(): Promise<void> {
   render();
 }
 
-/** Leave the Rewind, back to where the user was. After a finished go back, History leads with Undo. */
+/** Leave the Rewind, back to where the user was. After a finished bring back, History leads with Undo. */
 function exitRewind(): void {
   const r = st.rewind;
   const finished = r?.step === "done" ? r.result : null;
@@ -3382,7 +3366,7 @@ function exitRewind(): void {
   st.screen = back.screen;
   const ids = points().map((c) => c.id);
   if (back.selected && ids.includes(back.selected)) st.selected = back.selected;
-  // After going back, the detail would offer the same Go back again. History leads with the undo bar instead.
+  // After a bring back, the detail would offer the same Bring back again. History leads with the undo bar instead.
   if (finished) st.drawer = false;
   render();
   const list = document.getElementById("list");
@@ -3552,12 +3536,12 @@ function refocusList(): void {
   if (document.activeElement === document.body) root.querySelector<HTMLElement>("#list")?.focus({ preventScroll: true });
 }
 
-/** Undo the last rewind: the engine removes its branch and copy, only if both are untouched. */
+/** Undo the last bring back: the engine removes its branch and copy, only if both are untouched. */
 async function undoRewind(): Promise<void> {
   const u = st.undo;
   if (!u || u.working || st.busy) return;
   u.working = true;
-  st.busy = "Undoing the rewind";
+  st.busy = "Undoing the bring back";
   render();
   try {
     const r = await api({ method: "undoRecover", projectId: u.projectId, id: u.result.id, branch: u.result.branch, copyDir: u.result.copyDir });
@@ -3570,7 +3554,7 @@ async function undoRewind(): Promise<void> {
     await loadTimeline();
     render();
     refocusList();
-    toast(r.removedBranch ? `Rewind undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Rewind undone. Removed the copy. Every save point is still here.`);
+    toast(r.removedBranch ? `Bring back undone. Removed the new branch${r.removedCopy ? " and the copy" : ""}. Every save point is still here.` : `Bring back undone. Removed the copy. Every save point is still here.`);
   } catch (e) {
     u.working = false;
     st.busy = null;
@@ -4018,8 +4002,11 @@ async function openPage(screen: AppPage): Promise<void> {
       st.agents = await api({ method: "agents" });
       await loadLastTurns();
     } else if (screen === "settings") {
-      st.isolation = await api({ method: "isolation" });
-      if (!st.license.working) st.license = { ...st.license, status: await api({ method: "license" }) };
+      // Plan and license says what the site has open (checkout), as Plan does.
+      const [iso, status, site] = await Promise.all([api({ method: "isolation" }), st.license.working ? null : api({ method: "license" }), bridge.call({ method: "siteStatus" })]);
+      st.isolation = iso;
+      if (status) st.license = { ...st.license, status };
+      st.account = { ...st.account, site: site.ok ? site.data : "error" };
     }
   } catch (e) {
     if (st.screen === screen) st.pageError = msg(e);
@@ -4074,7 +4061,7 @@ async function chooseFolder(): Promise<string | null> {
   return picked.data.path;
 }
 
-/** "It moved…": choose where the folder is now, and the project points there, keeping its history (writer#2). */
+/** "Choose where it is now…": the project points at the folder's new place, keeping its history (writer#2). */
 async function relinkFolder(): Promise<void> {
   const p = project();
   if (!p || st.busy) return;
@@ -4201,6 +4188,8 @@ function startAdd(path: string | null = null, purpose: Purpose | null = null): v
   // On a full free plan step 1 says so first, even when a Sources row already chose what the folder is for.
   st.onboarding = { ...emptyOnboarding(), path, purpose, step: purpose && !addFull() ? 2 : 1 };
   st.screen = "onboarding";
+  // The free-limit card offers See pricing only once checkout is open; read what the site has open, if nothing has yet.
+  if (st.account.site === null) void bridge.call({ method: "siteStatus" }).then((r) => { st.account = { ...st.account, site: r.ok ? r.data : "error" }; });
   render();
   if (st.onboarding.step === 2) root.querySelector<HTMLInputElement>('[data-model="ob-path"]')?.focus();
   else if (addFull()) root.querySelector<HTMLElement>("#ad-full .btn")?.focus();
@@ -4285,12 +4274,21 @@ async function onClick(el: HTMLElement): Promise<void> {
     case "storage":
     case "settings":
       return openPage(d.act);
-    case "settings-section":
+    case "settings-section": {
       settingsSection = d.v ?? "appearance";
-      if (st.screen !== "settings") return openPage("settings");
-      render();
-      document.querySelector(".page")?.scrollTo(0, 0);
+      if (st.screen === "settings") {
+        render();
+        document.querySelector(".page")?.scrollTo(0, 0);
+        return;
+      }
+      // Arriving from elsewhere (Paste a key): that section in view, at its key field or its heading. On a phone the
+      // sections stack, so without this Settings would open on Appearance (Design A15).
+      await openPage("settings");
+      const sec = root.querySelector<HTMLElement>(`[data-sec="${CSS.escape(settingsSection)}"]`);
+      sec?.scrollIntoView({ block: "start" });
+      (sec?.querySelector<HTMLElement>("#license-key:not([disabled])") ?? sec?.querySelector<HTMLElement>(".set-h"))?.focus({ preventScroll: true });
       return;
+    }
     case "now":
       return backToNow();
     case "find":
@@ -4325,8 +4323,8 @@ async function onClick(el: HTMLElement): Promise<void> {
       if (!c || st.busy) return;
       const why = c.verdict === "FAIL" ? "Its check failed, so it may not work." : c.verdict ? "Its check did not pass, so it may not work." : "It is not checked, so we don’t know if it works.";
       st.confirm = {
-        act: "tv-use", id: c.id, action: "Go back anyway",
-        title: `Go back to ${pointName(c.id)} without a check that passed?`,
+        act: "tv-use", id: c.id, action: "Bring it back anyway",
+        title: `Bring back ${pointName(c.id)} without a check that passed?`,
         body: anywayBody(why, project()?.kind === "folder"),
       };
       return render();

@@ -66,7 +66,7 @@ function built(input: SourcesInput): string {
   const on = (text: string): string => `<span class="b9-pill so-on">${esc(text)}</span>`;
   const c = input.claude;
   return [
-    row(icon("git"), "Git projects", "Your code at each save point, including work you have not committed yet. Going back makes a new branch and a copy.", on(git ? `${plural(git, "project")}` : "Ready")),
+    row(icon("git"), "Git projects", "Your code at each save point, including work you have not committed yet. Bringing a version back makes a new branch and a copy.", on(git ? `${plural(git, "project")}` : "Ready")),
     row(icon("folder"), "Folders", "Any folder of your own, no Git needed. Its history lives in the Time Machine store, so nothing is written in the folder.", on(folders ? `${plural(folders, "folder")}` : "Ready")),
     row(input.agentMark("Claude Code"), "Claude Code", esc(c ? c.line : "Reading connection…"), `<button class="btn quiet" data-act="agents">Open Agents</button>`),
     row(icon("deploy"), "Vercel deploys", esc(`${vercel ? `Linked in ${plural(vercel, "project")}. ` : ""}Read only: shows which deploy matches a save point. It never deploys, promotes or rolls back anything.`), `<button class="btn quiet" data-act="settings">${vercel ? "Manage" : "Link a project"}</button>`),
