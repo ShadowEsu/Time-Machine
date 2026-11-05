@@ -18,6 +18,8 @@
   --focus: #2f7fd8;
   /* A Broken word on the selected (sky) row or sidebar item (S7): 5.11 : 1 here, 5.36 : 1 in dark. */
   --broken-on-sky: #b3261e;
+  /* "Last version that works" on the selected (sky) row: 5.9 : 1 on #cee6fe (--works is 3.56 : 1 there, measured on the PNG). */
+  --works-on-sky: #17603a;
   /* Input borders (S7): 3.58 : 1 on the white canvas, where --line is 1.32 : 1. */
   --field: #8b877f;
   /* An ink chip (the ruler's Now): ink with paper text in both themes. */
@@ -63,7 +65,7 @@
   --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
   --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
   --line: #45423c; --line-2: #57534c; --hair: #36332f;
-  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --broken-on-sky: #ffb4a8; --field: #8f8a80;
+  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --broken-on-sky: #ffb4a8; --works-on-sky: #6fd39a; --field: #8f8a80;
   --works: #6fd39a; --works-bg: #1e3a2a; --broken: #ff9a8b; --broken-bg: #43221d; --unk: #b3aea4; --unk-bg: #33312d;
   --amber: #f5c96a; --amber-bg: #3a2d10; --amber-dot: #e0a630;
   --hard: 3px 3px 0 #000; --hard-sm: 2px 2px 0 #000; --hard-lg: 6px 6px 0 #000;
@@ -75,7 +77,7 @@
   --paper: #1b1a18; --paper-2: #24221f; --surface: #252421; --sunken: #2c2a27;
   --ink: #f4f2ed; --ink-2: #dedad2; --ink-3: #b3aea4; --faint: #a39e94; --ink-4: #8f8a80; --ink-5: #4a4741;
   --line: #45423c; --line-2: #57534c; --hair: #36332f;
-  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --broken-on-sky: #ffb4a8; --field: #8f8a80;
+  --sky: #2a4a6e; --sky-ink: #cfe6ff; --sky-line: #3f6a99; --focus: #7db8f5; --broken-on-sky: #ffb4a8; --works-on-sky: #6fd39a; --field: #8f8a80;
   --works: #6fd39a; --works-bg: #1e3a2a; --broken: #ff9a8b; --broken-bg: #43221d; --unk: #b3aea4; --unk-bg: #33312d;
   --amber: #f5c96a; --amber-bg: #3a2d10; --amber-dot: #e0a630;
   --hard: 3px 3px 0 #000; --hard-sm: 2px 2px 0 #000; --hard-lg: 6px 6px 0 #000;
@@ -441,6 +443,7 @@ html.splash-font .splash-word { display: none; }
 .lp-row.on, .lp-row.lp-fold.on { background: var(--sky); --row-accent: var(--sky-ink); }
 .lp-row.on .lp-tt, .lp-row.on .lp-when { color: var(--sky-ink); }
 .lp-row.on .lp-tag.br { color: var(--broken-on-sky); }
+.lp-row.on .lp-tag.lw { color: var(--works-on-sky); }
 .lp-row.lit { box-shadow: inset 0 0 0 2px var(--ink-4); }
 .lp-row.checking { background: var(--sunken); }
 .lp-t { grid-area: t; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
