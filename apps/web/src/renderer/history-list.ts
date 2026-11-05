@@ -257,3 +257,11 @@ export function openAfterReload(list: readonly Recovery[], kept: ReadonlySet<str
   const r = list.at(-1);
   return r?.undoable && r.copyDir && !kept.has(keptKey(projectId, r)) ? r : null;
 }
+
+/**
+ * A working copy from a bring back is ready (the sidebar's and Overview's "copy ready"): the banner's Undo is open for this
+ * project, or, after a reload, the recovery it would open with (openAfterReload) is on disk. Keep it or Undo ends it.
+ */
+export function copyReady(projectId: string, undo: { projectId: string } | null, list: readonly Recovery[], kept: ReadonlySet<string>): boolean {
+  return undo?.projectId === projectId || openAfterReload(list, kept, projectId) !== null;
+}

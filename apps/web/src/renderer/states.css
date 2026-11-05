@@ -376,22 +376,34 @@ section > .b9-lede { margin: -2px 0 16px; }
 .ov-big-sk { display: grid; gap: 10px; padding: 4px 0; }
 .ov-big-sk .sk { height: 26px; width: min(460px, 92%); border-radius: 9px; }
 .ov-big-sk .sk + .sk { width: min(280px, 60%); }
-/* One card per project in a plain grid: two columns from 960 px, one below. Every card the same quiet sheet, the full
-   width of its cell. (".ov-card" belongs to the older overlay in styles.css, so the card here is ".ov-proj".) */
-.ov-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-@media (min-width: 960px) { .ov-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.ov-proj { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 10px 14px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
-.ov-open { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; align-items: center; width: calc(100% + 12px); min-height: 52px; margin: 0 -6px; padding: 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--t-hover) var(--ease); }
+/* One row per project, in one column, hairlines between (no card inside the page's card, Calm): the name with its verdict in
+   words and shape, the mini-ruler, the line in words and, when it broke, Bring back as the row's one primary.
+   (".ov-card" belongs to the older overlay in styles.css, so the row here is ".ov-proj".) */
+.ov-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+.ov-proj { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px 0 20px; border-top: 1px solid var(--line); }
+.ov-open { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; width: calc(100% + 12px); min-height: 52px; margin: 0 -6px; padding: 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--t-hover) var(--ease); }
 .ov-open:hover { background: var(--sel); }
 .ov-open:active { background: var(--press); }
 .ov-open > .pico { grid-row: span 2; align-self: start; }
-.ov-name { display: grid; gap: 2px; min-width: 0; }
+.ov-name { display: grid; gap: 2px; min-width: 0; grid-row: span 2; }
 .ov-name b { font: 600 16px/1.3 var(--font); letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-name small { font-size: 13.5px; line-height: 1.4; color: var(--ink-3); }
-.ov-status { grid-column: 2; justify-self: start; max-width: 100%; }
-.ov-dig { display: flex; align-items: center; gap: 8px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.ov-status { grid-column: 3; grid-row: 1 / span 2; justify-self: end; max-width: 100%; }
+/* "· copy ready" beside the chip after a bring back, as the sidebar says it; one piece, never wrapped inside. */
+.ov-ready { font-size: 13.5px; font-weight: 500; line-height: 26px; color: var(--ink-2); white-space: pre; }
+/* The glyph sits on the sentence's first line, however many lines it takes. */
+.ov-dig { display: flex; align-items: flex-start; gap: 8px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .ov-dig.broke { color: var(--ink); font-weight: 500; }
-.ov-dig .g { flex: none; }
+.ov-dig .g { flex: none; margin-top: calc(.75em - 4px); }
+.ov-go { display: flex; }
+.ov-go .btn { max-width: 100%; white-space: normal; height: auto; min-height: 44px; padding-block: 8px; text-align: left; }
+@media (max-width: 600px) {
+  /* On a phone the verdict goes under the name, and the row runs the column's full width inside its 20 px gutters. */
+  .ov-open { grid-template-columns: auto minmax(0, 1fr); }
+  .ov-name { grid-row: auto; }
+  .ov-status { grid-column: 2; grid-row: auto; justify-self: start; }
+  .ov-go .btn { width: 100%; justify-content: center; text-align: center; }
+}
 /* A card while its history reads: the strip, the sentence and the facts as quiet bars at their own sizes. */
 .ov-wait { display: grid; gap: 10px; }
 .ov-wait .sk { height: 14px; }
